@@ -4,7 +4,7 @@ from src.data.paypay_collector import parse_rows
 
 
 def test_paypay_parser_keeps_only_tradeable_rows():
-    html=b"""
+    html="""
     <h2>日本株 個別銘柄</h2>
     <table>
       <tr><td>7203</td><td>トヨタ</td><td>trade_on,mini_on,cfd_on</td></tr>
@@ -14,7 +14,7 @@ def test_paypay_parser_keeps_only_tradeable_rows():
       <tr><td>1306</td><td>TOPIX ETF</td><td>trade_off,cfd_off</td></tr>
       <tr><td>1475</td><td>iShares ETF</td><td>mini_on,cfd_off</td></tr>
     </table>
-    """
+    """.encode("utf-8")
     rows=parse_rows(
         html,
         "japan",
@@ -27,7 +27,7 @@ def test_paypay_parser_keeps_only_tradeable_rows():
 
 
 def test_paypay_parser_detects_us_ticker_and_section():
-    html=b"""
+    html="""
     <h2>米国株（アルファベット順）</h2>
     <table>
       <tr><td>BRK.B</td><td>Berkshire Hathaway</td><td>trade_on,mini_on</td></tr>
@@ -36,7 +36,7 @@ def test_paypay_parser_detects_us_ticker_and_section():
     <table>
       <tr><td>SPY</td><td>SPDR S&amp;P 500 ETF</td><td>trade_on</td></tr>
     </table>
-    """
+    """.encode("utf-8")
     rows=parse_rows(
         html,
         "us",
