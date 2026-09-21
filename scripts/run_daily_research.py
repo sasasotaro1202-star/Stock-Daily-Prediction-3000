@@ -31,7 +31,6 @@ from src.research.router import (
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.leakage import audit_feature_columns, audit_target_separation
-from src.validation.training_sample import cap_training_rows
 from src.validation.walk_forward import make_date_folds
 
 PRICE_DIR = Path("data/prices")
