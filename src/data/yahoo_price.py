@@ -30,14 +30,16 @@ def download_batch(records:list[dict],period:str="5y")->pd.DataFrame:
             rec=mapping[ysym]; part["symbol"]=rec["symbol"]; part["asset_class"]=rec["asset_class"]
             part["session_date"]=pd.to_datetime(part["date"]).dt.date
             part["available_at"]=part["session_date"].map(lambda d:available_at_for(d,rec["asset_class"]))
-            frames.append(part[["symbol","asset_class","session_date","available_at","open","high","low","close","volume"]])
+            part["source"]="yfinance"; part["provider_symbol"]=ysym
+            frames.append(part[["symbol","asset_class","session_date","available_at","source","provider_symbol","open","high","low","close","volume"]])
     else:
         part=raw.reset_index().rename(columns=str.lower)
         if not part.empty and "date" in part:
             rec=records[0]; part["symbol"]=rec["symbol"]; part["asset_class"]=rec["asset_class"]
             part["session_date"]=pd.to_datetime(part["date"]).dt.date
             part["available_at"]=part["session_date"].map(lambda d:available_at_for(d,rec["asset_class"]))
-            frames.append(part[["symbol","asset_class","session_date","available_at","open","high","low","close","volume"]])
+            part["source"]="yfinance"; part["provider_symbol"]=ysym
+            frames.append(part[["symbol","asset_class","session_date","available_at","source","provider_symbol","open","high","low","close","volume"]])
     if not frames:return pd.DataFrame()
     out=pd.concat(frames,ignore_index=True)
     for c in ["open","high","low","close","volume"]:out[c]=pd.to_numeric(out[c],errors="coerce")
