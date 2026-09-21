@@ -81,7 +81,7 @@ jobs:
       - run: pip install -e .
       - uses: actions/download-artifact@v4
         with:
-          pattern: price-shard-*-${{ github.run_id }}
+          pattern: price-state-shard-*
           path: data/prices
           merge-multiple: true
       - name: Universe quality gate
