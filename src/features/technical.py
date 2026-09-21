@@ -34,9 +34,10 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     required={"open","high","low","close","volume",group_col,"session_date"}
     missing=required-set(out.columns)
     if missing: raise ValueError(f"missing columns: {sorted(missing)}")
-    out=out.sort_values([group_col,"session_date"]).reset_index(drop=True)
-    g=out.groupby(group_col,sort=False)
-    close=g["close"]; volume=g["volume"]; prev=out.groupby(group_col)["close"].shift(1)
+    series_keys=["asset_class",group_col] if "asset_class" in out.columns else [group_col]
+    out=out.sort_values(series_keys+["session_date"]).reset_index(drop=True)
+    g=out.groupby(series_keys,sort=False)
+    close=g["close"]; volume=g["volume"]; prev=out.groupby(series_keys)["close"].shift(1)
     out["ret_1d"]=close.pct_change()
     out["ret_5d"]=close.pct_change(5)
     out["ret_20d"]=close.pct_change(20)
@@ -51,7 +52,7 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     ema12=close.transform(lambda s:s.ewm(span=12,adjust=False,min_periods=12).mean())
     ema26=close.transform(lambda s:s.ewm(span=26,adjust=False,min_periods=26).mean())
     macd=ema12-ema26
-    macd_signal=macd.groupby(out[group_col]).transform(lambda s:s.ewm(span=9,adjust=False,min_periods=9).mean())
+    macd_signal=macd.groupby([out[k] for k in series_keys]).transform(lambda s:s.ewm(span=9,adjust=False,min_periods=9).mean())
     out["macd_pct"]=macd/out["close"].replace(0,np.nan)
     out["macd_signal_pct"]=macd_signal/out["close"].replace(0,np.nan)
     out["macd_hist_pct"]=(macd-macd_signal)/out["close"].replace(0,np.nan)
@@ -69,7 +70,7 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     tr=pd.concat([(out["high"]-out["low"]),(out["high"]-prev).abs(),(out["low"]-prev).abs()],axis=1).max(axis=1)
     atr=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).mean())
     out["atr_pct"]=atr/out["close"].replace(0,np.nan)
-    up=out["high"]-out.groupby(group_col)["high"].shift(1)
+    up=out["high"]-out.groupby(series_keys)["high"].shift(1)
     down=out.groupby(group_col)["low"].shift(1)-out["low"]
     plus_dm=pd.Series(np.where((up>down)&(up>0),up,0.0),index=out.index)
     minus_dm=pd.Series(np.where((down>up)&(down>0),down,0.0),index=out.index)
