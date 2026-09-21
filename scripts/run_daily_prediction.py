@@ -14,7 +14,7 @@ from sklearn.pipeline import make_pipeline
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
-from src.prediction.regression import make_return_model
+from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import Regime, regime_for_row, route_plan
@@ -289,35 +289,70 @@ def main():
     latest["route_reason"] = selected_reasons
     latest["model_disagreement"] = global_disagreement
 
-    # Return models are product-family specific when sufficient data exists;
-    # otherwise fall back to the global return model.
-    global_ret = make_return_model()
-    global_ret.fit(labeled[FEATURE_COLUMNS], labeled["target_ret_1d"])
+    # Quantile return models provide a data-driven asymmetric interval.
+    global_qmodels = {
+        q10: make_quantile_model(0.10),
+        q50: make_quantile_model(0.50),
+        q90: make_quantile_model(0.90),
+    }
+    for model in global_qmodels.values():
+        model.fit(labeled[FEATURE_COLUMNS], labeled["target_ret_1d"])
+
     latest_returns = []
     return_scope = []
+    latest_lows = []
+    latest_highs = []
+
     for asset, group in latest[ready_mask].groupby("asset_class", sort=False):
         subset = labeled[labeled["asset_class"].eq(asset)]
-        model = global_ret
+        qmodels = global_qmodels
         scope = "global"
         if len(subset) >= 750:
-            scoped = make_return_model()
-            scoped.fit(subset[FEATURE_COLUMNS], subset["target_ret_1d"])
-            model = scoped
+            qmodels = {
+                "q10": make_quantile_model(0.10),
+                "q50": make_quantile_model(0.50),
+                "q90": make_quantile_model(0.90),
+            }
+            for model in qmodels.values():
+                model.fit(subset[FEATURE_COLUMNS], subset["target_ret_1d"])
             scope = f"asset:{asset}"
-        pred = model.predict(group[FEATURE_COLUMNS])
-        latest_returns.extend(zip(group.index, pred))
+
+        lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
+        mid = qmodels["q50"].predict(group[FEATURE_COLUMNS])
+        hi = qmodels["q90"].predict(group[FEATURE_COLUMNS])
+        lo = np.minimum(lo, mid)
+        hi = np.maximum(hi, mid)
+
+        latest_returns.extend(zip(group.index, mid))
+        latest_lows.extend(zip(group.index, lo))
+        latest_highs.extend(zip(group.index, hi))
         return_scope.extend(zip(group.index, [scope] * len(group)))
 
     ret_by_index = {idx: value for idx, value in latest_returns}
+    low_by_index = {idx: value for idx, value in latest_lows}
+    high_by_index = {idx: value for idx, value in latest_highs}
     scope_by_index = {idx: value for idx, value in return_scope}
+
     latest["expected_return_1d"] = [
         float(ret_by_index.get(idx, np.nan)) for idx in latest.index
+    ]
+    latest["return_q10_1d"] = [
+        float(low_by_index.get(idx, np.nan)) for idx in latest.index
+    ]
+    latest["return_q90_1d"] = [
+        float(high_by_index.get(idx, np.nan)) for idx in latest.index
     ]
     latest["return_training_scope"] = [
         scope_by_index.get(idx, "") for idx in latest.index
     ]
 
-    vol = latest["volatility_20"].clip(lower=0.0)
+    latest["return_q10_1d"] = latest["return_q10_1d"].clip(
+        lower=-0.99
+    )
+    latest["return_q90_1d"] = latest["return_q90_1d"].clip(
+        lower=latest["expected_return_1d"]
+    )
+
     latest["expected_close_1d"] = np.where(
         ready_mask,
         latest["close"] * (1 + latest["expected_return_1d"]),
@@ -325,12 +360,12 @@ def main():
     )
     latest["range_low_1d"] = np.where(
         ready_mask,
-        latest["close"] * np.exp(-1.96 * vol),
+        latest["close"] * (1 + latest["return_q10_1d"]),
         np.nan,
     )
     latest["range_high_1d"] = np.where(
         ready_mask,
-        latest["close"] * np.exp(1.96 * vol),
+        latest["close"] * (1 + latest["return_q90_1d"]),
         np.nan,
     )
     latest["prediction_time"] = prediction_time
