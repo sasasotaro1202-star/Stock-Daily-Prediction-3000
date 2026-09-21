@@ -24,6 +24,7 @@ def main():
     universe=json.loads(universe_path.read_text()) if universe_path.exists() else {}
     context=json.loads(context_path.read_text()) if context_path.exists() else {}
     frozen=json.loads(frozen_path.read_text()) if frozen_path.exists() else {}
+    manifest=json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
     if metrics.get("status")!="OOS_COMPLETE":
         reasons.append("direction_oos_not_complete")
     return_oos=metrics.get("return_oos",{})
@@ -45,11 +46,13 @@ def main():
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
     if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED":
         reasons.append("manifest_invalid")
-    if (
-        manifest.get("code_fingerprint_sha256")
-        and frozen.get("code_fingerprint_sha256")
-        and manifest["code_fingerprint_sha256"] != frozen["code_fingerprint_sha256"]
-    ):
+    manifest_fp=manifest.get("code_fingerprint_sha256")
+    frozen_fp=frozen.get("code_fingerprint_sha256")
+    if not manifest_fp:
+        reasons.append("manifest_code_fingerprint_missing")
+    if not frozen_fp:
+        reasons.append("frozen_code_fingerprint_missing")
+    if manifest_fp and frozen_fp and manifest_fp != frozen_fp:
         reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
     holdout_return=frozen.get("return_holdout_metrics",{})
