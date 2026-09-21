@@ -36,6 +36,11 @@ def main():
     AUDIT.parent.mkdir(parents=True,exist_ok=True); AUDIT.write_text(json.dumps(audit,indent=2),encoding="utf-8")
     if not audit["ok"]: raise SystemExit(f"FAIL: leakage audit {audit['violations']}")
     df=df.dropna(subset=FEATURE_COLUMNS+["target_up_1d"]).copy()
+    frozen_path=Path("config/frozen_holdout.json")
+    if frozen_path.exists():
+        frozen=json.loads(frozen_path.read_text(encoding="utf-8"))
+        cutoff=pd.Timestamp(frozen["cutoff_date"]).date()
+        df=df[pd.to_datetime(df["session_date"]).dt.date<=cutoff].copy()
     dates=sorted(pd.to_datetime(df["session_date"]).dt.date.unique())
     folds=make_date_folds(dates,min_train=252,test_size=21,step=21,embargo=1)
     if len(folds)<3: raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
