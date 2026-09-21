@@ -15,8 +15,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with: {python-version: "3.12", cache: pip}
+        with:
+          python-version: "3.12"
+          cache: pip
       - run: pip install -e .
       - run: pytest -q
       - run: python scripts/research_smoke.py
-      - run: echo "Daily stage validated; real production prediction is blocked until data/OOS gates pass."
+      - name: Verify PayPay universe policy
+        run: python - <<'PY'
+          from src.data.paypay_universe import PAYPAY_UNIVERSE_RULE
+          assert PAYPAY_UNIVERSE_RULE.official_only
+          assert PAYPAY_UNIVERSE_RULE.current_tradeable_only
+          assert PAYPAY_UNIVERSE_RULE.preserve_history
+          print("paypay-universe-policy: PASS")
+          PY
+      - run: echo "Daily stage validated; production prediction remains blocked until real data, OOS, PIT and release gates pass."
