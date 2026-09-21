@@ -29,6 +29,8 @@ release:
   frozen_holdout_required: true
   independent_leakage_audit_required: true
   reproducibility_manifest_required: true
+  require_beating_baseline: true
+  max_holdout_ece: 0.20
 automation:
   price_batch_size: 75
   price_shards: 4
