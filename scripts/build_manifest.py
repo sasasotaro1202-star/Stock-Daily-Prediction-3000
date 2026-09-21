@@ -3,6 +3,8 @@ import hashlib, json, os
 from pathlib import Path
 from datetime import datetime, timezone
 
+from src.validation.code_fingerprint import fingerprint_sha256
+
 def sha256_file(path: Path) -> str:
     h=hashlib.sha256()
     with path.open("rb") as f:
@@ -28,6 +30,7 @@ def main():
     payload={
         "created_at":datetime.now(timezone.utc).isoformat(),
         "git_sha":os.getenv("GITHUB_SHA"),
+        "code_fingerprint_sha256":fingerprint_sha256(),
         "universe_sha256":sha256_file(universe) if universe.exists() else None,
         "evidence_sha256":evidence,
         "files":rows,
