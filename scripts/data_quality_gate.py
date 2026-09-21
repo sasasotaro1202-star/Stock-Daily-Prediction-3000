@@ -10,7 +10,7 @@ import pandas as pd
 REQUIRED={
     "symbol","asset_class","session_date","available_at",
     "source","provider_symbol",
-    "open","high","low","close","adj_close","volume",
+    "open","high","low","close","volume",
 }
 UNIVERSE=Path("data/universe/latest.json")
 
@@ -46,8 +46,8 @@ def main():
     if df.empty:
         reasons.append("empty_dataset")
     else:
-        dup=int(df.duplicated(["symbol","session_date"]).sum())
-        numeric_cols=["open","high","low","close","adj_close","volume"]
+        dup=int(df.duplicated(["asset_class","symbol","session_date"]).sum())
+        numeric_cols=["open","high","low","close","volume"]
         missing_source=int(
             df[["source","provider_symbol"]].isna().any(axis=1).sum()
         )
@@ -60,7 +60,7 @@ def main():
                 | (df["high"]<df["close"])
                 | (df["low"]>df["open"])
                 | (df["low"]>df["close"])
-                | (df[["open","high","low","close","adj_close"]]<=0).any(axis=1)
+                | (df[["open","high","low","close"]]<=0).any(axis=1)
             ).sum()
         )
         neg_vol=int((df["volume"]<0).sum())
