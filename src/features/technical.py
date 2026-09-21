@@ -64,36 +64,36 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     low14=g["low"].transform(lambda s:s.rolling(14,min_periods=14).min())
     high14=g["high"].transform(lambda s:s.rolling(14,min_periods=14).max())
     out["stoch_k"]=100*(out["close"]-low14)/(high14-low14).replace(0,np.nan)
-    out["stoch_d"]=out["stoch_k"].groupby(out[group_col]).transform(lambda s:s.rolling(3,min_periods=3).mean())
+    out["stoch_d"]=out["stoch_k"].groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(3,min_periods=3).mean())
     bb_std=close.transform(lambda s:s.rolling(20,min_periods=20).std())
     out["bb_width"]=4*bb_std/sma20.replace(0,np.nan)
     tr=pd.concat([(out["high"]-out["low"]),(out["high"]-prev).abs(),(out["low"]-prev).abs()],axis=1).max(axis=1)
-    atr=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).mean())
+    atr=tr.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).mean())
     out["atr_pct"]=atr/out["close"].replace(0,np.nan)
     up=out["high"]-out.groupby(series_keys)["high"].shift(1)
-    down=out.groupby(group_col)["low"].shift(1)-out["low"]
+    down=out.groupby(series_keys)["low"].shift(1)-out["low"]
     plus_dm=pd.Series(np.where((up>down)&(up>0),up,0.0),index=out.index)
     minus_dm=pd.Series(np.where((down>up)&(down>0),down,0.0),index=out.index)
-    tr14=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
-    plus14=plus_dm.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
-    minus14=minus_dm.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
+    tr14=tr.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).sum())
+    plus14=plus_dm.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).sum())
+    minus14=minus_dm.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).sum())
     plus_di=100*plus14/tr14.replace(0,np.nan); minus_di=100*minus14/tr14.replace(0,np.nan)
     dx=100*(plus_di-minus_di).abs()/(plus_di+minus_di).replace(0,np.nan)
-    out["adx_14"]=dx.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).mean())
+    out["adx_14"]=dx.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).mean())
     direction=np.sign(delta.fillna(0))
-    obv=(direction*out["volume"]).groupby(out[group_col]).cumsum()
-    out["obv_z20"]=obv.groupby(out[group_col]).transform(lambda s:_rolling_z(s,20))
+    obv=(direction*out["volume"]).groupby([out[k] for k in series_keys]).cumsum()
+    out["obv_z20"]=obv.groupby([out[k] for k in series_keys]).transform(lambda s:_rolling_z(s,20))
     tp=(out["high"]+out["low"]+out["close"])/3
-    raw_flow=tp*out["volume"]; tp_prev=tp.groupby(out[group_col]).shift(1)
+    raw_flow=tp*out["volume"]; tp_prev=tp.groupby([out[k] for k in series_keys]).shift(1)
     pos=raw_flow.where(tp>tp_prev,0.0); neg=raw_flow.where(tp<tp_prev,0.0).abs()
-    pos14=pos.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
-    neg14=neg.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
+    pos14=pos.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).sum())
+    neg14=neg.groupby([out[k] for k in series_keys]).transform(lambda s:s.rolling(14,min_periods=14).sum())
     money_ratio=pos14/neg14.replace(0,np.nan)
     out["mfi_14"]=100-(100/(1+money_ratio))
-    out["volatility_20"]=out["ret_1d"].groupby(out[group_col]).transform(
+    out["volatility_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
         lambda s:s.rolling(20,min_periods=20).std()
     )
-    out["volatility_5"]=out["ret_1d"].groupby(out[group_col]).transform(
+    out["volatility_5"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
         lambda s:s.rolling(5,min_periods=5).std()
     )
     out["volatility_ratio_5_20"]=(
@@ -106,21 +106,21 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
         lambda s:_rolling_z(s.astype(float),20)
     )
     dollar_volume=(out["close"].abs()*out["volume"].abs()).astype(float)
-    dollar_median=dollar_volume.groupby(out[group_col]).transform(
+    dollar_median=dollar_volume.groupby([out[k] for k in series_keys]).transform(
         lambda s:s.rolling(20,min_periods=20).median()
     )
     out["dollar_volume_ratio_20"]=(
         dollar_volume/dollar_median.replace(0,np.nan)
     )
     amihud_raw=out["ret_1d"].abs()/dollar_volume.replace(0,np.nan)
-    out["amihud_20"]=amihud_raw.groupby(out[group_col]).transform(
+    out["amihud_20"]=amihud_raw.groupby([out[k] for k in series_keys]).transform(
         lambda s:s.rolling(20,min_periods=20).median()
     )
-    out["return_z20"]=out["ret_1d"].groupby(out[group_col]).transform(
+    out["return_z20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
         lambda s:_rolling_z(s.astype(float),20)
     )
     out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
-    out["range_z20"]=out["range_pct"].groupby(out[group_col]).transform(
+    out["range_z20"]=out["range_pct"].groupby([out[k] for k in series_keys]).transform(
         lambda s:_rolling_z(s.astype(float),20)
     )
     out["gap_pct"]=(out["open"]/prev)-1.0
