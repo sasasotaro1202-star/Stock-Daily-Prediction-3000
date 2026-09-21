@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import yaml
 from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -372,11 +373,17 @@ def main():
         name: dict(value["metrics"], folds=float(value["folds"]))
         for name, value in usable.items()
     }
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
+    balance_weight = float(model_cfg.get("asset_class_balance_weight", 0.50))
+    min_asset_folds = int(model_cfg.get("minimum_asset_class_oos_folds", 3))
     balanced_candidates = rebalance_global_oos_candidates(
         global_candidates,
         asset_class_metrics,
-        blend_weight=0.50,
-        min_folds=3,
+        blend_weight=balance_weight,
+        min_folds=min_asset_folds,
     )
     global_plan = choose_from_oos("normal", balanced_candidates)
     global_selected = global_plan.names[0]
@@ -394,7 +401,7 @@ def main():
         "global_selection_candidates": balanced_candidates,
         "selection_basis": (
             "chronological walk-forward OOS only; global selection blends "
-            "row-weighted LogLoss with 50% macro-averaged asset-class LogLoss "
+            "row-weighted LogLoss with a configurable macro asset-class blend "
             "to reduce universe-size dominance, then applies the 0.25 stability "
             "penalty; route hierarchy is asset_class+regime -> asset_class -> "
             "regime -> global; calibration is fit inside each OOS training fold; "
