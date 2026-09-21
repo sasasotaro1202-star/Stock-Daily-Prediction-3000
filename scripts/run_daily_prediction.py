@@ -217,6 +217,7 @@ def main():
     selected_reasons: list[str] = []
     p_values: list[float] = []
     global_disagreement: list[float] = []
+    regimes: list[str] = []
 
     ready_mask = latest[FEATURE_COLUMNS].notna().all(axis=1)
     latest["prediction_status"] = np.where(
@@ -231,6 +232,7 @@ def main():
             selected_names.append("")
             selected_scopes.append("")
             selected_reasons.append("deferred:incomplete_features")
+            regimes.append("data_stressed")
             global_disagreement.append(float("nan"))
             continue
 
@@ -241,6 +243,8 @@ def main():
             threshold,
             float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
             float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
         ).value
         plan = route_plan(
             asset,
@@ -265,6 +269,7 @@ def main():
         selected_names.append(model_name)
         selected_scopes.append(actual_scope)
         selected_reasons.append(plan.reason)
+        regimes.append(regime)
 
         g_probs = []
         one = pd.DataFrame([row])[FEATURE_COLUMNS]
@@ -277,6 +282,7 @@ def main():
     latest["model_id"] = selected_names
     latest["training_scope"] = selected_scopes
     latest["route_reason"] = selected_reasons
+    latest["regime"] = regimes
     latest["model_disagreement"] = global_disagreement
 
     # Quantile return models provide a data-driven asymmetric interval.
@@ -384,6 +390,7 @@ def main():
         "training_scope",
         "return_training_scope",
         "route_reason",
+        "regime",
         "model_disagreement",
         "prediction_status",
     ]
