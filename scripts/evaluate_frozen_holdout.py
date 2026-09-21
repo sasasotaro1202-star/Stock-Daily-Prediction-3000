@@ -12,6 +12,7 @@ from sklearn.pipeline import make_pipeline
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
+from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
 from src.validation.calibration import PlattCalibrator
@@ -108,6 +109,24 @@ def main():
     model_metrics = classification_metrics(
         test.target_up_1d.astype(int), p
     )
+
+    q10=make_quantile_model(0.10)
+    q50=make_quantile_model(0.50)
+    q90=make_quantile_model(0.90)
+    for qm in (q10,q50,q90):
+        qm.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+    y_ret=test["target_ret_1d"].to_numpy(dtype=float)
+    lo=q10.predict(test[FEATURE_COLUMNS])
+    mid=q50.predict(test[FEATURE_COLUMNS])
+    hi=q90.predict(test[FEATURE_COLUMNS])
+    lo=np.minimum(lo,mid)
+    hi=np.maximum(hi,mid)
+    return_holdout_metrics={
+        "mae":float(__import__("sklearn.metrics",fromlist=["mean_absolute_error"]).mean_absolute_error(y_ret,mid)),
+        "rmse":float(__import__("sklearn.metrics",fromlist=["mean_squared_error"]).mean_squared_error(y_ret,mid)**0.5),
+        "range_80_coverage":float(np.mean((y_ret>=lo)&(y_ret<=hi))),
+    }
+
     base = float(core.target_up_1d.mean())
     baseline_metrics = classification_metrics(
         test.target_up_1d.astype(int),
