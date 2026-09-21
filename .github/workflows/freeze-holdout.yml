@@ -14,7 +14,7 @@ permissions:
 jobs:
   freeze:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -24,13 +24,13 @@ jobs:
       - run: pip install -e .
       - run: python scripts/freeze_holdout.py --cutoff-date "${{ inputs.cutoff_date }}"
       - run: python scripts/run_daily_research.py
+      - run: python scripts/lock_frozen_model.py
       - run: python scripts/evaluate_frozen_holdout.py
-      - name: Build manifest
-        run: python scripts/build_manifest.py
-      - name: Commit frozen configuration and result
+      - run: python scripts/build_manifest.py
+      - name: Commit immutable freeze and evidence
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add config/frozen_holdout.json data/research/
-          git commit -m "Freeze and evaluate research holdout"
+          git commit -m "Freeze cutoff and evaluate holdout"
           git push
