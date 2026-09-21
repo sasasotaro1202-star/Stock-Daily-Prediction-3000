@@ -1,6 +1,26 @@
 universe:
-  target_count: 3000
-  market: japan
+  provider: paypay_securities_official
+  target_count: dynamic
+  scope: all_daily_marketable_paypay_listings
+  markets:
+    - japan_individual_stocks
+    - japan_etf
+    - japan_reit
+    - us_individual_stocks
+    - us_etf
+  exclude:
+    - mutual_funds
+    - cfds
+    - leveraged_cfds
+    - ideco
+  refresh: daily
+  source_urls:
+    japan: https://www.paypay-sec.co.jp/stock/list/
+    us: https://www.paypay-sec.co.jp/us-stock/list/
+  universe_is_authoritative: true
+  require_current_tradeable_flag: true
+  preserve_delisted_history: true
+  preserve_listing_history: true
   timezone: Asia/Tokyo
 prediction:
   horizon_sessions: 1
@@ -12,3 +32,4 @@ validation:
   require_pit: true
 quality:
   fail_closed: true
+  missing_universe_data: DEFERRED
