@@ -34,7 +34,19 @@ def main():
         and str(a.get("name","")).startswith("monitoring-")
     ]
     if not candidates:
-        raise SystemExit("DEFERRED: no previous monitoring artifact")
+        out=Path("data/research")
+        out.mkdir(parents=True,exist_ok=True)
+        payload={
+            "status":"NO_BASELINE",
+            "evaluated":0,
+            "reason":"no previous monitoring artifact",
+        }
+        (out/"monitor_latest.json").write_text(
+            json.dumps(payload,indent=2),
+            encoding="utf-8",
+        )
+        print(json.dumps(payload,indent=2))
+        return
 
     artifact=max(candidates,key=lambda a:a.get("created_at",""))
     req=Request(
