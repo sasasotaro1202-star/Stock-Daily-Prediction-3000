@@ -7,6 +7,7 @@ on:
       timezone: "Asia/Tokyo"
 
 permissions:
+  actions: read
   contents: write
 
 concurrency:
@@ -50,6 +51,11 @@ jobs:
         with:
           name: universe-${{ github.run_id }}
           path: data/universe
+      - name: Restore previous price state
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_price_state.py
       - name: Update assigned price shard
         env:
           PRICE_SHARD_INDEX: ${{ matrix.shard }}
@@ -58,7 +64,7 @@ jobs:
         run: python scripts/update_prices.py
       - uses: actions/upload-artifact@v4
         with:
-          name: price-shard-${{ matrix.shard }}-${{ github.run_id }}
+          name: price-state-shard-${{ matrix.shard }}
           path: data/prices/
           retention-days: 7
 
