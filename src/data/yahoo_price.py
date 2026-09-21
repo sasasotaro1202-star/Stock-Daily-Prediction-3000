@@ -11,9 +11,11 @@ def yahoo_symbol(symbol:str,asset_class:str)->str:
 
 def available_at_for(session_date,asset_class:str)->pd.Timestamp:
     if asset_class.startswith("jp_"):
-        dt=datetime.combine(session_date,time(15,35),tzinfo=ZoneInfo("Asia/Tokyo"))
+        # Conservative availability: 30 minutes after the regular close.
+        dt=datetime.combine(session_date,time(16,0),tzinfo=ZoneInfo("Asia/Tokyo"))
     else:
-        dt=datetime.combine(session_date,time(16,10),tzinfo=ZoneInfo("America/New_York"))
+        # Conservative availability: 30 minutes after the U.S. regular close.
+        dt=datetime.combine(session_date,time(16,30),tzinfo=ZoneInfo("America/New_York"))
     return pd.Timestamp(dt).tz_convert("UTC")
 
 def download_batch(records:list[dict],period:str="5y")->pd.DataFrame:
