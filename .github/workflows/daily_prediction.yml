@@ -26,12 +26,5 @@ jobs:
       - run: pytest -q
       - run: python scripts/research_smoke.py
       - name: Verify PayPay universe policy
-        run: |
-          python - <<'PY'
-          from src.data.paypay_universe import PAYPAY_UNIVERSE_RULE
-          assert PAYPAY_UNIVERSE_RULE.official_only
-          assert PAYPAY_UNIVERSE_RULE.current_tradeable_only
-          assert PAYPAY_UNIVERSE_RULE.preserve_history
-          print("paypay-universe-policy: PASS")
-          PY
+        run: python scripts/production_invariants.py
       - run: echo "Daily stage validated; production prediction remains blocked until real data, OOS, PIT and release gates pass."
