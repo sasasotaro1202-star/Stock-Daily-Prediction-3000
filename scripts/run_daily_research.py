@@ -240,9 +240,24 @@ def main():
                         or pd.isna(x["price_vs_sma60"])
                     )
                     else "high_vol"
-                    if x["volatility_20"] >= threshold
+                    if (
+                        x["volatility_20"] >= threshold
+                        or (
+                            pd.notna(x["vix_level_lag1"])
+                            and x["vix_level_lag1"] >= 30.0
+                        )
+                    )
                     else "trend"
-                    if abs(x["price_vs_sma60"]) >= 0.02
+                    if (
+                        abs(x["price_vs_sma60"]) >= 0.02
+                        or (
+                            pd.notna(x["breadth_up"])
+                            and (
+                                x["breadth_up"] <= 0.25
+                                or x["breadth_up"] >= 0.75
+                            )
+                        )
+                    )
                     else "normal"
                 ),
                 axis=1,
