@@ -70,7 +70,7 @@ def download_batch(
             return
         # Adj Close is retained for split/dividend-robust feature/target work.
         if "adj close" not in part.columns:
-            part["adj close"] = part["close"]
+            return
 
         part["symbol"] = rec["symbol"]
         part["asset_class"] = rec["asset_class"]
