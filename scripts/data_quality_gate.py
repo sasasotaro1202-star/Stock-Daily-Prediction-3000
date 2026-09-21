@@ -30,7 +30,18 @@ def main():
     reasons=[]
     missing=REQUIRED-set(df.columns)
     if missing:
-        reasons.append(f"missing_columns:{sorted(missing)}")
+        result={
+            "status":"FAIL",
+            "rows":int(len(df)),
+            "files":len(files),
+            "reasons":[f"missing_columns:{sorted(missing)}"],
+        }
+        Path("data/research").mkdir(parents=True,exist_ok=True)
+        Path("data/research/data_quality.json").write_text(
+            json.dumps(result,indent=2),encoding="utf-8"
+        )
+        print(json.dumps(result,indent=2))
+        raise SystemExit("FAIL: required price columns are missing")
 
     if df.empty:
         reasons.append("empty_dataset")
