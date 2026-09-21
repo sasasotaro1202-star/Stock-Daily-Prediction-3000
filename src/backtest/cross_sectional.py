@@ -38,20 +38,20 @@ def evaluate_predictions(
 
     # The prediction is made from the last known session bar. Joining on that
     # bar keeps the backtest correct for Japan/U.S. market-clock differences.
+    series_keys=["asset_class","symbol"] if "asset_class" in b.columns else ["symbol"]
     b["forward_return_1d"]=(
-        b.groupby("symbol")["close"].shift(-1)/b["close"]-1.0
+        b.groupby(series_keys)["close"].shift(-1)/b["close"]-1.0
     )
     if "stock_splits" in b.columns:
         current_split=b["stock_splits"].fillna(0).ne(0)
         next_split=b.groupby("symbol")["stock_splits"].shift(-1).fillna(0).ne(0)
         b.loc[current_split|next_split,"forward_return_1d"]=np.nan
-    outcome=b[
-        ["symbol","session_date","forward_return_1d","available_at"]
-    ].rename(columns={"available_at":"outcome_available_at"})
+    outcome_cols=series_keys+["session_date","forward_return_1d","available_at"]
+    outcome=b[outcome_cols].rename(columns={"available_at":"outcome_available_at"})
 
     m=p.merge(
         outcome,
-        on=["symbol","session_date"],
+        on=series_keys+["session_date"],
         how="inner",
         suffixes=("_prediction","_outcome"),
     )
