@@ -1,0 +1,14 @@
+universe:
+  target_count: 3000
+  market: japan
+  timezone: Asia/Tokyo
+prediction:
+  horizon_sessions: 1
+  target_return: close_to_close
+validation:
+  method: walk_forward
+  embargo_sessions: 1
+  frozen_holdout: true
+  require_pit: true
+quality:
+  fail_closed: true

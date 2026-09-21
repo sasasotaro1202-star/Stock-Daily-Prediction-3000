@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stock-daily-prediction-3000"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["numpy>=1.26","pandas>=2.2","scikit-learn>=1.5","pyarrow>=16","yfinance>=0.2.40","pyyaml>=6.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
