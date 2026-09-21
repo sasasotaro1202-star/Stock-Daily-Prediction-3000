@@ -43,7 +43,14 @@ def main():
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if universe.get("status")!="PASS": reasons.append("universe_quality_not_pass")
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
-    if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED": reasons.append("manifest_invalid")
+    if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED":
+        reasons.append("manifest_invalid")
+    if (
+        manifest.get("code_fingerprint_sha256")
+        and frozen.get("code_fingerprint_sha256")
+        and manifest["code_fingerprint_sha256"] != frozen["code_fingerprint_sha256"]
+    ):
+        reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
     holdout_return=frozen.get("return_holdout_metrics",{})
     if not all(
