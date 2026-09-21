@@ -1,35 +1,44 @@
 universe:
   provider: paypay_securities_official
   target_count: dynamic
-  scope: all_daily_marketable_paypay_listings
-  markets:
+  count_limit: none
+  scope: all_currently_tradeable_paypay_securities
+  current_tradeable_only: true
+  include:
     - japan_individual_stocks
     - japan_etf
     - japan_reit
     - us_individual_stocks
     - us_etf
-  exclude:
+  excluded_from_stock_price_model_but_tracked_in_catalog:
     - mutual_funds
-    - cfds
-    - leveraged_cfds
+    - japan_stock_cfd
+    - leveraged_cfd
     - ideco
   refresh: daily
+  authoritative_source: official_paypay_trading_lists
   source_urls:
     japan: https://www.paypay-sec.co.jp/stock/list/
     us: https://www.paypay-sec.co.jp/us-stock/list/
-  universe_is_authoritative: true
-  require_current_tradeable_flag: true
-  preserve_delisted_history: true
+    funds: https://www.paypay-sec.co.jp/fund/list/
+    products: https://www.paypay-sec.co.jp/product/
+  preserve_universe_snapshots: true
   preserve_listing_history: true
+  preserve_delisted_history: true
   timezone: Asia/Tokyo
+
 prediction:
   horizon_sessions: 1
   target_return: close_to_close
+  product_specific_models: true
+
 validation:
   method: walk_forward
   embargo_sessions: 1
   frozen_holdout: true
   require_pit: true
+
 quality:
   fail_closed: true
   missing_universe_data: DEFERRED
+  partial_universe: FAIL
