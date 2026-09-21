@@ -80,6 +80,8 @@ jobs:
           merge-multiple: true
       - name: Build reproducibility manifest
         run: python scripts/build_manifest.py
+      - name: Price data quality gate
+        run: python scripts/data_quality_gate.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
       - name: Release gate
