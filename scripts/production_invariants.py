@@ -13,6 +13,8 @@ def main():
         ("pit_required","require_pit: true" in cfg),
         ("frozen_holdout","frozen_holdout: true" in cfg),
         ("causal_features","causal_only: true" in pipe),
+        ("adjusted_price_modeling","price_feature_basis: adjusted_close" in pipe and "target_return_basis: adjusted_close" in pipe),
+        ("quantile_intervals","interval_method: conditional_quantiles_q10_q50_q90" in pipe and "make_quantile_model" in Path("scripts/run_daily_prediction.py").read_text()),
         ("oos_selection","selection_source: chronological_oos_only" in pipe),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
