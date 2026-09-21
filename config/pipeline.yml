@@ -5,8 +5,9 @@ data:
   predictions: data/predictions
 features:
   causal_only: true
-  price_feature_basis: adjusted_close
-  target_return_basis: adjusted_close
+  price_feature_basis: raw_close
+  target_return_basis: raw_close
+  adjusted_price_diagnostic: optional_vendor_adjustment_only
   display_price_basis: raw_close
   interval_method: conditional_quantiles_q10_q50_q90
   technical: true
