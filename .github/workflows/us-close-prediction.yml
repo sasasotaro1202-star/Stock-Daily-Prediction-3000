@@ -92,6 +92,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_research_state.py
+      - name: PayPay master catalog integrity
+        run: python scripts/catalog_integrity.py
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Price data quality gate
