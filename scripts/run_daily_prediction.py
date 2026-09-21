@@ -10,6 +10,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
 from src.features.technical import FEATURE_COLUMNS,add_technical_features
+from src.features.context import add_cross_sectional_context
 from src.prediction.regression import make_return_model
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
@@ -30,7 +31,7 @@ def main():
     gate=json.loads(GATE.read_text(encoding="utf-8"))
     if not gate.get("approved",False): raise SystemExit(f"DEFERRED: release gate not approved: {gate.get('reasons',[])}")
     payload=json.loads(METRICS.read_text(encoding="utf-8")); route=payload.get("regime_selected_models",{})
-    df=pd.read_parquet(PRICE); df=add_technical_features(df)
+    df=pd.read_parquet(PRICE); df=add_cross_sectional_context(add_technical_features(df))
     labeled=add_targets(df).dropna(subset=FEATURE_COLUMNS+["target_up_1d","target_ret_1d"]).copy()
     if len(labeled)<5000: raise SystemExit("DEFERRED: insufficient training data")
     latest_date=max(pd.to_datetime(df["session_date"]).dt.date); latest=df[df["session_date"].eq(latest_date)].copy()
@@ -50,6 +51,7 @@ def main():
         reg=regime_for_row(row["volatility_20"],row["price_vs_sma60"],threshold).value
         selected.append(route.get(reg,payload.get("selected_model","hgb")))
     latest["p_up_1d"]=[float(np.clip(probs[name][i],1e-5,1-1e-5)) for i,name in enumerate(selected)]
+    latest["model_disagreement"]=[float(np.std([probs[n][i] for n in fitted])) for i in range(len(latest))]
     ret_model=make_return_model(); ret_model.fit(core[FEATURE_COLUMNS],core.target_ret_1d)
     expected=ret_model.predict(latest[FEATURE_COLUMNS])
     vol=latest["volatility_20"].fillna(core["target_ret_1d"].std()).clip(lower=0.0)
