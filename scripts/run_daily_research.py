@@ -10,7 +10,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
-from src.features.context import add_cross_sectional_context
+from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics
@@ -81,10 +81,16 @@ def main():
         raise SystemExit("DEFERRED: price dataset is absent")
 
     df = pd.read_parquet(PRICE_DIR)
+    context_path = Path("data/market_context.parquet")
+    if not context_path.exists():
+        raise SystemExit("DEFERRED: market context is absent")
+    market_context = pd.read_parquet(context_path)
     if len(df) < 2000:
         raise SystemExit(f"DEFERRED: insufficient price rows ({len(df)})")
 
-    df = add_targets(add_cross_sectional_context(add_technical_features(df)))
+    df = add_technical_features(df)
+    df = add_market_context(df, market_context)
+    df = add_targets(add_cross_sectional_context(df))
 
     fa = audit_feature_columns(FEATURE_COLUMNS)
     targets = [c for c in df.columns if c.startswith("target_")]
