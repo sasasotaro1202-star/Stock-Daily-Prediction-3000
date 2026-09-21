@@ -157,13 +157,10 @@ def main():
     payload = json.loads(METRICS.read_text(encoding="utf-8"))
     df = pd.read_parquet(PRICE)
     asset_filter = [
-        x.strip() for x in os.environ.get("PREDICT_ASSET_CLASSES", "").split(",")
+        x.strip()
+        for x in os.environ.get("PREDICT_ASSET_CLASSES", "").split(",")
         if x.strip()
     ]
-    if asset_filter:
-        df = df[df["asset_class"].isin(asset_filter)].copy()
-        if df.empty:
-            raise SystemExit("DEFERRED: requested asset-class filter has no rows")
     df["available_at"] = pd.to_datetime(
         df["available_at"], utc=True, errors="coerce"
     )
@@ -190,6 +187,8 @@ def main():
         .tail(1)
         .copy()
     )
+    if asset_filter:
+        latest = latest[latest["asset_class"].isin(asset_filter)].copy()
     if latest.empty:
         raise SystemExit("DEFERRED: no latest PIT-safe session rows")
 
