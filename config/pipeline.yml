@@ -22,6 +22,17 @@ models:
     - patchtst
   selection_metric: logloss
   selection_source: chronological_oos_only
+  stability_penalty: 0.25
+routing:
+  hierarchy:
+    - asset_class_and_regime
+    - asset_class
+    - regime
+    - global
+  min_oos_folds_scoped: 3
+  min_oos_folds_asset_regime: 2
+  min_training_rows_scoped: 500
+  fail_closed_on_data_stressed: true
 calibration:
   method: platt
   fit_inside_oos_train_only: true
@@ -37,3 +48,5 @@ automation:
   price_max_workers: 2
   incremental_period: 10d
   initial_period: 5y
+  asia_prediction_time_jst: "18:17"
+  us_prediction_time_jst: "07:17"
