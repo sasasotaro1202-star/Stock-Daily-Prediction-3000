@@ -23,8 +23,26 @@ def test_extended_features_are_numeric():
                 "volume":1000+i,
             })
     out=add_technical_features(pd.DataFrame(rows))
-    values=out[FEATURE_COLUMNS].apply(pd.to_numeric,errors="coerce")
-    assert values.shape==out[FEATURE_COLUMNS].shape
+    technical_columns=[
+        "volatility_5",
+        "volatility_ratio_5_20",
+        "volume_z20",
+        "dollar_volume_ratio_20",
+        "amihud_20",
+        "return_z20",
+        "range_z20",
+        "close_location",
+        "intraday_return",
+        "dow_sin",
+        "dow_cos",
+        "month_sin",
+        "month_cos",
+    ]
+    values=out[technical_columns].apply(
+        pd.to_numeric,
+        errors="coerce",
+    )
+    assert values.shape==out[technical_columns].shape
     assert len(out)==200
 
 
