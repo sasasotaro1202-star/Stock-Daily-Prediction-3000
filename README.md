@@ -4,11 +4,11 @@ PayPay証券の公式取扱リストを基準に、**固定3,000銘柄ではな�
 
 ## 株価予測Universe
 
-対象はPayPay証券の公式「日本株」「米国株」の取扱リストから取得します。日本株ページは個別株・国内ETF・REIT、米国株ページは個別株・米国ETFを掲載しています。件数上限は設定しません。 citeturn343092search0turn343092search1
+対象はPayPay証券の公式「日本株」「米国株」の取扱リストから取得します。日本株ページは個別株・国内ETF・REIT、米国株ページは個別株・米国ETFを掲載しています。件数上限は設定しません。
 
 毎回のUniverseは公式ページから再生成し、取得時刻・ソースハッシュ・スナップショットを保存します。追加・取扱終了を次回更新へ反映し、過去Universeは残してsurvivorship biasを監査できるようにします。
 
-投資信託・日本株CFD・10倍CFD・iDeCoもPayPay証券の商品ラインナップには存在しますが、株式のclose-to-close予測へ混在させません。これらは将来、NAV/CFDなど商品別の予測パイプラインとして同じMaster Catalogから分離処理します。 citeturn343092search3turn343092search4
+投資信託・日本株CFD・10倍CFD・iDeCoもPayPay証券の商品ラインナップには存在しますが、株式のclose-to-close予測へ混在させません。これらは将来、NAV/CFDなど商品別の予測パイプラインとして同じMaster Catalogから分離処理します。
 
 ## 予測
 
