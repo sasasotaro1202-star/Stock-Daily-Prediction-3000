@@ -101,6 +101,8 @@ jobs:
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
       - name: Production prediction
         if: steps.gate.outputs.approved == 'true'
+        env:
+          PREDICT_ASSET_CLASSES: jp_stock,jp_etf,jp_reit
         run: python scripts/run_daily_prediction.py
       - name: Cross-sectional backtest evidence
         if: steps.gate.outputs.approved == 'true'
