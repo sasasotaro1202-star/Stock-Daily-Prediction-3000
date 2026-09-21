@@ -19,6 +19,7 @@ from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import Regime, regime_for_row, route_plan
 from src.validation.calibration import PlattCalibrator
+from src.validation.training_sample import cap_training_rows
 
 PRICE = Path("data/prices")
 METRICS = Path("data/research/latest_metrics.json")
@@ -134,8 +135,9 @@ def fit_scoped_model(
         actual_scope = "global"
         core, cal = split_train_cal(subset)
 
+    core_fit=cap_training_rows(core,max_rows=300_000,recent_sessions=252)
     model = models()[name]()
-    model.fit(core[FEATURE_COLUMNS], core.target_up_1d.astype(int))
+    model.fit(core_fit[FEATURE_COLUMNS], core_fit.target_up_1d.astype(int))
     cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
     calibrator = PlattCalibrator().fit(
         cal_p, cal.target_up_1d.astype(int)
@@ -295,8 +297,9 @@ def main():
         q50: make_quantile_model(0.50),
         q90: make_quantile_model(0.90),
     }
+    return_fit=cap_training_rows(labeled,max_rows=250_000,recent_sessions=252)
     for model in global_qmodels.values():
-        model.fit(labeled[FEATURE_COLUMNS], labeled["target_ret_1d"])
+        model.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
 
     latest_returns = []
     return_scope = []
@@ -313,8 +316,9 @@ def main():
                 "q50": make_quantile_model(0.50),
                 "q90": make_quantile_model(0.90),
             }
+            subset_fit=cap_training_rows(subset,max_rows=200_000,recent_sessions=252)
             for model in qmodels.values():
-                model.fit(subset[FEATURE_COLUMNS], subset["target_ret_1d"])
+                model.fit(subset_fit[FEATURE_COLUMNS], subset_fit["target_ret_1d"])
             scope = f"asset:{asset}"
 
         lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
