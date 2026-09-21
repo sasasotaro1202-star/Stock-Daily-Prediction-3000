@@ -102,6 +102,13 @@ jobs:
         run: python scripts/production_invariants.py
       - name: Approved research state compatibility
         run: python scripts/production_state_compatibility.py
+      - name: Restore latest live monitoring state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_latest_monitor_state.py || true
+      - name: Live performance gate
+        run: python scripts/live_performance_gate.py
       - name: Production prediction
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
