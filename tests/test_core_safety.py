@@ -1,0 +1,25 @@
+import pandas as pd
+from src.features.technical import add_technical_features,FEATURE_COLUMNS
+from src.prediction.targets import add_targets
+from src.validation.leakage import audit_feature_columns,audit_target_separation
+from src.research.metrics import expected_calibration_error
+
+def sample():
+    rows=[]
+    for s in ("AAA","BBB"):
+        for i in range(80):
+            p=100+i+(0 if s=="AAA" else i*0.2)
+            rows.append({"symbol":s,"session_date":pd.Timestamp("2020-01-01")+pd.Timedelta(days=i),
+                         "open":p,"high":p+1,"low":p-1,"close":p+0.2,"volume":1000+i})
+    return pd.DataFrame(rows)
+
+def test_features_are_causal_and_targets_separate():
+    x=add_targets(add_technical_features(sample()))
+    assert set(FEATURE_COLUMNS).isdisjoint({c for c in x if c.startswith("target_")})
+    assert audit_feature_columns(FEATURE_COLUMNS).ok
+    assert audit_target_separation(FEATURE_COLUMNS,[c for c in x if c.startswith("target_")]).ok
+    assert x.loc[x.groupby("symbol").tail(1).index,"target_up_1d"].isna().all()
+
+def test_ece_bounds():
+    v=expected_calibration_error([0,1,0,1],[0.1,0.9,0.2,0.8])
+    assert 0<=v<=1
