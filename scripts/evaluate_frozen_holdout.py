@@ -16,6 +16,8 @@ from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
 from src.validation.calibration import PlattCalibrator
+from src.validation.training_sample import cap_training_rows
+from src.validation.training_sample import cap_training_rows
 
 
 def factories():
@@ -96,8 +98,9 @@ def main():
     if core.target_up_1d.nunique() < 2 or cal.target_up_1d.nunique() < 2:
         raise SystemExit("DEFERRED: calibration split lacks both target classes")
 
+    core_fit=cap_training_rows(core,max_rows=300_000,recent_sessions=252)
     model = factories()[selected]()
-    model.fit(core[FEATURE_COLUMNS], core.target_up_1d.astype(int))
+    model.fit(core_fit[FEATURE_COLUMNS], core_fit.target_up_1d.astype(int))
     cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
     calibrator = PlattCalibrator().fit(
         cal_p, cal.target_up_1d.astype(int)
@@ -113,8 +116,9 @@ def main():
     q10=make_quantile_model(0.10)
     q50=make_quantile_model(0.50)
     q90=make_quantile_model(0.90)
+    core_q=cap_training_rows(core,max_rows=250_000,recent_sessions=252)
     for qm in (q10,q50,q90):
-        qm.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        qm.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
     y_ret=test["target_ret_1d"].to_numpy(dtype=float)
     lo=q10.predict(test[FEATURE_COLUMNS])
     mid=q50.predict(test[FEATURE_COLUMNS])
