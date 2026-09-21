@@ -71,6 +71,12 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
             else "us" if str(x).startswith("us_")
             else str(x)
         )
+        asset=out["asset_class"].astype(str)
+        out["asset_is_jp"]=asset.str.startswith("jp_").astype(float)
+        out["asset_is_us"]=asset.str.startswith("us_").astype(float)
+        out["asset_is_stock"]=asset.str.endswith("_stock").astype(float)
+        out["asset_is_etf"]=asset.str.endswith("_etf").astype(float)
+        out["asset_is_reit"]=asset.eq("jp_reit").astype(float)
     elif "market_family" not in out.columns:
         raise ValueError("asset_class or market_family is required")
 
@@ -98,6 +104,10 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
         daily,
         on=["session_date","market_family"],
         how="left",
+    )
+    out["ret_vs_market_median"]=out["ret_1d"]-out["median_ret"]
+    out["vol_vs_market_median"]=(
+        out["volatility_20"]/out["median_vol"].replace(0,pd.NA)-1.0
     )
 
     if "sector" in out.columns:
