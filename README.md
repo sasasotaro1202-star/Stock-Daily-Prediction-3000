@@ -37,3 +37,8 @@ PIT / available_at、causal feature、chronological Walk-forward OOS、calibrati
 GitHub ActionsでUniverse更新、4分割の差分価格取得、品質チェック、OOS研究、校正、Gate、承認済み時だけ予測を定期実行します。
 
 Research system only; not investment advice or a profit guarantee.
+
+
+## PayPay product master catalog
+
+PayPay証券の日本株・米国株に加え、投資信託、日本株CFD、10倍CFD、iDeCoをMaster Catalogで別商品系統として管理します。商品ごとの価格・NAV・デリバティブ時系列を混在させず、同じrelease/監査思想で別モデルへ拡張できます。
