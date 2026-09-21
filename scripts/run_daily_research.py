@@ -27,6 +27,7 @@ from src.research.router import (
     Regime,
     asset_plan,
     choose_from_oos,
+    rebalance_global_oos_candidates,
 )
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
@@ -371,7 +372,13 @@ def main():
         name: dict(value["metrics"], folds=float(value["folds"]))
         for name, value in usable.items()
     }
-    global_plan = choose_from_oos("normal", global_candidates)
+    balanced_candidates = rebalance_global_oos_candidates(
+        global_candidates,
+        asset_class_metrics,
+        blend_weight=0.50,
+        min_folds=3,
+    )
+    global_plan = choose_from_oos("normal", balanced_candidates)
     global_selected = global_plan.names[0]
 
     payload = {
@@ -384,11 +391,14 @@ def main():
         "asset_regime_metrics": asset_regime_metrics,
         "asset_regime_selected_models": asset_regime_selected,
         "selected_model": global_selected,
+        "global_selection_candidates": balanced_candidates,
         "selection_basis": (
-            "chronological walk-forward OOS only; selection penalizes unstable "
-            "fold-to-fold LogLoss; route hierarchy is asset_class+regime -> "
-            "asset_class -> regime -> global; calibration is fit inside each "
-            "OOS training fold; frozen holdout remains unused during selection"
+            "chronological walk-forward OOS only; global selection blends "
+            "row-weighted LogLoss with 50% macro-averaged asset-class LogLoss "
+            "to reduce universe-size dominance, then applies the 0.25 stability "
+            "penalty; route hierarchy is asset_class+regime -> asset_class -> "
+            "regime -> global; calibration is fit inside each OOS training fold; "
+            "frozen holdout remains unused during selection"
         ),
         "status": "OOS_COMPLETE",
     }
