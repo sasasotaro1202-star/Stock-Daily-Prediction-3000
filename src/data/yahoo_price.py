@@ -70,7 +70,7 @@ def download_batch(
             return
         # Adj Close is retained for split/dividend-robust feature/target work.
         if "adj close" not in part.columns:
-            return
+            part["adj close"]=part["close"]
 
         part["symbol"] = rec["symbol"]
         part["asset_class"] = rec["asset_class"]
@@ -83,6 +83,9 @@ def download_batch(
         part["source"] = "yfinance"
         part["provider_symbol"] = provider_symbol
 
+        for optional in ("dividends","stock splits","capital gains"):
+            if optional not in part.columns:
+                part[optional]=0.0
         columns = [
             "symbol",
             "asset_class",
@@ -95,11 +98,22 @@ def download_batch(
             "low",
             "close",
             "adj close",
+            "dividends",
+            "stock splits",
+            "capital gains",
             "volume",
         ]
-        part = part[columns].rename(columns={"adj close": "adj_close"})
+        part = part[columns].rename(
+            columns={
+                "adj close":"adj_close",
+                "dividends":"dividends",
+                "stock splits":"stock_splits",
+                "capital gains":"capital_gains",
+            }
+        )
         for col in [
-            "open", "high", "low", "close", "adj_close", "volume"
+            "open","high","low","close","adj_close",
+            "dividends","stock_splits","capital_gains","volume"
         ]:
             part[col] = pd.to_numeric(
                 part[col], errors="coerce"
