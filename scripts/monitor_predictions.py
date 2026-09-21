@@ -52,7 +52,7 @@ def main():
         )
         if "stock_splits" in bars.columns:
             current_split=bars["stock_splits"].fillna(0).ne(0)
-            next_split=bars.groupby("symbol")["stock_splits"].shift(-1).fillna(0).ne(0)
+            next_split=bars.groupby(series_keys)["stock_splits"].shift(-1).fillna(0).ne(0)
             bars.loc[current_split|next_split,"forward_return_1d"]=np.nan
         bars["outcome_available_at"]=pd.to_datetime(
             bars["available_at"],utc=True,errors="coerce"
