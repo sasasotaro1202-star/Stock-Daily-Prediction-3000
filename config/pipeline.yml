@@ -1,0 +1,36 @@
+data:
+  universe: data/universe/latest.json
+  prices: data/prices
+  research: data/research
+  predictions: data/predictions
+features:
+  causal_only: true
+  technical: true
+  market_context: true
+  fundamentals: planned
+  news_ir: planned
+  macro: planned
+models:
+  primary_candidates:
+    - logistic
+    - extra_trees
+    - hgb
+  optional_challengers:
+    - lightgbm
+    - xgboost
+    - catboost
+    - patchtst
+  selection_metric: logloss
+  selection_source: chronological_oos_only
+calibration:
+  method: platt
+  fit_inside_oos_train_only: true
+release:
+  frozen_holdout_required: true
+  independent_leakage_audit_required: true
+  reproducibility_manifest_required: true
+automation:
+  price_batch_size: 75
+  price_max_workers: 4
+  incremental_period: 10d
+  initial_period: 5y
