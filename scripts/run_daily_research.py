@@ -173,12 +173,21 @@ def main():
 
             regime = test.apply(
                 lambda x: (
-                    "normal"
-                    if x["volatility_20"] < threshold
-                    and abs(x["price_vs_sma60"]) < 0.02
+                    "event"
+                    if (
+                        abs(x["gap_pct"]) >= 0.03
+                        or x["volume_ratio_20"] >= 3.0
+                    )
+                    else "data_stressed"
+                    if (
+                        pd.isna(x["volatility_20"])
+                        or pd.isna(x["price_vs_sma60"])
+                    )
                     else "high_vol"
                     if x["volatility_20"] >= threshold
                     else "trend"
+                    if abs(x["price_vs_sma60"]) >= 0.02
+                    else "normal"
                 ),
                 axis=1,
             )
