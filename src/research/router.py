@@ -44,6 +44,8 @@ def regime_for_row(
     vol_threshold: float,
     gap_pct: float | None = None,
     volume_ratio_20: float | None = None,
+    vix_level: float | None = None,
+    breadth_up: float | None = None,
 ) -> Regime:
     if (
         volatility is None
@@ -62,9 +64,26 @@ def regime_for_row(
         and float(volume_ratio_20) >= 3.0
     ):
         return Regime.EVENT
-    if volatility >= vol_threshold:
+    if (
+        volatility >= vol_threshold
+        or (
+            vix_level is not None
+            and math.isfinite(float(vix_level))
+            and float(vix_level) >= 30.0
+        )
+    ):
         return Regime.HIGH_VOL
-    if abs(price_vs_sma60) >= 0.02:
+    if (
+        abs(price_vs_sma60) >= 0.02
+        or (
+            breadth_up is not None
+            and math.isfinite(float(breadth_up))
+            and (
+                float(breadth_up) <= 0.25
+                or float(breadth_up) >= 0.75
+            )
+        )
+    ):
         return Regime.TREND
     return Regime.NORMAL
 
