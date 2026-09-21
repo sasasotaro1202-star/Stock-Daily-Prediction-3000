@@ -1,30 +1,39 @@
 # PayPay Securities Daily Prediction
 
-PayPay証券で現時点で取引可能な日次市場価格対象を原則すべて対象にする、無料優先の日次株価予測・研究基盤です。
+PayPay証券の公式取扱リストを基準に、**固定3,000銘柄ではなく、その時点で取引可能な対象を全件動的に取得**する日次予測・研究基盤です。
 
-## Universe
+## 株価予測Universe
 
-Current universe is dynamic rather than capped at 3,000 names. The authoritative source is PayPay証券's official trading-list pages for Japan and the U.S. Japan covers individual stocks, ETFs and REITs; the U.S. list covers individual stocks and ETFs. Newly listed/removed names are reflected by the next universe snapshot while historical snapshots are preserved for survivorship-bias control.
+対象はPayPay証券の公式「日本株」「米国株」の取扱リストから取得します。日本株ページは個別株・国内ETF・REIT、米国株ページは個別株・米国ETFを掲載しています。件数上限は設定しません。 citeturn343092search0turn343092search1
 
-Investment trusts, CFDs, leveraged CFDs and iDeCo are kept outside this exchange-traded price pipeline because their pricing/execution clocks differ.
+毎回のUniverseは公式ページから再生成し、取得時刻・ソースハッシュ・スナップショットを保存します。追加・取扱終了を次回更新へ反映し、過去Universeは残してsurvivorship biasを監査できるようにします。
 
-## Prediction
+投資信託・日本株CFD・10倍CFD・iDeCoもPayPay証券の商品ラインナップには存在しますが、株式のclose-to-close予測へ混在させません。これらは将来、NAV/CFDなど商品別の予測パイプラインとして同じMaster Catalogから分離処理します。 citeturn343092search3turn343092search4
 
-The system produces, when the production gate is approved:
-- next-session up probability
-- expected next-session return
-- expected next close
-- model-implied low/high range
-- cross-sectional ranking
+## 予測
 
-The research layer evaluates Logistic Regression, ExtraTrees and HistGradientBoosting using chronological OOS folds, fold-local Platt calibration, and OOS-only regime routing. Optional challengers include LightGBM, XGBoost, CatBoost and PatchTST.
+本番Gateを通過した対象について、
+- 翌営業日の上昇確率
+- 翌営業日の期待リターン
+- 期待終値
+- 予測レンジ
+- クロスセクショナル順位
+- モデル間不確実性
 
-## Safety
+を出力します。
 
-PIT/no-look-ahead, causal features, independent leakage audit, data-quality fail-closed behavior, frozen holdout, reproducibility manifest and independent release gate are required. Missing critical data produces DEFERRED instead of fabricated values.
+## モデル
 
-## Automation
+Logistic Regression / ExtraTrees / HistGradientBoostingをCPU・無料枠の基礎候補とし、OOSで比較します。LightGBM / XGBoost / CatBoost / PatchTST等はchallengerとして追加可能ですが、複雑化だけを理由に昇格させません。
 
-GitHub Actions runs a six-hour health heartbeat and a weekday market cycle at 18:17 Asia/Tokyo. The market cycle refreshes the PayPay universe, updates price data in four parallel shards, runs data-quality checks, OOS research, calibration, release gate and—only when approved—production prediction. Artifacts are retained for seven days.
+市場状態別routingもOOS結果から決め、同じモデルを全局面へ固定しません。
+
+## 安全性
+
+PIT / available_at、causal feature、chronological Walk-forward OOS、calibration、独立leakage audit、frozen holdout、reproducibility manifest、release gateを必須にします。重要データが不足した場合は推測値を作らずDEFERRED/FAILにします。
+
+## 自動化
+
+GitHub ActionsでUniverse更新、4分割の差分価格取得、品質チェック、OOS研究、校正、Gate、承認済み時だけ予測を定期実行します。
 
 Research system only; not investment advice or a profit guarantee.
