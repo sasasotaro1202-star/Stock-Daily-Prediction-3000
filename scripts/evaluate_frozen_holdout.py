@@ -153,6 +153,7 @@ def main():
         "holdout_rows": int(len(test)),
         "model_metrics": model_metrics,
         "baseline_metrics": baseline_metrics,
+        "return_holdout_metrics": return_holdout_metrics,
         "beats_baseline": bool(
             model_metrics["logloss"] < baseline_metrics["logloss"]
         ),
@@ -160,7 +161,7 @@ def main():
             model_metrics["ece"] <= max_ece
         ),
         "max_ece": max_ece,
-        "feature_pipeline": "technical + cross_sectional_context",
+        "feature_pipeline": "technical + market_context + cross_sectional_context",
     }
     result.parent.mkdir(parents=True, exist_ok=True)
     result.write_text(json.dumps(payload, indent=2), encoding="utf-8")
