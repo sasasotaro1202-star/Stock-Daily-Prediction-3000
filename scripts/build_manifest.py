@@ -15,7 +15,7 @@ def sha256_file(path: Path) -> str:
 def main():
     out=Path("data/research/reproducibility_manifest.json")
     rows=[]
-    for root in (Path("config"),Path("src"),Path("scripts")):
+    for root in (Path("config"),Path("src"),Path("scripts"),Path(".github/workflows")):
         if not root.exists(): continue
         for p in sorted(root.rglob("*.py")):
             rows.append({"path":str(p),"sha256":sha256_file(p)})
