@@ -287,9 +287,9 @@ def main():
 
     # Quantile return models provide a data-driven asymmetric interval.
     global_qmodels = {
-        q10: make_quantile_model(0.10),
-        q50: make_quantile_model(0.50),
-        q90: make_quantile_model(0.90),
+        "q10": make_quantile_model(0.10),
+        "q50": make_quantile_model(0.50),
+        "q90": make_quantile_model(0.90),
     }
     return_fit=cap_training_rows(labeled,max_rows=250_000,recent_sessions=252)
     for model in global_qmodels.values():
