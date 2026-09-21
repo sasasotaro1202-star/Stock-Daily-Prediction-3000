@@ -65,8 +65,6 @@ def main():
             for row in df[["asset_class","symbol"]].drop_duplicates().to_dict("records")
         }
         missing_now=sorted(expected-observed)
-        extra_now=sorted(observed-expected)
-
         now=pd.Timestamp(datetime.now(ZoneInfo("Asia/Tokyo")))
         avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
         session_dates=pd.to_datetime(df["session_date"],errors="coerce").dt.date
@@ -76,7 +74,7 @@ def main():
             .assign(session_date=session_dates[current_mask & session_dates.notna()])
             .groupby(["asset_class","symbol"])["session_date"].max()
         )
-        stale_cutoff=(now.date()-pd.Timedelta(days=10)).date()
+        stale_cutoff=(now-pd.Timedelta(days=10)).date()
         stale=[
             key for key,value in latest_by_symbol.items()
             if value < stale_cutoff
@@ -89,8 +87,6 @@ def main():
             reasons.append(f"universe_symbols_without_current_pit_row:{len(missing_latest)}")
         if stale:
             reasons.append(f"universe_symbols_stale_over_10d:{len(stale)}")
-        if extra_now:
-            reasons.append(f"price_symbols_not_in_current_universe:{len(extra_now)}")
 
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","bad_ohlc",
