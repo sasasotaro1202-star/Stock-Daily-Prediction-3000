@@ -44,12 +44,13 @@ def main():
             "reason":"no timestamped production predictions or price history",
         }
     else:
+        bars=pd.read_parquet(BARS).copy()
         sort_keys=(
             ["asset_class","symbol","session_date"]
             if "asset_class" in bars.columns else
             ["symbol","session_date"]
         )
-        bars=pd.read_parquet(BARS).sort_values(sort_keys).copy()
+        bars=bars.sort_values(sort_keys).copy()
         bars["session_date"]=pd.to_datetime(
             bars["session_date"],errors="coerce"
         ).dt.date
