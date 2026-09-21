@@ -23,8 +23,13 @@ def load_predictions() -> pd.DataFrame:
     out["prediction_time"]=pd.to_datetime(
         out["prediction_time"],utc=True,errors="coerce"
     )
+    dedup_keys=(
+        ["asset_class","symbol","session_date","prediction_time"]
+        if "asset_class" in out.columns else
+        ["symbol","session_date","prediction_time"]
+    )
     out=out.sort_values("prediction_time").drop_duplicates(
-        ["symbol","session_date","prediction_time"],
+        dedup_keys,
         keep="last",
     )
     return out
@@ -39,9 +44,12 @@ def main():
             "reason":"no timestamped production predictions or price history",
         }
     else:
-        bars=pd.read_parquet(BARS).sort_values(
+        sort_keys=(
+            ["asset_class","symbol","session_date"]
+            if "asset_class" in bars.columns else
             ["symbol","session_date"]
-        ).copy()
+        )
+        bars=pd.read_parquet(BARS).sort_values(sort_keys).copy()
         bars["session_date"]=pd.to_datetime(
             bars["session_date"],errors="coerce"
         ).dt.date
