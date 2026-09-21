@@ -8,30 +8,42 @@ def add_market_context(
     context: pd.DataFrame,
 ) -> pd.DataFrame:
     out=df.copy()
-    required={"session_date","family","ret_1d","volatility_20","close"}
+    required={"session_date","family","ret_1d","volatility_20","close","available_at"}
     if context.empty or not required.issubset(context.columns):
         raise ValueError("market context is missing required columns")
+    if "available_at" not in out.columns:
+        raise ValueError("security price data must contain available_at")
 
+    out["available_at"]=pd.to_datetime(
+        out["available_at"],utc=True,errors="coerce"
+    )
     ctx=context.copy()
+    ctx["available_at"]=pd.to_datetime(
+        ctx["available_at"],utc=True,errors="coerce"
+    )
     ctx["session_date"]=pd.to_datetime(
         ctx["session_date"],errors="coerce"
     ).dt.date
+    ctx=ctx.dropna(subset=["available_at"]).sort_values("available_at")
 
+    # Point-in-time as-of joins: for each security bar, use only context
+    # observations whose publication/availability timestamp is <= that bar.
     for family in sorted(ctx["family"].dropna().unique()):
-        part=ctx[ctx["family"].eq(family)].sort_values("session_date").copy()
-        # Lag by one published session: never use the same-day context value.
-        part["ret_lag1"]=part["ret_1d"].shift(1)
-        part["vol_lag1"]=part["volatility_20"].shift(1)
-        part["close_lag1"]=part["close"].shift(1)
-        cols=["session_date","ret_lag1","vol_lag1","close_lag1"]
-        part=part[cols].rename(
-            columns={
-                "ret_lag1":f"__{family}_ret",
-                "vol_lag1":f"__{family}_vol",
-                "close_lag1":f"__{family}_close",
-            }
+        part=ctx[ctx["family"].eq(family)].sort_values("available_at").copy()
+        part=part[
+            ["available_at","ret_1d","volatility_20","close"]
+        ].rename(columns={
+            "ret_1d":f"__{family}_ret",
+            "volatility_20":f"__{family}_vol",
+            "close":f"__{family}_close",
+        })
+        out=pd.merge_asof(
+            out.sort_values("available_at"),
+            part,
+            on="available_at",
+            direction="backward",
+            allow_exact_matches=True,
         )
-        out=out.merge(part,on="session_date",how="left")
 
     mapping={
         "nikkei_ret_1d_lag1":"__nikkei_ret",
@@ -45,6 +57,7 @@ def add_market_context(
     }
     for target,source in mapping.items():
         out[target]=out[source]
+
     drop=[c for c in out.columns if c.startswith("__")]
     return out.drop(columns=drop)
 
