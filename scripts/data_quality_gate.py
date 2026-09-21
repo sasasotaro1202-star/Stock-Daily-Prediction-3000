@@ -35,6 +35,9 @@ def main():
         reasons.append("empty_dataset")
     else:
         dup=int(df.duplicated(["symbol","session_date"]).sum())
+        numeric_cols=["open","high","low","close","adj_close","volume"]
+        numeric_invalid=int(df[numeric_cols].isna().any(axis=1).sum())
+        invalid_session=int(pd.to_datetime(df["session_date"],errors="coerce").isna().sum())
         bad_ohlc=int(
             (
                 (df["high"]<df["low"])
@@ -50,6 +53,8 @@ def main():
             pd.to_datetime(df["available_at"],utc=True,errors="coerce").isna().sum()
         )
         reasons += [f"duplicates:{dup}"] if dup else []
+        reasons += [f"numeric_invalid:{numeric_invalid}"] if numeric_invalid else []
+        reasons += [f"invalid_session_date:{invalid_session}"] if invalid_session else []
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
@@ -89,7 +94,7 @@ def main():
             reasons.append(f"universe_symbols_stale_over_10d:{len(stale)}")
 
     critical_prefixes=(
-        "missing_columns","empty_dataset","duplicates","bad_ohlc",
+        "missing_columns","empty_dataset","duplicates","numeric_invalid","invalid_session_date","bad_ohlc",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
