@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+import math
 
 
 class Regime(str, Enum):
@@ -41,9 +42,26 @@ def regime_for_row(
     volatility: float | None,
     price_vs_sma60: float | None,
     vol_threshold: float,
+    gap_pct: float | None = None,
+    volume_ratio_20: float | None = None,
 ) -> Regime:
-    if volatility is None or price_vs_sma60 is None:
+    if (
+        volatility is None
+        or price_vs_sma60 is None
+        or not math.isfinite(float(volatility))
+        or not math.isfinite(float(price_vs_sma60))
+    ):
         return Regime.DATA_STRESSED
+    if (
+        gap_pct is not None
+        and math.isfinite(float(gap_pct))
+        and abs(float(gap_pct)) >= 0.03
+    ) or (
+        volume_ratio_20 is not None
+        and math.isfinite(float(volume_ratio_20))
+        and float(volume_ratio_20) >= 3.0
+    ):
+        return Regime.EVENT
     if volatility >= vol_threshold:
         return Regime.HIGH_VOL
     if abs(price_vs_sma60) >= 0.02:
