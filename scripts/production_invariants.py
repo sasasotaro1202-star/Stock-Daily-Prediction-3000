@@ -23,6 +23,7 @@ def main():
         ("market_context_pipeline","add_market_context" in Path("scripts/run_daily_research.py").read_text() and "update_market_context.py" in Path(".github/workflows/market-cycle.yml").read_text()),
         ("state_compatibility","production_state_compatibility.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/production_state_compatibility.py").exists()),
         ("paypay_master_catalog",Path("config/paypay_catalog.yml").exists() and Path("scripts/catalog_integrity.py").exists()),
+        ("prediction_history_monitoring","restore_prediction_history.py" in Path(".github/workflows/prediction-monitoring.yml").read_text() and Path("scripts/monitor_predictions.py").exists()),
         ("regime_thresholds","high_vol_vix: 30.0" in pipe and "event_gap_abs: 0.03" in pipe and "trend_breadth_low: 0.25" in pipe),
         ("price_shards","price_shards: 4" in pipe),
     ]
