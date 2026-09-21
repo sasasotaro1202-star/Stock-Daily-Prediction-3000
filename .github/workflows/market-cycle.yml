@@ -78,12 +78,14 @@ jobs:
           pattern: price-shard-*-${{ github.run_id }}
           path: data/prices
           merge-multiple: true
-      - name: Build reproducibility manifest
-        run: python scripts/build_manifest.py
+      - name: Universe quality gate
+        run: python scripts/universe_quality_gate.py
       - name: Price data quality gate
         run: python scripts/data_quality_gate.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
+      - name: Build reproducibility manifest
+        run: python scripts/build_manifest.py
       - name: Release gate
         id: gate
         shell: bash
@@ -94,6 +96,9 @@ jobs:
       - name: Production prediction
         if: steps.gate.outputs.approved == 'true'
         run: python scripts/run_daily_prediction.py
+      - name: Cross-sectional backtest evidence
+        if: steps.gate.outputs.approved == 'true'
+        run: python scripts/run_backtest.py
       - name: Explicitly record deferred production state
         if: steps.gate.outputs.approved != 'true'
         run: echo "Production prediction DEFERRED by release gate."
