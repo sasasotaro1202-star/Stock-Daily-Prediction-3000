@@ -81,6 +81,10 @@ jobs:
       - run: pip install -e .
       - uses: actions/download-artifact@v4
         with:
+          name: morning-universe-${{ github.run_id }}
+          path: data/universe
+      - uses: actions/download-artifact@v4
+        with:
           pattern: morning-price-state-shard-*
           path: data/prices
           merge-multiple: true
