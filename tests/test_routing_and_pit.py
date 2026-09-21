@@ -70,3 +70,32 @@ def test_nan_market_state_is_data_stressed():
 
     assert regime_for_row(float("nan"), 0.01, 0.20) == Regime.DATA_STRESSED
     assert regime_for_row(0.10, float("nan"), 0.20) == Regime.DATA_STRESSED
+
+
+def test_global_selection_balances_asset_classes():
+    from src.research.router import rebalance_global_oos_candidates
+
+    global_metrics = {
+        "logistic": {"logloss": 0.60, "logloss_std": 0.01, "folds": 4},
+        "hgb": {"logloss": 0.62, "logloss_std": 0.01, "folds": 4},
+    }
+    asset_metrics = {
+        "jp_stock": {
+            "logistic": {"logloss": 0.55, "folds": 4},
+            "hgb": {"logloss": 0.60, "folds": 4},
+        },
+        "us_stock": {
+            "logistic": {"logloss": 0.80, "folds": 4},
+            "hgb": {"logloss": 0.65, "folds": 4},
+        },
+    }
+    balanced = rebalance_global_oos_candidates(
+        global_metrics,
+        asset_metrics,
+        blend_weight=0.50,
+        min_folds=3,
+    )
+    assert balanced["logistic"]["asset_class_macro_logloss"] == 0.675
+    assert balanced["hgb"]["asset_class_macro_logloss"] == 0.625
+    assert balanced["logistic"]["selection_logloss"] == 0.6375
+    assert balanced["hgb"]["selection_logloss"] == 0.6225
