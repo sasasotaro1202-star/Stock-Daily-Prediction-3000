@@ -28,6 +28,13 @@ models:
   selection_metric: logloss
   selection_source: chronological_oos_only
   stability_penalty: 0.25
+regime:
+  event_gap_abs: 0.03
+  event_volume_ratio: 3.0
+  high_vol_vix: 30.0
+  trend_price_vs_sma60_abs: 0.02
+  trend_breadth_low: 0.25
+  trend_breadth_high: 0.75
 routing:
   hierarchy:
     - asset_class_and_regime
