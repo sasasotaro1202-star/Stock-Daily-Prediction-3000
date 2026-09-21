@@ -45,8 +45,9 @@ def main():
         bars["session_date"]=pd.to_datetime(
             bars["session_date"],errors="coerce"
         ).dt.date
+        series_keys=["asset_class","symbol"] if "asset_class" in bars.columns else ["symbol"]
         bars["forward_return_1d"]=(
-            bars.groupby("symbol")["close"].shift(-1)
+            bars.groupby(series_keys)["close"].shift(-1)
             /bars["close"]-1.0
         )
         if "stock_splits" in bars.columns:
@@ -57,8 +58,8 @@ def main():
             bars["available_at"],utc=True,errors="coerce"
         )
         outcome=bars[
-            [
-                "symbol",
+            series_keys
+            + [
                 "session_date",
                 "forward_return_1d",
                 "outcome_available_at",
@@ -66,7 +67,7 @@ def main():
         ]
         m=pred.merge(
             outcome,
-            on=["symbol","session_date"],
+            on=series_keys+["session_date"],
             how="inner",
         )
         m["prediction_time"]=pd.to_datetime(
