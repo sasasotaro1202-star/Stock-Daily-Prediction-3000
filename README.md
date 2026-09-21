@@ -1,27 +1,30 @@
 # PayPay Securities Daily Prediction
 
-PayPay証券で現時点で取引可能な**日次市場価格を持つ対象を原則すべて**対象にする、無料優先の日次予測・研究基盤です。
+PayPay証券で現時点で取引可能な日次市場価格対象を原則すべて対象にする、無料優先の日次株価予測・研究基盤です。
 
 ## Universe
 
-The authoritative universe is refreshed from PayPay証券's official trading-list pages:
-- Japan: individual stocks, domestic ETFs, and REITs
-- U.S.: individual stocks and ETFs
+Current universe is dynamic rather than capped at 3,000 names. The authoritative source is PayPay証券's official trading-list pages for Japan and the U.S. Japan covers individual stocks, ETFs and REITs; the U.S. list covers individual stocks and ETFs. Newly listed/removed names are reflected by the next universe snapshot while historical snapshots are preserved for survivorship-bias control.
 
-The current target is **dynamic**, not a fixed 3,000-name cap. Newly added PayPay listings are included automatically after the universe refresh; removed/delisted names are retained in historical data for survivorship-bias control.
+Investment trusts, CFDs, leveraged CFDs and iDeCo are kept outside this exchange-traded price pipeline because their pricing/execution clocks differ.
 
-Mutual funds, CFDs, leveraged CFDs, and iDeCo are excluded from this stock/market-price pipeline because their execution/NAV timing is materially different from exchange-traded daily securities. They can be handled by a separate NAV prediction pipeline without mixing targets.
+## Prediction
 
-## Production principles
+The system produces, when the production gate is approved:
+- next-session up probability
+- expected next-session return
+- expected next close
+- model-implied low/high range
+- cross-sectional ranking
 
-- PIT / no-look-ahead: available_at <= prediction_time
-- chronological Walk-Forward OOS
-- frozen holdout evaluated only after configuration freeze
-- independent leakage/model-selection audit
-- fail-closed data quality
-- incremental/cached processing
-- provenance and universe snapshots
-- daily GitHub Actions automation
-- free-first data sources; paid services are never required for the core pipeline
+The research layer evaluates Logistic Regression, ExtraTrees and HistGradientBoosting using chronological OOS folds, fold-local Platt calibration, and OOS-only regime routing. Optional challengers include LightGBM, XGBoost, CatBoost and PatchTST.
+
+## Safety
+
+PIT/no-look-ahead, causal features, independent leakage audit, data-quality fail-closed behavior, frozen holdout, reproducibility manifest and independent release gate are required. Missing critical data produces DEFERRED instead of fabricated values.
+
+## Automation
+
+GitHub Actions runs a six-hour health heartbeat and a weekday market cycle at 18:17 Asia/Tokyo. The market cycle refreshes the PayPay universe, updates price data in four parallel shards, runs data-quality checks, OOS research, calibration, release gate and—only when approved—production prediction. Artifacts are retained for seven days.
 
 Research system only; not investment advice or a profit guarantee.
