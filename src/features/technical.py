@@ -23,12 +23,18 @@ def _rolling_z(s:pd.Series,window:int)->pd.Series:
 
 def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame:
     out=df.copy()
-    required={"open","high","low","close","volume",group_col,"session_date"}
+    required={"open","high","low","close","adj_close","volume",group_col,"session_date"}
     missing=required-set(out.columns)
     if missing: raise ValueError(f"missing columns: {sorted(missing)}")
     out=out.sort_values([group_col,"session_date"]).reset_index(drop=True)
     g=out.groupby(group_col,sort=False)
-    close=g["close"]; volume=g["volume"]; prev=out.groupby(group_col)["close"].shift(1)
+    # Use split/dividend-adjusted OHLC for feature engineering while retaining raw close.
+    factor=(out["adj_close"]/out["close"].replace(0,np.nan)).replace([np.inf,-np.inf],np.nan).fillna(1.0)
+    out["_model_open"]=out["open"]*factor
+    out["_model_high"]=out["high"]*factor
+    out["_model_low"]=out["low"]*factor
+    out["_model_close"]=out["adj_close"]
+    close=g["_model_close"]; volume=g["volume"]; prev=out.groupby(group_col)["_model_close"].shift(1)
     out["ret_1d"]=close.pct_change()
     out["ret_5d"]=close.pct_change(5)
     out["ret_20d"]=close.pct_change(20)
@@ -52,17 +58,17 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     avg_loss=loss.transform(lambda s:s.rolling(14,min_periods=14).mean())
     rs=avg_gain/avg_loss.replace(0,np.nan)
     out["rsi_14"]=100-(100/(1+rs))
-    low14=g["low"].transform(lambda s:s.rolling(14,min_periods=14).min())
-    high14=g["high"].transform(lambda s:s.rolling(14,min_periods=14).max())
+    low14=g["_model_low"].transform(lambda s:s.rolling(14,min_periods=14).min())
+    high14=g["_model_high"].transform(lambda s:s.rolling(14,min_periods=14).max())
     out["stoch_k"]=100*(out["close"]-low14)/(high14-low14).replace(0,np.nan)
     out["stoch_d"]=out["stoch_k"].groupby(out[group_col]).transform(lambda s:s.rolling(3,min_periods=3).mean())
     bb_std=close.transform(lambda s:s.rolling(20,min_periods=20).std())
     out["bb_width"]=4*bb_std/sma20.replace(0,np.nan)
-    tr=pd.concat([(out["high"]-out["low"]),(out["high"]-prev).abs(),(out["low"]-prev).abs()],axis=1).max(axis=1)
+    tr=pd.concat([(out["_model_high"]-out["_model_low"]),(out["_model_high"]-prev).abs(),(out["_model_low"]-prev).abs()],axis=1).max(axis=1)
     atr=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).mean())
     out["atr_pct"]=atr/out["close"].replace(0,np.nan)
-    up=out["high"]-out.groupby(group_col)["high"].shift(1)
-    down=out.groupby(group_col)["low"].shift(1)-out["low"]
+    up=out["_model_high"]-out.groupby(group_col)["_model_high"].shift(1)
+    down=out.groupby(group_col)["_model_low"].shift(1)-out["_model_low"]
     plus_dm=pd.Series(np.where((up>down)&(up>0),up,0.0),index=out.index)
     minus_dm=pd.Series(np.where((down>up)&(down>0),down,0.0),index=out.index)
     tr14=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
@@ -74,7 +80,7 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     direction=np.sign(delta.fillna(0))
     obv=(direction*out["volume"]).groupby(out[group_col]).cumsum()
     out["obv_z20"]=obv.groupby(out[group_col]).transform(lambda s:_rolling_z(s,20))
-    tp=(out["high"]+out["low"]+out["close"])/3
+    tp=(out["_model_high"]+out["_model_low"]+out["_model_close"])/3
     raw_flow=tp*out["volume"]; tp_prev=tp.groupby(out[group_col]).shift(1)
     pos=raw_flow.where(tp>tp_prev,0.0); neg=raw_flow.where(tp<tp_prev,0.0).abs()
     pos14=pos.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
@@ -83,8 +89,9 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["mfi_14"]=100-(100/(1+money_ratio))
     out["volatility_20"]=out["ret_1d"].groupby(out[group_col]).transform(lambda s:s.rolling(20,min_periods=20).std())
     out["volume_ratio_20"]=volume.transform(lambda s:s/s.rolling(20,min_periods=20).mean())
-    out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
-    out["gap_pct"]=(out["open"]/prev)-1.0
+    out["range_pct"]=(out["_model_high"]-out["_model_low"])/out["_model_close"].replace(0,np.nan)
+    out["gap_pct"]=(out["_model_open"]/prev)-1.0
     out["price_vs_sma20"]=out["close"]/sma20-1.0
     out["price_vs_sma60"]=out["close"]/sma60-1.0
+    out=out.drop(columns=["_model_open","_model_high","_model_low","_model_close"])
     return out
