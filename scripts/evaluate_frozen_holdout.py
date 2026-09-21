@@ -17,7 +17,6 @@ from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
-from src.validation.training_sample import cap_training_rows
 
 
 def factories():
