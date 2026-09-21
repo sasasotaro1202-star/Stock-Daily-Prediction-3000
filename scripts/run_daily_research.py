@@ -29,7 +29,9 @@ from src.research.router import (
     choose_from_oos,
 )
 from src.validation.calibration import PlattCalibrator
+from src.validation.training_sample import cap_training_rows
 from src.validation.leakage import audit_feature_columns, audit_target_separation
+from src.validation.training_sample import cap_training_rows
 from src.validation.walk_forward import make_date_folds
 
 PRICE_DIR = Path("data/prices")
@@ -147,9 +149,10 @@ def main():
         q10=make_quantile_model(0.10)
         q50=make_quantile_model(0.50)
         q90=make_quantile_model(0.90)
-        q10.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
-        q50.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
-        q90.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        core_q=cap_training_rows(core,max_rows=250_000,recent_sessions=252)
+        q10.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
+        q50.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
+        q90.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
         lo=q10.predict(test[FEATURE_COLUMNS])
         mid=q50.predict(test[FEATURE_COLUMNS])
         hi=q90.predict(test[FEATURE_COLUMNS])
