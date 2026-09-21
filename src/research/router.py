@@ -2,21 +2,32 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-class Regime(str, Enum):
+class Regime(str,Enum):
     NORMAL="normal"; HIGH_VOL="high_vol"; TREND="trend"; EVENT="event"; DATA_STRESSED="data_stressed"
 
 @dataclass(frozen=True)
 class ModelPlan:
-    names: tuple[str,...]
-    weights: tuple[float,...]
-    reason: str
+    names:tuple[str,...]
+    weights:tuple[float,...]
+    reason:str
 
-def choose_model_plan(*, realized_vol: float|None, market_trend: float|None,
-                      event_intensity: float=0.0, data_coverage: float=1.0) -> ModelPlan:
-    if data_coverage < 0.98: return ModelPlan(("conservative",),(1.0,),"data_stressed")
-    if event_intensity >= 0.7: return ModelPlan(("event","global_hgb"),(0.5,0.5),"event")
-    if realized_vol is not None and realized_vol >= 0.04:
-        return ModelPlan(("global_hgb","volatility"),(0.6,0.4),"high_vol")
-    if market_trend is not None and abs(market_trend) >= 0.02:
-        return ModelPlan(("global_hgb","trend"),(0.7,0.3),"trend")
-    return ModelPlan(("logistic","global_hgb"),(0.5,0.5),"normal")
+CANDIDATES={
+    Regime.NORMAL:("logistic","extra_trees","hgb"),
+    Regime.HIGH_VOL:("hgb","extra_trees","logistic"),
+    Regime.TREND:("hgb","extra_trees","logistic"),
+    Regime.EVENT:("hgb","extra_trees"),
+    Regime.DATA_STRESSED:("hgb",),
+}
+
+def regime_for_row(volatility:float|None,price_vs_sma60:float|None,vol_threshold:float)->Regime:
+    if volatility is None or price_vs_sma60 is None:return Regime.DATA_STRESSED
+    if volatility>=vol_threshold:return Regime.HIGH_VOL
+    if abs(price_vs_sma60)>=0.02:return Regime.TREND
+    return Regime.NORMAL
+
+def choose_from_oos(regime:str,candidate_metrics:dict[str,dict[str,float]])->ModelPlan:
+    candidates=CANDIDATES.get(Regime(regime),CANDIDATES[Regime.NORMAL])
+    usable=[(name,candidate_metrics[name]["logloss"]) for name in candidates if name in candidate_metrics and "logloss" in candidate_metrics[name]]
+    if not usable:return ModelPlan(("hgb",),(1.0,),f"{regime}:oos_unavailable_fallback")
+    name,_=min(usable,key=lambda x:x[1])
+    return ModelPlan((name,),(1.0,),f"{regime}:minimum_oos_logloss")
