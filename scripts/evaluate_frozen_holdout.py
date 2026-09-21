@@ -70,6 +70,7 @@ def main():
     if not context_path.exists():
         raise SystemExit("DEFERRED: market context is absent")
     market_context = pd.read_parquet(context_path)
+    df["session_date"] = pd.to_datetime(df["session_date"], errors="coerce").dt.date
     df["available_at"] = pd.to_datetime(
         df["available_at"], utc=True, errors="coerce"
     )
