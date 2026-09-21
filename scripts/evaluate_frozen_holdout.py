@@ -21,7 +21,9 @@ def factories():
 
 def main():
     result=Path("data/research/frozen_holdout_result.json")
-    if result.exists(): raise SystemExit("FAIL: frozen holdout has already been evaluated; refusing to overwrite")
+    if result.exists():
+        print("frozen-holdout: already evaluated; no-op")
+        return
     lock=Path("config/frozen_holdout.json")
     metrics=Path("data/research/latest_metrics.json")
     if not lock.exists() or not metrics.exists(): raise SystemExit("DEFERRED: frozen configuration and OOS metrics required")
@@ -43,7 +45,7 @@ def main():
     max_ece=0.20
     config=Path("config/pipeline.yml").read_text(encoding="utf-8")
     import re
-    m=re.search(r"max_holdout_ece:s*([0-9.]+)",config); max_ece=float(m.group(1)) if m else max_ece
+    m=re.search(r"max_holdout_ece:\s*([0-9.]+)",config); max_ece=float(m.group(1)) if m else max_ece
     payload={"status":"EVALUATED_ONCE","frozen_model":selected,"holdout_rows":int(len(test)),
              "model_metrics":model_metrics,"baseline_metrics":baseline_metrics,
              "beats_baseline":bool(model_metrics["logloss"]<baseline_metrics["logloss"]),
