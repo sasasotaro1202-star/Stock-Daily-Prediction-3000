@@ -90,7 +90,7 @@ def choose_from_oos(
         )
 
     usable.sort(key=lambda x: x[1])
-    name, score = usable[0]
+    name, _ = usable[0]
     return ModelPlan(
         (name,),
         (1.0,),
@@ -120,14 +120,50 @@ def route_plan(
     regime: str,
     *,
     asset_regime_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
-    asset_metrics: dict[str, dict[str, float]] | None = None,
+    asset_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     regime_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     global_selected: str = "hgb",
+    locked_asset_regime: dict[str, str] | None = None,
+    locked_asset: dict[str, str] | None = None,
+    locked_regime: dict[str, str] | None = None,
+    locked_global: str | None = None,
 ) -> ModelPlan:
     if regime == Regime.DATA_STRESSED.value:
         return ModelPlan(("hgb",), (1.0,), "data_stressed:fail_closed_fallback", "fallback")
 
     key = f"{asset_class}::{regime}"
+
+    # Once a model release is frozen, the selected route cannot silently
+    # change on the next scheduled run.
+    if locked_asset_regime and key in locked_asset_regime:
+        return ModelPlan(
+            (locked_asset_regime[key],),
+            (1.0,),
+            f"locked:{key}",
+            key,
+        )
+    if locked_asset and asset_class in locked_asset:
+        return ModelPlan(
+            (locked_asset[asset_class],),
+            (1.0,),
+            f"locked:asset:{asset_class}",
+            f"asset:{asset_class}",
+        )
+    if locked_regime and regime in locked_regime:
+        return ModelPlan(
+            (locked_regime[regime],),
+            (1.0,),
+            f"locked:regime:{regime}",
+            f"regime:{regime}",
+        )
+    if locked_global:
+        return ModelPlan(
+            (locked_global,),
+            (1.0,),
+            "locked:global",
+            "global",
+        )
+
     if asset_regime_metrics and key in asset_regime_metrics:
         plan = choose_from_oos(
             regime,
@@ -144,7 +180,11 @@ def route_plan(
             return plan
 
     if regime_metrics and regime in regime_metrics:
-        plan = choose_from_oos(regime, regime_metrics[regime], scope=f"regime:{regime}")
+        plan = choose_from_oos(
+            regime,
+            regime_metrics[regime],
+            scope=f"regime:{regime}",
+        )
         if not plan.reason.endswith("fallback"):
             return plan
 
