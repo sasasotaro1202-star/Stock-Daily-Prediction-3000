@@ -56,3 +56,17 @@ def test_cross_sectional_context_requires_market_family_separation():
     out = add_cross_sectional_context(df)
     assert out.loc[out.symbol.eq("JP1"), "cs_ret_1d_rank"].iloc[0] == 1.0
     assert out.loc[out.symbol.eq("US1"), "cs_ret_1d_rank"].iloc[0] == 1.0
+
+
+def test_event_regime_is_detected_before_volatility():
+    from src.research.router import Regime, regime_for_row
+
+    assert regime_for_row(0.10, 0.00, 0.20, gap_pct=0.04) == Regime.EVENT
+    assert regime_for_row(0.10, 0.00, 0.20, volume_ratio_20=3.5) == Regime.EVENT
+
+
+def test_nan_market_state_is_data_stressed():
+    from src.research.router import Regime, regime_for_row
+
+    assert regime_for_row(float("nan"), 0.01, 0.20) == Regime.DATA_STRESSED
+    assert regime_for_row(0.10, float("nan"), 0.20) == Regime.DATA_STRESSED
