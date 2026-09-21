@@ -7,7 +7,10 @@ import pandas as pd
 import yfinance as yf
 
 def yahoo_symbol(symbol:str,asset_class:str)->str:
-    return f"{symbol}.T" if asset_class.startswith("jp_") else symbol
+    if asset_class.startswith("jp_"):
+        return f"{symbol}.T"
+    # Yahoo uses hyphens for share-class tickers such as BRK.B -> BRK-B.
+    return symbol.replace(".", "-")
 
 def available_at_for(session_date,asset_class:str)->pd.Timestamp:
     if asset_class.startswith("jp_"):
