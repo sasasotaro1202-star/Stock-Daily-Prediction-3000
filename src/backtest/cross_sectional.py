@@ -68,14 +68,18 @@ def evaluate_predictions(
         )
         b.loc[current_split | next_split, "forward_return_1d"] = np.nan
 
+    # A one-day forward return is only observable when the *next* session
+    # close becomes available. Carry that next-session availability timestamp
+    # with the forward return so the PIT test does not reject valid outcomes.
+    b["outcome_available_at"] = (
+        b.groupby(series_keys)["available_at"].shift(-1)
+    )
     outcome_cols = series_keys + [
         "session_date",
         "forward_return_1d",
-        "available_at",
+        "outcome_available_at",
     ]
-    outcome = b[outcome_cols].rename(
-        columns={"available_at": "outcome_available_at"}
-    )
+    outcome = b[outcome_cols]
 
     m = p.merge(
         outcome,
