@@ -56,7 +56,7 @@ def add_market_context(
         "us_market_volatility_lag1":"__sp500_vol",
     }
     for target,source in mapping.items():
-        out[target]=out[source] if source in out.columns else pd.NA
+        out[target]=out[source] if source in out.columns else float("nan")
 
     drop=[c for c in out.columns if c.startswith("__")]
     return out.drop(columns=drop)
@@ -107,7 +107,9 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
     )
     out["ret_vs_market_median"]=out["ret_1d"]-out["median_ret"]
     out["vol_vs_market_median"]=(
-        out["volatility_20"]/out["median_vol"].replace(0,pd.NA)-1.0
+        out["volatility_20"]
+        /out["median_vol"].replace(0,float("nan"))
+        -1.0
     )
 
     if "sector" in out.columns:
