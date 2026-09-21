@@ -86,7 +86,7 @@ def main():
     ].dropna(subset=FEATURE_COLUMNS + ["target_up_1d"])
     test = df[
         df["date"].gt(cutoff)
-    ].dropna(subset=FEATURE_COLUMNS + ["target_up_1d"])
+    ].dropna(subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"])
 
     if len(train) < 1000 or len(test) < 500:
         raise SystemExit("DEFERRED: frozen holdout is too small")
