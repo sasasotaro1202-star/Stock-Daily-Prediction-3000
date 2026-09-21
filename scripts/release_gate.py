@@ -43,7 +43,15 @@ def main():
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if universe.get("status")!="PASS": reasons.append("universe_quality_not_pass")
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
+    if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED": reasons.append("manifest_invalid")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
+    holdout_return=frozen.get("return_holdout_metrics",{})
+    if not all(
+        k in holdout_return and isinstance(holdout_return[k],(int,float))
+        and __import__("math").isfinite(float(holdout_return[k]))
+        for k in ("mae","rmse","range_80_coverage")
+    ):
+        reasons.append("holdout_return_metrics_missing")
     if frozen.get("beats_baseline") is not True: reasons.append("holdout_does_not_beat_baseline")
     if not frozen.get("calibration_within_limit",False): reasons.append("holdout_calibration_out_of_limit")
     result={"approved":not reasons,"reasons":reasons,"production_status":"APPROVED" if not reasons else "DEFERRED"}
