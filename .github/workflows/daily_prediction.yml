@@ -1,13 +1,19 @@
 name: Daily prediction research
+
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   schedule:
     - cron: "30 7 * * 1-5"
+
 permissions:
   contents: read
+
 concurrency:
   group: daily-prediction
   cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -22,7 +28,8 @@ jobs:
       - run: pytest -q
       - run: python scripts/research_smoke.py
       - name: Verify PayPay universe policy
-        run: python - <<'PY'
+        run: |
+          python - <<'PY'
           from src.data.paypay_universe import PAYPAY_UNIVERSE_RULE
           assert PAYPAY_UNIVERSE_RULE.official_only
           assert PAYPAY_UNIVERSE_RULE.current_tradeable_only
