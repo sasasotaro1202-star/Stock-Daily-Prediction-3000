@@ -134,6 +134,8 @@ jobs:
           if [ -f data/research/frozen_holdout_result.json ]; then
             cp data/research/frozen_holdout_result.json artifacts/frozen_holdout_result.json
           fi
-          git add artifacts/ config/frozen_holdout.json data/research/frozen_holdout_result.json
+          git add artifacts/ data/research/release_gate.json
+          if [ -f config/frozen_holdout.json ]; then git add config/frozen_holdout.json; fi
+          if [ -f data/research/frozen_holdout_result.json ]; then git add data/research/frozen_holdout_result.json; fi
           git diff --cached --quiet || git commit -m "Persist frozen release state"
           git push
