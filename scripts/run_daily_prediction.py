@@ -349,19 +349,25 @@ def main():
         latest["expected_return_1d"],
     )
 
+    adj_factor = latest["close"] / latest["adj_close"].replace(0, np.nan)
+    latest["expected_adj_close_1d"] = np.where(
+        ready_mask,
+        latest["adj_close"] * (1 + latest["expected_return_1d"]),
+        np.nan,
+    )
     latest["expected_close_1d"] = np.where(
         ready_mask,
-        latest["close"] * (1 + latest["expected_return_1d"]),
+        latest["expected_adj_close_1d"] * adj_factor,
         np.nan,
     )
     latest["range_low_1d"] = np.where(
         ready_mask,
-        latest["close"] * (1 + latest["return_q10_1d"]),
+        latest["adj_close"] * (1 + latest["return_q10_1d"]) * adj_factor,
         np.nan,
     )
     latest["range_high_1d"] = np.where(
         ready_mask,
-        latest["close"] * (1 + latest["return_q90_1d"]),
+        latest["adj_close"] * (1 + latest["return_q90_1d"]) * adj_factor,
         np.nan,
     )
     latest["prediction_time"] = prediction_time
@@ -372,6 +378,8 @@ def main():
         "asset_class",
         "session_date",
         "close",
+        "adj_close",
+        "expected_adj_close_1d",
         "prediction_time",
         "prediction_date",
         "p_up_1d",
