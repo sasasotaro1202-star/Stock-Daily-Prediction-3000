@@ -10,7 +10,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
-from src.features.context import add_cross_sectional_context
+from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
@@ -64,13 +64,17 @@ def main():
         raise SystemExit("FAIL: frozen model is unavailable")
 
     df = pd.read_parquet("data/prices")
+    context_path = Path("data/market_context.parquet")
+    if not context_path.exists():
+        raise SystemExit("DEFERRED: market context is absent")
+    market_context = pd.read_parquet(context_path)
     df["available_at"] = pd.to_datetime(
         df["available_at"], utc=True, errors="coerce"
     )
     df = df.dropna(subset=["available_at"])
-    df = add_targets(
-        add_cross_sectional_context(add_technical_features(df))
-    )
+    df = add_technical_features(df)
+    df = add_market_context(df, market_context)
+    df = add_targets(add_cross_sectional_context(df))
     cutoff = pd.Timestamp(frozen["cutoff_date"]).date()
     df["date"] = pd.to_datetime(df["session_date"]).dt.date
 
