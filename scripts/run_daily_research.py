@@ -9,9 +9,13 @@ from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifie
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_pinball_loss,
+    mean_squared_error,
+)
 
-from src.prediction.regression import make_return_model
+from src.prediction.regression import make_quantile_model, make_return_model
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
@@ -140,24 +144,29 @@ def main():
         test = df[df.session_date.isin(test_dates)]
         if min(len(core), len(test)) < 100:
             continue
-        return_model = make_return_model()
-        return_model.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
-        pred_ret = return_model.predict(test[FEATURE_COLUMNS])
-        y_ret = test["target_ret_1d"].to_numpy(dtype=float)
-        vol = test["volatility_20"].to_numpy(dtype=float)
-        valid_vol = np.isfinite(vol) & (vol > 0)
-        coverage_95 = (
-            float(np.mean(np.abs(y_ret[valid_vol]) <= 1.96 * vol[valid_vol]))
-            if valid_vol.any()
-            else float("nan")
-        )
+        q10=make_quantile_model(0.10)
+        q50=make_quantile_model(0.50)
+        q90=make_quantile_model(0.90)
+        q10.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        q50.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        q90.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        lo=q10.predict(test[FEATURE_COLUMNS])
+        mid=q50.predict(test[FEATURE_COLUMNS])
+        hi=q90.predict(test[FEATURE_COLUMNS])
+        lo=np.minimum(lo,mid)
+        hi=np.maximum(hi,mid)
+        y_ret=test["target_ret_1d"].to_numpy(dtype=float)
         return_fold_rows.append({
-            "mae": float(mean_absolute_error(y_ret, pred_ret)),
-            "rmse": float(mean_squared_error(y_ret, pred_ret) ** 0.5),
+            "mae": float(mean_absolute_error(y_ret, mid)),
+            "rmse": float(mean_squared_error(y_ret, mid) ** 0.5),
             "sign_accuracy": float(
-                np.mean((pred_ret >= 0) == (y_ret >= 0))
+                np.mean((mid >= 0) == (y_ret >= 0))
             ),
-            "range_95_coverage": coverage_95,
+            "q10_pinball": float(mean_pinball_loss(y_ret,lo,alpha=0.10)),
+            "q90_pinball": float(mean_pinball_loss(y_ret,hi,alpha=0.90)),
+            "range_80_coverage": float(
+                np.mean((y_ret >= lo) & (y_ret <= hi))
+            ),
             "n_test": float(len(test)),
         })
 
