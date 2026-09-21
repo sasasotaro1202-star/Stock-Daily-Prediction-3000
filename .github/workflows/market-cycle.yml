@@ -109,8 +109,17 @@ jobs:
           python scripts/release_gate.py
           approved=$(python -c 'import json; print(str(json.load(open("data/research/release_gate.json")).get("approved",False)).lower())')
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
-      - name: Production prediction
+      - name: Restore latest live monitoring state
         if: steps.gate.outputs.approved == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_latest_monitor_state.py
+      - name: Live performance gate
+        if: steps.gate.outputs.approved == 'true'
+        run: python scripts/live_performance_gate.py
+      - name: Production prediction
+        if: steps.gate.outputs.approved == 'true' && success()
         env:
           PREDICT_ASSET_CLASSES: jp_stock,jp_etf,jp_reit
         run: python scripts/run_daily_prediction.py
