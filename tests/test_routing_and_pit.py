@@ -9,7 +9,7 @@ from src.research.router import route_plan
 def test_route_prefers_asset_regime_oos_evidence():
     metrics = {
         "jp_stock::high_vol": {
-            "logistic": {"logloss": 0.70, "logloss_std": 0.01, "folds": 2},
+            "logistic": {"logloss": 0.70, "logloss_std": 0.01, "folds": 3},
             "hgb": {"logloss": 0.60, "logloss_std": 0.01, "folds": 2},
         }
     }
