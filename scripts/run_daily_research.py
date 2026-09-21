@@ -8,6 +8,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
 from src.features.technical import FEATURE_COLUMNS,add_technical_features
+from src.features.context import add_cross_sectional_context
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows,classification_metrics
 from src.research.router import Regime,choose_from_oos,regime_for_row
@@ -28,7 +29,7 @@ def main():
     if not PRICE_DIR.exists(): raise SystemExit("DEFERRED: price dataset is absent")
     df=pd.read_parquet(PRICE_DIR)
     if len(df)<2000: raise SystemExit(f"DEFERRED: insufficient price rows ({len(df)})")
-    df=add_targets(add_technical_features(df))
+    df=add_targets(add_cross_sectional_context(add_technical_features(df)))
     fa=audit_feature_columns(FEATURE_COLUMNS)
     targets=[c for c in df.columns if c.startswith("target_")]
     ts=audit_target_separation(FEATURE_COLUMNS,targets)
