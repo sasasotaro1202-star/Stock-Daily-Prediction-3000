@@ -18,7 +18,17 @@ def main():
     audit=json.loads(audit_path.read_text()) if audit_path.exists() else {}
     quality=json.loads(quality_path.read_text()) if quality_path.exists() else {}
     frozen=json.loads(frozen_path.read_text()) if frozen_path.exists() else {}
-    if metrics.get("status")!="OOS_COMPLETE": reasons.append("oos_not_complete")
+    if metrics.get("status")!="OOS_COMPLETE":
+        reasons.append("direction_oos_not_complete")
+    return_oos=metrics.get("return_oos",{})
+    return_metrics=return_oos.get("metrics",{})
+    if return_oos.get("status")!="OOS_COMPLETE":
+        reasons.append("return_oos_not_complete")
+    if not return_metrics or not all(
+        key in return_metrics and isinstance(return_metrics.get(key),(int,float))
+        for key in ("mae","rmse","sign_accuracy")
+    ):
+        reasons.append("return_oos_metrics_missing")
     if audit.get("ok") is not True: reasons.append("leakage_audit_failed")
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
