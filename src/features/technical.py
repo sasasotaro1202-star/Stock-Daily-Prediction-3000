@@ -17,6 +17,11 @@ FEATURE_COLUMNS=[
     "asset_is_jp","asset_is_us","asset_is_stock",
     "asset_is_etf","asset_is_reit",
     "ret_vs_market_median","vol_vs_market_median",
+    "volatility_5","volatility_ratio_5_20",
+    "volume_z20","dollar_volume_ratio_20",
+    "amihud_20","return_z20","range_z20",
+    "close_location","intraday_return",
+    "dow_sin","dow_cos","month_sin","month_cos",
 ]
 
 def _rolling_z(s:pd.Series,window:int)->pd.Series:
@@ -84,10 +89,50 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     neg14=neg.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).sum())
     money_ratio=pos14/neg14.replace(0,np.nan)
     out["mfi_14"]=100-(100/(1+money_ratio))
-    out["volatility_20"]=out["ret_1d"].groupby(out[group_col]).transform(lambda s:s.rolling(20,min_periods=20).std())
-    out["volume_ratio_20"]=volume.transform(lambda s:s/s.rolling(20,min_periods=20).mean())
-    out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
+    out["volatility_20"]=out["ret_1d"].groupby(out[group_col]).transform(
+        lambda s:s.rolling(20,min_periods=20).std()
+    )
+    out["volatility_5"]=out["ret_1d"].groupby(out[group_col]).transform(
+        lambda s:s.rolling(5,min_periods=5).std()
+    )
+    out["volatility_ratio_5_20"]=(
+        out["volatility_5"]/out["volatility_20"].replace(0,np.nan)
+    )
+    out["volume_ratio_20"]=volume.transform(
+        lambda s:s/s.rolling(20,min_periods=20).mean()
+    )
+    out["volume_z20"]=volume.transform(
+        lambda s:_rolling_z(s.astype(float),20)
+    )
+    dollar_volume=(out["close"].abs()*out["volume"].abs()).astype(float)
+    dollar_median=dollar_volume.groupby(out[group_col]).transform(
+        lambda s:s.rolling(20,min_periods=20).median()
+    )
+    out["dollar_volume_ratio_20"]=(
+        dollar_volume/dollar_median.replace(0,np.nan)
+    )
+    amihud_raw=out["ret_1d"].abs()/dollar_volume.replace(0,np.nan)
+    out["amihud_20"]=amihud_raw.groupby(out[group_col]).transform(
+        lambda s:s.rolling(20,min_periods=20).median()
+    )
+    out["return_z20"]=out["ret_1d"].groupby(out[group_col]).transform(
+        lambda s:_rolling_z(s.astype(float),20)
+    )    out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
+    out["range_z20"]=out["range_pct"].groupby(out[group_col]).transform(
+        lambda s:_rolling_z(s.astype(float),20)
+    )
     out["gap_pct"]=(out["open"]/prev)-1.0
+    out["intraday_return"]=out["close"]/out["open"].replace(0,np.nan)-1.0
+    out["close_location"]=(
+        (out["close"]-out["low"])/(out["high"]-out["low"]).replace(0,np.nan)
+    )
+    date_series=pd.to_datetime(out["session_date"],errors="coerce")
+    dow=date_series.dt.dayofweek.astype(float)
+    month=date_series.dt.month.astype(float)-1.0
+    out["dow_sin"]=np.sin(2*np.pi*dow/7.0)
+    out["dow_cos"]=np.cos(2*np.pi*dow/7.0)
+    out["month_sin"]=np.sin(2*np.pi*month/12.0)
+    out["month_cos"]=np.cos(2*np.pi*month/12.0)
     out["price_vs_sma20"]=out["close"]/sma20-1.0
     out["price_vs_sma60"]=out["close"]/sma60-1.0
     return out
