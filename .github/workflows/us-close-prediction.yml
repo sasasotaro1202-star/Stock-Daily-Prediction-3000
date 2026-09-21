@@ -98,6 +98,8 @@ jobs:
         run: python scripts/data_quality_gate.py
       - name: Production invariants
         run: python scripts/production_invariants.py
+      - name: Approved research state compatibility
+        run: python scripts/production_state_compatibility.py
       - name: Production prediction
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
