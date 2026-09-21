@@ -41,3 +41,18 @@ def test_cross_sectional_rank_does_not_mix_market_families():
     assert us["rank_probability"].max() <= 1.0
     assert jp["rank_probability"].min() >= 0.5
     assert us["rank_probability"].min() >= 0.5
+
+
+def test_cross_sectional_context_requires_market_family_separation():
+    from src.features.context import add_cross_sectional_context
+
+    df = pd.DataFrame({
+        "symbol": ["JP1", "US1"],
+        "asset_class": ["jp_stock", "us_stock"],
+        "session_date": [pd.Timestamp("2026-09-21").date()] * 2,
+        "ret_1d": [0.01, 0.99],
+        "volatility_20": [0.10, 0.90],
+    })
+    out = add_cross_sectional_context(df)
+    assert out.loc[out.symbol.eq("JP1"), "cs_ret_1d_rank"].iloc[0] == 1.0
+    assert out.loc[out.symbol.eq("US1"), "cs_ret_1d_rank"].iloc[0] == 1.0
