@@ -307,7 +307,7 @@ def main():
     latest["range_low_1d"] = latest["close"] * np.exp(-1.96 * vol)
     latest["range_high_1d"] = latest["close"] * np.exp(1.96 * vol)
     latest["prediction_time"] = prediction_time
-    latest["prediction_date"] = prediction_time.date()
+    latest["prediction_date"] = prediction_time.tz_convert("Asia/Tokyo").date()
 
     cols = [
         "symbol",
