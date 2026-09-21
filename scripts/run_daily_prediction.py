@@ -8,19 +8,13 @@ import os
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
-from src.prediction.regression import make_quantile_models
+from src.prediction.production_artifact import load_production_artifact
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
-from src.research.router import Regime, regime_for_row, route_plan
-from src.validation.calibration import PlattCalibrator
-from src.validation.training_sample import cap_training_rows
+from src.research.router import regime_for_row, route_plan
 from src.validation.code_fingerprint import fingerprint_sha256
 
 PRICE = Path("data/prices")
@@ -29,33 +23,6 @@ GATE = Path("data/research/release_gate.json")
 FROZEN = Path("config/frozen_holdout.json")
 OUT = Path("data/predictions/latest.parquet")
 
-
-def models():
-    return {
-        "logistic": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            LogisticRegression(max_iter=1000, C=0.5),
-        ),
-        "extra_trees": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            ExtraTreesClassifier(
-                n_estimators=300,
-                min_samples_leaf=20,
-                n_jobs=-1,
-                random_state=42,
-            ),
-        ),
-        "hgb": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            HistGradientBoostingClassifier(
-                max_iter=300,
-                learning_rate=0.04,
-                max_leaf_nodes=31,
-                l2_regularization=1.0,
-                random_state=42,
-            ),
-        ),
-    }
 
 
 def production_eligible(df: pd.DataFrame) -> pd.DataFrame:
@@ -74,67 +41,6 @@ def production_eligible(df: pd.DataFrame) -> pd.DataFrame:
     return df.loc[keep].copy()
 
 
-def split_train_cal(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    dates = sorted(pd.to_datetime(df["session_date"]).dt.date.unique())
-    if len(dates) < 40:
-        raise ValueError("insufficient chronological dates for calibration split")
-    cal_n = max(20, int(len(dates) * 0.2))
-    if len(dates) - cal_n < 20:
-        raise ValueError("insufficient core dates after calibration split")
-    core = df[df.session_date.isin(set(dates[:-cal_n]))]
-    cal = df[df.session_date.isin(set(dates[-cal_n:]))]
-    if len(core) < 200 or len(cal) < 100:
-        raise ValueError("insufficient rows for stable production fit")
-    if core.target_up_1d.nunique() < 2 or cal.target_up_1d.nunique() < 2:
-        raise ValueError("production calibration split lacks both target classes")
-    return core, cal
-
-
-def regime_series(df: pd.DataFrame, threshold: float) -> pd.Series:
-    return df.apply(
-        lambda x: regime_for_row(
-            float(x["volatility_20"]),
-            float(x["price_vs_sma60"]),
-            threshold,
-        ).value,
-        axis=1,
-    )
-
-
-def fit_scoped_model(
-    name: str,
-    scope: str,
-    labeled: pd.DataFrame,
-    threshold: float,
-    cache: dict[tuple[str, str], tuple[object, PlattCalibrator, str]],
-):
-    # Model family is routed by asset class/regime, but classifier training is
-    # shared globally. This keeps OOS selection aligned with production fitting,
-    # avoids sparse sub-population overfit, and bounds CPU usage for the full PayPay universe.
-    key=(name,"global")
-    if key in cache:
-        return cache[key]
-
-    core, cal=split_train_cal(labeled)
-    core_fit=cap_training_rows(
-        core,
-        max_rows=300_000,
-        recent_sessions=252,
-    )
-    model=models()[name]()
-    model.fit(
-        core_fit[FEATURE_COLUMNS],
-        core_fit.target_up_1d.astype(int),
-    )
-    cal_p=model.predict_proba(cal[FEATURE_COLUMNS])[:,1]
-    calibrator=PlattCalibrator().fit(
-        cal_p,
-        cal.target_up_1d.astype(int),
-    )
-    cache[key]=(model,calibrator,"global")
-    return cache[key]
-
-
 def main():
     if not PRICE.exists() or not METRICS.exists() or not GATE.exists():
         raise SystemExit("DEFERRED: research/release artifacts are missing")
@@ -146,6 +52,12 @@ def main():
         )
 
     payload = json.loads(METRICS.read_text(encoding="utf-8"))
+    try:
+        artifact = load_production_artifact()
+    except RuntimeError as exc:
+        raise SystemExit(f"DEFERRED: {exc}") from exc
+    if artifact["metadata"]["selected_model"] != payload.get("selected_model"):
+        raise SystemExit("DEFERRED: production artifact does not match selected research model")
     df = pd.read_parquet(PRICE)
     context_path = Path("data/market_context.parquet")
     if not context_path.exists():
@@ -199,11 +111,7 @@ def main():
     if latest.empty:
         raise SystemExit("DEFERRED: no latest PIT-safe session rows")
 
-    threshold = (
-        float(labeled["volatility_20"].dropna().quantile(0.75))
-        if labeled["volatility_20"].notna().any()
-        else 0.02
-    )
+    threshold = float(artifact["metadata"]["regime_vol_threshold"])
 
     metric_payload = payload
     frozen_routes = {}
@@ -215,14 +123,9 @@ def main():
     asset_regime_metrics = metric_payload.get("asset_regime_metrics", {})
     global_selected = metric_payload.get("selected_model", "hgb")
 
-    # Always retain three global challenger probabilities as a lightweight
-    # uncertainty signal, while routing the production probability through
-    # the OOS-selected scoped model.
-    global_cache: dict[tuple[str, str], tuple[object, PlattCalibrator, str]] = {}
-    for name in models():
-        fit_scoped_model(name, "global", labeled, threshold, global_cache)
-
-    route_cache: dict[tuple[str, str], tuple[object, PlattCalibrator, str]] = {}
+    # Load the already-approved immutable model artifact. No classifier or
+    # quantile model is retrained inside the production prediction job.
+    classifiers = artifact["classifiers"]
     selected_names: list[str] = []
     selected_scopes: list[str] = []
     selected_reasons: list[str] = []
@@ -270,9 +173,12 @@ def main():
             locked_global=frozen_routes.get("selected_model") if locked_mode else None,
         )
         model_name = plan.names[0]
-        model, calibrator, actual_scope = fit_scoped_model(
-            model_name, plan.scope, labeled, threshold, route_cache
-        )
+        entry = classifiers.get(model_name)
+        if entry is None:
+            raise SystemExit(f"DEFERRED: production classifier artifact missing {model_name}")
+        model = entry["model"]
+        calibrator = entry["calibrator"]
+        actual_scope = "global"
         raw_p = model.predict_proba(
             pd.DataFrame([row])[FEATURE_COLUMNS]
         )[:, 1]
@@ -284,8 +190,9 @@ def main():
 
         g_probs = []
         one = pd.DataFrame([row])[FEATURE_COLUMNS]
-        for candidate in models():
-            gm, gc, _ = global_cache[(candidate, "global")]
+        for candidate in ("logistic", "extra_trees", "hgb"):
+            gm = classifiers[candidate]["model"]
+            gc = classifiers[candidate]["calibrator"]
             g_probs.append(float(gc.predict(gm.predict_proba(one)[:, 1])[0]))
         global_disagreement.append(float(np.std(g_probs)))
 
@@ -296,11 +203,10 @@ def main():
     latest["regime"] = regimes
     latest["model_disagreement"] = global_disagreement
 
-    # Quantile return models provide a data-driven asymmetric interval.
-    global_qmodels = make_quantile_models()
-    return_fit=cap_training_rows(labeled,max_rows=250_000,recent_sessions=252)
-    for model in global_qmodels.values():
-        model.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
+    # Load immutable quantile models from the same approved artifact.
+    q_artifact = artifact["quantile"]
+    global_qmodels = q_artifact["global"]
+    asset_qmodels = q_artifact["assets"]
 
     latest_returns = []
     return_scope = []
@@ -308,15 +214,8 @@ def main():
     latest_highs = []
 
     for asset, group in latest[ready_mask].groupby("asset_class", sort=False):
-        subset = labeled[labeled["asset_class"].eq(asset)]
-        qmodels = global_qmodels
-        scope = "global"
-        if len(subset) >= 750:
-            qmodels = make_quantile_models()
-            subset_fit=cap_training_rows(subset,max_rows=200_000,recent_sessions=252)
-            for model in qmodels.values():
-                model.fit(subset_fit[FEATURE_COLUMNS], subset_fit["target_ret_1d"])
-            scope = f"asset:{asset}"
+        qmodels = asset_qmodels.get(str(asset), global_qmodels)
+        scope = f"asset:{asset}" if str(asset) in asset_qmodels else "global"
 
         lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
         mid = qmodels["q50"].predict(group[FEATURE_COLUMNS])

@@ -109,6 +109,9 @@ jobs:
           python scripts/release_gate.py
           approved=$(python -c 'import json; print(str(json.load(open("data/research/release_gate.json")).get("approved",False)).lower())')
           echo "approved=$approved" >> "$GITHUB_OUTPUT"
+      - name: Build immutable production model artifact
+        if: steps.gate.outputs.approved == 'true'
+        run: python scripts/build_production_artifact.py
       - name: Restore latest live monitoring state
         if: steps.gate.outputs.approved == 'true'
         env:
