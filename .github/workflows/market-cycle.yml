@@ -84,6 +84,8 @@ jobs:
           pattern: price-state-shard-*
           path: data/prices
           merge-multiple: true
+      - name: Update free market context
+        run: python scripts/update_market_context.py
       - name: Universe quality gate
         run: python scripts/universe_quality_gate.py
       - name: Price data quality gate
