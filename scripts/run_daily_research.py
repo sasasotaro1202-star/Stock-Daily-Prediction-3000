@@ -9,6 +9,9 @@ from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifie
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
+from sklearn.metrics import mean_absolute_error, mean_squared_error
+
+from src.prediction.regression import make_return_model
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
@@ -105,7 +108,9 @@ def main():
     if not audit["ok"]:
         raise SystemExit(f"FAIL: leakage audit {audit['violations']}")
 
-    df = df.dropna(subset=FEATURE_COLUMNS + ["target_up_1d"]).copy()
+    df = df.dropna(
+        subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"]
+    ).copy()
 
     frozen_path = Path("config/frozen_holdout.json")
     if frozen_path.exists():
@@ -123,6 +128,45 @@ def main():
     )
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
+
+    return_fold_rows = []
+
+    for fold in folds:
+        train_dates = dates[: fold.train_end]
+        cal_n = max(20, int(len(train_dates) * 0.2))
+        core_dates = set(train_dates[:-cal_n])
+        test_dates = set(dates[fold.test_start : fold.test_end])
+        core = df[df.session_date.isin(core_dates)]
+        test = df[df.session_date.isin(test_dates)]
+        if min(len(core), len(test)) < 100:
+            continue
+        return_model = make_return_model()
+        return_model.fit(core[FEATURE_COLUMNS], core["target_ret_1d"])
+        pred_ret = return_model.predict(test[FEATURE_COLUMNS])
+        y_ret = test["target_ret_1d"].to_numpy(dtype=float)
+        vol = test["volatility_20"].to_numpy(dtype=float)
+        valid_vol = np.isfinite(vol) & (vol > 0)
+        coverage_95 = (
+            float(np.mean(np.abs(y_ret[valid_vol]) <= 1.96 * vol[valid_vol]))
+            if valid_vol.any()
+            else float("nan")
+        )
+        return_fold_rows.append({
+            "mae": float(mean_absolute_error(y_ret, pred_ret)),
+            "rmse": float(mean_squared_error(y_ret, pred_ret) ** 0.5),
+            "sign_accuracy": float(
+                np.mean((pred_ret >= 0) == (y_ret >= 0))
+            ),
+            "range_95_coverage": coverage_95,
+            "n_test": float(len(test)),
+        })
+
+    return_metrics = aggregate_group(return_fold_rows) if return_fold_rows else {}
+    return_oos = {
+        "folds": len(return_fold_rows),
+        "metrics": return_metrics,
+        "status": "OOS_COMPLETE" if len(return_fold_rows) >= 3 else "DEFERRED",
+    }
 
     model_results = {}
     regime_rows = {reg.value: [] for reg in Regime if reg is not Regime.DATA_STRESSED}
@@ -297,6 +341,7 @@ def main():
 
     payload = {
         "results": model_results,
+        "return_oos": return_oos,
         "regime_metrics": regime_metrics,
         "regime_selected_models": regime_selected,
         "asset_class_metrics": asset_class_metrics,
