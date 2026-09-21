@@ -27,11 +27,14 @@ jobs:
       - run: pip install -e .
       - run: pytest -q
       - run: python scripts/research_smoke.py
-      - run: python - <<'PY'
+      - name: Verify configuration
+        run: |
+          python - <<'PY'
           from pathlib import Path
           text = Path("config/universe.yml").read_text()
           assert "require_pit: true" in text
           assert "frozen_holdout: true" in text
+          assert "target_count: dynamic" in text
           print("research-gate: PASS")
-        PY
+          PY
       - run: echo "No production approval is emitted by this scaffold."
