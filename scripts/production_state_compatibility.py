@@ -49,6 +49,9 @@ def main():
     ]
     mismatches.extend(f"unrecorded:{p}" for p in extra)
 
+    if manifest.get("code_fingerprint_sha256") != current_fp:
+        mismatches.append("code_fingerprint_sha256_mismatch")
+
     result={
         "status":"PASS" if not mismatches else "DEFERRED",
         "manifest_git_sha":manifest.get("git_sha"),
@@ -62,9 +65,6 @@ def main():
         encoding="utf-8",
     )
     print(json.dumps(result,indent=2))
-    if manifest.get("code_fingerprint_sha256") != current_fp:
-        mismatches.append("code_fingerprint_sha256_mismatch")
-        result["status"]="DEFERRED"
     if mismatches:
         raise SystemExit("DEFERRED: approved research state does not match current code")
 
