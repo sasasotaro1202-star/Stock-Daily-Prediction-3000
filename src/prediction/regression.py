@@ -29,3 +29,11 @@ def make_quantile_model(quantile: float):
         quantile=q,
         random_state=42,
     )
+
+
+def make_quantile_models() -> dict[str, HistGradientBoostingRegressor]:
+    return {
+        "q10": make_quantile_model(0.10),
+        "q50": make_quantile_model(0.50),
+        "q90": make_quantile_model(0.90),
+    }
