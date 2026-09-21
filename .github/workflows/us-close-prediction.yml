@@ -92,11 +92,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_research_state.py
+      - name: Update free market context
+        run: python scripts/update_market_context.py
       - name: Price data quality gate
         run: python scripts/data_quality_gate.py
       - name: Production invariants
         run: python scripts/production_invariants.py
       - name: Production prediction
+        env:
+          PREDICT_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/run_daily_prediction.py
       - uses: actions/upload-artifact@v4
         with:
