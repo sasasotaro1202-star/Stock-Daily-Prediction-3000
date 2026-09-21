@@ -349,8 +349,13 @@ def main():
     latest["return_q10_1d"] = latest["return_q10_1d"].clip(
         lower=-0.99
     )
-    latest["return_q90_1d"] = latest["return_q90_1d"].clip(
-        lower=latest["expected_return_1d"]
+    latest["return_q10_1d"] = np.minimum(
+        latest["return_q10_1d"],
+        latest["expected_return_1d"],
+    )
+    latest["return_q90_1d"] = np.maximum(
+        latest["return_q90_1d"],
+        latest["expected_return_1d"],
     )
 
     latest["expected_close_1d"] = np.where(
