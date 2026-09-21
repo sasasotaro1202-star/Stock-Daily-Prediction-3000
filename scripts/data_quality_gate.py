@@ -9,7 +9,7 @@ import pandas as pd
 
 REQUIRED={
     "symbol","asset_class","session_date","available_at",
-    "open","high","low","close","volume",
+    "open","high","low","close","adj_close","volume",
 }
 UNIVERSE=Path("data/universe/latest.json")
 
@@ -42,7 +42,7 @@ def main():
                 | (df["high"]<df["close"])
                 | (df["low"]>df["open"])
                 | (df["low"]>df["close"])
-                | (df[["open","high","low","close"]]<=0).any(axis=1)
+                | (df[["open","high","low","close","adj_close"]]<=0).any(axis=1)
             ).sum()
         )
         neg_vol=int((df["volume"]<0).sum())
