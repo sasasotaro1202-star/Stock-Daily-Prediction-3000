@@ -44,7 +44,7 @@ def evaluate_predictions(
     )
     if "stock_splits" in b.columns:
         current_split=b["stock_splits"].fillna(0).ne(0)
-        next_split=b.groupby("symbol")["stock_splits"].shift(-1).fillna(0).ne(0)
+        next_split=b.groupby(series_keys)["stock_splits"].shift(-1).fillna(0).ne(0)
         b.loc[current_split|next_split,"forward_return_1d"]=np.nan
     outcome_cols=series_keys+["session_date","forward_return_1d","available_at"]
     outcome=b[outcome_cols].rename(columns={"available_at":"outcome_available_at"})
