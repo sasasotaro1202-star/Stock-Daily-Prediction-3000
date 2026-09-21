@@ -3,7 +3,7 @@ from __future__ import annotations
 import pandas as pd
 
 from src.ranking.cross_sectional import cross_sectional_rank
-from src.research.router import route_plan
+from src.research.router import Regime, route_plan
 
 
 def test_route_prefers_asset_regime_oos_evidence():
@@ -41,3 +41,13 @@ def test_cross_sectional_rank_does_not_mix_market_families():
     assert us["rank_probability"].max() <= 1.0
     assert jp["rank_probability"].min() >= 0.5
     assert us["rank_probability"].min() >= 0.5
+
+
+def test_data_stressed_route_is_fail_closed():
+    plan = route_plan(
+        "jp_stock",
+        Regime.DATA_STRESSED.value,
+        global_selected="extra_trees",
+    )
+    assert plan.names == ("hgb",)
+    assert plan.scope == "fallback"
