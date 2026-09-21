@@ -21,13 +21,25 @@ def one(i:int,batch:list[dict])->tuple[int,int,str]:
     ROOT.mkdir(parents=True,exist_ok=True)
 
     old=pd.read_parquet(path) if path.exists() else pd.DataFrame()
-    old_symbols=set(old["symbol"].astype(str)) if "symbol" in old.columns else set()
-    current_symbols={str(r["symbol"]) for r in batch}
+    old_keys=(
+        set(zip(old["asset_class"].astype(str),old["symbol"].astype(str)))
+        if {"asset_class","symbol"}.issubset(old.columns)
+        else set()
+    )
+    current_keys={
+        (str(r["asset_class"]),str(r["symbol"])) for r in batch
+    }
 
-    # Dynamic PayPay universes can add/remove/reorder names. Existing symbols
-    # only need an incremental pull; new symbols require a full warm-up history.
-    existing=[r for r in batch if str(r["symbol"]) in old_symbols]
-    new=[r for r in batch if str(r["symbol"]) not in old_symbols]
+    # Dynamic PayPay universes can add/remove/reorder names. Existing keys
+    # only need incremental pull; new product keys require full warm-up history.
+    existing=[
+        r for r in batch
+        if (str(r["asset_class"]),str(r["symbol"])) in old_keys
+    ]
+    new=[
+        r for r in batch
+        if (str(r["asset_class"]),str(r["symbol"])) not in old_keys
+    ]
 
     frames=[]
     if existing:
@@ -44,7 +56,13 @@ def one(i:int,batch:list[dict])->tuple[int,int,str]:
 
     data=pd.concat(frames,ignore_index=True)
     rows=upsert_batch_parquet(data,str(path))
-    missing=len(current_symbols-set(data["symbol"].astype(str)))
+    observed_keys=set(
+        zip(
+            data["asset_class"].astype(str),
+            data["symbol"].astype(str),
+        )
+    )
+    missing=len(current_keys-observed_keys)
     status="PASS" if missing==0 else "DEFERRED"
     return i,rows,status
 
