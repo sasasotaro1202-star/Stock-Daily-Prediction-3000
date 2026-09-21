@@ -1,19 +1,29 @@
 from __future__ import annotations
 import json
 from pathlib import Path
+
 def main():
-    metrics=Path("data/research/latest_metrics.json")
-    audit=Path("data/research/leakage_audit.json")
-    frozen=Path("data/research/frozen_holdout.json")
-    manifest=Path("data/research/reproducibility_manifest.json")
+    metrics_path=Path("data/research/latest_metrics.json")
+    audit_path=Path("data/research/leakage_audit.json")
+    quality_path=Path("data/research/data_quality.json")
+    frozen_path=Path("data/research/frozen_holdout_result.json")
+    manifest_path=Path("data/research/reproducibility_manifest.json")
     reasons=[]
-    if not metrics.exists(): reasons.append("missing_oos_metrics")
-    if not audit.exists(): reasons.append("missing_independent_leakage_audit")
-    if not frozen.exists(): reasons.append("missing_frozen_holdout")
-    if not manifest.exists(): reasons.append("missing_reproducibility_manifest")
-    payload=json.loads(metrics.read_text()) if metrics.exists() else {}
-    if payload.get("status")!="OOS_COMPLETE": reasons.append("oos_not_complete")
-    if payload.get("selected_model") is None: reasons.append("no_oos_selected_model")
+    if not metrics_path.exists(): reasons.append("missing_oos_metrics")
+    if not audit_path.exists(): reasons.append("missing_leakage_audit")
+    if not quality_path.exists(): reasons.append("missing_data_quality")
+    if not frozen_path.exists(): reasons.append("missing_frozen_holdout_result")
+    if not manifest_path.exists(): reasons.append("missing_reproducibility_manifest")
+    metrics=json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
+    audit=json.loads(audit_path.read_text()) if audit_path.exists() else {}
+    quality=json.loads(quality_path.read_text()) if quality_path.exists() else {}
+    frozen=json.loads(frozen_path.read_text()) if frozen_path.exists() else {}
+    if metrics.get("status")!="OOS_COMPLETE": reasons.append("oos_not_complete")
+    if audit.get("ok") is not True: reasons.append("leakage_audit_failed")
+    if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
+    if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
+    if frozen.get("beats_baseline") is not True: reasons.append("holdout_does_not_beat_baseline")
+    if not frozen.get("calibration_within_limit",False): reasons.append("holdout_calibration_out_of_limit")
     result={"approved":not reasons,"reasons":reasons,"production_status":"APPROVED" if not reasons else "DEFERRED"}
     Path("data/research").mkdir(parents=True,exist_ok=True)
     Path("data/research/release_gate.json").write_text(json.dumps(result,indent=2),encoding="utf-8")
