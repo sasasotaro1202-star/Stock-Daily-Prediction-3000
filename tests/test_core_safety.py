@@ -10,7 +10,7 @@ def sample():
         for i in range(80):
             p=100+i+(0 if s=="AAA" else i*0.2)
             rows.append({"symbol":s,"session_date":pd.Timestamp("2020-01-01")+pd.Timedelta(days=i),
-                         "open":p,"high":p+1,"low":p-1,"close":p+0.2,"volume":1000+i})
+                         "open":p,"high":p+1,"low":p-1,"close":p+0.2,"adj_close":p+0.2,"volume":1000+i})
     return pd.DataFrame(rows)
 
 def test_features_are_causal_and_targets_separate():
