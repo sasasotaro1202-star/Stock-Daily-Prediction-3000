@@ -229,11 +229,22 @@ def main():
     global_disagreement: list[float] = []
 
     for _, row in latest.iterrows():
+        if not bool(ready_mask.loc[row.name]):
+            p_values.append(float("nan"))
+            selected_names.append("")
+            selected_scopes.append("")
+            selected_reasons.append("deferred:incomplete_features")
+            global_disagreement.append(float("nan"))
+            statuses.append("DEFERRED_INCOMPLETE_FEATURES")
+            continue
+
         asset = str(row["asset_class"])
         regime = regime_for_row(
             float(row["volatility_20"]),
             float(row["price_vs_sma60"]),
             threshold,
+            float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
         ).value
         plan = route_plan(
             asset,
@@ -265,6 +276,7 @@ def main():
             gm, gc, _ = global_cache[(candidate, "global")]
             g_probs.append(float(gc.predict(gm.predict_proba(one)[:, 1])[0]))
         global_disagreement.append(float(np.std(g_probs)))
+        statuses.append("READY")
 
     latest["p_up_1d"] = p_values
     latest["model_id"] = selected_names
@@ -278,7 +290,7 @@ def main():
     global_ret.fit(labeled[FEATURE_COLUMNS], labeled["target_ret_1d"])
     latest_returns = []
     return_scope = []
-    for asset, group in latest.groupby("asset_class", sort=False):
+    for asset, group in latest[ready_mask].groupby("asset_class", sort=False):
         subset = labeled[labeled["asset_class"].eq(asset)]
         model = global_ret
         scope = "global"
@@ -326,6 +338,7 @@ def main():
         "return_training_scope",
         "route_reason",
         "model_disagreement",
+        "prediction_status",
     ]
 
     out = cross_sectional_rank(latest[cols])
