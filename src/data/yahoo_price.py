@@ -30,7 +30,8 @@ def download_batch(records:list[dict],period:str="5y")->pd.DataFrame:
             rec=mapping[ysym]; part["symbol"]=rec["symbol"]; part["asset_class"]=rec["asset_class"]
             part["session_date"]=pd.to_datetime(part["date"]).dt.date
             part["available_at"]=part["session_date"].map(lambda d:available_at_for(d,rec["asset_class"]))
-            part["source"]="yfinance"; part["provider_symbol"]=ysym
+            provider_symbol=ysym
+            part["source"]="yfinance"; part["provider_symbol"]=provider_symbol
             frames.append(part[["symbol","asset_class","session_date","available_at","source","provider_symbol","open","high","low","close","volume"]])
     else:
         part=raw.reset_index().rename(columns=str.lower)
@@ -38,7 +39,8 @@ def download_batch(records:list[dict],period:str="5y")->pd.DataFrame:
             rec=records[0]; part["symbol"]=rec["symbol"]; part["asset_class"]=rec["asset_class"]
             part["session_date"]=pd.to_datetime(part["date"]).dt.date
             part["available_at"]=part["session_date"].map(lambda d:available_at_for(d,rec["asset_class"]))
-            part["source"]="yfinance"; part["provider_symbol"]=ysym
+            provider_symbol=yahoo_symbol(rec["symbol"],rec["asset_class"])
+            part["source"]="yfinance"; part["provider_symbol"]=provider_symbol
             frames.append(part[["symbol","asset_class","session_date","available_at","source","provider_symbol","open","high","low","close","volume"]])
     if not frames:return pd.DataFrame()
     out=pd.concat(frames,ignore_index=True)
