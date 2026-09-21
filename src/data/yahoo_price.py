@@ -147,10 +147,15 @@ def upsert_batch_parquet(new_data: pd.DataFrame, path: str) -> int:
         if os.path.exists(path)
         else pd.DataFrame()
     )
+    dedup_keys=(
+        ["asset_class","symbol","session_date"]
+        if "asset_class" in new_data.columns or "asset_class" in old.columns
+        else ["symbol","session_date"]
+    )
     combined = (
         pd.concat([old, new_data], ignore_index=True)
         .drop_duplicates(
-            ["symbol", "session_date"],
+            dedup_keys,
             keep="last",
         )
     )
