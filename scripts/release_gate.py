@@ -25,10 +25,14 @@ def main():
     if return_oos.get("status")!="OOS_COMPLETE":
         reasons.append("return_oos_not_complete")
     if not return_metrics or not all(
-        key in return_metrics and isinstance(return_metrics.get(key),(int,float))
-        for key in ("mae","rmse","sign_accuracy")
+        key in return_metrics
+        and isinstance(return_metrics.get(key),(int,float))
+        and __import__("math").isfinite(float(return_metrics.get(key)))
+        for key in ("mae","rmse","sign_accuracy","range_80_coverage")
     ):
         reasons.append("return_oos_metrics_missing")
+    elif not 0.0 <= float(return_metrics["range_80_coverage"]) <= 1.0:
+        reasons.append("return_oos_interval_coverage_invalid")
     if audit.get("ok") is not True: reasons.append("leakage_audit_failed")
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
