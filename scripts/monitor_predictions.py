@@ -47,8 +47,12 @@ def main():
         ).dt.date
         bars["forward_return_1d"]=(
             bars.groupby("symbol")["close"].shift(-1)
-            / bars["close"]-1.0
+            /bars["close"]-1.0
         )
+        if "stock_splits" in bars.columns:
+            current_split=bars["stock_splits"].fillna(0).ne(0)
+            next_split=bars.groupby("symbol")["stock_splits"].shift(-1).fillna(0).ne(0)
+            bars.loc[current_split|next_split,"forward_return_1d"]=np.nan
         bars["outcome_available_at"]=pd.to_datetime(
             bars["available_at"],utc=True,errors="coerce"
         )
@@ -86,36 +90,53 @@ def main():
                 "reason":"insufficient completed outcomes",
             }
         else:
-            y=(m["forward_return_1d"]>0).astype(int).to_numpy()
-            p=np.clip(
-                m["p_up_1d"].to_numpy(dtype=float),
-                1e-6,
-                1-1e-6,
-            )
-            metrics=classification_metrics(y,p)
-            baseline=classification_metrics(
-                y,np.full(n,float(y.mean()))
-            )
-            errors=(
-                m["expected_return_1d"]
-                -m["forward_return_1d"]
-            ).to_numpy(dtype=float)
+            def evaluate(frame:pd.DataFrame)->dict:
+                y=(frame["forward_return_1d"]>0).astype(int).to_numpy()
+                p=np.clip(
+                    frame["p_up_1d"].to_numpy(dtype=float),
+                    1e-6,
+                    1-1e-6,
+                )
+                metrics=classification_metrics(y,p)
+                base=classification_metrics(
+                    y,np.full(len(frame),float(y.mean()))
+                )
+                errors=(
+                    frame["expected_return_1d"]
+                    -frame["forward_return_1d"]
+                ).to_numpy(dtype=float)
+                return {
+                    "rows":int(len(frame)),
+                    "metrics":metrics,
+                    "baseline":base,
+                    "beats_baseline":bool(
+                        metrics["logloss"]<base["logloss"]
+                    ),
+                    "return_mae":float(np.mean(np.abs(errors))),
+                    "return_rmse":float(np.mean(errors**2)**0.5),
+                }
 
+            latest_dates=sorted(m["session_date"].unique())[-20:]
+            recent=m[m["session_date"].isin(latest_dates)].copy()
+            overall=evaluate(m)
+            recent_eval=evaluate(recent)
+            valid_recent=(
+                recent_eval["rows"]>=250
+                and recent_eval["beats_baseline"]
+                and recent_eval["metrics"]["ece"]<=0.25
+            )
+            valid_overall=(
+                overall["beats_baseline"]
+                and overall["metrics"]["ece"]<=0.25
+            )
             payload={
                 "status":"PASS"
-                if (
-                    metrics["logloss"]<baseline["logloss"]
-                    and metrics["ece"]<=0.25
-                )
+                if valid_recent and valid_overall
                 else "FAIL",
                 "evaluated":int(n),
-                "metrics":metrics,
-                "baseline":baseline,
-                "beats_baseline":bool(
-                    metrics["logloss"]<baseline["logloss"]
-                ),
-                "return_mae":float(np.mean(np.abs(errors))),
-                "return_rmse":float(np.mean(errors**2)**0.5),
+                "overall":overall,
+                "recent_20_sessions":recent_eval,
+                "latest_outcome_date":str(max(m["session_date"])),
                 "route_counts":(
                     m["model_id"].value_counts(dropna=False).to_dict()
                     if "model_id" in m.columns else {}
@@ -124,7 +145,10 @@ def main():
                     m["training_scope"].value_counts(dropna=False).to_dict()
                     if "training_scope" in m.columns else {}
                 ),
-                "latest_outcome_date":str(max(m["session_date"])),
+                "version_counts":(
+                    m["model_version"].value_counts(dropna=False).to_dict()
+                    if "model_version" in m.columns else {}
+                ),
             }
 
     OUT.parent.mkdir(parents=True,exist_ok=True)
@@ -133,6 +157,8 @@ def main():
         encoding="utf-8",
     )
     print(json.dumps(payload,indent=2,default=str))
+
+
 
 
 if __name__=="__main__":
