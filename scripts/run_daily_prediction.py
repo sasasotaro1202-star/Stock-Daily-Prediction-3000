@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import os
 
 import numpy as np
 import pandas as pd
@@ -156,7 +157,7 @@ def main():
     payload = json.loads(METRICS.read_text(encoding="utf-8"))
     df = pd.read_parquet(PRICE)
     asset_filter = [
-        x.strip() for x in __import__("os").environ.get("PREDICT_ASSET_CLASSES", "").split(",")
+        x.strip() for x in os.environ.get("PREDICT_ASSET_CLASSES", "").split(",")
         if x.strip()
     ]
     if asset_filter:
@@ -199,6 +200,10 @@ def main():
     )
 
     metric_payload = payload
+    frozen_routes = {}
+    if FROZEN.exists():
+        frozen_routes = json.loads(FROZEN.read_text(encoding="utf-8"))
+    locked_mode = frozen_routes.get("status") == "FROZEN"
     regime_metrics = metric_payload.get("regime_metrics", {})
     asset_metrics = metric_payload.get("asset_class_metrics", {})
     asset_regime_metrics = metric_payload.get("asset_regime_metrics", {})
@@ -232,6 +237,10 @@ def main():
             asset_metrics=asset_metrics,
             regime_metrics=regime_metrics,
             global_selected=global_selected,
+            locked_asset_regime=frozen_routes.get("asset_regime_selected_models") if locked_mode else None,
+            locked_asset=frozen_routes.get("asset_class_selected_models") if locked_mode else None,
+            locked_regime=frozen_routes.get("regime_selected_models") if locked_mode else None,
+            locked_global=frozen_routes.get("selected_model") if locked_mode else None,
         )
         model_name = plan.names[0]
         model, calibrator, actual_scope = fit_scoped_model(
