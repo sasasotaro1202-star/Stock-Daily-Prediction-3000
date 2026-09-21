@@ -17,6 +17,7 @@ def main():
         ("quantile_intervals","interval_method: conditional_quantiles_q10_q50_q90" in pipe and "load_production_artifact" in Path("scripts/run_daily_prediction.py").read_text()),
         ("immutable_production_artifact","build_production_artifact.py" in Path(".github/workflows/market-cycle.yml").read_text() and Path("scripts/build_production_artifact.py").exists() and Path("src/prediction/production_artifact.py").exists()),
         ("oos_selection","selection_source: chronological_oos_only" in pipe),
+        ("asset_class_balanced_selection","asset_class_balance_weight: 0.50" in pipe and "rebalance_global_oos_candidates" in Path("scripts/run_daily_research.py").read_text()),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),
