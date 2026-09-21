@@ -27,6 +27,11 @@ jobs:
       - run: pip install -e .
       - name: Refresh current PayPay universe
         run: python scripts/refresh_universe.py
+      - name: Restore prediction history
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_prediction_history.py
       - name: Restore current price state
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
