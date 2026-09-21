@@ -109,6 +109,12 @@ jobs:
         run: python scripts/restore_latest_monitor_state.py || true
       - name: Live performance gate
         run: python scripts/live_performance_gate.py
+      - name: Validate immutable production model artifact
+        run: python - <<'PY'
+          from src.prediction.production_artifact import load_production_artifact
+          load_production_artifact()
+          print("production-model-artifact: PASS")
+          PY
       - name: Production prediction
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
