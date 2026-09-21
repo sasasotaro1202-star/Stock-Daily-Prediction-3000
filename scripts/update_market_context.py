@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import pandas as pd
 
 from src.data.market_context import write_market_context
 
@@ -11,7 +12,7 @@ RESULT=Path("data/research/market_context_quality.json")
 
 def main():
     rows=write_market_context(str(OUT),period="5y")
-    df=__import__("pandas").read_parquet(OUT)
+    df=pd.read_parquet(OUT)
     families=sorted(df["family"].dropna().unique().tolist())
     result={
         "status":"PASS" if len(families)>=5 else "DEFERRED",
