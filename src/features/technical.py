@@ -44,10 +44,10 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     sma20=close.transform(lambda s:s.rolling(20,min_periods=20).mean())
     sma60=close.transform(lambda s:s.rolling(60,min_periods=60).mean())
     ema20=close.transform(lambda s:s.ewm(span=20,adjust=False,min_periods=20).mean())
-    out["close_vs_sma5"]=out["_model_close"]/sma5-1.0
+    out["close_vs_sma5"]=out["close"]/sma5-1.0
     out["close_vs_sma20"]=out["close"]/sma20-1.0
     out["close_vs_sma60"]=out["close"]/sma60-1.0
-    out["close_vs_ema20"]=out["_model_close"]/ema20-1.0
+    out["close_vs_ema20"]=out["close"]/ema20-1.0
     ema12=close.transform(lambda s:s.ewm(span=12,adjust=False,min_periods=12).mean())
     ema26=close.transform(lambda s:s.ewm(span=26,adjust=False,min_periods=26).mean())
     macd=ema12-ema26
@@ -117,7 +117,8 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     )
     out["return_z20"]=out["ret_1d"].groupby(out[group_col]).transform(
         lambda s:_rolling_z(s.astype(float),20)
-    )    out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
+    )
+    out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
     out["range_z20"]=out["range_pct"].groupby(out[group_col]).transform(
         lambda s:_rolling_z(s.astype(float),20)
     )
