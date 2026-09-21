@@ -106,43 +106,30 @@ def fit_scoped_model(
     threshold: float,
     cache: dict[tuple[str, str], tuple[object, PlattCalibrator, str]],
 ):
-    key = (name, scope)
+    # Model family is routed by asset class/regime, but classifier training is
+    # shared globally. This keeps OOS selection aligned with production fitting,
+    # avoids sparse sub-population overfit, and bounds CPU usage for the full PayPay universe.
+    key=(name,"global")
     if key in cache:
         return cache[key]
 
-    subset = labeled
-    actual_scope = scope
-
-    if scope.startswith("asset:"):
-        asset = scope.split(":", 1)[1]
-        subset = labeled[labeled["asset_class"].eq(asset)]
-    elif "::" in scope and not scope.startswith("regime:"):
-        asset, reg = scope.split("::", 1)
-        subset = labeled[labeled["asset_class"].eq(asset)].copy()
-        subset = subset[regime_series(subset, threshold).eq(reg)]
-    elif scope.startswith("regime:"):
-        reg = scope.split(":", 1)[1]
-        subset = labeled[regime_series(labeled, threshold).eq(reg)]
-
-    if len(subset) < 500 or subset.target_up_1d.nunique() < 2:
-        subset = labeled
-        actual_scope = "global"
-
-    try:
-        core, cal = split_train_cal(subset)
-    except ValueError:
-        subset = labeled
-        actual_scope = "global"
-        core, cal = split_train_cal(subset)
-
-    core_fit=cap_training_rows(core,max_rows=300_000,recent_sessions=252)
-    model = models()[name]()
-    model.fit(core_fit[FEATURE_COLUMNS], core_fit.target_up_1d.astype(int))
-    cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-    calibrator = PlattCalibrator().fit(
-        cal_p, cal.target_up_1d.astype(int)
+    core, cal=split_train_cal(labeled)
+    core_fit=cap_training_rows(
+        core,
+        max_rows=300_000,
+        recent_sessions=252,
     )
-    cache[key] = (model, calibrator, actual_scope)
+    model=models()[name]()
+    model.fit(
+        core_fit[FEATURE_COLUMNS],
+        core_fit.target_up_1d.astype(int),
+    )
+    cal_p=model.predict_proba(cal[FEATURE_COLUMNS])[:,1]
+    calibrator=PlattCalibrator().fit(
+        cal_p,
+        cal.target_up_1d.astype(int),
+    )
+    cache[key]=(model,calibrator,"global")
     return cache[key]
 
 
