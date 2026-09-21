@@ -42,17 +42,17 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     sma20=close.transform(lambda s:s.rolling(20,min_periods=20).mean())
     sma60=close.transform(lambda s:s.rolling(60,min_periods=60).mean())
     ema20=close.transform(lambda s:s.ewm(span=20,adjust=False,min_periods=20).mean())
-    out["close_vs_sma5"]=out["close"]/sma5-1.0
-    out["close_vs_sma20"]=out["close"]/sma20-1.0
-    out["close_vs_sma60"]=out["close"]/sma60-1.0
-    out["close_vs_ema20"]=out["close"]/ema20-1.0
+    out["close_vs_sma5"]=out["_model_close"]/sma5-1.0
+    out["close_vs_sma20"]=out["_model_close"]/sma20-1.0
+    out["close_vs_sma60"]=out["_model_close"]/sma60-1.0
+    out["close_vs_ema20"]=out["_model_close"]/ema20-1.0
     ema12=close.transform(lambda s:s.ewm(span=12,adjust=False,min_periods=12).mean())
     ema26=close.transform(lambda s:s.ewm(span=26,adjust=False,min_periods=26).mean())
     macd=ema12-ema26
     macd_signal=macd.groupby(out[group_col]).transform(lambda s:s.ewm(span=9,adjust=False,min_periods=9).mean())
-    out["macd_pct"]=macd/out["close"].replace(0,np.nan)
-    out["macd_signal_pct"]=macd_signal/out["close"].replace(0,np.nan)
-    out["macd_hist_pct"]=(macd-macd_signal)/out["close"].replace(0,np.nan)
+    out["macd_pct"]=macd/out["_model_close"].replace(0,np.nan)
+    out["macd_signal_pct"]=macd_signal/out["_model_close"].replace(0,np.nan)
+    out["macd_hist_pct"]=(macd-macd_signal)/out["_model_close"].replace(0,np.nan)
     delta=close.diff(); gain=delta.clip(lower=0); loss=-delta.clip(upper=0)
     avg_gain=gain.transform(lambda s:s.rolling(14,min_periods=14).mean())
     avg_loss=loss.transform(lambda s:s.rolling(14,min_periods=14).mean())
@@ -60,13 +60,13 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["rsi_14"]=100-(100/(1+rs))
     low14=g["_model_low"].transform(lambda s:s.rolling(14,min_periods=14).min())
     high14=g["_model_high"].transform(lambda s:s.rolling(14,min_periods=14).max())
-    out["stoch_k"]=100*(out["close"]-low14)/(high14-low14).replace(0,np.nan)
+    out["stoch_k"]=100*(out["_model_close"]-low14)/(high14-low14).replace(0,np.nan)
     out["stoch_d"]=out["stoch_k"].groupby(out[group_col]).transform(lambda s:s.rolling(3,min_periods=3).mean())
     bb_std=close.transform(lambda s:s.rolling(20,min_periods=20).std())
     out["bb_width"]=4*bb_std/sma20.replace(0,np.nan)
     tr=pd.concat([(out["_model_high"]-out["_model_low"]),(out["_model_high"]-prev).abs(),(out["_model_low"]-prev).abs()],axis=1).max(axis=1)
     atr=tr.groupby(out[group_col]).transform(lambda s:s.rolling(14,min_periods=14).mean())
-    out["atr_pct"]=atr/out["close"].replace(0,np.nan)
+    out["atr_pct"]=atr/out["_model_close"].replace(0,np.nan)
     up=out["_model_high"]-out.groupby(group_col)["_model_high"].shift(1)
     down=out.groupby(group_col)["_model_low"].shift(1)-out["_model_low"]
     plus_dm=pd.Series(np.where((up>down)&(up>0),up,0.0),index=out.index)
@@ -91,7 +91,7 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["volume_ratio_20"]=volume.transform(lambda s:s/s.rolling(20,min_periods=20).mean())
     out["range_pct"]=(out["_model_high"]-out["_model_low"])/out["_model_close"].replace(0,np.nan)
     out["gap_pct"]=(out["_model_open"]/prev)-1.0
-    out["price_vs_sma20"]=out["close"]/sma20-1.0
-    out["price_vs_sma60"]=out["close"]/sma60-1.0
+    out["price_vs_sma20"]=out["_model_close"]/sma20-1.0
+    out["price_vs_sma60"]=out["_model_close"]/sma60-1.0
     out=out.drop(columns=["_model_open","_model_high","_model_low","_model_close"])
     return out
