@@ -56,7 +56,7 @@ def add_market_context(
         "us_market_volatility_lag1":"__sp500_vol",
     }
     for target,source in mapping.items():
-        out[target]=out[source]
+        out[target]=out[source] if source in out.columns else pd.NA
 
     drop=[c for c in out.columns if c.startswith("__")]
     return out.drop(columns=drop)
