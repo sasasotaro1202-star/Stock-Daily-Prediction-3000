@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 
-ROOTS=(Path("config"),Path("src"),Path("scripts"))
+ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
 
 
 def file_hash(path: Path) -> str:
