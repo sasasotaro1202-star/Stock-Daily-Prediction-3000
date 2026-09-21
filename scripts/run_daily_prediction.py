@@ -12,7 +12,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
-from src.features.context import add_cross_sectional_context
+from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.regression import make_return_model
 from src.prediction.targets import add_targets
@@ -156,6 +156,10 @@ def main():
 
     payload = json.loads(METRICS.read_text(encoding="utf-8"))
     df = pd.read_parquet(PRICE)
+    context_path = Path("data/market_context.parquet")
+    if not context_path.exists():
+        raise SystemExit("DEFERRED: market context is absent")
+    market_context = pd.read_parquet(context_path)
     asset_filter = [
         x.strip()
         for x in os.environ.get("PREDICT_ASSET_CLASSES", "").split(",")
@@ -171,7 +175,9 @@ def main():
     if df.empty:
         raise SystemExit("DEFERRED: no price rows satisfy available_at <= prediction_time")
 
-    df = add_cross_sectional_context(add_technical_features(df))
+    df = add_technical_features(df)
+    df = add_market_context(df, market_context)
+    df = add_cross_sectional_context(df)
     labeled = add_targets(df).dropna(
         subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"]
     ).copy()
