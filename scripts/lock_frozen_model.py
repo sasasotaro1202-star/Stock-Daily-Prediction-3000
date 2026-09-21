@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timezone
+
+from src.validation.code_fingerprint import fingerprint_sha256
 from pathlib import Path
 
 
@@ -15,9 +17,19 @@ def main():
         )
 
     lock=json.loads(path.read_text(encoding="utf-8"))
+    current_fp=fingerprint_sha256()
     if lock.get("status")=="FROZEN":
-        print("frozen-model: already locked")
-        return
+        if lock.get("code_fingerprint_sha256")==current_fp:
+            print("frozen-model: already locked")
+            return
+        # Preserve the immutable cutoff, but invalidate the prior model
+        # evidence whenever model-affecting code/config changes.
+        old_result=Path("data/research/frozen_holdout_result.json")
+        if old_result.exists():
+            old_result.unlink()
+        lock["status"]="CUTOFF_FROZEN_PENDING_MODEL"
+        lock["selection_locked_at"]=None
+        lock["selection_locked_git_sha"]=None
     if lock.get("status")!="CUTOFF_FROZEN_PENDING_MODEL":
         raise SystemExit(f"FAIL: invalid freeze status {lock.get('status')}")
 
@@ -36,6 +48,7 @@ def main():
     )
     lock["selection_locked_at"]=datetime.now(timezone.utc).isoformat()
     lock["selection_locked_git_sha"]=os.getenv("GITHUB_SHA")
+    lock["code_fingerprint_sha256"]=current_fp
     lock["selection_source"]=(
         "chronological OOS using only observations <= cutoff_date; "
         "asset/regime routes inherit the same OOS-only policy"
