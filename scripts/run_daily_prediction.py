@@ -228,6 +228,13 @@ def main():
     p_values: list[float] = []
     global_disagreement: list[float] = []
 
+    ready_mask = latest[FEATURE_COLUMNS].notna().all(axis=1)
+    latest["prediction_status"] = np.where(
+        ready_mask,
+        "READY",
+        "DEFERRED_INCOMPLETE_FEATURES",
+    )
+
     for _, row in latest.iterrows():
         if not bool(ready_mask.loc[row.name]):
             p_values.append(float("nan"))
@@ -235,7 +242,6 @@ def main():
             selected_scopes.append("")
             selected_reasons.append("deferred:incomplete_features")
             global_disagreement.append(float("nan"))
-            statuses.append("DEFERRED_INCOMPLETE_FEATURES")
             continue
 
         asset = str(row["asset_class"])
@@ -276,7 +282,6 @@ def main():
             gm, gc, _ = global_cache[(candidate, "global")]
             g_probs.append(float(gc.predict(gm.predict_proba(one)[:, 1])[0]))
         global_disagreement.append(float(np.std(g_probs)))
-        statuses.append("READY")
 
     latest["p_up_1d"] = p_values
     latest["model_id"] = selected_names
@@ -306,18 +311,28 @@ def main():
     ret_by_index = {idx: value for idx, value in latest_returns}
     scope_by_index = {idx: value for idx, value in return_scope}
     latest["expected_return_1d"] = [
-        float(ret_by_index[idx]) for idx in latest.index
+        float(ret_by_index.get(idx, np.nan)) for idx in latest.index
     ]
     latest["return_training_scope"] = [
-        scope_by_index[idx] for idx in latest.index
+        scope_by_index.get(idx, "") for idx in latest.index
     ]
 
-    vol = latest["volatility_20"].fillna(
-        labeled["target_ret_1d"].std()
-    ).clip(lower=0.0)
-    latest["expected_close_1d"] = latest["close"] * (1 + latest["expected_return_1d"])
-    latest["range_low_1d"] = latest["close"] * np.exp(-1.96 * vol)
-    latest["range_high_1d"] = latest["close"] * np.exp(1.96 * vol)
+    vol = latest["volatility_20"].clip(lower=0.0)
+    latest["expected_close_1d"] = np.where(
+        ready_mask,
+        latest["close"] * (1 + latest["expected_return_1d"]),
+        np.nan,
+    )
+    latest["range_low_1d"] = np.where(
+        ready_mask,
+        latest["close"] * np.exp(-1.96 * vol),
+        np.nan,
+    )
+    latest["range_high_1d"] = np.where(
+        ready_mask,
+        latest["close"] * np.exp(1.96 * vol),
+        np.nan,
+    )
     latest["prediction_time"] = prediction_time
     latest["prediction_date"] = prediction_time.tz_convert("Asia/Tokyo").date()
 
