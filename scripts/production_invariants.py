@@ -21,6 +21,7 @@ def main():
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),
         ("market_clock_split","groupby(\"asset_class\"" in prediction),
         ("market_context_pipeline","add_market_context" in Path("scripts/run_daily_research.py").read_text() and "update_market_context.py" in Path(".github/workflows/market-cycle.yml").read_text()),
+        ("state_compatibility","production_state_compatibility.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/production_state_compatibility.py").exists()),
         ("price_shards","price_shards: 4" in pipe),
     ]
     bad=[name for name,ok in checks if not ok]
