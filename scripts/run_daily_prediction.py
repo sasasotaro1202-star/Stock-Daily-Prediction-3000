@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import hashlib
 import os
 
 import numpy as np
@@ -20,6 +21,7 @@ from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import Regime, regime_for_row, route_plan
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
+from src.validation.code_fingerprint import fingerprint_sha256
 
 PRICE = Path("data/prices")
 METRICS = Path("data/research/latest_metrics.json")
@@ -159,6 +161,15 @@ def main():
         df["available_at"], utc=True, errors="coerce"
     )
     prediction_time = pd.Timestamp(datetime.now(timezone.utc))
+
+    def file_hash(path: Path) -> str | None:
+        if not path.exists():
+            return None
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+
+    model_version = fingerprint_sha256()
+    universe_version = file_hash(Path("data/universe/latest.json"))
+    market_context_version = file_hash(Path("data/market_context.parquet"))
 
     # End-to-end PIT gate for the production snapshot.
     df = df[df["available_at"].le(prediction_time)].copy()
@@ -365,6 +376,9 @@ def main():
     )
     latest["prediction_time"] = prediction_time
     latest["prediction_date"] = prediction_time.tz_convert("Asia/Tokyo").date()
+    latest["model_version"] = model_version
+    latest["universe_version"] = universe_version
+    latest["market_context_version"] = market_context_version
 
     cols = [
         "symbol",
@@ -373,6 +387,9 @@ def main():
         "close",
         "prediction_time",
         "prediction_date",
+        "model_version",
+        "universe_version",
+        "market_context_version",
         "p_up_1d",
         "expected_return_1d",
         "expected_close_1d",
