@@ -88,8 +88,14 @@ jobs:
         run: python scripts/universe_quality_gate.py
       - name: Price data quality gate
         run: python scripts/data_quality_gate.py
+      - name: Bootstrap immutable frozen holdout
+        run: python scripts/bootstrap_frozen_holdout.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
+      - name: Lock model routing
+        run: python scripts/lock_frozen_model.py
+      - name: One-time frozen holdout evaluation
+        run: python scripts/evaluate_frozen_holdout.py
       - name: Build reproducibility manifest
         run: python scripts/build_manifest.py
       - name: Release gate
@@ -122,6 +128,12 @@ jobs:
           mkdir -p artifacts
           date -u +"%Y-%m-%dT%H:%M:%SZ" > artifacts/last_cycle.txt
           cp data/research/release_gate.json artifacts/release_gate.json
-          git add artifacts/
-          git diff --cached --quiet || git commit -m "Record market cycle gate"
+          if [ -f config/frozen_holdout.json ]; then
+            cp config/frozen_holdout.json artifacts/frozen_holdout.json
+          fi
+          if [ -f data/research/frozen_holdout_result.json ]; then
+            cp data/research/frozen_holdout_result.json artifacts/frozen_holdout_result.json
+          fi
+          git add artifacts/ config/frozen_holdout.json data/research/frozen_holdout_result.json
+          git diff --cached --quiet || git commit -m "Persist frozen release state"
           git push
