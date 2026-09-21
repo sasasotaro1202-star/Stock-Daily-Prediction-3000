@@ -110,7 +110,8 @@ jobs:
       - name: Live performance gate
         run: python scripts/live_performance_gate.py
       - name: Validate immutable production model artifact
-        run: python - <<'PY'
+        run: |
+          python - <<'PY'
           from src.prediction.production_artifact import load_production_artifact
           load_production_artifact()
           print("production-model-artifact: PASS")
