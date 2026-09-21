@@ -1,22 +1,22 @@
 name: Daily prediction research
-
 on:
   workflow_dispatch:
   schedule:
     - cron: "30 7 * * 1-5"
-
 permissions:
-  contents: write
-
+  contents: read
+concurrency:
+  group: daily-prediction
+  cancel-in-progress: false
 jobs:
-  research:
+  validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-      - run: python -m pip install -e .
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -e .
       - run: pytest -q
-      - run: python -c "print('Scaffold OK')"
+      - run: python scripts/research_smoke.py
+      - run: echo "Daily stage validated; real production prediction is blocked until data/OOS gates pass."
