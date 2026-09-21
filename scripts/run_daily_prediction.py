@@ -155,6 +155,14 @@ def main():
 
     payload = json.loads(METRICS.read_text(encoding="utf-8"))
     df = pd.read_parquet(PRICE)
+    asset_filter = [
+        x.strip() for x in __import__("os").environ.get("PREDICT_ASSET_CLASSES", "").split(",")
+        if x.strip()
+    ]
+    if asset_filter:
+        df = df[df["asset_class"].isin(asset_filter)].copy()
+        if df.empty:
+            raise SystemExit("DEFERRED: requested asset-class filter has no rows")
     df["available_at"] = pd.to_datetime(
         df["available_at"], utc=True, errors="coerce"
     )
