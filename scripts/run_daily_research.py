@@ -213,8 +213,16 @@ def main():
                 else 0.02
             )
 
+            core_fit = cap_training_rows(
+                core,
+                max_rows=300_000,
+                recent_sessions=252,
+            )
             model = factory()
-            model.fit(core[FEATURE_COLUMNS], core.target_up_1d.astype(int))
+            model.fit(
+                core_fit[FEATURE_COLUMNS],
+                core_fit.target_up_1d.astype(int),
+            )
             cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
             calibrator = PlattCalibrator().fit(
                 cal_p, cal.target_up_1d.astype(int)
