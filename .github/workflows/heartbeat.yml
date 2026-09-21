@@ -1,0 +1,38 @@
+name: Automation heartbeat
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17 */6 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: automation-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - run: pytest -q
+      - run: python scripts/research_smoke.py
+      - name: Verify invariants
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          t=Path("config/universe.yml").read_text()
+          for x in ("target_count: dynamic","require_pit: true","frozen_holdout: true"):
+              assert x in t,x
+          print("heartbeat-invariants: PASS")
+          PY
