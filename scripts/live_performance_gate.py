@@ -31,11 +31,27 @@ def main():
             "production_action":"ALLOW",
         }
     elif status=="PASS":
-        metrics=payload.get("metrics",{})
-        valid=all(
-            k in metrics and isinstance(metrics[k],(int,float))
-            and math.isfinite(float(metrics[k]))
-            for k in ("logloss","brier","ece")
+        overall=payload.get("overall",{})
+        recent=payload.get("recent_20_sessions",{})
+        overall_metrics=overall.get("metrics",{})
+        recent_metrics=recent.get("metrics",{})
+        valid=(
+            all(
+                k in overall_metrics
+                and isinstance(overall_metrics[k],(int,float))
+                and math.isfinite(float(overall_metrics[k]))
+                for k in ("logloss","brier","ece")
+            )
+            and all(
+                k in recent_metrics
+                and isinstance(recent_metrics[k],(int,float))
+                and math.isfinite(float(recent_metrics[k]))
+                for k in ("logloss","brier","ece")
+            )
+            and bool(overall.get("beats_baseline"))
+            and bool(recent.get("beats_baseline"))
+            and float(overall_metrics["ece"])<=0.25
+            and float(recent_metrics["ece"])<=0.25
         )
         result={
             "status":"ALLOW" if valid else "DEFERRED",
@@ -55,7 +71,11 @@ def main():
     print(json.dumps(result,indent=2))
 
     if result["production_action"]!="ALLOW":
-        raise SystemExit("DEFERRED: live performance gate blocked production prediction")
+        raise SystemExit(
+            "DEFERRED: live performance gate blocked production prediction"
+        )
+
+
 
 
 if __name__=="__main__":
