@@ -164,6 +164,9 @@ def route_plan(
     locked_asset: dict[str, str] | None = None,
     locked_regime: dict[str, str] | None = None,
     locked_global: str | None = None,
+    min_folds_asset_regime: int = 2,
+    min_folds_asset: int = 3,
+    min_folds_regime: int = 3,
 ) -> ModelPlan:
     if regime == Regime.DATA_STRESSED.value:
         return ModelPlan(("hgb",), (1.0,), "data_stressed:fail_closed_fallback", "fallback")
@@ -207,12 +210,17 @@ def route_plan(
             asset_regime_metrics[key],
             candidates=ASSET_CANDIDATES.get(asset_class),
             scope=key,
+            min_folds=min_folds_asset_regime,
         )
         if not plan.reason.endswith("fallback"):
             return plan
 
     if asset_metrics and asset_class in asset_metrics:
-        plan = asset_plan(asset_class, asset_metrics[asset_class])
+        plan = asset_plan(
+            asset_class,
+            asset_metrics[asset_class],
+            min_folds=min_folds_asset,
+        )
         if not plan.reason.endswith("fallback"):
             return plan
 
@@ -221,6 +229,7 @@ def route_plan(
             regime,
             regime_metrics[regime],
             scope=f"regime:{regime}",
+            min_folds=min_folds_regime,
         )
         if not plan.reason.endswith("fallback"):
             return plan

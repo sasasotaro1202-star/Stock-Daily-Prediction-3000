@@ -7,7 +7,7 @@ from pathlib import Path
 from src.validation.code_fingerprint import file_fingerprint, fingerprint_sha256
 
 
-ROOTS=(Path("config"),Path("src"),Path("scripts"))
+ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
 
 
 def sha256(path: Path) -> str:

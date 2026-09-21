@@ -67,6 +67,10 @@ def main():
         invalid_avail=int(
             pd.to_datetime(df["available_at"],utc=True,errors="coerce").isna().sum()
         )
+        session_ts=pd.to_datetime(df["session_date"],errors="coerce")
+        session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
+        avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
+        impossible_pit=int((avail_ts.lt(session_day_start)).fillna(False).sum())
         reasons += [f"duplicates:{dup}"] if dup else []
         reasons += [f"numeric_invalid:{numeric_invalid}"] if numeric_invalid else []
         reasons += [f"missing_source_provenance:{missing_source}"] if missing_source else []
@@ -74,6 +78,7 @@ def main():
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
+        reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
 
         snap=json.loads(UNIVERSE.read_text(encoding="utf-8"))
         expected={
@@ -111,6 +116,7 @@ def main():
 
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
+        "available_at_before_session_date",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
