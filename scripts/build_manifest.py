@@ -22,10 +22,14 @@ def main():
         for p in sorted(root.rglob("*.yaml")):
             rows.append({"path":str(p),"sha256":sha256_file(p)})
     universe=Path("data/universe/latest.json")
+    evidence={}
+    for p in (Path("data/research/latest_metrics.json"),Path("data/research/leakage_audit.json"),Path("data/research/data_quality.json"),Path("data/research/frozen_holdout_result.json")):
+        if p.exists(): evidence[str(p)]=sha256_file(p)
     payload={
         "created_at":datetime.now(timezone.utc).isoformat(),
         "git_sha":os.getenv("GITHUB_SHA"),
         "universe_sha256":sha256_file(universe) if universe.exists() else None,
+        "evidence_sha256":evidence,
         "files":rows,
         "status":"REPRODUCIBLE_MANIFEST_CREATED",
     }
