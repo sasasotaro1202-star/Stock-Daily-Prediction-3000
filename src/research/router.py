@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 import math
 
+import numpy as np
+
 
 class Regime(str, Enum):
     NORMAL = "normal"
@@ -90,9 +92,64 @@ def regime_for_row(
 
 def _score(metric: dict[str, float]) -> float:
     # Penalize unstable OOS results without allowing dispersion to dominate.
-    mean = float(metric.get("logloss", float("inf")))
-    std = float(metric.get("logloss_std", 0.0))
+    mean = float(metric.get("selection_logloss", metric.get("logloss", float("inf"))))
+    std = float(
+        metric.get("selection_logloss_std", metric.get("logloss_std", 0.0))
+    )
     return mean + 0.25 * std
+
+
+def rebalance_global_oos_candidates(
+    global_candidates: dict[str, dict[str, float]],
+    asset_metrics: dict[str, dict[str, dict[str, float]]],
+    *,
+    blend_weight: float = 0.50,
+    min_folds: int = 3,
+) -> dict[str, dict[str, float]]:
+    """
+    Blend raw row-weighted OOS LogLoss with macro-averaged asset-class OOS
+    LogLoss. This prevents a very large asset class from dominating global
+    model selection while retaining half of the raw objective.
+    """
+    weight = float(np.clip(blend_weight, 0.0, 1.0))
+    out: dict[str, dict[str, float]] = {}
+    for name, raw in global_candidates.items():
+        per_asset: list[float] = []
+        for candidates in asset_metrics.values():
+            metric = candidates.get(name)
+            if not metric:
+                continue
+            folds = int(metric.get("folds", min_folds))
+            value = metric.get("logloss")
+            if folds < min_folds or value is None:
+                continue
+            value = float(value)
+            if math.isfinite(value):
+                per_asset.append(value)
+
+        candidate = dict(raw)
+        if len(per_asset) >= 2:
+            macro = float(np.mean(per_asset))
+            macro_std = (
+                float(np.std(per_asset, ddof=1))
+                if len(per_asset) >= 2
+                else 0.0
+            )
+            raw_mean = float(raw.get("logloss", float("inf")))
+            raw_std = float(raw.get("logloss_std", 0.0))
+            candidate["asset_class_macro_logloss"] = macro
+            candidate["asset_class_macro_logloss_std"] = macro_std
+            candidate["asset_class_macro_count"] = float(len(per_asset))
+            candidate["selection_logloss"] = (
+                (1.0 - weight) * raw_mean + weight * macro
+            )
+            candidate["selection_logloss_std"] = (
+                (1.0 - weight) * raw_std + weight * macro_std
+            )
+        else:
+            candidate["asset_class_macro_count"] = float(len(per_asset))
+        out[name] = candidate
+    return out
 
 
 def choose_from_oos(
