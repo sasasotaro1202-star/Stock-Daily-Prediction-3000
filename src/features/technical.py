@@ -7,6 +7,7 @@ FEATURE_COLUMNS=[
     "macd","macd_signal","macd_hist","rsi_14","stoch_k","stoch_d",
     "bb_mid","bb_upper","bb_lower","bb_width","atr_14","adx_14",
     "obv","mfi_14","volatility_20","volume_ratio_20","range_pct",
+    "cs_ret_1d_rank","cs_vol_rank","median_vol","median_ret","breadth_up",
     "gap_pct","price_vs_sma20","price_vs_sma60",
 ]
 
