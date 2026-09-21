@@ -14,7 +14,7 @@ from sklearn.pipeline import make_pipeline
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
-from src.prediction.regression import make_quantile_model
+from src.prediction.regression import make_quantile_models
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import Regime, regime_for_row, route_plan
@@ -286,11 +286,7 @@ def main():
     latest["model_disagreement"] = global_disagreement
 
     # Quantile return models provide a data-driven asymmetric interval.
-    global_qmodels = {
-        "q10": make_quantile_model(0.10),
-        "q50": make_quantile_model(0.50),
-        "q90": make_quantile_model(0.90),
-    }
+    global_qmodels = make_quantile_models()
     return_fit=cap_training_rows(labeled,max_rows=250_000,recent_sessions=252)
     for model in global_qmodels.values():
         model.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
@@ -305,11 +301,7 @@ def main():
         qmodels = global_qmodels
         scope = "global"
         if len(subset) >= 750:
-            qmodels = {
-                "q10": make_quantile_model(0.10),
-                "q50": make_quantile_model(0.50),
-                "q90": make_quantile_model(0.90),
-            }
+            qmodels = make_quantile_models()
             subset_fit=cap_training_rows(subset,max_rows=200_000,recent_sessions=252)
             for model in qmodels.values():
                 model.fit(subset_fit[FEATURE_COLUMNS], subset_fit["target_ret_1d"])
