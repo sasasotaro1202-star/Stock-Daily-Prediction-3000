@@ -10,6 +10,10 @@ FEATURE_COLUMNS=[
     "volatility_20","volume_ratio_20","range_pct","gap_pct",
     "price_vs_sma20","price_vs_sma60",
     "cs_ret_1d_rank","cs_vol_rank","median_vol","median_ret","breadth_up",
+    "nikkei_ret_1d_lag1","topix_ret_1d_lag1",
+    "sp500_ret_1d_lag1","nasdaq_ret_1d_lag1",
+    "vix_level_lag1","usd_jpy_ret_1d_lag1",
+    "jp_market_volatility_lag1","us_market_volatility_lag1",
 ]
 
 def _rolling_z(s:pd.Series,window:int)->pd.Series:
