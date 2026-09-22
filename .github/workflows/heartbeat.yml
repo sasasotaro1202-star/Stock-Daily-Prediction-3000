@@ -23,14 +23,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e ".[dev,research]"
+      - run: python -m compileall -q src scripts
       - run: pytest -q
       - run: python scripts/research_smoke.py
-      - name: Verify invariants
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          t=Path("config/universe.yml").read_text()
-          for x in ("target_count: dynamic","require_pit: true","frozen_holdout: true"):
-              assert x in t,x
-          print("heartbeat-invariants: PASS")
-          PY
+      - name: Verify production invariants
+        run: python scripts/production_invariants.py
