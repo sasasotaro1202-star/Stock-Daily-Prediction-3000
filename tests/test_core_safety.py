@@ -287,8 +287,6 @@ def test_production_ranking_uncertainty_uses_asset_quantiles_when_available():
 
 
 def test_future_value_poisoning_does_not_change_prior_features():
-    import numpy as np
-
     base = sample()
     base["asset_class"] = "jp_stock"
     clean = add_technical_features(base)
@@ -299,16 +297,21 @@ def test_future_value_poisoning_does_not_change_prior_features():
     poisoned.loc[poisoned.index >= cutoff, "volume"] *= 0.01
     changed = add_technical_features(poisoned)
 
-    cols = FEATURE_COLUMNS
+    # Technical features are intentionally tested in isolation here. Context
+    # features depend on separate PIT datasets and are covered by the next test.
+    technical_cols = [
+        col for col in FEATURE_COLUMNS
+        if col in clean.columns and col in changed.columns
+    ]
+    assert technical_cols
     pd.testing.assert_frame_equal(
-        clean.loc[:cutoff - 1, cols].reset_index(drop=True),
-        changed.loc[:cutoff - 1, cols].reset_index(drop=True),
+        clean.loc[clean.index < cutoff, technical_cols].reset_index(drop=True),
+        changed.loc[changed.index < cutoff, technical_cols].reset_index(drop=True),
         check_dtype=False,
         check_exact=False,
         rtol=1e-12,
         atol=1e-12,
     )
-
 
 def test_future_market_context_poisoning_does_not_change_prior_features():
     from src.features.context import add_market_context
