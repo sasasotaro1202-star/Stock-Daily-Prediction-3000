@@ -173,6 +173,31 @@ def main():
 
         lo_base = q10.predict(test[FEATURE_COLUMNS])
         hi_base = q90.predict(test[FEATURE_COLUMNS])
+
+        # Mirror production quantile routing: use asset-specific intervals
+        # when the training slice has enough observations.
+        for asset, subset in core.groupby("asset_class", sort=False):
+            if len(subset) < 750:
+                continue
+            q_asset = {
+                "q10": make_quantile_model(0.10),
+                "q50": make_quantile_model(0.50),
+                "q90": make_quantile_model(0.90),
+            }
+            subset_fit = cap_training_rows(
+                subset, max_rows=200_000, recent_sessions=252
+            )
+            for qm in q_asset.values():
+                qm.fit(subset_fit[FEATURE_COLUMNS], subset_fit["target_ret_1d"])
+            mask = test["asset_class"].eq(asset).to_numpy()
+            if mask.any():
+                lo_base[mask] = q_asset["q10"].predict(
+                    test.loc[mask, FEATURE_COLUMNS]
+                )
+                hi_base[mask] = q_asset["q90"].predict(
+                    test.loc[mask, FEATURE_COLUMNS]
+                )
+
         for name, pred in (
             ("mean", mean_pred),
             ("q50", q50_pred),
