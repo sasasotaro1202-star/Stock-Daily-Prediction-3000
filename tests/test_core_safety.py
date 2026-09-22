@@ -211,3 +211,20 @@ def test_retrieval_provenance_audit_rejects_inconsistent_times():
     assert audit_retrieval_provenance(frame)["ok"] is True
     frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-01T00:00:00Z")
     assert audit_retrieval_provenance(frame)["ok"] is False
+
+
+def test_recency_weights_decay_and_normalize():
+    import numpy as np
+    import pandas as pd
+    from src.prediction.fit import training_recency_weights
+
+    dates = pd.Series(pd.to_datetime([
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-03",
+        "2026-01-04",
+    ]))
+    weights = training_recency_weights(dates, half_life_sessions=2)
+    assert np.isclose(weights.mean(), 1.0)
+    assert weights[0] < weights[-1]
+    assert np.isclose(weights[1] / weights[3], 0.5, atol=1e-6)
