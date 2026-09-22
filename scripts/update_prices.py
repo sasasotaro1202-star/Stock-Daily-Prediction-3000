@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 import json
 import os
+import time
 
 import pandas as pd
 
@@ -41,13 +42,37 @@ def one(i:int,batch:list[dict])->tuple[int,int,str]:
         if (str(r["asset_class"]),str(r["symbol"])) not in old_keys
     ]
 
+    def fetch_resilient(records: list[dict], period: str) -> pd.DataFrame:
+        if not records:
+            return pd.DataFrame()
+        last_empty = False
+        for attempt in range(3):
+            try:
+                data = download_batch(records, period=period)
+            except Exception as exc:
+                print(
+                    f"price-download-retry attempt={attempt + 1}/3 "
+                    f"period={period} rows={len(records)} error={type(exc).__name__}"
+                )
+                data = pd.DataFrame()
+            if not data.empty:
+                return data
+            last_empty = True
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+        if last_empty:
+            print(
+                f"price-download-deferred period={period} rows={len(records)}"
+            )
+        return pd.DataFrame()
+
     frames=[]
     if existing:
-        data=download_batch(existing,period="10d")
+        data=fetch_resilient(existing,period="10d")
         if not data.empty:
             frames.append(data)
     if new:
-        data=download_batch(new,period="5y")
+        data=fetch_resilient(new,period="5y")
         if not data.empty:
             frames.append(data)
 
