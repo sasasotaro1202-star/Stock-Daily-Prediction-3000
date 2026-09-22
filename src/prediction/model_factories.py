@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
+from sklearn.base import clone
 from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -17,15 +18,15 @@ except ImportError:  # optional research dependency
 class SoftBlendClassifier:
     """Simple probability blend of two causal tree-based classifiers."""
 
-    def __init__(self, left_factory, right_factory, left_weight: float = 0.5):
-        self.left_factory = left_factory
-        self.right_factory = right_factory
+    def __init__(self, left_model, right_model, left_weight: float = 0.5):
+        self.left_model = left_model
+        self.right_model = right_model
         self.left_weight = float(left_weight)
         if not 0.0 <= self.left_weight <= 1.0:
             raise ValueError("left_weight must be between 0 and 1")
         self.right_weight = 1.0 - self.left_weight
-        self.left_model = None
-        self.right_model = None
+        self._fitted_left_model = None
+        self._fitted_right_model = None
         self.classes_ = None
 
     @staticmethod
@@ -41,22 +42,22 @@ class SoftBlendClassifier:
         return model
 
     def fit(self, X, y, sample_weight=None):
-        self.left_model = self._fit_one(
-            self.left_factory(), X, y, sample_weight
+        self._fitted_left_model = self._fit_one(
+            clone(self.left_model), X, y, sample_weight
         )
-        self.right_model = self._fit_one(
-            self.right_factory(), X, y, sample_weight
+        self._fitted_right_model = self._fit_one(
+            clone(self.right_model), X, y, sample_weight
         )
-        self.classes_ = getattr(self.left_model, "classes_", None)
+        self.classes_ = getattr(self._fitted_left_model, "classes_", None)
         if self.classes_ is None:
-            self.classes_ = getattr(self.right_model, "classes_", None)
+            self.classes_ = getattr(self._fitted_right_model, "classes_", None)
         return self
 
     def predict_proba(self, X):
-        if self.left_model is None or self.right_model is None:
+        if self._fitted_left_model is None or self._fitted_right_model is None:
             raise RuntimeError("blend classifier is not fitted")
-        left = self.left_model.predict_proba(X)
-        right = self.right_model.predict_proba(X)
+        left = self._fitted_left_model.predict_proba(X)
+        right = self._fitted_right_model.predict_proba(X)
         return self.left_weight * left + self.right_weight * right
 
     def predict(self, X):
@@ -134,8 +135,8 @@ def models():
 
         def make_hgb_lgbm_blend_recent():
             return SoftBlendClassifier(
-                out["hgb"],
-                out["lightgbm_regularized"],
+                out["hgb"](),
+                out["lightgbm_regularized"](),
                 left_weight=0.5,
             )
 
