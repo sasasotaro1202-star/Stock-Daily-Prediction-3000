@@ -115,6 +115,11 @@ def main():
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
 
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
+
     return_estimators = {
         "mean": [],
         "q50": [],
@@ -227,11 +232,7 @@ def main():
                     test.loc[mask, FEATURE_COLUMNS]
                 )
 
-        for name, pred in (
-            ("mean", mean_pred),
-            ("q50", q50_pred),
-            ("blend_mean_q50", blend_pred),
-        ):
+        for name, pred in candidate_preds.items():
             lo = np.minimum(lo_base, pred)
             hi = np.maximum(hi_base, pred)
             interval_estimators[name].append({
@@ -253,10 +254,6 @@ def main():
         for name, rows in return_estimators.items()
         if rows
     }
-    pipeline_cfg = yaml.safe_load(
-        Path("config/pipeline.yml").read_text(encoding="utf-8")
-    )
-    model_cfg = pipeline_cfg.get("models", {})
     return_mae_guard = float(
         model_cfg.get("return_estimator_mae_guard", 1.10)
     )
