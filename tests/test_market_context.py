@@ -117,3 +117,15 @@ def test_cross_sectional_robust_zscores_are_market_scoped_and_clipped():
     for col in cols:
         assert out[col].notna().all()
         assert float(out[col].abs().max()) <= 5.0
+
+
+def test_macro_context_fields_flow_into_features():
+    from src.features.technical import FEATURE_COLUMNS
+
+    assert {
+        "us10y_level_lag1",
+        "dxy_ret_1d_lag1",
+        "gold_ret_1d_lag1",
+        "oil_ret_1d_lag1",
+        "hyg_ret_1d_lag1",
+    }.issubset(FEATURE_COLUMNS)

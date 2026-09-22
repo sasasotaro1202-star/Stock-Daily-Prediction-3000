@@ -16,6 +16,8 @@ FEATURE_COLUMNS=[
     "nikkei_ret_1d_lag1","topix_ret_1d_lag1",
     "sp500_ret_1d_lag1","nasdaq_ret_1d_lag1",
     "vix_level_lag1","usd_jpy_ret_1d_lag1",
+    "us10y_level_lag1","dxy_ret_1d_lag1","gold_ret_1d_lag1",
+    "oil_ret_1d_lag1","hyg_ret_1d_lag1",
     "jp_market_volatility_lag1","us_market_volatility_lag1",
     "asset_is_jp","asset_is_us","asset_is_stock",
     "asset_is_etf","asset_is_reit",
