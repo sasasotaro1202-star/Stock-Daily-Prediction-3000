@@ -32,6 +32,10 @@ from src.research.router import (
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
+from src.research.regime_threshold import (
+    aggregate_oos_training_thresholds,
+    volatility_threshold_from_training,
+)
 from src.validation.leakage import audit_feature_columns, audit_target_separation
 from src.validation.walk_forward import make_date_folds
 
@@ -117,6 +121,21 @@ def main():
     )
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
+
+    # Regime threshold is derived only from fold-local training distributions.
+    # OOS/test observations never contribute to the frozen threshold.
+    oos_regime_thresholds = []
+    for fold in folds:
+        train_dates = dates[: fold.train_end]
+        cal_n = max(20, int(len(train_dates) * 0.2))
+        core_dates = set(train_dates[:-cal_n])
+        core = df[df.session_date.isin(core_dates)]
+        if not core.empty:
+            oos_regime_thresholds.append(
+                volatility_threshold_from_training(core["volatility_20"])
+            )
+    if len(oos_regime_thresholds) < 3:
+        raise SystemExit("DEFERRED: insufficient fold-local regime thresholds")
 
     return_estimators = {
         "mean": [],
@@ -289,11 +308,7 @@ def main():
             ):
                 continue
 
-            threshold = (
-                float(core["volatility_20"].dropna().quantile(0.75))
-                if core["volatility_20"].notna().any()
-                else 0.02
-            )
+            threshold = volatility_threshold_from_training(core["volatility_20"])
 
             core_fit = cap_training_rows(
                 core,
@@ -437,11 +452,7 @@ def main():
     if not usable:
         raise SystemExit("DEFERRED: no model has >=3 valid OOS folds")
 
-    global_vol_threshold = (
-        float(df["volatility_20"].dropna().quantile(0.75))
-        if df["volatility_20"].notna().any()
-        else 0.02
-    )
+    global_vol_threshold = aggregate_oos_training_thresholds(oos_regime_thresholds)
 
     regime_metrics = {
         reg: aggregate_model_rows(rows)
@@ -807,6 +818,8 @@ def main():
         "ranking_weight_candidates": ranking_candidates,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
+        "regime_vol_threshold_source": "oos_fold_train_median",
+        "regime_vol_threshold_folds": len(oos_regime_thresholds),
         "selection_basis": (
             "chronological walk-forward OOS only; global selection blends "
             "row-weighted LogLoss with a configurable macro asset-class blend "
