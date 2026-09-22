@@ -71,3 +71,37 @@ def test_reader_fallback_parse_stays_tradeable_and_section_aware():
     assert ("1475", "jp_etf") in pairs
     assert ("8951", "jp_reit") in pairs
     assert ("1306", "jp_etf") not in pairs
+
+
+def test_browser_dump_dom_restricted_to_official_paypay(monkeypatch):
+    import src.data.paypay_collector as collector
+
+    class Result:
+        returncode = 0
+        stdout = b"<html>" + (b"x" * 10000) + b"</html>"
+        stderr = b""
+
+    calls = []
+
+    monkeypatch.setattr(collector.shutil, "which", lambda name: "/bin/" + name)
+    monkeypatch.setattr(
+        collector.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)) or Result(),
+    )
+
+    body = collector._browser_dump_dom(
+        "https://www.paypay-sec.co.jp/stock/list/"
+    )
+    assert len(body) > 10000
+    assert calls
+    assert "--dump-dom" in calls[0][0]
+    assert calls[0][0][-1] == "https://www.paypay-sec.co.jp/stock/list/"
+
+
+def test_browser_dump_dom_rejects_non_paypay_url():
+    import pytest
+    from src.data.paypay_collector import _browser_dump_dom
+
+    with pytest.raises(RuntimeError, match="PayPay official hosts"):
+        _browser_dump_dom("https://example.com/")
