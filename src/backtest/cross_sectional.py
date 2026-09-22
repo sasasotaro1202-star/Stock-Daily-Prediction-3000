@@ -18,6 +18,7 @@ def evaluate_predictions(
         "session_date",
         "prediction_date",
         "expected_return_1d",
+        "rank_score",
     }
     required_bar = {"symbol", "session_date", "close", "available_at"}
     if not required_pred.issubset(p.columns):
@@ -107,7 +108,7 @@ def evaluate_predictions(
         if len(g) < 20:
             continue
 
-        q = g["expected_return_1d"].rank(pct=True)
+        q = g["rank_score"].rank(pct=True)
         long = g.loc[
             q >= 1 - top_quantile, "forward_return_1d"
         ].mean()
