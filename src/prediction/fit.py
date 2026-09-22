@@ -26,6 +26,35 @@ def training_recency_weights(
     return weights
 
 
+def fit_regressor(
+    model,
+    model_name: str,
+    X: pd.DataFrame,
+    y,
+    session_dates: pd.Series,
+    *,
+    half_life_sessions: int = 252,
+):
+    name = str(model_name)
+    if name.endswith("_recent"):
+        weights = training_recency_weights(
+            session_dates,
+            half_life_sessions=half_life_sessions,
+        )
+        if hasattr(model, "steps"):
+            final_step = model.steps[-1][0]
+            model.fit(
+                X,
+                y,
+                **{f"{final_step}__sample_weight": weights},
+            )
+        else:
+            model.fit(X, y, sample_weight=weights)
+    else:
+        model.fit(X, y)
+    return model
+
+
 def fit_classifier(
     model,
     model_name: str,
