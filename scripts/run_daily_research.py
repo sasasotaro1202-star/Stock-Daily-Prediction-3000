@@ -19,6 +19,7 @@ from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
+from src.research.return_selection import choose_return_estimator
 from src.research.router import (
     ASSET_CANDIDATES,
     CANDIDATES,
@@ -110,7 +111,12 @@ def main():
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
 
-    return_fold_rows = []
+    return_estimators = {
+        "mean": [],
+        "q50": [],
+        "blend_mean_q50": [],
+    }
+    interval_fold_rows = []
 
     for fold in folds:
         train_dates = dates[: fold.train_end]
@@ -121,38 +127,97 @@ def main():
         test = df[df.session_date.isin(test_dates)]
         if min(len(core), len(test)) < 100:
             continue
-        q10=make_quantile_model(0.10)
-        q50=make_quantile_model(0.50)
-        q90=make_quantile_model(0.90)
-        core_q=cap_training_rows(core,max_rows=250_000,recent_sessions=252)
+
+        mean_model = make_return_model()
+        q10 = make_quantile_model(0.10)
+        q50 = make_quantile_model(0.50)
+        q90 = make_quantile_model(0.90)
+        core_q = cap_training_rows(core, max_rows=250_000, recent_sessions=252)
+        mean_model.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
         q10.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
         q50.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
         q90.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
-        lo=q10.predict(test[FEATURE_COLUMNS])
-        mid=q50.predict(test[FEATURE_COLUMNS])
-        hi=q90.predict(test[FEATURE_COLUMNS])
-        lo=np.minimum(lo,mid)
-        hi=np.maximum(hi,mid)
-        y_ret=test["target_ret_1d"].to_numpy(dtype=float)
-        return_fold_rows.append({
-            "mae": float(mean_absolute_error(y_ret, mid)),
-            "rmse": float(mean_squared_error(y_ret, mid) ** 0.5),
+
+        mean_pred = mean_model.predict(test[FEATURE_COLUMNS])
+        q50_pred = q50.predict(test[FEATURE_COLUMNS])
+        blend_pred = 0.5 * mean_pred + 0.5 * q50_pred
+        y_ret = test["target_ret_1d"].to_numpy(dtype=float)
+        group_keys = (
+            test["session_date"].astype(str)
+            + "::"
+            + test["asset_class"].astype(str)
+            if "asset_class" in test.columns
+            else test["session_date"].astype(str)
+        )
+
+        for name, pred in (
+            ("mean", mean_pred),
+            ("q50", q50_pred),
+            ("blend_mean_q50", blend_pred),
+        ):
+            return_estimators[name].append({
+                "mae": float(mean_absolute_error(y_ret, pred)),
+                "rmse": float(mean_squared_error(y_ret, pred) ** 0.5),
+                "sign_accuracy": float(np.mean((pred >= 0) == (y_ret >= 0))),
+                "rank_ic": cross_sectional_rank_ic(
+                    y_ret,
+                    pred,
+                    group_keys,
+                ),
+                "n_test": float(len(test)),
+            })
+
+        lo = q10.predict(test[FEATURE_COLUMNS])
+        hi = q90.predict(test[FEATURE_COLUMNS])
+        lo = np.minimum(lo, q50_pred)
+        hi = np.maximum(hi, q50_pred)
+        interval_fold_rows.append({
+            "mae": float(mean_absolute_error(y_ret, q50_pred)),
+            "rmse": float(mean_squared_error(y_ret, q50_pred) ** 0.5),
             "sign_accuracy": float(
-                np.mean((mid >= 0) == (y_ret >= 0))
+                np.mean((q50_pred >= 0) == (y_ret >= 0))
             ),
-            "q10_pinball": float(mean_pinball_loss(y_ret,lo,alpha=0.10)),
-            "q90_pinball": float(mean_pinball_loss(y_ret,hi,alpha=0.90)),
+            "q10_pinball": float(mean_pinball_loss(y_ret, lo, alpha=0.10)),
+            "q90_pinball": float(mean_pinball_loss(y_ret, hi, alpha=0.90)),
             "range_80_coverage": float(
                 np.mean((y_ret >= lo) & (y_ret <= hi))
             ),
             "n_test": float(len(test)),
         })
 
-    return_metrics = aggregate_group(return_fold_rows) if return_fold_rows else {}
+    return_estimator_metrics = {
+        name: aggregate_group(rows)
+        for name, rows in return_estimators.items()
+        if rows
+    }
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
+    return_mae_guard = float(
+        model_cfg.get("return_estimator_mae_guard", 1.10)
+    )
+    return_rank_ic_tolerance = float(
+        model_cfg.get("return_estimator_rank_ic_tolerance", 0.005)
+    )
+    selected_return_estimator = choose_return_estimator(
+        return_estimator_metrics,
+        min_folds=3,
+        mae_guard=return_mae_guard,
+        stability_penalty=0.25,
+        rank_ic_tolerance=return_rank_ic_tolerance,
+    )
+    interval_metrics = (
+        aggregate_group(interval_fold_rows)
+        if interval_fold_rows
+        else {}
+    )
     return_oos = {
-        "folds": len(return_fold_rows),
-        "metrics": return_metrics,
-        "status": "OOS_COMPLETE" if len(return_fold_rows) >= 3 else "DEFERRED",
+        "folds": len(interval_fold_rows),
+        "metrics": interval_metrics,
+        "estimator_metrics": return_estimator_metrics,
+        "selected_estimator": selected_return_estimator,
+        "status": "OOS_COMPLETE" if len(interval_fold_rows) >= 3 else "DEFERRED",
     }
 
     model_results = {}
