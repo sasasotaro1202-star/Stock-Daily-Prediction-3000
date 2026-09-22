@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import numpy
 import sklearn
+import importlib.metadata as metadata
 
 try:
     import lightgbm
@@ -170,6 +171,21 @@ def main():
             "numpy_version": numpy.__version__,
             "sklearn_version": sklearn.__version__,
             "lightgbm_version": lightgbm.__version__ if lightgbm is not None else None,
+            "runtime_dependency_versions": {
+                name: metadata.version(name)
+                for name in (
+                    "numpy",
+                    "pandas",
+                    "scikit-learn",
+                    "scipy",
+                    "pyarrow",
+                    "yfinance",
+                    "PyYAML",
+                    "curl_cffi",
+                    "lightgbm",
+                )
+                if name != "lightgbm" or lightgbm is not None
+            },
             "available_classifiers": sorted(classifiers),
             "required_classifiers": sorted(required_classifiers),
             "regime_vol_threshold": threshold,
