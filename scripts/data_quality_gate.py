@@ -79,6 +79,12 @@ def main():
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
         reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
+        if "retrieved_at" in df.columns:
+            retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
+            invalid_retrieved=int(retrieved.isna().sum())
+            future_retrieved=int(retrieved.gt(pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=5)).fillna(False).sum())
+            reasons += [f"invalid_retrieved_at:{invalid_retrieved}"] if invalid_retrieved else []
+            reasons += [f"retrieved_at_future:{future_retrieved}"] if future_retrieved else []
 
         snap=json.loads(UNIVERSE.read_text(encoding="utf-8"))
         expected={
@@ -117,6 +123,8 @@ def main():
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
         "available_at_before_session_date",
+        "invalid_retrieved_at",
+        "retrieved_at_future",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
