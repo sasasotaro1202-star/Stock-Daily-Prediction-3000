@@ -155,3 +155,18 @@ def test_ranking_penalizes_high_uncertainty():
         > with_penalty.set_index("symbol").loc["A", "rank_uncertainty"]
     )
     assert with_penalty["rank_uncertainty_penalty"].eq(0.2).all()
+
+
+def test_training_window_keeps_only_latest_sessions():
+    from src.validation.training_window import restrict_to_lookback
+
+    df = pd.DataFrame({
+        "session_date": pd.date_range("2026-01-01", periods=5, freq="D"),
+        "value": [1, 2, 3, 4, 5],
+    })
+    out = restrict_to_lookback(df, 2)
+    assert out["session_date"].dt.date.tolist() == [
+        pd.Timestamp("2026-01-04").date(),
+        pd.Timestamp("2026-01-05").date(),
+    ]
+    assert len(restrict_to_lookback(df, 0)) == 5
