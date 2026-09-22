@@ -155,3 +155,27 @@ def test_ranking_penalizes_high_uncertainty():
         > with_penalty.set_index("symbol").loc["A", "rank_uncertainty"]
     )
     assert with_penalty["rank_uncertainty_penalty"].eq(0.2).all()
+
+
+def test_training_window_keeps_only_latest_sessions():
+    from src.validation.training_window import restrict_to_lookback
+
+    df = pd.DataFrame({
+        "session_date": pd.date_range("2026-01-01", periods=5, freq="D"),
+        "value": [1, 2, 3, 4, 5],
+    })
+    out = restrict_to_lookback(df, 2)
+    assert out["session_date"].dt.date.tolist() == [
+        pd.Timestamp("2026-01-04").date(),
+        pd.Timestamp("2026-01-05").date(),
+    ]
+    assert len(restrict_to_lookback(df, 0)) == 5
+
+
+def test_production_artifact_uses_training_window_before_calibration():
+    from pathlib import Path
+
+    source = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+    assert "training_labeled = restrict_to_lookback" in source
+    assert "core, cal = split_train_cal(training_labeled)" in source
+    assert "recent_sessions=min(252, training_window or 252)" in source

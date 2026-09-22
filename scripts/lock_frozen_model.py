@@ -39,6 +39,10 @@ def main():
         raise SystemExit("FAIL: OOS did not select a global model")
 
     lock["selected_model"]=selected
+    training_window=payload.get("classifier_training_window_sessions", 0)
+    if not isinstance(training_window,(int,float)) or int(training_window) < 0:
+        raise SystemExit("FAIL: OOS classifier training window is invalid")
+    lock["classifier_training_window_sessions"]=int(training_window)
     rank_weight=payload.get("rank_probability_weight", 0.50)
     if not isinstance(rank_weight,(int,float)) or not 0.0 <= float(rank_weight) <= 1.0:
         raise SystemExit("FAIL: OOS did not produce a valid ranking probability weight")

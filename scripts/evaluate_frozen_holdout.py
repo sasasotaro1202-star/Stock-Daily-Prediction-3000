@@ -15,6 +15,7 @@ from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.research.router import route_plan, regime_for_row
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
+from src.validation.training_window import restrict_to_lookback
 
 
 def factories():
@@ -78,7 +79,29 @@ def main():
     if core.target_up_1d.nunique() < 2 or cal.target_up_1d.nunique() < 2:
         raise SystemExit("DEFERRED: calibration split lacks both target classes")
 
-    core_fit=cap_training_rows(core,max_rows=300_000,recent_sessions=252)
+    training_window = int(frozen.get("classifier_training_window_sessions", 0))
+    if training_window < 0:
+        raise SystemExit("FAIL: frozen classifier training window is invalid")
+    model_core = restrict_to_lookback(
+        core,
+        None if training_window == 0 else training_window,
+    )
+    model_core_dates = sorted(model_core["date"].unique())
+    if len(model_core_dates) < 40:
+        raise SystemExit("DEFERRED: frozen classifier training window is too small")
+    model_cal_n = max(20, int(len(model_core_dates) * 0.2))
+    model_fit = model_core[
+        model_core["date"].isin(set(model_core_dates[:-model_cal_n]))
+    ]
+    model_cal = model_core[
+        model_core["date"].isin(set(model_core_dates[-model_cal_n:]))
+    ]
+    if (
+        model_fit.target_up_1d.nunique() < 2
+        or model_cal.target_up_1d.nunique() < 2
+    ):
+        raise SystemExit("DEFERRED: frozen classifier window lacks both calibration classes")
+    core_fit=cap_training_rows(model_fit,max_rows=300_000,recent_sessions=min(252, training_window or 252))
 
     # Fit every classifier actually referenced by the frozen routing policy,
     # while keeping the holdout completely untouched until final evaluation.
@@ -105,9 +128,9 @@ def main():
             core_fit[FEATURE_COLUMNS],
             core_fit.target_up_1d.astype(int),
         )
-        cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+        cal_p = model.predict_proba(model_cal[FEATURE_COLUMNS])[:, 1]
         calibrator = PlattCalibrator().fit(
-            cal_p, cal.target_up_1d.astype(int)
+            cal_p, model_cal.target_up_1d.astype(int)
         )
         classifiers[model_name] = {
             "model": model,
