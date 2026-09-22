@@ -20,6 +20,7 @@ def main():
         ("oos_selection","selection_source: chronological_oos_only" in pipe and "rank_ic_tiebreak_tolerance: 0.002" in pipe),
         ("rank_ic_oos","cross_sectional_rank_ic" in Path("scripts/run_daily_research.py").read_text() and "rank_ic" in Path("src/research/router.py").read_text()),
         ("oos_optimized_ranking_weight","rank_probability_weight" in Path("scripts/run_daily_research.py").read_text() and "rank_probability_weight" in Path("scripts/lock_frozen_model.py").read_text() and "probability_weight=rank_weight" in Path("scripts/run_daily_prediction.py").read_text()),
+        ("oos_optimized_uncertainty_penalty","rank_uncertainty_penalty" in Path("scripts/run_daily_research.py").read_text() and "rank_uncertainty_penalty" in Path("scripts/lock_frozen_model.py").read_text() and "uncertainty_penalty=rank_uncertainty_penalty" in Path("scripts/run_daily_prediction.py").read_text()),
         ("ranking_backtest_parity","rank_score" in Path("src/backtest/cross_sectional.py").read_text() and "rank_score" in Path("src/ranking/cross_sectional.py").read_text()),
         ("asset_class_balanced_selection","asset_class_balance_weight: 0.50" in pipe and "rebalance_global_oos_candidates" in Path("scripts/run_daily_research.py").read_text()),
         ("optional_lightgbm_challenger","lightgbm" in pipe and "LGBMClassifier" in Path("src/prediction/model_factories.py").read_text() and "research" in Path("pyproject.toml").read_text()),

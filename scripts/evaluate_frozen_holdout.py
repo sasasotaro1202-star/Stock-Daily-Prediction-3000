@@ -275,8 +275,29 @@ def main():
         if "asset_class" in test.columns
         else test["date"].astype(str)
     )
+    rank_uncertainty_penalty = frozen.get("rank_uncertainty_penalty", 0.0)
+    if (
+        not isinstance(rank_uncertainty_penalty, (int, float))
+        or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0
+    ):
+        raise SystemExit("FAIL: frozen ranking uncertainty penalty is invalid")
+    global_q10_pred = q_global["q10"].predict(test[FEATURE_COLUMNS])
+    global_q90_pred = q_global["q90"].predict(test[FEATURE_COLUMNS])
+    ranking_uncertainty = pd.Series(
+        np.maximum(global_q90_pred - global_q10_pred, 0.0),
+        index=test.index,
+    )
+    rank_uncertainty = ranking_uncertainty.groupby(
+        [test[c] for c in group_cols]
+    ).rank(method="average", ascending=True, pct=True)
+    holdout_rank_score = (
+        rank_weight * rank_prob
+        + (1.0 - rank_weight) * rank_ret
+        - float(rank_uncertainty_penalty) * rank_uncertainty
+    )
     ranking_holdout = {
         "probability_weight": float(rank_weight),
+        "uncertainty_penalty": float(rank_uncertainty_penalty),
         "rank_ic": float(cross_sectional_rank_ic(
             test["target_ret_1d"].astype(float),
             holdout_rank_score.to_numpy(dtype=float),

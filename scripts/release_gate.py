@@ -75,6 +75,10 @@ def main():
     ranking_holdout=frozen.get("ranking_holdout", {})
     if not isinstance(ranking_holdout.get("rank_ic"), (int,float)) or not __import__("math").isfinite(float(ranking_holdout.get("rank_ic"))):
         reasons.append("holdout_ranking_rank_ic_missing")
+    if not isinstance(ranking_holdout.get("uncertainty_penalty"), (int,float)):
+        reasons.append("holdout_ranking_uncertainty_penalty_missing")
+    elif not 0.0 <= float(ranking_holdout.get("uncertainty_penalty")) <= 1.0:
+        reasons.append("holdout_ranking_uncertainty_penalty_invalid")
     if frozen.get("beats_baseline") is not True: reasons.append("holdout_does_not_beat_baseline")
     if not frozen.get("calibration_within_limit",False): reasons.append("holdout_calibration_out_of_limit")
     result={"approved":not reasons,"reasons":reasons,"production_status":"APPROVED" if not reasons else "DEFERRED"}

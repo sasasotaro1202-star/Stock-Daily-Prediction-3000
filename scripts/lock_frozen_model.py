@@ -43,6 +43,10 @@ def main():
     if not isinstance(rank_weight,(int,float)) or not 0.0 <= float(rank_weight) <= 1.0:
         raise SystemExit("FAIL: OOS did not produce a valid ranking probability weight")
     lock["rank_probability_weight"]=float(rank_weight)
+    rank_uncertainty_penalty=payload.get("rank_uncertainty_penalty", 0.0)
+    if not isinstance(rank_uncertainty_penalty,(int,float)) or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0:
+        raise SystemExit("FAIL: OOS did not produce a valid ranking uncertainty penalty")
+    lock["rank_uncertainty_penalty"]=float(rank_uncertainty_penalty)
     vol_threshold=payload.get("regime_vol_threshold")
     if not isinstance(vol_threshold,(int,float)) or not __import__("math").isfinite(float(vol_threshold)):
         raise SystemExit("FAIL: OOS did not produce a valid regime volatility threshold")
