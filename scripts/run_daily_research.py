@@ -430,6 +430,12 @@ def main():
     if not usable:
         raise SystemExit("DEFERRED: no model has >=3 valid OOS folds")
 
+    global_vol_threshold = (
+        float(df["volatility_20"].dropna().quantile(0.75))
+        if df["volatility_20"].notna().any()
+        else 0.02
+    )
+
     regime_metrics = {
         reg: aggregate_model_rows(rows)
         for reg, rows in regime_rows.items()
@@ -521,6 +527,7 @@ def main():
         "asset_regime_selected_models": asset_regime_selected,
         "selected_model": global_selected,
         "global_selection_candidates": balanced_candidates,
+        "regime_vol_threshold": global_vol_threshold,
         "selection_basis": (
             "chronological walk-forward OOS only; global selection blends "
             "row-weighted LogLoss with a configurable macro asset-class blend "
