@@ -10,7 +10,11 @@ from src.data.market_context import download_market_context
 OUT=Path("data/market_context.parquet")
 RESULT=Path("data/research/market_context_quality.json")
 
-REQUIRED={"nikkei","topix","sp500","nasdaq","vix","usd_jpy"}
+REQUIRED={
+    "nikkei","topix","sp500","nasdaq","vix","usd_jpy",
+    "us10y","dxy","gold","oil","hyg",
+}
+MAX_STALENESS_DAYS=10
 
 
 def main():
@@ -43,11 +47,27 @@ def main():
 
     families=sorted(df["family"].dropna().unique().tolist())
     missing=sorted(REQUIRED-set(families))
+    stale=[]
+    now_jst=pd.Timestamp.now(tz="Asia/Tokyo").date()
+    stale_cutoff=(pd.Timestamp(now_jst)-pd.Timedelta(days=MAX_STALENESS_DAYS)).date()
+    latest_by_family=(
+        df.groupby("family")["session_date"].max().to_dict()
+        if "family" in df.columns else {}
+    )
+    for family in sorted(REQUIRED):
+        latest=latest_by_family.get(family)
+        if latest is None:
+            continue
+        if latest < stale_cutoff:
+            stale.append(family)
     result={
-        "status":"PASS" if not missing else "DEFERRED",
+        "status":"PASS" if not missing and not stale else "DEFERRED",
         "rows":int(len(df)),
         "families":families,
         "missing_families":missing,
+        "stale_families":sorted(stale),
+        "latest_session_by_family":{k:str(v) for k,v in latest_by_family.items()},
+        "max_staleness_days":MAX_STALENESS_DAYS,
         "update_mode":"initial_full" if period=="5y" else "incremental_10d",
     }
     RESULT.parent.mkdir(parents=True,exist_ok=True)
@@ -58,7 +78,7 @@ def main():
     print(json.dumps(result,indent=2))
 
     if result["status"]!="PASS":
-        raise SystemExit("DEFERRED: incomplete market context")
+        raise SystemExit("DEFERRED: incomplete or stale market context")
 
 
 if __name__=="__main__":
