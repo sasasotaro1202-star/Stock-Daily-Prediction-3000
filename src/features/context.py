@@ -66,6 +66,11 @@ def add_market_context(
         "nasdaq_ret_1d_lag1":"__nasdaq_ret",
         "vix_level_lag1":"__vix_close",
         "usd_jpy_ret_1d_lag1":"__usd_jpy_ret",
+        "us10y_level_lag1":"__us10y_close",
+        "dxy_ret_1d_lag1":"__dxy_ret",
+        "gold_ret_1d_lag1":"__gold_ret",
+        "oil_ret_1d_lag1":"__oil_ret",
+        "hyg_ret_1d_lag1":"__hyg_ret",
         "jp_market_volatility_lag1":"__nikkei_vol",
         "us_market_volatility_lag1":"__sp500_vol",
     }
