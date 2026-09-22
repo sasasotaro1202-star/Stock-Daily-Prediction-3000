@@ -319,9 +319,23 @@ def main():
     ]
 
     rank_weight = float(artifact["metadata"].get("rank_probability_weight", 0.50))
+    rank_uncertainty_penalty = float(
+        artifact["metadata"].get("rank_uncertainty_penalty", 0.0)
+    )
+    # Ranking uncertainty uses the global q10-q90 interval so its definition
+    # is identical in OOS, frozen holdout, and production.
+    q10_global = global_qmodels["q10"].predict(
+        latest[FEATURE_COLUMNS]
+    )
+    q90_global = global_qmodels["q90"].predict(
+        latest[FEATURE_COLUMNS]
+    )
+    latest["ranking_uncertainty"] = np.maximum(q90_global - q10_global, 0.0)
     out = cross_sectional_rank(
-        latest[cols],
+        latest[cols + ["ranking_uncertainty"]],
         probability_weight=rank_weight,
+        uncertainty_col="ranking_uncertainty",
+        uncertainty_penalty=rank_uncertainty_penalty,
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     out.to_parquet(OUT, index=False)
