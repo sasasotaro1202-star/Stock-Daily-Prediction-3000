@@ -103,12 +103,17 @@ def main():
         df = df[pd.to_datetime(df["session_date"]).dt.date <= cutoff].copy()
 
     dates = sorted(pd.to_datetime(df["session_date"]).dt.date.unique())
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
     folds = make_date_folds(
         dates,
         min_train=252,
         test_size=21,
         step=21,
         embargo=1,
+        purge=int(model_cfg.get("purge_sessions", 1)),
     )
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
@@ -226,10 +231,6 @@ def main():
         for name, rows in return_estimators.items()
         if rows
     }
-    pipeline_cfg = yaml.safe_load(
-        Path("config/pipeline.yml").read_text(encoding="utf-8")
-    )
-    model_cfg = pipeline_cfg.get("models", {})
     return_mae_guard = float(
         model_cfg.get("return_estimator_mae_guard", 1.10)
     )
