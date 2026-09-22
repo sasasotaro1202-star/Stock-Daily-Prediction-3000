@@ -34,6 +34,8 @@ models:
   rank_ic_tiebreak_tolerance: 0.002
   asset_class_balance_weight: 0.50
   minimum_asset_class_oos_folds: 3
+  recency_weighted_challenger: true
+  recency_weight_half_life_sessions: 252
   classifier_training_window_candidates: [252, 504, 756, 0]
   return_estimator_mae_guard: 1.10
   return_estimator_rank_ic_tolerance: 0.005
