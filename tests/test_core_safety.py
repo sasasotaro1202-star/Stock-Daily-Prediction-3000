@@ -179,3 +179,19 @@ def test_production_artifact_uses_training_window_before_calibration():
     assert "training_labeled = restrict_to_lookback" in source
     assert "core, cal = split_train_cal(training_labeled)" in source
     assert "recent_sessions=min(252, training_window or 252)" in source
+
+
+def test_causal_correlation_and_trend_factors():
+    x = sample()
+    out = add_technical_features(x)
+    cols = [
+        "return_autocorr_20",
+        "return_volume_corr_20",
+        "trend_slope_20",
+        "trend_r2_20",
+        "up_down_imbalance_20",
+    ]
+    assert set(cols).issubset(out.columns)
+    last = out.groupby(["asset_class", "symbol"]).tail(1)
+    assert last[cols].notna().all().all()
+    assert ((last["trend_r2_20"] >= 0) & (last["trend_r2_20"] <= 1)).all()
