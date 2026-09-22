@@ -386,3 +386,20 @@ def test_monitoring_workflow_does_not_silently_ignore_price_restore_failure():
     source = Path(".github/workflows/prediction-monitoring.yml").read_text(encoding="utf-8")
     assert "|| true" not in source
     assert "one or more price-state shards could not be restored" in source
+
+
+
+def test_live_performance_gate_fails_closed_when_monitoring_state_is_missing(tmp_path, monkeypatch):
+    import pytest
+    import scripts.live_performance_gate as gate
+
+    monkeypatch.chdir(tmp_path)
+    gate.MONITOR = tmp_path / "data" / "research" / "monitor_latest.json"
+    gate.OUT = tmp_path / "data" / "research" / "live_performance_gate.json"
+
+    with pytest.raises(SystemExit, match="monitoring state is missing"):
+        gate.main()
+
+    result = __import__("json").loads(gate.OUT.read_text(encoding="utf-8"))
+    assert result["status"] == "DEFERRED"
+    assert result["production_action"] == "DEFERRED"
