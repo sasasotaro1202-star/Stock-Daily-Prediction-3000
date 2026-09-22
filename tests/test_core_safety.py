@@ -42,6 +42,8 @@ def test_lightgbm_challenger_is_available_in_research_ci():
     assert "lightgbm" in available
     assert "lightgbm_regularized" in available
     assert "lightgbm_regularized_recent" in available
+    assert "lightgbm_conservative" in available
+    assert "lightgbm_conservative_recent" in available
     assert lightgbm.__version__
 
 
@@ -495,6 +497,16 @@ def test_soft_blend_challenger_is_registered_and_lightgbm_artifact_checked():
 
     assert "blend_hgb_lgbm_regularized_recent" in pipeline
     assert 'if any("lightgbm" in str(name).lower() for name in classifiers):' in artifact
+
+
+def test_conservative_lightgbm_reaches_oos_selection_candidates():
+    from src.research.router import CANDIDATES, ASSET_CANDIDATES
+
+    name = "lightgbm_conservative_recent"
+    for regime in ("normal", "high_vol", "trend", "event"):
+        assert name in CANDIDATES[regime]
+    for asset_class in ("jp_stock", "jp_etf", "jp_reit", "us_stock", "us_etf"):
+        assert name in ASSET_CANDIDATES[asset_class]
 
 
 def test_soft_blend_challenger_reaches_oos_selection_candidates():
