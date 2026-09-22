@@ -516,114 +516,152 @@ def main():
     )
     global_selected = global_plan.names[0]
 
-    # Select the final ranking blend on chronological OOS. The frozen holdout
-    # remains untouched and is the final acceptance test.
+    # Select the final production ranking blend on chronological OOS.
+    # Each fold trains once; multiple score configurations are then evaluated,
+    # so adding ranking candidates does not multiply model fitting cost.
     ranking_candidates = {}
     rank_weight_grid = (0.25, 0.50, 0.75)
-    for weight in rank_weight_grid:
-        fold_rows = []
-        for fold in folds:
-            train_dates = dates[: fold.train_end]
-            cal_n = max(20, int(len(train_dates) * 0.2))
-            core_dates = set(train_dates[:-cal_n])
-            cal_dates = set(train_dates[-cal_n:])
-            test_dates = set(dates[fold.test_start : fold.test_end])
-            core = df[df.session_date.isin(core_dates)]
-            cal = df[df.session_date.isin(cal_dates)]
-            test = df[df.session_date.isin(test_dates)]
-            if min(len(core), len(cal), len(test)) < 100:
-                continue
-            if (
-                core.target_up_1d.nunique() < 2
-                or cal.target_up_1d.nunique() < 2
-                or test.target_up_1d.nunique() < 2
-            ):
-                continue
+    uncertainty_penalty_grid = (0.0, 0.05, 0.10)
+    for fold in folds:
+        train_dates = dates[: fold.train_end]
+        cal_n = max(20, int(len(train_dates) * 0.2))
+        core_dates = set(train_dates[:-cal_n])
+        cal_dates = set(train_dates[-cal_n:])
+        test_dates = set(dates[fold.test_start : fold.test_end])
+        core = df[df.session_date.isin(core_dates)]
+        cal = df[df.session_date.isin(cal_dates)]
+        test = df[df.session_date.isin(test_dates)]
+        if min(len(core), len(cal), len(test)) < 100:
+            continue
+        if (
+            core.target_up_1d.nunique() < 2
+            or cal.target_up_1d.nunique() < 2
+            or test.target_up_1d.nunique() < 2
+        ):
+            continue
 
-            classifier = make_models().get(global_selected)
-            if classifier is None:
-                continue
-            model = classifier()
-            core_fit = cap_training_rows(
-                core, max_rows=300_000, recent_sessions=252
-            )
-            model.fit(
-                core_fit[FEATURE_COLUMNS],
-                core_fit.target_up_1d.astype(int),
-            )
-            cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-            calibrator = PlattCalibrator().fit(
-                cal_p, cal.target_up_1d.astype(int)
-            )
-            p = calibrator.predict(
-                model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
-            )
+        classifier = make_models().get(global_selected)
+        if classifier is None:
+            continue
+        model = classifier()
+        core_fit = cap_training_rows(
+            core, max_rows=300_000, recent_sessions=252
+        )
+        model.fit(
+            core_fit[FEATURE_COLUMNS],
+            core_fit.target_up_1d.astype(int),
+        )
+        cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+        calibrator = PlattCalibrator().fit(
+            cal_p, cal.target_up_1d.astype(int)
+        )
+        p = calibrator.predict(
+            model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+        )
 
-            if selected_return_estimator == "mean":
-                return_model = make_return_model()
-                return_fit = cap_training_rows(
-                    core, max_rows=250_000, recent_sessions=252
-                )
-                return_model.fit(
+        return_fit = cap_training_rows(
+            core, max_rows=250_000, recent_sessions=252
+        )
+        if selected_return_estimator == "mean":
+            return_model = make_return_model()
+            return_model.fit(
+                return_fit[FEATURE_COLUMNS],
+                return_fit["target_ret_1d"],
+            )
+            expected = return_model.predict(test[FEATURE_COLUMNS])
+        else:
+            q50 = make_quantile_model(0.50)
+            q50.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
+            q50_pred = q50.predict(test[FEATURE_COLUMNS])
+            if selected_return_estimator == "q50":
+                expected = q50_pred
+            else:
+                mean_model = make_return_model()
+                mean_model.fit(
                     return_fit[FEATURE_COLUMNS],
                     return_fit["target_ret_1d"],
                 )
-                expected = return_model.predict(test[FEATURE_COLUMNS])
-            else:
-                q50 = make_quantile_model(0.50)
-                return_fit = cap_training_rows(
-                    core, max_rows=250_000, recent_sessions=252
-                )
-                q50.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
-                q50_pred = q50.predict(test[FEATURE_COLUMNS])
-                if selected_return_estimator == "q50":
-                    expected = q50_pred
-                else:
-                    mean_model = make_return_model()
-                    mean_model.fit(
-                        return_fit[FEATURE_COLUMNS],
-                        return_fit["target_ret_1d"],
-                    )
-                    expected = 0.5 * mean_model.predict(test[FEATURE_COLUMNS]) + 0.5 * q50_pred
+                expected = 0.5 * mean_model.predict(
+                    test[FEATURE_COLUMNS]
+                ) + 0.5 * q50_pred
 
-            temp = test[["session_date"] + (["asset_class"] if "asset_class" in test.columns else [])].copy()
-            temp["p"] = p
-            temp["expected"] = expected
-            group_cols = ["session_date"] + (["asset_class"] if "asset_class" in test.columns else [])
-            temp["rank_probability"] = temp.groupby(group_cols)["p"].rank(
-                method="average", ascending=False, pct=True
-            )
-            temp["rank_expected"] = temp.groupby(group_cols)["expected"].rank(
-                method="average", ascending=False, pct=True
-            )
-            score = weight * temp["rank_probability"] + (1.0 - weight) * temp["rank_expected"]
-            group_keys = (
-                temp["session_date"].astype(str)
-                + "::"
-                + temp["asset_class"].astype(str)
-                if "asset_class" in temp.columns
-                else temp["session_date"].astype(str)
-            )
-            fold_rows.append({
-                "rank_ic": cross_sectional_rank_ic(
-                    test["target_ret_1d"].astype(float),
-                    score,
-                    group_keys,
-                ),
-                "n_test": float(len(test)),
-            })
-        if fold_rows:
-            vals = [r["rank_ic"] for r in fold_rows if np.isfinite(r["rank_ic"])]
-            ranking_candidates[str(weight)] = {
-                "rank_ic": float(np.mean(vals)) if vals else float("nan"),
-                "rank_ic_std": float(np.std(vals, ddof=1)) if len(vals) >= 2 else 0.0,
-                "folds": float(len(fold_rows)),
-                "selection_score": (
-                    float(np.mean(vals) - 0.25 * np.std(vals, ddof=1))
-                    if len(vals) >= 2
-                    else float(np.mean(vals)) if vals else float("nan")
-                ),
-            }
+        q10 = make_quantile_model(0.10)
+        q90 = make_quantile_model(0.90)
+        q10.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
+        q90.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
+        uncertainty = np.maximum(
+            q90.predict(test[FEATURE_COLUMNS])
+            - q10.predict(test[FEATURE_COLUMNS]),
+            0.0,
+        )
+
+        temp = test[
+            ["session_date"]
+            + (["asset_class"] if "asset_class" in test.columns else [])
+        ].copy()
+        temp["p"] = p
+        temp["expected"] = expected
+        temp["uncertainty"] = uncertainty
+        group_cols = (
+            ["session_date"]
+            + (["asset_class"] if "asset_class" in test.columns else [])
+        )
+        temp["rank_probability"] = temp.groupby(group_cols)["p"].rank(
+            method="average", ascending=False, pct=True
+        )
+        temp["rank_expected"] = temp.groupby(group_cols)["expected"].rank(
+            method="average", ascending=False, pct=True
+        )
+        temp["rank_uncertainty"] = temp.groupby(group_cols)["uncertainty"].rank(
+            method="average", ascending=True, pct=True
+        )
+        group_keys = (
+            temp["session_date"].astype(str)
+            + "::"
+            + temp["asset_class"].astype(str)
+            if "asset_class" in temp.columns
+            else temp["session_date"].astype(str)
+        )
+
+        for weight in rank_weight_grid:
+            for penalty in uncertainty_penalty_grid:
+                score = (
+                    weight * temp["rank_probability"]
+                    + (1.0 - weight) * temp["rank_expected"]
+                    - penalty * temp["rank_uncertainty"]
+                )
+                key = f"{weight:.2f}::{penalty:.2f}"
+                bucket = ranking_candidates.setdefault(
+                    key, {"rank_ic_values": [], "n_tests": []}
+                )
+                bucket["rank_ic_values"].append(
+                    cross_sectional_rank_ic(
+                        test["target_ret_1d"].astype(float),
+                        score,
+                        group_keys,
+                    )
+                )
+                bucket["n_tests"].append(float(len(test)))
+
+    for key, bucket in ranking_candidates.items():
+        vals = [
+            value for value in bucket["rank_ic_values"]
+            if np.isfinite(value)
+        ]
+        ranking_candidates[key] = {
+            "probability_weight": float(key.split("::")[0]),
+            "uncertainty_penalty": float(key.split("::")[1]),
+            "rank_ic": float(np.mean(vals)) if vals else float("nan"),
+            "rank_ic_std": (
+                float(np.std(vals, ddof=1)) if len(vals) >= 2 else 0.0
+            ),
+            "folds": float(len(vals)),
+            "selection_score": (
+                float(np.mean(vals) - 0.25 * np.std(vals, ddof=1))
+                if len(vals) >= 2
+                else float(np.mean(vals)) if vals else float("nan")
+            ),
+        }
 
     valid_ranking = {
         key: value
@@ -631,16 +669,19 @@ def main():
         if value["folds"] >= 3 and np.isfinite(value["selection_score"])
     }
     if valid_ranking:
-        selected_rank_weight = max(
+        selected_rank_key = max(
             valid_ranking,
             key=lambda key: (
                 valid_ranking[key]["selection_score"],
-                float(key),
+                -valid_ranking[key]["uncertainty_penalty"],
+                valid_ranking[key]["probability_weight"],
             ),
         )
-        selected_rank_weight = float(selected_rank_weight)
+        selected_rank_weight = valid_ranking[selected_rank_key]["probability_weight"]
+        selected_uncertainty_penalty = valid_ranking[selected_rank_key]["uncertainty_penalty"]
     else:
         selected_rank_weight = 0.50
+        selected_uncertainty_penalty = 0.0
 
     payload = {
         "results": model_results,
@@ -653,6 +694,7 @@ def main():
         "asset_regime_selected_models": asset_regime_selected,
         "selected_model": global_selected,
         "rank_probability_weight": selected_rank_weight,
+        "rank_uncertainty_penalty": selected_uncertainty_penalty,
         "ranking_weight_candidates": ranking_candidates,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
