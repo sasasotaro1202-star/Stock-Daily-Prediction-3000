@@ -58,6 +58,6 @@ def test_runtime_restores_lightgbm_for_recent_route():
     assert 'startswith("lightgbm")' in script
 
 
-def test_artifact_validates_lightgbm_recent_routes():
+def test_artifact_validates_lightgbm_and_composite_lightgbm_routes():
     script = Path("src/prediction/production_artifact.py").read_text()
-    assert 'startswith("lightgbm")' in script
+    assert 'if any("lightgbm" in str(name).lower() for name in classifiers):' in script
