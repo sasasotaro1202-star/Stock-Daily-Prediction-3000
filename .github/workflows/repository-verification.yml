@@ -1,6 +1,8 @@
 name: Repository verification
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
   schedule:
     - cron: "43 3 * * 1-5"
