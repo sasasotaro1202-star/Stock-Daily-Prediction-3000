@@ -636,3 +636,18 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
         encoding="utf-8",
     )
     assert _has_approved_production_state(root) is True
+
+def test_actions_watchdog_is_hourly_and_fail_visible():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'cron: "7 * * * *"' in source
+    assert "actions: read" in source
+    assert "96 hours ago" in source
+    assert "bounded recovery" in source
+    assert "Actions reliability watchdog: PASS" in source
+    assert 'conclusion" = "failure"' in source
+    assert "exit 1" in source
+    assert "|| true" not in source
