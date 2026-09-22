@@ -13,6 +13,11 @@ REQUIRED={
     "open","high","low","close","volume",
 }
 UNIVERSE=Path("data/universe/latest.json")
+ASSET_SCOPE={
+    x.strip()
+    for x in __import__("os").environ.get("QUALITY_ASSET_CLASSES","").split(",")
+    if x.strip()
+}
 
 
 def main():
@@ -117,6 +122,7 @@ def main():
             (row["asset_class"],row["symbol"])
             for row in snap.get("records",[])
             if row.get("tradeable") is True
+            and (not ASSET_SCOPE or str(row["asset_class"]) in ASSET_SCOPE)
         }
         observed={
             (row["asset_class"],row["symbol"])
@@ -158,6 +164,7 @@ def main():
     result={
         "status":"PASS" if not reasons else "DEFERRED",
         "rows":int(len(df)),
+        "asset_scope":sorted(ASSET_SCOPE) if ASSET_SCOPE else None,
         "files":len(files),
         "reasons":reasons,
         "legacy_retrieval_missing": int(locals().get("legacy_retrieval_missing", 0)),
