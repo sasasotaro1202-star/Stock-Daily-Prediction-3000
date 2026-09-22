@@ -5,13 +5,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
+from src.prediction.model_factories import models
 from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
@@ -20,31 +17,7 @@ from src.validation.training_sample import cap_training_rows
 
 
 def factories():
-    return {
-        "logistic": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            LogisticRegression(max_iter=1000, C=0.5),
-        ),
-        "extra_trees": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            ExtraTreesClassifier(
-                n_estimators=300,
-                min_samples_leaf=20,
-                n_jobs=-1,
-                random_state=42,
-            ),
-        ),
-        "hgb": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            HistGradientBoostingClassifier(
-                max_iter=300,
-                learning_rate=0.04,
-                max_leaf_nodes=31,
-                l2_regularization=1.0,
-                random_state=42,
-            ),
-        ),
-    }
+    return models()
 
 
 def main():
