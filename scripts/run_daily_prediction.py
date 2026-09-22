@@ -322,15 +322,16 @@ def main():
     rank_uncertainty_penalty = float(
         artifact["metadata"].get("rank_uncertainty_penalty", 0.0)
     )
-    # Ranking uncertainty uses the global q10-q90 interval so its definition
-    # is identical in OOS, frozen holdout, and production.
-    q10_global = global_qmodels["q10"].predict(
-        latest[FEATURE_COLUMNS]
-    )
-    q90_global = global_qmodels["q90"].predict(
-        latest[FEATURE_COLUMNS]
-    )
-    latest["ranking_uncertainty"] = np.maximum(q90_global - q10_global, 0.0)
+    # Ranking uncertainty mirrors OOS/frozen-holdout quantile routing:
+    # asset-specific q10/q90 when available, otherwise global.
+    latest["ranking_uncertainty"] = np.nan
+    for asset, group in latest.groupby("asset_class", sort=False):
+        qmodels = asset_qmodels.get(str(asset), global_qmodels)
+        lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
+        hi = qmodels["q90"].predict(group[FEATURE_COLUMNS])
+        latest.loc[group.index, "ranking_uncertainty"] = np.maximum(
+            hi - lo, 0.0
+        )
     out = cross_sectional_rank(
         latest[cols + ["ranking_uncertainty"]],
         probability_weight=rank_weight,
