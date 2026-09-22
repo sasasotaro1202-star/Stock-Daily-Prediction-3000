@@ -109,6 +109,7 @@ def main():
         test_size=21,
         step=21,
         embargo=1,
+        purge=int(model_cfg.get("purge_sessions", 1)),
     )
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
