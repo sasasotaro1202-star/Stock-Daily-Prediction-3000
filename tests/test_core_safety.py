@@ -276,3 +276,17 @@ def test_data_quality_gate_handles_retrieved_at_rows_without_unbound_session_dat
     result = json.loads((tmp_path / "data" / "research" / "data_quality.json").read_text())
     assert result["status"] == "PASS"
     assert result["reasons"] == []
+
+
+
+def test_recency_challenger_fit_parity_across_research_holdout_artifact():
+    from pathlib import Path
+
+    research = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    holdout = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    artifact = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+
+    assert "fit_classifier(" in research
+    assert "fit_classifier(" in holdout
+    assert "fit_classifier(" in artifact
+    assert 'half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252))' in research
