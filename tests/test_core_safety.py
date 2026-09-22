@@ -67,6 +67,31 @@ def test_price_update_has_bounded_retry():
     assert "time.sleep(2 ** attempt)" in source
 
 
+def test_paypay_visible_text_parser_handles_non_table_layout():
+    from src.data.paypay_collector import parse_visible_text
+
+    raw = """<section><h3>日本株 個別銘柄（50音順）</h3>
+    <div>7013</div><div>IHI</div><div>成長投資</div>
+    <div>trade_on,mini_on,cfd_</div>
+    <h3>国内ETF（上場投資信託）（50音順）</h3>
+    <div>1306</div><div>TOPIX連動型ETF</div><div>成長投資</div>
+    <div>trade_on,mini_on,cfd_</div>
+    <h3>REIT（不動産投資信託）（50音順）</h3>
+    <div>8951</div><div>日本ビルファンド投資法人</div><div>成長投資</div>
+    <div>trade_on,mini_on,cfd_</div></section>""".encode()
+
+    rows = parse_visible_text(
+        raw,
+        "japan",
+        "https://www.paypay-sec.co.jp/stock/list/",
+    )
+    keys = {(row["asset_class"], row["symbol"]) for row in rows}
+    assert ("jp_stock", "7013") in keys
+    assert ("jp_etf", "1306") in keys
+    assert ("jp_reit", "8951") in keys
+    assert all(row["tradeable"] is True for row in rows)
+
+
 def test_paypay_runtime_dependency_is_declared():
     from pathlib import Path
 
