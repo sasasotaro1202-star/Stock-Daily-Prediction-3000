@@ -492,3 +492,21 @@ def test_prediction_history_restore_fails_closed_on_partial_restore():
         "DEFERRED: one or more prediction-history artifacts could not be restored"
         in script
     )
+
+
+def test_market_cycle_watchdog_is_bounded_and_fail_safe():
+    from pathlib import Path
+
+    script = Path("scripts/market_cycle_watchdog.py").read_text(
+        encoding="utf-8"
+    )
+    workflow = Path(
+        ".github/workflows/market-cycle-watchdog.yml"
+    ).read_text(encoding="utf-8")
+
+    assert "GRACE_MINUTES = 30" in script
+    assert 'status in {"queued", "in_progress"}' in script
+    assert 'conclusion == "success"' in script
+    assert 'workflow_dispatch' in workflow
+    assert 'cron: "17 19 * * 1-5"' in workflow
+    assert "actions: write" in workflow
