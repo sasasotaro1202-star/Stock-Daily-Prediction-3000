@@ -116,7 +116,11 @@ def main():
         "q50": [],
         "blend_mean_q50": [],
     }
-    interval_fold_rows = []
+    interval_estimators = {
+        "mean": [],
+        "q50": [],
+        "blend_mean_q50": [],
+    }
 
     for fold in folds:
         train_dates = dates[: fold.train_end]
@@ -167,23 +171,28 @@ def main():
                 "n_test": float(len(test)),
             })
 
-        lo = q10.predict(test[FEATURE_COLUMNS])
-        hi = q90.predict(test[FEATURE_COLUMNS])
-        lo = np.minimum(lo, q50_pred)
-        hi = np.maximum(hi, q50_pred)
-        interval_fold_rows.append({
-            "mae": float(mean_absolute_error(y_ret, q50_pred)),
-            "rmse": float(mean_squared_error(y_ret, q50_pred) ** 0.5),
-            "sign_accuracy": float(
-                np.mean((q50_pred >= 0) == (y_ret >= 0))
-            ),
-            "q10_pinball": float(mean_pinball_loss(y_ret, lo, alpha=0.10)),
-            "q90_pinball": float(mean_pinball_loss(y_ret, hi, alpha=0.90)),
-            "range_80_coverage": float(
-                np.mean((y_ret >= lo) & (y_ret <= hi))
-            ),
-            "n_test": float(len(test)),
-        })
+        lo_base = q10.predict(test[FEATURE_COLUMNS])
+        hi_base = q90.predict(test[FEATURE_COLUMNS])
+        for name, pred in (
+            ("mean", mean_pred),
+            ("q50", q50_pred),
+            ("blend_mean_q50", blend_pred),
+        ):
+            lo = np.minimum(lo_base, pred)
+            hi = np.maximum(hi_base, pred)
+            interval_estimators[name].append({
+                "mae": float(mean_absolute_error(y_ret, pred)),
+                "rmse": float(mean_squared_error(y_ret, pred) ** 0.5),
+                "sign_accuracy": float(
+                    np.mean((pred >= 0) == (y_ret >= 0))
+                ),
+                "q10_pinball": float(mean_pinball_loss(y_ret, lo, alpha=0.10)),
+                "q90_pinball": float(mean_pinball_loss(y_ret, hi, alpha=0.90)),
+                "range_80_coverage": float(
+                    np.mean((y_ret >= lo) & (y_ret <= hi))
+                ),
+                "n_test": float(len(test)),
+            })
 
     return_estimator_metrics = {
         name: aggregate_group(rows)
@@ -207,9 +216,10 @@ def main():
         stability_penalty=0.25,
         rank_ic_tolerance=return_rank_ic_tolerance,
     )
+    selected_interval_rows = interval_estimators.get(selected_return_estimator, [])
     interval_metrics = (
-        aggregate_group(interval_fold_rows)
-        if interval_fold_rows
+        aggregate_group(selected_interval_rows)
+        if selected_interval_rows
         else {}
     )
     return_oos = {
@@ -217,6 +227,10 @@ def main():
         "metrics": interval_metrics,
         "estimator_metrics": return_estimator_metrics,
         "selected_estimator": selected_return_estimator,
+        "selection_guard": {
+            "mae_guard": return_mae_guard,
+            "rank_ic_tolerance": return_rank_ic_tolerance,
+        },
         "status": "OOS_COMPLETE" if len(interval_fold_rows) >= 3 else "DEFERRED",
     }
 
