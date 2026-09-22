@@ -28,10 +28,18 @@ def test_holdout_rotation_requires_completed_result_and_research_change():
     )
 
 
-def test_holdout_rotation_rejects_legacy_evaluated_lock_without_fingerprint():
-    with pytest.raises(ValueError, match="research_code_fingerprint_sha256"):
+def test_holdout_rotation_migrates_legacy_evaluated_lock_without_fingerprint():
+    assert should_rotate_frozen_holdout(
+        {"status": "FROZEN"},
+        result_exists=True,
+        current_research_fingerprint="new",
+    )
+
+
+def test_holdout_rotation_rejects_non_frozen_state_with_result():
+    with pytest.raises(ValueError, match="status FROZEN"):
         should_rotate_frozen_holdout(
-            {"status": "FROZEN"},
+            {"status": "CUTOFF_FROZEN_PENDING_MODEL"},
             result_exists=True,
             current_research_fingerprint="new",
         )
