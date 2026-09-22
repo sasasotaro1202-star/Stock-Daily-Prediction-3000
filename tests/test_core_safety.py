@@ -40,3 +40,17 @@ def test_lightgbm_challenger_is_available_in_research_ci():
 
     assert "lightgbm" in models()
     assert lightgbm.__version__
+
+
+def test_current_main_has_shared_model_and_route_holdout_contract():
+    from pathlib import Path
+
+    factory = Path("src/prediction/model_factories.py").read_text(encoding="utf-8")
+    research = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    holdout = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    artifact = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+
+    assert "def models()" in factory
+    assert "from src.prediction.model_factories import models" in research
+    assert "frozen_production_routes" in holdout
+    assert "required_classifiers" in artifact
