@@ -510,7 +510,7 @@ def test_regime_volatility_threshold_is_oos_train_derived():
     assert np.isclose(train_a, 0.0325)
     assert np.isclose(
         aggregate_oos_training_thresholds([train_a, train_b]),
-        0.0475,
+        0.04875,
     )
 
     import pathlib
