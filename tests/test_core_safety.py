@@ -98,3 +98,20 @@ def test_return_estimator_selector_guards_mae_and_uses_rank_ic():
         "folds": 4,
     }
     assert choose_return_estimator(bad_mae) == "q50"
+
+
+def test_distribution_and_drawdown_factors_are_causal():
+    x = sample()
+    out = add_technical_features(x)
+    cols = [
+        "return_skew_20",
+        "return_kurtosis_20",
+        "positive_return_fraction_20",
+        "downside_volatility_20",
+        "upside_volatility_20",
+        "drawdown_from_high_20",
+        "distance_from_low_20",
+        "close_location_mean_20",
+    ]
+    assert set(cols).issubset(out.columns)
+    assert out.loc[out.groupby("symbol").tail(1).index, cols].notna().all().all()

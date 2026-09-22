@@ -8,6 +8,10 @@ FEATURE_COLUMNS=[
     "macd_pct","macd_signal_pct","macd_hist_pct",
     "rsi_14","stoch_k","stoch_d","bb_width","atr_pct","adx_14","obv_z20","mfi_14",
     "volatility_20","volume_ratio_20","range_pct","gap_pct",
+    "return_skew_20","return_kurtosis_20",
+    "positive_return_fraction_20","downside_volatility_20",
+    "upside_volatility_20","drawdown_from_high_20",
+    "distance_from_low_20","close_location_mean_20",
     "price_vs_sma20","price_vs_sma60",
     "cs_ret_1d_rank","cs_vol_rank","cs_ret_1d_robust_z",
     "cs_volatility_20_robust_z","cs_volume_ratio_20_robust_z",
@@ -124,14 +128,48 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["return_z20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
         lambda s:_rolling_z(s.astype(float),20)
     )
+    out["return_skew_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).skew()
+    )
+    out["return_kurtosis_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).kurt()
+    )
+    out["positive_return_fraction_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).apply(
+            lambda x:float(np.mean(np.asarray(x)>0.0)),raw=True
+        )
+    )
+    out["downside_volatility_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.clip(upper=0.0).rolling(20,min_periods=20).std()
+    )
+    out["upside_volatility_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.clip(lower=0.0).rolling(20,min_periods=20).std()
+    )
     out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
     out["range_z20"]=out["range_pct"].groupby([out[k] for k in series_keys]).transform(
         lambda s:_rolling_z(s.astype(float),20)
+    )
+    rolling_high_20=close.transform(
+        lambda s:s.rolling(20,min_periods=20).max()
+    )
+    rolling_low_20=close.transform(
+        lambda s:s.rolling(20,min_periods=20).min()
+    )
+    out["drawdown_from_high_20"]=(
+        out["close"]/rolling_high_20.replace(0,np.nan)-1.0
+    )
+    out["distance_from_low_20"]=(
+        out["close"]/rolling_low_20.replace(0,np.nan)-1.0
     )
     out["gap_pct"]=(out["open"]/prev)-1.0
     out["intraday_return"]=out["close"]/out["open"].replace(0,np.nan)-1.0
     out["close_location"]=(
         (out["close"]-out["low"])/(out["high"]-out["low"]).replace(0,np.nan)
+    )
+    out["close_location_mean_20"]=out["close_location"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:s.rolling(20,min_periods=20).mean()
     )
     date_series=pd.to_datetime(out["session_date"],errors="coerce")
     dow=date_series.dt.dayofweek.astype(float)
