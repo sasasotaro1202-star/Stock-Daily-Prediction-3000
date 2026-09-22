@@ -11,6 +11,7 @@ dependencies = ["numpy>=1.26","pandas>=2.2","scikit-learn>=1.5","pyarrow>=16","y
 [project.optional-dependencies]
 dev = ["pytest>=8"]
 research = ["lightgbm>=4.0"]
+research = ["lightgbm>=4.0"]
 
 [tool.setuptools.packages.find]
 include = ["src*"]
