@@ -18,7 +18,7 @@ from src.prediction.model_factories import models
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
-from src.research.metrics import aggregate_metric_rows, classification_metrics
+from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
 from src.research.router import (
     ASSET_CANDIDATES,
     CANDIDATES,
@@ -44,7 +44,7 @@ def make_models():
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
     payload = aggregate_metric_rows(rows)
     payload["folds"] = float(len(rows))
-    for key in ("logloss", "brier", "ece", "accuracy", "roc_auc"):
+    for key in ("logloss", "brier", "ece", "accuracy", "roc_auc", "rank_ic"):
         values = [float(r[key]) for r in rows if key in r and np.isfinite(r[key])]
         payload[f"{key}_std"] = float(np.std(values, ddof=1)) if len(values) >= 2 else 0.0
     return payload
@@ -207,6 +207,18 @@ def main():
             )
 
             row = classification_metrics(test.target_up_1d.astype(int), p)
+            group_keys=(
+                test["session_date"].astype(str)
+                + "::"
+                + test["asset_class"].astype(str)
+                if "asset_class" in test.columns
+                else test["session_date"].astype(str)
+            )
+            row["rank_ic"] = cross_sectional_rank_ic(
+                test["target_ret_1d"].astype(float),
+                p,
+                group_keys,
+            )
             row["n_test"] = float(len(test))
             fold_rows.append(row)
 
@@ -256,6 +268,11 @@ def main():
                 rr = classification_metrics(
                     subset.target_up_1d.astype(int), p[mask]
                 )
+                rr["rank_ic"] = cross_sectional_rank_ic(
+                    subset["target_ret_1d"].astype(float),
+                    p[mask],
+                    subset["session_date"].astype(str),
+                )
                 rr["n_test"] = float(mask.sum())
                 regime_rows.setdefault(reg_name, []).append((name, rr))
 
@@ -267,6 +284,11 @@ def main():
                         continue
                     ar = classification_metrics(
                         subset.target_up_1d.astype(int), p[mask]
+                    )
+                    ar["rank_ic"] = cross_sectional_rank_ic(
+                        subset["target_ret_1d"].astype(float),
+                        p[mask],
+                        subset["session_date"].astype(str),
                     )
                     ar["n_test"] = float(mask.sum())
                     asset_rows.setdefault(asset_class, []).append((name, ar))
@@ -281,6 +303,11 @@ def main():
                             continue
                         kr = classification_metrics(
                             route_subset.target_up_1d.astype(int), p[route_mask]
+                        )
+                        kr["rank_ic"] = cross_sectional_rank_ic(
+                            route_subset["target_ret_1d"].astype(float),
+                            p[route_mask],
+                            route_subset["session_date"].astype(str),
                         )
                         kr["n_test"] = float(route_mask.sum())
                         key = f"{asset_class}::{reg_name}"
@@ -312,17 +339,34 @@ def main():
         for key, rows in asset_regime_rows.items()
     }
 
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
+    rank_ic_tolerance = float(
+        model_cfg.get("rank_ic_tiebreak_tolerance", 0.002)
+    )
+
     regime_selected = {}
     for reg_name, candidates in regime_metrics.items():
         if candidates:
-            plan = choose_from_oos(reg_name, candidates)
+            plan = choose_from_oos(
+                reg_name,
+                candidates,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
             if not plan.reason.endswith("fallback"):
                 regime_selected[reg_name] = plan.names[0]
 
     asset_selected = {}
     for asset_class, candidates in asset_class_metrics.items():
         if candidates:
-            plan = asset_plan(asset_class, candidates)
+            plan = asset_plan(
+                asset_class,
+                candidates,
+                min_folds=3,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
             if not plan.reason.endswith("fallback"):
                 asset_selected[asset_class] = plan.names[0]
 
@@ -338,6 +382,7 @@ def main():
                 ),
                 scope=key,
                 min_folds=2,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
             )
             if not plan.reason.endswith("fallback"):
                 asset_regime_selected[key] = plan.names[0]
@@ -346,10 +391,6 @@ def main():
         name: dict(value["metrics"], folds=float(value["folds"]))
         for name, value in usable.items()
     }
-    pipeline_cfg = yaml.safe_load(
-        Path("config/pipeline.yml").read_text(encoding="utf-8")
-    )
-    model_cfg = pipeline_cfg.get("models", {})
     balance_weight = float(model_cfg.get("asset_class_balance_weight", 0.50))
     min_asset_folds = int(model_cfg.get("minimum_asset_class_oos_folds", 3))
     balanced_candidates = rebalance_global_oos_candidates(
@@ -358,7 +399,11 @@ def main():
         blend_weight=balance_weight,
         min_folds=min_asset_folds,
     )
-    global_plan = choose_from_oos("normal", balanced_candidates)
+    global_plan = choose_from_oos(
+        "normal",
+        balanced_candidates,
+        rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+    )
     global_selected = global_plan.names[0]
 
     payload = {

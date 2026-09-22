@@ -24,3 +24,28 @@ def classification_metrics(y_true,p)->dict[str,float]:
 def aggregate_metric_rows(rows:list[dict[str,float]])->dict[str,float]:
     if not rows:return {}
     return {k:float(np.nanmean([row.get(k,np.nan) for row in rows])) for k in sorted({k for row in rows for k in row})}
+
+
+def cross_sectional_rank_ic(
+    y_true,
+    signal,
+    group_keys,
+) -> float:
+    """Mean Spearman rank correlation within prediction groups."""
+    import pandas as pd
+
+    frame=pd.DataFrame({
+        "y":pd.to_numeric(y_true,errors="coerce"),
+        "signal":pd.to_numeric(signal,errors="coerce"),
+        "group":list(group_keys),
+    }).dropna(subset=["y","signal"])
+    if frame.empty:
+        return float("nan")
+    values=[]
+    for _, group in frame.groupby("group",sort=False):
+        if len(group) < 5 or group["y"].nunique() < 2 or group["signal"].nunique() < 2:
+            continue
+        corr=group["y"].corr(group["signal"],method="spearman")
+        if pd.notna(corr):
+            values.append(float(corr))
+    return float(pd.Series(values).mean()) if values else float("nan")

@@ -99,3 +99,21 @@ def test_global_selection_balances_asset_classes():
     assert balanced["hgb"]["asset_class_macro_logloss"] == 0.625
     assert balanced["logistic"]["selection_logloss"] == 0.6375
     assert balanced["hgb"]["selection_logloss"] == 0.6225
+
+
+def test_rank_ic_tiebreak_prefers_rank_quality_within_tolerance():
+    from src.research.router import choose_from_oos
+
+    metrics = {
+        "logistic": {"logloss": 0.6000, "logloss_std": 0.0100, "rank_ic": 0.010, "folds": 4},
+        "hgb": {"logloss": 0.6010, "logloss_std": 0.0100, "rank_ic": 0.080, "folds": 4},
+    }
+    plan = choose_from_oos(
+        "normal",
+        metrics,
+        candidates=("logistic", "hgb"),
+        min_folds=3,
+        rank_ic_tiebreak_tolerance=0.002,
+    )
+    assert plan.names == ("hgb",)
+    assert "rank_ic_tiebreak" in plan.reason
