@@ -602,3 +602,14 @@ def test_market_cycle_guard_does_not_suppress_actions_api_failures():
     assert "actions_api_unavailable_run_anyway" in source
     assert "gh api \"repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20\" 2>/dev/null || true" not in source
     assert "Actions API unavailable; running cycle rather than suppressing it" in source
+
+
+def test_research_state_restore_prefers_approved_production_artifacts():
+    from pathlib import Path
+
+    source = Path("scripts/restore_latest_research_state.py").read_text(encoding="utf-8")
+    assert "_has_approved_production_state" in source
+    assert 'payload.get("approved") is True' in source
+    assert 'production_model_artifact.pkl' in source
+    assert 'production_model_artifact.meta.json' in source
+    assert "skipped_unapproved" in source
