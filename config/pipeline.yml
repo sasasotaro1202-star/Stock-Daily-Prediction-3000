@@ -26,6 +26,7 @@ models:
   optional_challengers:
     - lightgbm
     - blend_hgb_lgbm_regularized_recent
+    - lightgbm_conservative
     - xgboost
     - catboost
     - patchtst
