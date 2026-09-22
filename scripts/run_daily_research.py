@@ -6,10 +6,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import yaml
-from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
-from sklearn.impute import SimpleImputer
-from sklearn.linear_model import LogisticRegression
-from sklearn.pipeline import make_pipeline
 from sklearn.metrics import (
     mean_absolute_error,
     mean_pinball_loss,
@@ -17,6 +13,7 @@ from sklearn.metrics import (
 )
 
 from src.prediction.regression import make_quantile_model, make_return_model
+from src.prediction.model_factories import models
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
@@ -41,31 +38,7 @@ AUDIT = Path("data/research/leakage_audit.json")
 
 
 def make_models():
-    return {
-        "logistic": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            LogisticRegression(max_iter=1000, C=0.5),
-        ),
-        "extra_trees": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            ExtraTreesClassifier(
-                n_estimators=300,
-                min_samples_leaf=20,
-                n_jobs=-1,
-                random_state=42,
-            ),
-        ),
-        "hgb": lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            HistGradientBoostingClassifier(
-                max_iter=250,
-                learning_rate=0.05,
-                max_leaf_nodes=31,
-                l2_regularization=1.0,
-                random_state=42,
-            ),
-        ),
-    }
+    return models()
 
 
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:

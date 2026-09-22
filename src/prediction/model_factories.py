@@ -5,9 +5,14 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import make_pipeline
 
+try:
+    from lightgbm import LGBMClassifier
+except ImportError:  # optional research dependency
+    LGBMClassifier = None
+
 
 def models():
-    return {
+    out = {
         "logistic": lambda: make_pipeline(
             SimpleImputer(strategy="median"),
             LogisticRegression(max_iter=1000, C=0.5),
@@ -32,3 +37,20 @@ def models():
             ),
         ),
     }
+    if LGBMClassifier is not None:
+        out["lightgbm"] = lambda: make_pipeline(
+            SimpleImputer(strategy="median"),
+            LGBMClassifier(
+                n_estimators=400,
+                learning_rate=0.03,
+                num_leaves=31,
+                min_child_samples=50,
+                subsample=0.9,
+                colsample_bytree=0.9,
+                reg_lambda=1.0,
+                random_state=42,
+                n_jobs=-1,
+                verbosity=-1,
+            ),
+        )
+    return out

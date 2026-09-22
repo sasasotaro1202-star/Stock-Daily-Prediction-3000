@@ -11,6 +11,11 @@ import pandas as pd
 import numpy
 import sklearn
 
+try:
+    import lightgbm
+except ImportError:
+    lightgbm = None
+
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
@@ -130,6 +135,8 @@ def main():
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
             "numpy_version": numpy.__version__,
             "sklearn_version": sklearn.__version__,
+            "lightgbm_version": lightgbm.__version__ if lightgbm is not None else None,
+            "available_classifiers": sorted(classifiers),
             "regime_vol_threshold": threshold,
             "selected_model": metrics.get("selected_model"),
             "training_rows": int(len(labeled)),
