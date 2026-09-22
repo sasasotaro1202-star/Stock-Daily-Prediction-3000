@@ -44,7 +44,7 @@ def make_models():
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
     payload = aggregate_metric_rows(rows)
     payload["folds"] = float(len(rows))
-    for key in ("logloss", "brier", "ece", "accuracy", "roc_auc"):
+    for key in ("logloss", "brier", "ece", "accuracy", "roc_auc", "rank_ic"):
         values = [float(r[key]) for r in rows if key in r and np.isfinite(r[key])]
         payload[f"{key}_std"] = float(np.std(values, ddof=1)) if len(values) >= 2 else 0.0
     return payload
@@ -207,6 +207,18 @@ def main():
             )
 
             row = classification_metrics(test.target_up_1d.astype(int), p)
+            group_keys=(
+                test["session_date"].astype(str)
+                + "::"
+                + test["asset_class"].astype(str)
+                if "asset_class" in test.columns
+                else test["session_date"].astype(str)
+            )
+            row["rank_ic"] = cross_sectional_rank_ic(
+                test["target_ret_1d"].astype(float),
+                p,
+                group_keys,
+            )
             row["n_test"] = float(len(test))
             fold_rows.append(row)
 
