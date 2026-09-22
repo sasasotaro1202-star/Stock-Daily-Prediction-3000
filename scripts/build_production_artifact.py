@@ -25,6 +25,7 @@ from src.prediction.targets import add_targets
 from src.validation.calibration import PlattCalibrator
 from src.validation.code_fingerprint import fingerprint_sha256
 from src.validation.training_sample import cap_training_rows
+from src.validation.training_window import restrict_to_lookback
 
 PRICE = Path("data/prices")
 METRICS = Path("data/research/latest_metrics.json")
@@ -163,7 +164,8 @@ def main():
             "rank_uncertainty_penalty": float(frozen.get("rank_uncertainty_penalty", 0.0)),
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
-            "training_rows": int(len(labeled)),
+            "classifier_training_window_sessions": training_window,
+        "training_rows": int(len(training_labeled)),
             "training_latest_session": str(max(labeled["session_date"])),
         },
         "classifiers": classifiers,
