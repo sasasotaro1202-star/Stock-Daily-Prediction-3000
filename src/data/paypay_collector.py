@@ -4,6 +4,8 @@ import hashlib
 import json
 import re
 import urllib.request
+
+from curl_cffi import requests as curl_requests
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -54,13 +56,54 @@ class CellParser(HTMLParser):
             self.heading_buf.append(data)
 
 
-def fetch(url:str)->bytes:
-    req=urllib.request.Request(
-        url,
-        headers={"User-Agent":"Stock-Daily-Prediction/1.0"},
-    )
-    with urllib.request.urlopen(req,timeout=30) as response:
-        return response.read()
+def fetch(url: str) -> bytes:
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+        ),
+        "Accept": (
+            "text/html,application/xhtml+xml,application/xml;q=0.9,"
+            "image/avif,image/webp,*/*;q=0.8"
+        ),
+        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+        "Cache-Control": "no-cache",
+    }
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        candidate = url if attempt < 2 else url.rstrip("/")
+        try:
+            response = curl_requests.get(
+                candidate,
+                headers=headers,
+                timeout=30,
+                impersonate="chrome",
+                allow_redirects=True,
+            )
+            response.raise_for_status()
+            body = response.content
+            if len(body) < 10_000:
+                raise RuntimeError(
+                    f"PayPay response unexpectedly small: {len(body)} bytes"
+                )
+            return body
+        except Exception as exc:
+            last_exc = exc
+
+    # Conservative urllib fallback for transient TLS/client failures.
+    req = urllib.request.Request(candidate, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            body = response.read()
+            if len(body) < 10_000:
+                raise RuntimeError(
+                    f"PayPay fallback response unexpectedly small: {len(body)} bytes"
+                )
+            return body
+    except Exception as exc:
+        raise RuntimeError(
+            f"PayPay source fetch failed after retries: {last_exc or exc}"
+        ) from exc
 
 
 def _extract_code(row:list[str],market:str)->str|None:
