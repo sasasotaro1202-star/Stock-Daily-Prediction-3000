@@ -48,8 +48,13 @@ def validate_artifact(payload: dict) -> None:
 
     if meta.get("artifact_version") != 1:
         raise RuntimeError("unsupported production model artifact version")
-    if meta.get("code_fingerprint_sha256") != fingerprint_sha256():
-        raise RuntimeError("production model artifact code fingerprint mismatch")
+    # Repository/workflow provenance may change without changing the fitted
+    # research logic. Compatibility for a model artifact is therefore based
+    # on the research-only fingerprint; the full fingerprint remains stored
+    # for audit provenance.
+    from src.validation.code_fingerprint import research_fingerprint_sha256
+    if meta.get("research_code_fingerprint_sha256") != research_fingerprint_sha256():
+        raise RuntimeError("production model artifact research fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
     if meta.get("feature_columns") != list(FEATURE_COLUMNS):
