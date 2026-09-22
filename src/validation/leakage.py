@@ -38,8 +38,15 @@ def audit_retrieval_provenance(df):
         return {"ok": False, "violations": [f"missing_{c}" for c in missing]}
     available = pd.to_datetime(df["available_at"], utc=True, errors="coerce")
     retrieved = pd.to_datetime(df["retrieved_at"], utc=True, errors="coerce")
-    bad = int(retrieved.gt(available).fillna(False).sum())
+    invalid = int(
+        available.isna().sum()
+        + retrieved.isna().sum()
+    )
+    impossible = int(available.gt(retrieved).fillna(False).sum())
     return {
-        "ok": bad == 0 and available.notna().all() and retrieved.notna().all(),
-        "violations": [f"retrieved_after_available:{bad}"] if bad else [],
+        "ok": invalid == 0 and impossible == 0,
+        "violations": [
+            *([f"missing_retrieval_provenance:{invalid}"] if invalid else []),
+            *([f"available_after_retrieval:{impossible}"] if impossible else []),
+        ],
     }
