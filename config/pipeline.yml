@@ -39,8 +39,6 @@ models:
   classifier_training_window_candidates: [252, 504, 756, 0]
   return_estimator_mae_guard: 1.10
   return_estimator_rank_ic_tolerance: 0.005
-  return_estimator_mae_guard: 1.10
-  return_estimator_rank_ic_tolerance: 0.005
 regime:
   event_gap_abs: 0.03
   event_volume_ratio: 3.0
