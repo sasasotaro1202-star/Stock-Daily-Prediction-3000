@@ -117,6 +117,7 @@ def test_distribution_and_drawdown_factors_are_causal():
     assert out.loc[out.groupby("symbol").tail(1).index, cols].notna().all().all()
 
 
+
 def test_ranking_penalizes_high_uncertainty():
     from src.ranking.cross_sectional import cross_sectional_rank
 
@@ -128,12 +129,28 @@ def test_ranking_penalizes_high_uncertainty():
         "expected_return_1d": [0.04, 0.03, 0.02, 0.01],
         "ranking_uncertainty": [0.01, 0.02, 0.03, 0.40],
     })
-    out = cross_sectional_rank(
+    without_penalty = cross_sectional_rank(
+        df,
+        probability_weight=0.5,
+        uncertainty_col="ranking_uncertainty",
+        uncertainty_penalty=0.0,
+    )
+    with_penalty = cross_sectional_rank(
         df,
         probability_weight=0.5,
         uncertainty_col="ranking_uncertainty",
         uncertainty_penalty=0.2,
     )
-    assert out.iloc[0]["symbol"] == "A"
-    assert out.iloc[-1]["symbol"] == "D"
-    assert out["rank_uncertainty_penalty"].iloc[0] == 0.2
+    d0 = without_penalty.loc[
+        without_penalty["symbol"].eq("D"), "rank_score"
+    ].iloc[0]
+    d1 = with_penalty.loc[
+        with_penalty["symbol"].eq("D"), "rank_score"
+    ].iloc[0]
+    assert d1 < d0
+    assert d1 == d0 - 0.2
+    assert (
+        with_penalty.set_index("symbol").loc["D", "rank_uncertainty"]
+        > with_penalty.set_index("symbol").loc["A", "rank_uncertainty"]
+    )
+    assert with_penalty["rank_uncertainty_penalty"].eq(0.2).all()
