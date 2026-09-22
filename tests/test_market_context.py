@@ -129,3 +129,9 @@ def test_macro_context_fields_flow_into_features():
         "oil_ret_1d_lag1",
         "hyg_ret_1d_lag1",
     }.issubset(FEATURE_COLUMNS)
+
+
+def test_topix_provider_symbol_is_yahoo_listed_index_code():
+    from src.data.market_context import CONTEXT_SYMBOLS
+
+    assert CONTEXT_SYMBOLS["topix"] == "998405.T"

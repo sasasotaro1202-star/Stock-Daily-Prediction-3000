@@ -9,7 +9,7 @@ import yfinance as yf
 
 CONTEXT_SYMBOLS={
     "nikkei":"^N225",
-    "topix":"^TOPX",
+    "topix":"998405.T",
     "sp500":"^GSPC",
     "nasdaq":"^IXIC",
     "vix":"^VIX",

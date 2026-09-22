@@ -714,3 +714,26 @@ def test_backtest_contains_capafy_inspired_audit_hook():
     source = Path("scripts/run_backtest.py").read_text(encoding="utf-8")
     assert "anti_overfit_battery" in source
     assert "trials=1000" in source
+
+
+def test_artifact_redirect_does_not_forward_github_token_cross_host():
+    from scripts.restore_latest_price_state import _CrossHostRedirectHandler
+    from urllib.parse import urlparse
+    from urllib.request import Request
+
+    handler = _CrossHostRedirectHandler()
+    req = Request(
+        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
+        headers={"Authorization": "Bearer secret"},
+    )
+    redirected = handler.redirect_request(
+        req,
+        None,
+        302,
+        "Found",
+        {},
+        "https://blob.example.net/artifact.zip",
+    )
+    assert redirected is not None
+    assert "Authorization" not in redirected.headers
+    assert urlparse(redirected.full_url).netloc == "blob.example.net"
