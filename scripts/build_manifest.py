@@ -27,10 +27,17 @@ def main():
     evidence={}
     for p in (Path("data/research/latest_metrics.json"),Path("data/research/leakage_audit.json"),Path("data/research/data_quality.json"),Path("data/research/frozen_holdout_result.json")):
         if p.exists(): evidence[str(p)]=sha256_file(p)
+    lock_path=Path("config/frozen_holdout.json")
+    lock_payload=json.loads(lock_path.read_text(encoding="utf-8")) if lock_path.exists() else {}
     payload={
         "created_at":datetime.now(timezone.utc).isoformat(),
         "git_sha":os.getenv("GITHUB_SHA"),
         "code_fingerprint_sha256":fingerprint_sha256(),
+        "research_code_fingerprint_sha256":(
+            __import__("src.validation.code_fingerprint", fromlist=["research_fingerprint_sha256"])
+            .research_fingerprint_sha256()
+        ),
+        "holdout_generation": lock_payload.get("holdout_generation"),
         "universe_sha256":sha256_file(universe) if universe.exists() else None,
         "evidence_sha256":evidence,
         "files":rows,
