@@ -651,3 +651,10 @@ def test_actions_watchdog_is_hourly_and_fail_visible():
     assert 'conclusion" = "failure"' in source
     assert "exit 1" in source
     assert "|| true" not in source
+
+def test_production_invariants_include_actions_watchdog():
+    from pathlib import Path
+
+    source = Path("scripts/production_invariants.py").read_text(encoding="utf-8")
+    assert "actions_reliability_watchdog" in source
+    assert "actions-reliability-watchdog.yml" in source
