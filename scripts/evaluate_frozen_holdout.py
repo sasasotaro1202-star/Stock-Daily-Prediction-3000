@@ -73,16 +73,45 @@ def main():
         raise SystemExit("DEFERRED: calibration split lacks both target classes")
 
     core_fit=cap_training_rows(core,max_rows=300_000,recent_sessions=252)
-    model = factories()[selected]()
-    model.fit(core_fit[FEATURE_COLUMNS], core_fit.target_up_1d.astype(int))
-    cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-    calibrator = PlattCalibrator().fit(
-        cal_p, cal.target_up_1d.astype(int)
-    )
-    p = calibrator.predict(
-        model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
-    )
 
+    # Fit every classifier actually referenced by the frozen routing policy,
+    # while keeping the holdout completely untouched until final evaluation.
+    required_classifiers = {"hgb", selected}
+    for key in (
+        "regime_selected_models",
+        "asset_class_selected_models",
+        "asset_regime_selected_models",
+    ):
+        required_classifiers.update(
+            str(value) for value in (frozen.get(key) or {}).values()
+        )
+    available_factories = factories()
+    missing = sorted(set(required_classifiers) - set(available_factories))
+    if missing:
+        raise SystemExit(
+            f"DEFERRED: frozen route classifiers unavailable: {missing}"
+        )
+
+    classifiers = {}
+    for model_name in sorted(required_classifiers):
+        model = available_factories[model_name]()
+        model.fit(
+            core_fit[FEATURE_COLUMNS],
+            core_fit.target_up_1d.astype(int),
+        )
+        cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+        calibrator = PlattCalibrator().fit(
+            cal_p, cal.target_up_1d.astype(int)
+        )
+        classifiers[model_name] = {
+            "model": model,
+            "calibrator": calibrator,
+        }
+
+    selected_entry = classifiers[selected]
+    p = selected_entry["calibrator"].predict(
+        selected_entry["model"].predict_proba(test[FEATURE_COLUMNS])[:, 1]
+    )
     global_model_metrics = classification_metrics(
         test.target_up_1d.astype(int), p
     )
