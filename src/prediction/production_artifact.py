@@ -48,13 +48,6 @@ def validate_artifact(payload: dict) -> None:
 
     if meta.get("artifact_version") != 1:
         raise RuntimeError("unsupported production model artifact version")
-    # Repository/workflow provenance may change without changing the fitted
-    # research logic. Compatibility for a model artifact is therefore based
-    # on the research-only fingerprint; the full fingerprint remains stored
-    # for audit provenance.
-    from src.validation.code_fingerprint import research_fingerprint_sha256
-    if meta.get("research_code_fingerprint_sha256") != research_fingerprint_sha256():
-        raise RuntimeError("production model artifact research fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
     if meta.get("feature_columns") != list(FEATURE_COLUMNS):
@@ -72,7 +65,13 @@ def validate_artifact(payload: dict) -> None:
     if set(classifiers) != required_classifiers:
         raise RuntimeError("production model artifact classifier set mismatch")
 
-    # Check release evidence after basic artifact structure so structural\n    # failures remain deterministic in unit tests. Production acceptance is\n    # still fail-closed because this block must pass before returning.\n    gate_path = RELEASE_GATE_PATH
+    # Check release evidence after basic artifact structure so structural
+    # failures remain deterministic in unit tests. Production acceptance is
+    # still fail-closed because this block must pass before returning.
+    from src.validation.code_fingerprint import research_fingerprint_sha256
+    if meta.get("research_code_fingerprint_sha256") != research_fingerprint_sha256():
+        raise RuntimeError("production model artifact research fingerprint mismatch")
+    gate_path = RELEASE_GATE_PATH
     try:
         gate_payload = __import__("json").loads(
             gate_path.read_text(encoding="utf-8")
