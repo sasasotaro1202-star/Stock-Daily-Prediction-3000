@@ -56,6 +56,23 @@ class CellParser(HTMLParser):
             self.heading_buf.append(data)
 
 
+
+def _jina_reader(url: str) -> bytes:
+    reader_url = "https://r.jina.ai/" + url
+    req = urllib.request.Request(
+        reader_url,
+        headers={
+            "User-Agent": "Stock-Daily-Prediction-PayPay/1.0",
+            "Accept": "text/markdown,text/plain;q=0.9,*/*;q=0.8",
+            "X-Target-Selector": "main",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=45) as response:
+        body = response.read()
+    if len(body) < 1000:
+        raise RuntimeError("Jina Reader response unexpectedly small")
+    return body
+
 def fetch(url: str) -> bytes:
     headers = {
         "User-Agent": (
