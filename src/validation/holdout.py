@@ -25,10 +25,10 @@ def should_rotate_frozen_holdout(
             "an evaluated frozen holdout must have status FROZEN"
         )
     stored = lock.get("research_code_fingerprint_sha256")
+    # A legacy evaluated lock predating research-only fingerprints must be
+    # migrated exactly once, rather than reused across changed research code.
     if not isinstance(stored, str) or not stored:
-        raise ValueError(
-            "frozen holdout is missing research_code_fingerprint_sha256"
-        )
+        return True
     return stored != current_research_fingerprint
 
 
