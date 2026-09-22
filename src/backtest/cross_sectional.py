@@ -18,7 +18,6 @@ def evaluate_predictions(
         "session_date",
         "prediction_date",
         "expected_return_1d",
-        "rank_score",
     }
     required_bar = {"symbol", "session_date", "close", "available_at"}
     if not required_pred.issubset(p.columns):
@@ -88,6 +87,13 @@ def evaluate_predictions(
         how="inner",
         suffixes=("_prediction", "_outcome"),
     )
+    if "rank_score" not in m.columns:
+        rank_groups = ["prediction_date"] + (
+            ["asset_class"] if asset_aware else []
+        )
+        m["rank_score"] = m.groupby(rank_groups)["expected_return_1d"].rank(
+            method="average", ascending=False, pct=True
+        )
     if "prediction_time" in m:
         m["prediction_time"] = pd.to_datetime(
             m["prediction_time"], utc=True, errors="coerce"
