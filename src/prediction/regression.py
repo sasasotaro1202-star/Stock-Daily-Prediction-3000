@@ -37,3 +37,8 @@ def make_quantile_models() -> dict[str, HistGradientBoostingRegressor]:
         "q50": make_quantile_model(0.50),
         "q90": make_quantile_model(0.90),
     }
+
+
+def make_return_models() -> dict[str, object]:
+    from src.prediction.model_factories import return_models
+    return return_models()
