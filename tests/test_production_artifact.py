@@ -12,26 +12,36 @@ def test_missing_production_artifact_fails_closed(tmp_path: Path):
         load_production_artifact(tmp_path / "missing.pkl")
 
 
-def test_artifact_validation_requires_exact_required_classifier_set(tmp_path):
+
+def test_artifact_validation_requires_exact_required_classifier_set(
+    tmp_path, monkeypatch
+):
+    import numpy as np
     import pickle
-    from src.prediction.production_artifact import load_production_artifact
+    import sklearn
+    import src.prediction.production_artifact as artifact_module
+    from src.features.technical import FEATURE_COLUMNS
+
+    monkeypatch.setattr(artifact_module, "fingerprint_sha256", lambda: "fp")
+    monkeypatch.setattr(artifact_module, "release_signature", lambda: "sig")
 
     payload = {
         "metadata": {
             "artifact_version": 1,
-            "code_fingerprint_sha256": "bad",
-            "release_signature": "bad",
-            "feature_columns": [],
-            "python_version": "3.12",
-            "numpy_version": "0",
-            "sklearn_version": "0",
+            "code_fingerprint_sha256": "fp",
+            "release_signature": "sig",
+            "feature_columns": list(FEATURE_COLUMNS),
+            "python_version": f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}",
+            "numpy_version": np.__version__,
+            "sklearn_version": sklearn.__version__,
             "required_classifiers": ["hgb"],
             "selected_model": "hgb",
         },
-        "classifiers": {"logistic": object(), "hgb": object()},
+        "classifiers": {
+            "logistic": {"model": object(), "calibrator": object()},
+            "hgb": {"model": object(), "calibrator": object()},
+        },
         "quantile": {"global": {}, "assets": {}},
     }
-    path = tmp_path / "artifact.pkl"
-    path.write_bytes(pickle.dumps(payload))
     with pytest.raises(RuntimeError, match="classifier set mismatch"):
-        load_production_artifact(path)
+        artifact_module.validate_artifact(payload)
