@@ -84,7 +84,7 @@ jobs:
       - run: pip install -e .
       - uses: actions/download-artifact@v4
         with:
-          name: morning-universe-${{ github.run_id }}
+          name: morning-universe-restored-${{ github.run_id }}
           path: data/universe
       - uses: actions/download-artifact@v4
         with:
