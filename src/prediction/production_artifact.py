@@ -77,6 +77,8 @@ def validate_artifact(payload: dict) -> None:
         raise RuntimeError("production return estimator artifacts are incomplete")
     if meta.get("return_selected_estimator") != return_section.get("selected"):
         raise RuntimeError("production return estimator metadata mismatch")
+    if meta.get("calibration_method") not in {"platt", "beta", "isotonic"}:
+        raise RuntimeError("production calibration method is invalid")
     runtime_versions = meta.get("runtime_dependency_versions") or {}
     for package in (
         "numpy",
