@@ -128,10 +128,31 @@ def models():
                 ),
             )
 
+        def make_lightgbm_conservative():
+            return make_pipeline(
+                SimpleImputer(strategy="median"),
+                LGBMClassifier(
+                    n_estimators=400,
+                    learning_rate=0.02,
+                    num_leaves=7,
+                    min_child_samples=120,
+                    subsample=0.85,
+                    subsample_freq=1,
+                    colsample_bytree=0.75,
+                    reg_alpha=0.2,
+                    reg_lambda=4.0,
+                    random_state=42,
+                    n_jobs=-1,
+                    verbosity=-1,
+                ),
+            )
+
         out["lightgbm"] = make_lightgbm
         out["lightgbm_recent"] = make_lightgbm
         out["lightgbm_regularized"] = make_lightgbm_regularized
         out["lightgbm_regularized_recent"] = make_lightgbm_regularized
+        out["lightgbm_conservative"] = make_lightgbm_conservative
+        out["lightgbm_conservative_recent"] = make_lightgbm_conservative
 
         def make_hgb_lgbm_blend_recent():
             return SoftBlendClassifier(
