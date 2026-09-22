@@ -87,6 +87,13 @@ def evaluate_predictions(
         how="inner",
         suffixes=("_prediction", "_outcome"),
     )
+    if "rank_score" not in m.columns:
+        rank_groups = ["prediction_date"] + (
+            ["asset_class"] if asset_aware else []
+        )
+        m["rank_score"] = m.groupby(rank_groups)["expected_return_1d"].rank(
+            method="average", ascending=False, pct=True
+        )
     if "prediction_time" in m:
         m["prediction_time"] = pd.to_datetime(
             m["prediction_time"], utc=True, errors="coerce"
@@ -107,7 +114,7 @@ def evaluate_predictions(
         if len(g) < 20:
             continue
 
-        q = g["expected_return_1d"].rank(pct=True)
+        q = g["rank_score"].rank(pct=True)
         long = g.loc[
             q >= 1 - top_quantile, "forward_return_1d"
         ].mean()

@@ -318,7 +318,11 @@ def main():
         "prediction_status",
     ]
 
-    out = cross_sectional_rank(latest[cols])
+    rank_weight = float(artifact["metadata"].get("rank_probability_weight", 0.50))
+    out = cross_sectional_rank(
+        latest[cols],
+        probability_weight=rank_weight,
+    )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     out.to_parquet(OUT, index=False)
 

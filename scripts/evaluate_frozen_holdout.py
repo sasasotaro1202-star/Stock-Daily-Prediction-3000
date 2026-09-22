@@ -255,6 +255,35 @@ def main():
         "range_80_coverage":float(np.mean((y_ret>=lo)&(y_ret<=hi))),
     }
 
+    rank_weight = frozen.get("rank_probability_weight", 0.50)
+    if not isinstance(rank_weight, (int, float)) or not 0.0 <= float(rank_weight) <= 1.0:
+        raise SystemExit("FAIL: frozen ranking probability weight is invalid")
+    holdout_rank_probability = pd.Series(routed_probabilities, index=test.index)
+    holdout_rank_return = pd.Series(selected_return_pred, index=test.index)
+    group_cols = ["date"] + (["asset_class"] if "asset_class" in test.columns else [])
+    rank_prob = holdout_rank_probability.groupby(
+        [test[c] for c in group_cols]
+    ).rank(method="average", ascending=False, pct=True)
+    rank_ret = holdout_rank_return.groupby(
+        [test[c] for c in group_cols]
+    ).rank(method="average", ascending=False, pct=True)
+    holdout_rank_score = rank_weight * rank_prob + (1.0 - rank_weight) * rank_ret
+    holdout_group_keys = (
+        test["date"].astype(str)
+        + "::"
+        + test["asset_class"].astype(str)
+        if "asset_class" in test.columns
+        else test["date"].astype(str)
+    )
+    ranking_holdout = {
+        "probability_weight": float(rank_weight),
+        "rank_ic": float(cross_sectional_rank_ic(
+            test["target_ret_1d"].astype(float),
+            holdout_rank_score.to_numpy(dtype=float),
+            holdout_group_keys,
+        )),
+    }
+
     base = float(core.target_up_1d.mean())
     baseline_metrics = classification_metrics(
         test.target_up_1d.astype(int),
@@ -281,6 +310,7 @@ def main():
         "production_route_regime_usage": regime_usage,
         "baseline_metrics": baseline_metrics,
         "return_holdout_metrics": return_holdout_metrics,
+        "ranking_holdout": ranking_holdout,
         "beats_baseline": bool(
             routed_metrics["logloss"] < baseline_metrics["logloss"]
         ),
