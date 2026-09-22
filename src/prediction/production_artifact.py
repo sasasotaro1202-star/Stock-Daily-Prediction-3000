@@ -56,13 +56,25 @@ def validate_artifact(payload: dict) -> None:
         raise RuntimeError("production model artifact scikit-learn version mismatch")
 
     required_classifiers = {"logistic", "extra_trees", "hgb"}
-    if set(classifiers) != required_classifiers:
-        raise RuntimeError("production model artifact classifier set mismatch")
+    if not required_classifiers.issubset(classifiers):
+        raise RuntimeError("production model artifact classifier set is incomplete")
+    selected = meta.get("selected_model")
+    if selected not in classifiers:
+        raise RuntimeError("production model artifact selected model is missing")
     for name, entry in classifiers.items():
         if not isinstance(entry, dict) or "model" not in entry or "calibrator" not in entry:
             raise RuntimeError(f"production classifier artifact missing components: {name}")
     if "global" not in quantile or "assets" not in quantile:
         raise RuntimeError("production quantile artifact is incomplete")
+    if "lightgbm" in classifiers:
+        if meta.get("lightgbm_version") is None:
+            raise RuntimeError("production model artifact LightGBM version is missing")
+        try:
+            import lightgbm
+        except ImportError as exc:
+            raise RuntimeError("production model artifact requires LightGBM") from exc
+        if meta["lightgbm_version"] != lightgbm.__version__:
+            raise RuntimeError("production model artifact LightGBM version mismatch")
 
 
 def load_production_artifact(path: Path = ARTIFACT_PATH) -> dict:
