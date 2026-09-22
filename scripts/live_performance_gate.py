@@ -12,14 +12,16 @@ OUT=Path("data/research/live_performance_gate.json")
 def main():
     if not MONITOR.exists():
         result={
-            "status":"ALLOW",
-            "reason":"monitoring_not_warmed",
-            "production_action":"ALLOW",
+            "status":"DEFERRED",
+            "reason":"monitoring_state_missing",
+            "production_action":"DEFERRED",
         }
         OUT.parent.mkdir(parents=True,exist_ok=True)
         OUT.write_text(json.dumps(result,indent=2),encoding="utf-8")
         print(json.dumps(result,indent=2))
-        return
+        raise SystemExit(
+            "DEFERRED: monitoring state is missing; production remains fail-closed"
+        )
 
     payload=json.loads(MONITOR.read_text(encoding="utf-8"))
     status=str(payload.get("status","NO_BASELINE"))
