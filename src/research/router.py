@@ -214,6 +214,7 @@ def asset_plan(
     candidate_metrics: dict[str, dict[str, float]],
     *,
     min_folds: int = 3,
+    rank_ic_tiebreak_tolerance: float = 0.002,
 ) -> ModelPlan:
     allowed = ASSET_CANDIDATES.get(asset_class, CANDIDATES[Regime.NORMAL])
     return choose_from_oos(
@@ -222,6 +223,7 @@ def asset_plan(
         candidates=allowed,
         scope=f"asset:{asset_class}",
         min_folds=min_folds,
+        rank_ic_tiebreak_tolerance=rank_ic_tiebreak_tolerance,
     )
 
 
