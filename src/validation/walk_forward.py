@@ -23,7 +23,7 @@ def make_folds(
         raise ValueError("embargo and purge must be non-negative")
 
     folds = []
-    boundary_end = min_train
+    boundary_end = min_train + purge
     while boundary_end + embargo + test_size <= n_samples:
         # Purge training observations whose labels can overlap the first
         # test observation, then apply an additional post-boundary embargo.
