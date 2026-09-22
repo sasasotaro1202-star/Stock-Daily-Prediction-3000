@@ -12,6 +12,8 @@ FEATURE_COLUMNS=[
     "positive_return_fraction_20","downside_volatility_20",
     "upside_volatility_20","drawdown_from_high_20",
     "distance_from_low_20","close_location_mean_20",
+    "return_autocorr_20","return_volume_corr_20",
+    "trend_slope_20","trend_r2_20","up_down_imbalance_20",
     "price_vs_sma20","price_vs_sma60",
     "cs_ret_1d_rank","cs_vol_rank","cs_ret_1d_robust_z",
     "cs_volatility_20_robust_z","cs_volume_ratio_20_robust_z",
@@ -144,6 +146,61 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     )
     out["upside_volatility_20"]=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
         lambda s:s.clip(lower=0.0).rolling(20,min_periods=20).std()
+    )
+    out["return_autocorr_20"]=out["ret_1d"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:s.rolling(20,min_periods=20).apply(
+            lambda x:float(pd.Series(x).autocorr(lag=1)),raw=True
+        )
+    )
+    ret_mean=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).mean()
+    )
+    vol_mean=out["volume"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).mean()
+    )
+    ret_vol_mean=(out["ret_1d"]*out["volume"]).groupby(
+        [out[k] for k in series_keys]
+    ).transform(lambda s:s.rolling(20,min_periods=20).mean())
+    cov_ret_vol=ret_vol_mean-ret_mean*vol_mean
+    ret_std=out["ret_1d"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).std()
+    )
+    vol_std=out["volume"].groupby([out[k] for k in series_keys]).transform(
+        lambda s:s.rolling(20,min_periods=20).std()
+    )
+    out["return_volume_corr_20"]=cov_ret_vol/(
+        ret_std*vol_std
+    ).replace(0,np.nan)
+    out["trend_slope_20"]=out["close"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:np.log(s.replace(0,np.nan)).rolling(20,min_periods=20).apply(
+            lambda x:float(np.polyfit(np.arange(len(x)),x,1)[0]),raw=True
+        )
+    )
+    trend_r2=out["close"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:np.log(s.replace(0,np.nan)).rolling(20,min_periods=20).apply(
+            lambda x:float(
+                np.corrcoef(np.arange(len(x)),x)[0,1] ** 2
+            ) if np.isfinite(x).all() and np.std(x)>0 else np.nan,
+            raw=True,
+        )
+    )
+    out["trend_r2_20"]=trend_r2
+    out["up_down_imbalance_20"]=out["ret_1d"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:s.rolling(20,min_periods=20).apply(
+            lambda x:float(
+                (np.sum(np.asarray(x)>0)-np.sum(np.asarray(x)<0))
+                / max(len(x),1)
+            ),
+            raw=True,
+        )
     )
     out["range_pct"]=(out["high"]-out["low"])/out["close"].replace(0,np.nan)
     out["range_z20"]=out["range_pct"].groupby([out[k] for k in series_keys]).transform(
