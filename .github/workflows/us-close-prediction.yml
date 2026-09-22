@@ -92,6 +92,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_research_state.py
+      - name: Install only required research challenger dependency
+        run: |
+          python - <<'PY'
+          import json, subprocess
+          from pathlib import Path
+          lock=Path("config/frozen_holdout.json")
+          if not lock.exists():
+              raise SystemExit("DEFERRED: frozen routing state missing")
+          state=json.loads(lock.read_text())
+          models={state.get("selected_model","hgb")}
+          for key in ("regime_selected_models","asset_class_selected_models","asset_regime_selected_models"):
+              models.update((state.get(key) or {}).values())
+          if "lightgbm" in models:
+              subprocess.check_call(["python","-m","pip","install","lightgbm>=4.0"])
+              print("required-challenger: lightgbm installed")
+          else:
+              print("required-challenger: no optional package required")
+          PY
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
       - name: Update free market context
