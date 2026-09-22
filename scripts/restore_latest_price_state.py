@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 import urllib.request
 import zipfile
@@ -54,8 +55,25 @@ def _get_blob(url: str, token: str) -> bytes:
         return resp.read()
 
 
-def main():
-    idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
+def _safe_extract(zf: zipfile.ZipFile, destination: str) -> None:
+    """Extract only regular files/directories under destination."""
+    root = Path(destination).resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    for member in zf.infolist():
+        target = (root / member.filename).resolve()
+        if target != root and root not in target.parents:
+            raise RuntimeError(
+                f"unsafe artifact member path outside restore root: {member.filename}"
+            )
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(member, "r") as src, target.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
+
+
+def main():    idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
     name = f"price-state-shard-{idx}"
@@ -80,7 +98,7 @@ def main():
         tmp = f.name
     try:
         with zipfile.ZipFile(tmp) as z:
-            z.extractall("data/prices")
+            _safe_extract(z, "data/prices")
     finally:
         Path(tmp).unlink(missing_ok=True)
 
