@@ -12,6 +12,9 @@ features:
   interval_method: conditional_quantiles_q10_q50_q90
   technical: true
   market_context: true
+  cross_sectional_robust_zscore: true
+  cross_sectional_robust_zscore_clip: 5.0
+  cross_sectional_robust_zscore_min_group: 10
   fundamentals: planned
   news_ir: planned
   macro: planned
