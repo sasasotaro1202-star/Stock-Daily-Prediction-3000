@@ -172,6 +172,10 @@ def main():
     ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ARTIFACT_PATH.open("wb") as f:
         pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    Path("data/research/production_model_artifact.meta.json").write_text(
+        json.dumps(payload["metadata"], indent=2),
+        encoding="utf-8",
+    )
 
     print(
         f"production-model-artifact: rows={len(labeled)} "
