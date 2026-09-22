@@ -284,3 +284,12 @@ def test_production_ranking_uncertainty_uses_asset_quantiles_when_available():
     source = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
     assert 'asset_qmodels.get(str(asset), global_qmodels)' in source
     assert 'latest["ranking_uncertainty"] = np.nan' in source
+
+
+def test_frozen_holdout_uses_production_ranking_function():
+    from pathlib import Path
+
+    source = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    assert "from src.ranking.cross_sectional import cross_sectional_rank" in source
+    assert "asset-specific q10/q90" in source
+    assert "cross_sectional_rank(" in source
