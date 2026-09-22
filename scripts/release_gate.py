@@ -5,6 +5,7 @@ from pathlib import Path
 def main():
     metrics_path=Path("data/research/latest_metrics.json")
     audit_path=Path("data/research/leakage_audit.json")
+    independent_audit_path=Path("data/research/independent_leakage_audit.json")
     quality_path=Path("data/research/data_quality.json")
     universe_path=Path("data/research/universe_quality.json")
     context_path=Path("data/research/market_context_quality.json")
@@ -13,6 +14,7 @@ def main():
     reasons=[]
     if not metrics_path.exists(): reasons.append("missing_oos_metrics")
     if not audit_path.exists(): reasons.append("missing_leakage_audit")
+    if not independent_audit_path.exists(): reasons.append("missing_independent_leakage_audit")
     if not quality_path.exists(): reasons.append("missing_data_quality")
     if not universe_path.exists(): reasons.append("missing_universe_quality")
     if not context_path.exists(): reasons.append("missing_market_context_quality")
@@ -20,6 +22,7 @@ def main():
     if not manifest_path.exists(): reasons.append("missing_reproducibility_manifest")
     metrics=json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     audit=json.loads(audit_path.read_text()) if audit_path.exists() else {}
+    independent_audit=json.loads(independent_audit_path.read_text()) if independent_audit_path.exists() else {}
     quality=json.loads(quality_path.read_text()) if quality_path.exists() else {}
     universe=json.loads(universe_path.read_text()) if universe_path.exists() else {}
     context=json.loads(context_path.read_text()) if context_path.exists() else {}
@@ -41,6 +44,12 @@ def main():
     elif not 0.0 <= float(return_metrics["range_80_coverage"]) <= 1.0:
         reasons.append("return_oos_interval_coverage_invalid")
     if audit.get("ok") is not True: reasons.append("leakage_audit_failed")
+    if (
+        independent_audit.get("status") != "PASS"
+        or independent_audit.get("ok") is not True
+        or independent_audit.get("auditor") != "independent_raw_input_temporal_audit_v1"
+    ):
+        reasons.append("independent_leakage_audit_failed")
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if universe.get("status")!="PASS": reasons.append("universe_quality_not_pass")
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
