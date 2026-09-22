@@ -61,3 +61,8 @@ def test_runtime_restores_lightgbm_for_recent_and_composite_routes():
 def test_artifact_validates_lightgbm_and_composite_lightgbm_routes():
     script = Path("src/prediction/production_artifact.py").read_text()
     assert 'if any("lightgbm" in str(name).lower() for name in classifiers):' in script
+
+
+def test_release_files_include_approved_gate():
+    from src.prediction.production_artifact import RELEASE_FILES
+    assert any(str(path) == "data/research/release_gate.json" for path in RELEASE_FILES)
