@@ -584,7 +584,7 @@ def main():
                 half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
             )
             cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-            calibrator = make_calibrator(selected_calibration_method).fit(
+            calibrator = make_calibrator("platt").fit(
                 cal_p,
                 cal.target_up_1d.astype(int),
             )
@@ -766,7 +766,7 @@ def main():
             half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
         )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-        calibrator = make_calibrator("platt").fit(
+        calibrator = make_calibrator(selected_calibration_method).fit(
             cal_p, cal.target_up_1d.astype(int)
         )
         p = calibrator.predict(
