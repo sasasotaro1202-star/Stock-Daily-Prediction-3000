@@ -705,7 +705,7 @@ def main():
             "brier": float(np.mean(brier)),
             "folds": float(len(rows)),
             "selection_score": float(
-                np.mean(logloss) - 0.25 * np.std(logloss, ddof=1)
+                np.mean(logloss) + 0.25 * np.std(logloss, ddof=1)
             ) if len(logloss) >= 2 else float(np.mean(logloss)),
         }
 
