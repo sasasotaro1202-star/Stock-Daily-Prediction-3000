@@ -161,15 +161,15 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["distance_from_low_20"]=(
         out["close"]/rolling_low_20.replace(0,np.nan)-1.0
     )
-    out["close_location_mean_20"]=out["close_location"].groupby(
-        [out[k] for k in series_keys]
-    ).transform(
-        lambda s:s.rolling(20,min_periods=20).mean()
-    )
     out["gap_pct"]=(out["open"]/prev)-1.0
     out["intraday_return"]=out["close"]/out["open"].replace(0,np.nan)-1.0
     out["close_location"]=(
         (out["close"]-out["low"])/(out["high"]-out["low"]).replace(0,np.nan)
+    )
+    out["close_location_mean_20"]=out["close_location"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s:s.rolling(20,min_periods=20).mean()
     )
     date_series=pd.to_datetime(out["session_date"],errors="coerce")
     dow=date_series.dt.dayofweek.astype(float)
