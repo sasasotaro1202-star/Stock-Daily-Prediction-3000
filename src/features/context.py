@@ -145,6 +145,70 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
         -1.0
     )
 
+    # Residual cross-sectional momentum: compare each security's own
+    # medium-horizon return with the contemporaneous market-family median
+    # accumulated only from sessions at or before the current session.
+    daily_roll = daily.sort_values(
+        ["market_family","session_date"]
+    ).copy()
+    daily_roll["market_median_ret_5d"] = (
+        daily_roll.groupby("market_family")["median_ret"]
+        .transform(
+            lambda s: (
+                (1.0 + s).rolling(5, min_periods=5).apply(
+                    lambda x: float(np.prod(x)) - 1.0,
+                    raw=True,
+                )
+            )
+        )
+    )
+    daily_roll["market_median_ret_20d"] = (
+        daily_roll.groupby("market_family")["median_ret"]
+        .transform(
+            lambda s: (
+                (1.0 + s).rolling(20, min_periods=20).apply(
+                    lambda x: float(np.prod(x)) - 1.0,
+                    raw=True,
+                )
+            )
+        )
+    )
+    daily_roll["market_median_vol_20d"] = (
+        daily_roll.groupby("market_family")["median_vol"]
+        .transform(lambda s: s.rolling(20, min_periods=20).median())
+    )
+    roll_cols = [
+        "market_family",
+        "session_date",
+        "market_median_ret_5d",
+        "market_median_ret_20d",
+        "market_median_vol_20d",
+    ]
+    out = out.drop(
+        columns=[
+            c for c in (
+                "market_median_ret_5d",
+                "market_median_ret_20d",
+                "market_median_vol_20d",
+            )
+            if c in out.columns
+        ]
+    )
+    out = out.merge(
+        daily_roll[roll_cols],
+        on=["market_family","session_date"],
+        how="left",
+        validate="many_to_one",
+    )
+    out["residual_momentum_20d"] = (
+        out["ret_20d"] - out["market_median_ret_20d"]
+    )
+    out["residual_volatility_20d"] = (
+        out["volatility_20"]
+        / out["market_median_vol_20d"].replace(0, float("nan"))
+        - 1.0
+    )
+
     if "sector" in out.columns:
         sg=out.groupby(
             ["session_date","market_family","sector"],
