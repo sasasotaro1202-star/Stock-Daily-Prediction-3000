@@ -737,3 +737,29 @@ def test_artifact_redirect_does_not_forward_github_token_cross_host():
     assert redirected is not None
     assert "Authorization" not in redirected.headers
     assert urlparse(redirected.full_url).netloc == "blob.example.net"
+
+
+def test_price_state_restore_rejects_zip_slip(tmp_path):
+    import pytest
+    import zipfile
+    from scripts.restore_latest_price_state import _safe_extract
+
+    archive = tmp_path / "payload.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("../escaped.txt", "malicious")
+
+    with zipfile.ZipFile(archive) as zf:
+        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
+            _safe_extract(zf, str(tmp_path / "restore"))
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_actions_watchdog_requires_fresh_heartbeat():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "heartbeat.yml/runs?status=success" in source
+    assert "10 hours ago" in source
+    assert "Automation heartbeat stale" in source
