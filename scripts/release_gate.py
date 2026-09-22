@@ -55,6 +55,10 @@ def main():
     if manifest_fp and frozen_fp and manifest_fp != frozen_fp:
         reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
+    if frozen.get("holdout_evaluation_mode") != "frozen_production_routes":
+        reasons.append("holdout_not_using_frozen_production_routes")
+    if frozen.get("return_holdout_mode") != "production_asset_quantile_routing":
+        reasons.append("holdout_return_not_using_production_quantile_routes")
     holdout_return=frozen.get("return_holdout_metrics",{})
     if not all(
         k in holdout_return and isinstance(holdout_return[k],(int,float))
