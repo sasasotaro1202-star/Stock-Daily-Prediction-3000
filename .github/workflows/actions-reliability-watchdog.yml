@@ -70,6 +70,21 @@ jobs:
           inspect_workflow "us-close-prediction.yml" "U.S. close prediction"
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring"
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery"
+          heartbeat_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/heartbeat.yml/runs?status=success&per_page=1")"
+          latest_heartbeat="$(printf '%s' "$heartbeat_runs" | jq -r '.workflow_runs[0].created_at // empty')"
+          if [ -z "$latest_heartbeat" ]; then
+            echo "::error title=Automation heartbeat missing::no successful heartbeat run is available"
+            failures=$((failures + 1))
+          else
+            heartbeat_epoch="$(date -d "$latest_heartbeat" +%s 2>/dev/null || echo 0)"
+            heartbeat_cutoff="$(date -u -d '10 hours ago' +%s)"
+            if [ "$heartbeat_epoch" -le 0 ] || [ "$heartbeat_epoch" -lt "$heartbeat_cutoff" ]; then
+              echo "::error title=Automation heartbeat stale::latest successful heartbeat is older than 10 hours: $latest_heartbeat"
+              failures=$((failures + 1))
+            else
+              echo "Automation heartbeat: fresh ($latest_heartbeat)"
+            fi
+          fi
 
           if [ "$failures" -gt 0 ]; then
             echo "Actions reliability watchdog: FAIL (${failures} unresolved workflow failure(s))"
