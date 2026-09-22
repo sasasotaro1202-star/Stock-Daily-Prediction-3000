@@ -25,7 +25,7 @@ def main():
         ("oos_training_window_selection","classifier_training_window_sessions" in Path("scripts/run_daily_research.py").read_text() and "classifier_training_window_sessions" in Path("scripts/lock_frozen_model.py").read_text() and "restrict_to_lookback" in Path("scripts/build_production_artifact.py").read_text() and "restrict_to_lookback" in Path("scripts/evaluate_frozen_holdout.py").read_text()),
         ("ranking_backtest_parity","rank_score" in Path("src/backtest/cross_sectional.py").read_text() and "rank_score" in Path("src/ranking/cross_sectional.py").read_text()),
         ("asset_class_balanced_selection","asset_class_balance_weight: 0.50" in pipe and "rebalance_global_oos_candidates" in Path("scripts/run_daily_research.py").read_text()),
-        ("recency_weighted_challenger","recency_weighted_challenger: true" in pipe and "fit_classifier" in Path("scripts/run_daily_research.py").read_text()),
+        ("recency_weighted_challenger","recency_weighted_challenger: true" in pipe and Path("src/prediction/fit.py").exists() and "fit_classifier" in Path("scripts/run_daily_research.py").read_text() and "fit_classifier" in Path("scripts/build_production_artifact.py").read_text() and "fit_classifier" in Path("scripts/evaluate_frozen_holdout.py").read_text()),
         ("optional_lightgbm_challenger","lightgbm" in pipe and "LGBMClassifier" in Path("src/prediction/model_factories.py").read_text() and "research" in Path("pyproject.toml").read_text()),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
