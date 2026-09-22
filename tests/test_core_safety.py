@@ -403,3 +403,46 @@ def test_live_performance_gate_fails_closed_when_monitoring_state_is_missing(tmp
     result = __import__("json").loads(gate.OUT.read_text(encoding="utf-8"))
     assert result["status"] == "DEFERRED"
     assert result["production_action"] == "DEFERRED"
+
+
+def test_independent_raw_input_audit_is_temporal_and_fail_closed():
+    from src.validation.independent_audit import audit_raw_inputs
+
+    now = pd.Timestamp("2026-09-22T10:00:00Z")
+    prices = pd.DataFrame([{
+        "symbol": "AAA",
+        "asset_class": "jp_stock",
+        "session_date": pd.Timestamp("2026-09-22").date(),
+        "available_at": pd.Timestamp("2026-09-22T08:00:00Z"),
+        "retrieved_at": pd.Timestamp("2026-09-22T09:00:00Z"),
+        "source": "test",
+        "provider_symbol": "AAA.T",
+        "open": 100.0,
+        "high": 101.0,
+        "low": 99.0,
+        "close": 100.5,
+        "volume": 1000.0,
+    }])
+    context = pd.DataFrame([{
+        "family": "sp500",
+        "session_date": pd.Timestamp("2026-09-22").date(),
+        "available_at": pd.Timestamp("2026-09-22T07:00:00Z"),
+    }])
+    good = audit_raw_inputs(prices, context, now=now)
+    assert good.ok is True
+
+    poisoned = prices.copy()
+    poisoned.loc[0, "available_at"] = pd.Timestamp("2026-09-22T10:01:00Z")
+    bad = audit_raw_inputs(poisoned, context, now=now)
+    assert bad.ok is False
+    assert any("available_at_after_audit_time" in x for x in bad.violations)
+
+    duplicated = pd.concat([prices, prices], ignore_index=True)
+    bad_dup = audit_raw_inputs(duplicated, context, now=now)
+    assert bad_dup.ok is False
+    assert any("duplicates" in x for x in bad_dup.violations)
+
+    target_leak = prices.assign(target_ret_1d=[0.1])
+    bad_target = audit_raw_inputs(target_leak, context, now=now)
+    assert bad_target.ok is False
+    assert any("raw_target_column_present" in x for x in bad_target.violations)
