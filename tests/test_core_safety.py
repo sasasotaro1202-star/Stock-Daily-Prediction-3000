@@ -192,6 +192,7 @@ def test_causal_correlation_and_trend_factors():
         "up_down_imbalance_20",
     ]
     assert set(cols).issubset(out.columns)
-    last = out.groupby(["asset_class", "symbol"]).tail(1)
+    group_keys=["asset_class", "symbol"] if "asset_class" in out.columns else ["symbol"]
+    last = out.groupby(group_keys).tail(1)
     assert last[cols].notna().all().all()
     assert ((last["trend_r2_20"] >= 0) & (last["trend_r2_20"] <= 1)).all()
