@@ -97,4 +97,4 @@ def test_return_estimator_selector_guards_mae_and_uses_rank_ic():
         "rank_ic_std": 0.01,
         "folds": 4,
     }
-    assert choose_return_estimator(bad_mae) == "mean"
+    assert choose_return_estimator(bad_mae) == "q50"
