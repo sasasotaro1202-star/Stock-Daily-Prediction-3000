@@ -57,6 +57,26 @@ def main():
         reasons.append("manifest_invalid")
     manifest_fp=manifest.get("code_fingerprint_sha256")
     frozen_fp=frozen.get("code_fingerprint_sha256")
+    current_full_fp=__import__(
+        "src.validation.code_fingerprint",
+        fromlist=["fingerprint_sha256"],
+    ).fingerprint_sha256()
+    current_research_fp=__import__(
+        "src.validation.code_fingerprint",
+        fromlist=["research_fingerprint_sha256"],
+    ).research_fingerprint_sha256()
+    if manifest_fp != current_full_fp:
+        reasons.append("manifest_code_fingerprint_not_current")
+    frozen_research_fp=frozen.get("research_code_fingerprint_sha256")
+    if frozen_research_fp != current_research_fp:
+        reasons.append("frozen_research_fingerprint_not_current")
+    manifest_research_fp=manifest.get("research_code_fingerprint_sha256")
+    if manifest_research_fp != frozen_research_fp:
+        reasons.append("manifest_research_fingerprint_mismatch")
+    if manifest.get("holdout_generation") != frozen.get("holdout_generation"):
+        reasons.append("manifest_holdout_generation_mismatch")
+    if frozen.get("status") != "FROZEN":
+        reasons.append("frozen_holdout_not_locked")
     if not manifest_fp:
         reasons.append("manifest_code_fingerprint_missing")
     if not frozen_fp:
