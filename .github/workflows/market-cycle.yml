@@ -46,7 +46,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[research]"
+      - run: pip install -e .
       - uses: actions/download-artifact@v4
         with:
           name: universe-${{ github.run_id }}
