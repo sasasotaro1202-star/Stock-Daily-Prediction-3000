@@ -248,7 +248,7 @@ def main():
         else {}
     )
     return_oos = {
-        "folds": len(interval_fold_rows),
+        "folds": len(selected_interval_rows),
         "metrics": interval_metrics,
         "estimator_metrics": return_estimator_metrics,
         "selected_estimator": selected_return_estimator,
@@ -256,7 +256,7 @@ def main():
             "mae_guard": return_mae_guard,
             "rank_ic_tolerance": return_rank_ic_tolerance,
         },
-        "status": "OOS_COMPLETE" if len(interval_fold_rows) >= 3 else "DEFERRED",
+        "status": "OOS_COMPLETE" if len(selected_interval_rows) >= 3 else "DEFERRED",
     }
 
     model_results = {}
