@@ -28,6 +28,7 @@ def main():
         ("asset_class_balanced_selection","asset_class_balance_weight: 0.50" in pipe and "rebalance_global_oos_candidates" in Path("scripts/run_daily_research.py").read_text()),
         ("recency_weighted_challenger","recency_weighted_challenger: true" in pipe and "fit_classifier" in Path("scripts/run_daily_research.py").read_text()),
         ("optional_lightgbm_challenger","lightgbm" in pipe and "LGBMClassifier" in Path("src/prediction/model_factories.py").read_text() and "lightgbm_regularized_recent" in Path("src/prediction/model_factories.py").read_text() and "research" in Path("pyproject.toml").read_text()),
+        ("hgb_conservative_challenger","hgb_conservative_recent" in Path("src/prediction/model_factories.py").read_text() and "hgb_conservative_recent" in router),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),

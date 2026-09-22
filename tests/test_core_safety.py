@@ -58,6 +58,19 @@ def test_model_factory_matches_production_hgb_contract():
     assert params["histgradientboostingclassifier__learning_rate"] == 0.04
 
 
+def test_conservative_hgb_recent_is_available_in_research_ci():
+    from src.prediction.model_factories import models
+
+    available = models()
+    assert "hgb_conservative_recent" in available
+    params = available["hgb_conservative_recent"]().get_params()
+    assert params["histgradientboostingclassifier__max_iter"] == 500
+    assert params["histgradientboostingclassifier__learning_rate"] == 0.02
+    assert params["histgradientboostingclassifier__max_leaf_nodes"] == 15
+    assert params["histgradientboostingclassifier__min_samples_leaf"] == 40
+    assert params["histgradientboostingclassifier__l2_regularization"] == 3.0
+
+
 def test_lightgbm_challenger_is_available_in_research_ci():
     from src.prediction.model_factories import models
     import lightgbm

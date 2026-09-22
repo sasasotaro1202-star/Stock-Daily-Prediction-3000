@@ -25,6 +25,7 @@ models:
     - hgb
   optional_challengers:
     - lightgbm
+    - hgb_conservative_recent
     - blend_hgb_lgbm_regularized_recent
     - lightgbm_conservative
     - xgboost
