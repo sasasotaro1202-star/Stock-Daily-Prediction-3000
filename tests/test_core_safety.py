@@ -20,6 +20,20 @@ def test_features_are_causal_and_targets_separate():
     assert audit_target_separation(FEATURE_COLUMNS,[c for c in x if c.startswith("target_")]).ok
     assert x.loc[x.groupby("symbol").tail(1).index,"target_up_1d"].isna().all()
 
+def test_oos_calibration_methods_fit_and_bound_outputs():
+    import numpy as np
+    from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
+
+    p = np.array([0.05, 0.10, 0.25, 0.35, 0.60, 0.75, 0.90, 0.97] * 8)
+    y = np.array([0, 0, 0, 1, 1, 1, 1, 1] * 8)
+    assert set(CALIBRATION_METHODS) == {"platt", "beta", "isotonic"}
+    for method in CALIBRATION_METHODS:
+        calibrator = make_calibrator(method).fit(p, y)
+        out = calibrator.predict(p)
+        assert np.isfinite(out).all()
+        assert np.all((out >= 0.0) & (out <= 1.0))
+
+
 def test_ece_bounds():
     v=expected_calibration_error([0,1,0,1],[0.1,0.9,0.2,0.8])
     assert 0<=v<=1

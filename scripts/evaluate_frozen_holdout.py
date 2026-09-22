@@ -15,7 +15,7 @@ from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import route_plan, regime_for_row
-from src.validation.calibration import PlattCalibrator
+from src.validation.calibration import make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 
@@ -81,6 +81,10 @@ def main():
     if core.target_up_1d.nunique() < 2 or cal.target_up_1d.nunique() < 2:
         raise SystemExit("DEFERRED: calibration split lacks both target classes")
 
+    calibration_method = str(frozen.get("calibration_method", "platt"))
+    if calibration_method not in {"platt", "beta", "isotonic"}:
+        raise SystemExit("FAIL: frozen calibration method is invalid")
+
     training_window = int(frozen.get("classifier_training_window_sessions", 0))
     if training_window < 0:
         raise SystemExit("FAIL: frozen classifier training window is invalid")
@@ -139,7 +143,7 @@ def main():
             ),
         )
         cal_p = model.predict_proba(model_cal[FEATURE_COLUMNS])[:, 1]
-        calibrator = PlattCalibrator().fit(
+        calibrator = make_calibrator(calibration_method).fit(
             cal_p, model_cal.target_up_1d.astype(int)
         )
         classifiers[model_name] = {
@@ -379,6 +383,8 @@ def main():
         ),
         "max_ece": max_ece,
         "holdout_evaluation_mode": "frozen_production_routes",
+        "calibration_method": calibration_method,
+        "calibration_selection_source": "chronological_oos_only",
         "return_holdout_mode": "production_asset_quantile_routing",
         "feature_pipeline": "technical + market_context + cross_sectional_context",
     }

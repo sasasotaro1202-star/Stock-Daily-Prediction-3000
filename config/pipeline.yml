@@ -60,7 +60,8 @@ routing:
   min_training_rows_scoped: 500
   fail_closed_on_data_stressed: true
 calibration:
-  method: platt
+  method: oos_selected
+  candidates: [platt, beta, isotonic]
   fit_inside_oos_train_only: true
 release:
   frozen_holdout_required: true

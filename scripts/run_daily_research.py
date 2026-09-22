@@ -29,7 +29,7 @@ from src.research.router import (
     choose_from_oos,
     rebalance_global_oos_candidates,
 )
-from src.validation.calibration import PlattCalibrator
+from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 from src.research.regime_threshold import (
@@ -625,6 +625,102 @@ def main():
     else:
         selected_training_window = 0
 
+    # Select the probability calibration method on chronological OOS after
+    # model-family and training-window selection. Every candidate is fit only
+    # on the fold's calibration slice, and the test slice is used only for
+    # scoring. This keeps the calibration choice out of the frozen holdout.
+    calibration_rows = {method: [] for method in CALIBRATION_METHODS}
+    for fold in folds:
+        train_dates = dates[: fold.train_end]
+        usable_train_dates = (
+            train_dates
+            if selected_training_window == 0
+            else train_dates[-selected_training_window:]
+        )
+        cal_n = max(20, int(len(usable_train_dates) * 0.2))
+        if len(usable_train_dates) - cal_n < 40:
+            continue
+        core_dates = set(usable_train_dates[:-cal_n])
+        cal_dates = set(usable_train_dates[-cal_n:])
+        test_dates = set(dates[fold.test_start : fold.test_end])
+        core = df[df.session_date.isin(core_dates)]
+        cal = df[df.session_date.isin(cal_dates)]
+        test = df[df.session_date.isin(test_dates)]
+        if min(len(core), len(cal), len(test)) < 100:
+            continue
+        if (
+            core.target_up_1d.nunique() < 2
+            or cal.target_up_1d.nunique() < 2
+            or test.target_up_1d.nunique() < 2
+        ):
+            continue
+        factory = make_models().get(global_selected)
+        if factory is None:
+            continue
+        fit_rows = cap_training_rows(
+            core,
+            max_rows=300_000,
+            recent_sessions=min(252, selected_training_window or 252),
+        )
+        model = factory()
+        fit_classifier(
+            model,
+            global_selected,
+            fit_rows[FEATURE_COLUMNS],
+            fit_rows.target_up_1d.astype(int),
+            fit_rows["session_date"],
+            half_life_sessions=int(
+                model_cfg.get("recency_weight_half_life_sessions", 252)
+            ),
+        )
+        cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+        raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+        for method in CALIBRATION_METHODS:
+            calibrator = make_calibrator(method).fit(
+                cal_p,
+                cal.target_up_1d.astype(int),
+            )
+            p = np.clip(
+                calibrator.predict(raw_test_p),
+                1e-5,
+                1 - 1e-5,
+            )
+            metrics = classification_metrics(
+                test.target_up_1d.astype(int),
+                p,
+            )
+            calibration_rows[method].append(metrics)
+
+    calibration_candidates = {}
+    for method, rows in calibration_rows.items():
+        if len(rows) < 3:
+            continue
+        logloss = np.asarray([float(row["logloss"]) for row in rows], dtype=float)
+        ece = np.asarray([float(row["ece"]) for row in rows], dtype=float)
+        brier = np.asarray([float(row["brier"]) for row in rows], dtype=float)
+        calibration_candidates[method] = {
+            "logloss": float(np.mean(logloss)),
+            "logloss_std": float(np.std(logloss, ddof=1)) if len(logloss) >= 2 else 0.0,
+            "ece": float(np.mean(ece)),
+            "brier": float(np.mean(brier)),
+            "folds": float(len(rows)),
+            "selection_score": float(
+                np.mean(logloss) + 0.25 * np.std(logloss, ddof=1)
+            ) if len(logloss) >= 2 else float(np.mean(logloss)),
+        }
+
+    if calibration_candidates:
+        selected_calibration_method = min(
+            calibration_candidates,
+            key=lambda method: (
+                calibration_candidates[method]["selection_score"],
+                calibration_candidates[method]["ece"],
+                {"platt": 0, "beta": 1, "isotonic": 2}[method],
+            ),
+        )
+    else:
+        selected_calibration_method = "platt"
+
     # Select the final production ranking blend on chronological OOS.
     # Each fold trains once; multiple score configurations are then evaluated,
     # so adding ranking candidates does not multiply model fitting cost.
@@ -813,6 +909,8 @@ def main():
         "selected_model": global_selected,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
+        "calibration_method": selected_calibration_method,
+        "calibration_method_candidates": calibration_candidates,
         "rank_probability_weight": selected_rank_weight,
         "rank_uncertainty_penalty": selected_uncertainty_penalty,
         "ranking_weight_candidates": ranking_candidates,
