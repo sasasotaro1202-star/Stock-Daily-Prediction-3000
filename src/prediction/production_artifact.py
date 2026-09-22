@@ -32,6 +32,48 @@ def release_signature() -> str:
     return h.hexdigest()
 
 
+def _validate_artifact_structure(
+    meta: dict,
+    classifiers: dict,
+    quantile: dict,
+    return_section: dict,
+) -> None:
+    if meta.get("artifact_version") != 1:
+        raise RuntimeError("unsupported production model artifact version")
+    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
+        raise RuntimeError("production model artifact feature schema mismatch")
+
+    required_classifiers = set(meta.get("required_classifiers") or [])
+    if "hgb" not in required_classifiers:
+        raise RuntimeError("production model artifact must include hgb fallback")
+    if set(classifiers) != required_classifiers:
+        raise RuntimeError("production model artifact classifier set mismatch")
+
+    selected = meta.get("selected_model")
+    if selected not in classifiers:
+        raise RuntimeError("production model artifact selected model is missing")
+    for name, entry in classifiers.items():
+        if not isinstance(entry, dict) or "model" not in entry or "calibrator" not in entry:
+            raise RuntimeError(
+                f"production classifier artifact missing components: {name}"
+            )
+
+    if "global" not in quantile or "assets" not in quantile:
+        raise RuntimeError("production quantile artifact is incomplete")
+    if return_section.get("selected") not in {
+        "mean",
+        "q50",
+        "blend_mean_q50",
+    }:
+        raise RuntimeError("production return estimator selection is invalid")
+    if set(return_section.get("global") or {}) != {"mean", "q50"}:
+        raise RuntimeError("production return estimator artifacts are incomplete")
+    if meta.get("return_selected_estimator") != return_section.get("selected"):
+        raise RuntimeError("production return estimator metadata mismatch")
+    if meta.get("calibration_method") not in {"platt", "beta", "isotonic"}:
+        raise RuntimeError("production calibration method is invalid")
+
+
 def validate_artifact(payload: dict) -> None:
     if not isinstance(payload, dict):
         raise RuntimeError("production model artifact is not a mapping")
@@ -40,49 +82,45 @@ def validate_artifact(payload: dict) -> None:
     quantile = payload.get("quantile")
     return_section = payload.get("return")
     if not isinstance(meta, dict) or not isinstance(classifiers, dict):
-        raise RuntimeError("production model artifact metadata/classifiers are missing")
+        raise RuntimeError(
+            "production model artifact metadata/classifiers are missing"
+        )
     if not isinstance(quantile, dict):
         raise RuntimeError("production model artifact quantile section is missing")
     if not isinstance(return_section, dict):
         raise RuntimeError("production return estimator section is missing")
 
-    if meta.get("artifact_version") != 1:
-        raise RuntimeError("unsupported production model artifact version")
+    # Structural validation comes before release-state files so individual
+    # artifact invariants remain deterministic and independently testable.
+    _validate_artifact_structure(
+        meta,
+        classifiers,
+        quantile,
+        return_section,
+    )
+
+    if meta.get("code_fingerprint_sha256") != fingerprint_sha256():
+        raise RuntimeError("production model artifact code fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
-    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
-        raise RuntimeError("production model artifact feature schema mismatch")
-    if meta.get("python_version") != f"{sys.version_info.major}.{sys.version_info.minor}":
-        raise RuntimeError("production model artifact Python major/minor mismatch")
-    if meta.get("numpy_version") != np.__version__:
-        raise RuntimeError("production model artifact NumPy version mismatch")
-    if meta.get("sklearn_version") != sklearn.__version__:
-        raise RuntimeError("production model artifact scikit-learn version mismatch")
 
-    required_classifiers = set(meta.get("required_classifiers") or [])
-    if "hgb" not in required_classifiers:
-        raise RuntimeError("production model artifact must include hgb fallback")
-    if set(classifiers) != required_classifiers:
-        raise RuntimeError("production model artifact classifier set mismatch")
-
-    # Check release evidence after basic artifact structure so structural
-    # failures remain deterministic in unit tests. Production acceptance is
-    # still fail-closed because this block must pass before returning.
-    from src.validation.code_fingerprint import research_fingerprint_sha256
-    if meta.get("research_code_fingerprint_sha256") != research_fingerprint_sha256():
-        raise RuntimeError("production model artifact research fingerprint mismatch")
-    gate_path = RELEASE_GATE_PATH
     try:
         gate_payload = __import__("json").loads(
-            gate_path.read_text(encoding="utf-8")
+            RELEASE_GATE_PATH.read_text(encoding="utf-8")
         )
     except Exception as exc:
         raise RuntimeError("production release gate is unreadable") from exc
     if gate_payload.get("approved") is not True:
-        raise RuntimeError("production model artifact requires an approved release gate")
-    lock_payload = __import__("json").loads(
-        FROZEN_LOCK_PATH.read_text(encoding="utf-8")
-    )
+        raise RuntimeError(
+            "production model artifact requires an approved release gate"
+        )
+
+    try:
+        lock_payload = __import__("json").loads(
+            FROZEN_LOCK_PATH.read_text(encoding="utf-8")
+        )
+    except Exception as exc:
+        raise RuntimeError("frozen holdout lock is unreadable") from exc
     if meta.get("holdout_generation") != lock_payload.get("holdout_generation"):
         raise RuntimeError("production holdout generation mismatch")
     if meta.get("research_code_fingerprint_sha256") != lock_payload.get(
@@ -90,22 +128,19 @@ def validate_artifact(payload: dict) -> None:
     ):
         raise RuntimeError("production research fingerprint mismatch")
 
-    selected = meta.get("selected_model")
-    if selected not in classifiers:
-        raise RuntimeError("production model artifact selected model is missing")
-    for name, entry in classifiers.items():
-        if not isinstance(entry, dict) or "model" not in entry or "calibrator" not in entry:
-            raise RuntimeError(f"production classifier artifact missing components: {name}")
-    if "global" not in quantile or "assets" not in quantile:
-        raise RuntimeError("production quantile artifact is incomplete")
-    if return_section.get("selected") not in {"mean", "q50", "blend_mean_q50"}:
-        raise RuntimeError("production return estimator selection is invalid")
-    if set(return_section.get("global") or {}) != {"mean", "q50"}:
-        raise RuntimeError("production return estimator artifacts are incomplete")
-    if meta.get("return_selected_estimator") != return_section.get("selected"):
-        raise RuntimeError("production return estimator metadata mismatch")
-    if meta.get("calibration_method") not in {"platt", "beta", "isotonic"}:
-        raise RuntimeError("production calibration method is invalid")
+    if meta.get("python_version") != (
+        f"{sys.version_info.major}.{sys.version_info.minor}"
+    ):
+        raise RuntimeError(
+            "production model artifact Python major/minor mismatch"
+        )
+    if meta.get("numpy_version") != np.__version__:
+        raise RuntimeError("production model artifact NumPy version mismatch")
+    if meta.get("sklearn_version") != sklearn.__version__:
+        raise RuntimeError(
+            "production model artifact scikit-learn version mismatch"
+        )
+
     runtime_versions = meta.get("runtime_dependency_versions") or {}
     for package in (
         "numpy",
@@ -119,27 +154,42 @@ def validate_artifact(payload: dict) -> None:
     ):
         expected = runtime_versions.get(package)
         if expected is None:
-            raise RuntimeError(f"production runtime dependency version is missing: {package}")
+            raise RuntimeError(
+                f"production runtime dependency version is missing: {package}"
+            )
         try:
-            actual = __import__("importlib.metadata", fromlist=["version"]).version(package)
+            actual = __import__(
+                "importlib.metadata",
+                fromlist=["version"],
+            ).version(package)
         except Exception as exc:
-            raise RuntimeError(f"production runtime dependency is missing: {package}") from exc
+            raise RuntimeError(
+                f"production runtime dependency is missing: {package}"
+            ) from exc
         if actual != expected:
             raise RuntimeError(
-                f"production runtime dependency version mismatch for {package}: "
-                f"{actual} != {expected}"
+                "production runtime dependency version mismatch for "
+                f"{package}: {actual} != {expected}"
             )
 
     if any("lightgbm" in str(name).lower() for name in classifiers):
-        expected = runtime_versions.get("lightgbm") or meta.get("lightgbm_version")
+        expected = runtime_versions.get("lightgbm") or meta.get(
+            "lightgbm_version"
+        )
         if expected is None:
-            raise RuntimeError("production model artifact LightGBM version is missing")
+            raise RuntimeError(
+                "production model artifact LightGBM version is missing"
+            )
         try:
             import lightgbm
         except ImportError as exc:
-            raise RuntimeError("production model artifact requires LightGBM") from exc
-        if meta["lightgbm_version"] != lightgbm.__version__:
-            raise RuntimeError("production model artifact LightGBM version mismatch")
+            raise RuntimeError(
+                "production model artifact requires LightGBM"
+            ) from exc
+        if meta.get("lightgbm_version") != lightgbm.__version__:
+            raise RuntimeError(
+                "production model artifact LightGBM version mismatch"
+            )
 
 
 def load_production_artifact(path: Path = ARTIFACT_PATH) -> dict:
@@ -149,6 +199,8 @@ def load_production_artifact(path: Path = ARTIFACT_PATH) -> dict:
         with path.open("rb") as f:
             payload = pickle.load(f)
     except Exception as exc:
-        raise RuntimeError(f"production model artifact could not be loaded: {exc}") from exc
+        raise RuntimeError(
+            f"production model artifact could not be loaded: {exc}"
+        ) from exc
     validate_artifact(payload)
     return payload
