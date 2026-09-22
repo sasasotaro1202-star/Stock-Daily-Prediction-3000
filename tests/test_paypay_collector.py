@@ -54,7 +54,7 @@ def test_reader_fallback_parse_stays_tradeable_and_section_aware():
 | コード | 銘柄 | 取扱いアプリ |
 | 7203 | トヨタ | trade_on,mini_on,cfd_on |
 # 国内ETF（上場投資信託）
-| 1306 | TOPIX ETF | mini_on,cfd_off |
+| 1306 | TOPIX ETF | trade_off,cfd_off |
 | 1475 | iShares ETF | trade_on,cfd_off |
 # REIT（不動産投資信託）
 | 8951 | 日本ビルファンド投資法人 | trade_on,mini_on,cfd_off |
