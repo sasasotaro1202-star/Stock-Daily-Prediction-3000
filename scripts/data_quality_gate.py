@@ -96,6 +96,7 @@ def main():
             reasons.append("retrieved_at_missing")
             latest_retrieval_missing=1
         session_ts=pd.to_datetime(df["session_date"],errors="coerce")
+        session_dates=session_ts.dt.date
         session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
         avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
         impossible_pit=int((avail_ts.lt(session_day_start)).fillna(False).sum())
@@ -124,7 +125,6 @@ def main():
         missing_now=sorted(expected-observed)
         now=pd.Timestamp(datetime.now(ZoneInfo("Asia/Tokyo")))
         avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
-        session_dates=pd.to_datetime(df["session_date"],errors="coerce").dt.date
         current_mask=avail.le(now.tz_convert("UTC"))
         latest_by_symbol=(
             df.loc[current_mask & session_dates.notna(),["asset_class","symbol","session_date"]]
