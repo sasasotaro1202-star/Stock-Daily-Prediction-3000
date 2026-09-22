@@ -55,9 +55,11 @@ def validate_artifact(payload: dict) -> None:
     if meta.get("sklearn_version") != sklearn.__version__:
         raise RuntimeError("production model artifact scikit-learn version mismatch")
 
-    required_classifiers = {"logistic", "extra_trees", "hgb"}
-    if not required_classifiers.issubset(classifiers):
-        raise RuntimeError("production model artifact classifier set is incomplete")
+    required_classifiers = set(meta.get("required_classifiers") or [])
+    if "hgb" not in required_classifiers:
+        raise RuntimeError("production model artifact must include hgb fallback")
+    if set(classifiers) != required_classifiers:
+        raise RuntimeError("production model artifact classifier set mismatch")
     selected = meta.get("selected_model")
     if selected not in classifiers:
         raise RuntimeError("production model artifact selected model is missing")
