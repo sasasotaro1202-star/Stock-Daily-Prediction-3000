@@ -228,6 +228,7 @@ def main():
     lo=np.minimum(lo,mid)
     hi=np.maximum(hi,mid)
     return_holdout_metrics={
+        "selected_estimator": return_selected,
         "mae":float(__import__("sklearn.metrics",fromlist=["mean_absolute_error"]).mean_absolute_error(y_ret,mid)),
         "rmse":float(__import__("sklearn.metrics",fromlist=["mean_squared_error"]).mean_squared_error(y_ret,mid)**0.5),
         "range_80_coverage":float(np.mean((y_ret>=lo)&(y_ret<=hi))),
