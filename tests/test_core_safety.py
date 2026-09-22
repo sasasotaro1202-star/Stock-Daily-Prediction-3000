@@ -492,3 +492,31 @@ def test_prediction_history_restore_fails_closed_on_partial_restore():
         "DEFERRED: one or more prediction-history artifacts could not be restored"
         in script
     )
+
+
+def test_regime_volatility_threshold_is_oos_train_derived():
+    import numpy as np
+    from src.research.regime_threshold import (
+        aggregate_oos_training_thresholds,
+        volatility_threshold_from_training,
+    )
+
+    train_a = volatility_threshold_from_training(
+        np.array([0.01, 0.02, 0.03, 0.04])
+    )
+    train_b = volatility_threshold_from_training(
+        np.array([0.02, 0.04, 0.06, 0.08])
+    )
+    assert np.isclose(train_a, 0.0325)
+    assert np.isclose(
+        aggregate_oos_training_thresholds([train_a, train_b]),
+        0.04875,
+    )
+
+    import pathlib
+    research = pathlib.Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    lock = pathlib.Path("scripts/lock_frozen_model.py").read_text(encoding="utf-8")
+    gate = pathlib.Path("scripts/release_gate.py").read_text(encoding="utf-8")
+    assert "oos_fold_train_median" in research
+    assert "oos_fold_train_median" in lock
+    assert "oos_fold_train_median" in gate

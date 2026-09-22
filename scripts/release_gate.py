@@ -64,6 +64,10 @@ def main():
     if manifest_fp and frozen_fp and manifest_fp != frozen_fp:
         reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
+    if frozen.get("regime_vol_threshold_source") != "oos_fold_train_median":
+        reasons.append("regime_threshold_not_oos_derived")
+    if not isinstance(frozen.get("regime_vol_threshold_folds"), (int,float)) or int(frozen.get("regime_vol_threshold_folds",0)) < 3:
+        reasons.append("regime_threshold_oos_fold_count_invalid")
     if frozen.get("holdout_evaluation_mode") != "frozen_production_routes":
         reasons.append("holdout_not_using_frozen_production_routes")
     if frozen.get("return_holdout_mode") != "production_asset_quantile_routing":
