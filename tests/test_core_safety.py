@@ -293,6 +293,7 @@ def test_future_value_poisoning_does_not_change_prior_features():
     base["asset_class"] = "jp_stock"
     clean = add_technical_features(base)
     poisoned = base.copy()
+    poisoned["volume"] = poisoned["volume"].astype(float)
     cutoff = 100
     poisoned.loc[poisoned.index >= cutoff, "close"] *= 100.0
     poisoned.loc[poisoned.index >= cutoff, "volume"] *= 0.01
