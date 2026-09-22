@@ -24,19 +24,19 @@ class ModelPlan:
 
 
 CANDIDATES = {
-    Regime.NORMAL: ("logistic", "extra_trees", "hgb"),
-    Regime.HIGH_VOL: ("hgb", "extra_trees", "logistic"),
-    Regime.TREND: ("hgb", "extra_trees", "logistic"),
-    Regime.EVENT: ("hgb", "extra_trees"),
+    Regime.NORMAL: ("lightgbm", "hgb", "extra_trees", "logistic"),
+    Regime.HIGH_VOL: ("lightgbm", "hgb", "extra_trees", "logistic"),
+    Regime.TREND: ("lightgbm", "hgb", "extra_trees", "logistic"),
+    Regime.EVENT: ("lightgbm", "hgb", "extra_trees"),
     Regime.DATA_STRESSED: ("hgb",),
 }
 
 ASSET_CANDIDATES = {
-    "jp_stock": ("extra_trees", "hgb", "logistic"),
-    "jp_etf": ("hgb", "extra_trees", "logistic"),
-    "jp_reit": ("hgb", "extra_trees", "logistic"),
-    "us_stock": ("hgb", "extra_trees", "logistic"),
-    "us_etf": ("hgb", "extra_trees", "logistic"),
+    "jp_stock": ("lightgbm", "extra_trees", "hgb", "logistic"),
+    "jp_etf": ("lightgbm", "hgb", "extra_trees", "logistic"),
+    "jp_reit": ("lightgbm", "hgb", "extra_trees", "logistic"),
+    "us_stock": ("lightgbm", "hgb", "extra_trees", "logistic"),
+    "us_etf": ("lightgbm", "hgb", "extra_trees", "logistic"),
 }
 
 
