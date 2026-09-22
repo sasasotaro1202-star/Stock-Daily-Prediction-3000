@@ -118,6 +118,7 @@ def test_distribution_and_drawdown_factors_are_causal():
 
 
 
+
 def test_ranking_penalizes_high_uncertainty():
     from src.ranking.cross_sectional import cross_sectional_rank
 
