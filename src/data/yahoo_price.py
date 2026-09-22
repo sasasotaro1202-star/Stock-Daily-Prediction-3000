@@ -60,6 +60,8 @@ def download_batch(
         actions=True,
     )
     frames = []
+    retrieved_at = pd.Timestamp.now(tz="UTC")
+    retrieval_run_id = os.getenv("GITHUB_RUN_ID")
 
     def normalize(part: pd.DataFrame, rec: dict, provider_symbol: str):
         part = part.reset_index().rename(columns=str.lower)
@@ -82,6 +84,8 @@ def download_batch(
         )
         part["source"] = "yfinance"
         part["provider_symbol"] = provider_symbol
+        part["retrieved_at"] = retrieved_at
+        part["retrieval_run_id"] = retrieval_run_id
 
         for optional in ("dividends","stock splits","capital gains"):
             if optional not in part.columns:
@@ -93,6 +97,8 @@ def download_batch(
             "available_at",
             "source",
             "provider_symbol",
+            "retrieved_at",
+            "retrieval_run_id",
             "open",
             "high",
             "low",
