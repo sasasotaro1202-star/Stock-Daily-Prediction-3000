@@ -33,7 +33,7 @@ def main():
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),
         ("market_clock_split","groupby(\"asset_class\"" in prediction),
-        ("market_context_pipeline","add_market_context" in Path("scripts/run_daily_research.py").read_text() and "update_market_context.py" in Path(".github/workflows/market-cycle.yml").read_text()),
+        ("market_context_pipeline","add_market_context" in Path("scripts/run_daily_research.py").read_text() and "update_market_context.py" in Path(".github/workflows/market-cycle.yml").read_text()),        ("market_context_extended_quality","us10y" in Path("scripts/update_market_context.py").read_text() and '"MAX_STALENESS_DAYS=10"' in Path("scripts/update_market_context.py").read_text() and '"stale_families"' in Path("scripts/update_market_context.py").read_text()),
         ("macro_cross_asset_context",all(k in Path("src/features/context.py").read_text() for k in ("us10y_level_lag1","dxy_ret_1d_lag1","gold_ret_1d_lag1","oil_ret_1d_lag1","hyg_ret_1d_lag1")) and all(k in Path("src/data/market_context.py").read_text() for k in ("us10y","dxy","gold","oil","hyg"))),
         ("state_compatibility","production_state_compatibility.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/production_state_compatibility.py").exists()),
         ("us_artifact_validation","Validate immutable production model artifact" in Path(".github/workflows/us-close-prediction.yml").read_text()),
