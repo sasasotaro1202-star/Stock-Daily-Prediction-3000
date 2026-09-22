@@ -43,7 +43,7 @@ def validate_artifact(payload: dict) -> None:
     if not isinstance(return_section, dict):
         raise RuntimeError("production return estimator section is missing")
 
-    if meta.get("artifact_version") != 1:
+    if meta.get("artifact_version") != 2:
         raise RuntimeError("unsupported production model artifact version")
     if meta.get("code_fingerprint_sha256") != fingerprint_sha256():
         raise RuntimeError("production model artifact code fingerprint mismatch")
@@ -71,11 +71,19 @@ def validate_artifact(payload: dict) -> None:
             raise RuntimeError(f"production classifier artifact missing components: {name}")
     if "global" not in quantile or "assets" not in quantile:
         raise RuntimeError("production quantile artifact is incomplete")
-    if return_section.get("selected") not in {"mean", "q50", "blend_mean_q50"}:
+    allowed_return = {
+        "mean", "q50", "blend_mean_q50",
+        "lightgbm_return", "lightgbm_return_recent",
+    }
+    selected_return = return_section.get("selected")
+    if selected_return not in allowed_return:
         raise RuntimeError("production return estimator selection is invalid")
-    if set(return_section.get("global") or {}) != {"mean", "q50"}:
-        raise RuntimeError("production return estimator artifacts are incomplete")
-    if meta.get("return_selected_estimator") != return_section.get("selected"):
+    fallback = return_section.get("fallback") or {}
+    if set(fallback) != {"mean", "q50"}:
+        raise RuntimeError("production return estimator fallbacks are incomplete")
+    if selected_return != "blend_mean_q50" and return_section.get("model") is None:
+        raise RuntimeError("production return estimator model is missing")
+    if meta.get("return_selected_estimator") != selected_return:
         raise RuntimeError("production return estimator metadata mismatch")
     runtime_versions = meta.get("runtime_dependency_versions") or {}
     for package in (
