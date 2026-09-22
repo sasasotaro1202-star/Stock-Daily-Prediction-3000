@@ -13,6 +13,8 @@ from sklearn.metrics import (
 )
 
 from src.prediction.regression import make_quantile_model, make_return_model
+from src.prediction.model_factories import return_models
+from src.prediction.fit import fit_regressor
 from src.prediction.model_factories import models
 from src.prediction.fit import fit_classifier
 
@@ -116,6 +118,8 @@ def main():
     return_estimators = {
         "mean": [],
         "q50": [],
+        "lightgbm_return": [],
+        "lightgbm_return_recent": [],
         "blend_mean_q50": [],
     }
     interval_estimators = {
@@ -144,9 +148,36 @@ def main():
         q50.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
         q90.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
 
+        lgbm_candidates = {}
+        for candidate_name in ("lightgbm_return", "lightgbm_return_recent"):
+            factory = return_models().get(candidate_name)
+            if factory is not None:
+                candidate_model = factory()
+                fit_regressor(
+                    candidate_model,
+                    candidate_name,
+                    core_q[FEATURE_COLUMNS],
+                    core_q["target_ret_1d"],
+                    core_q["session_date"],
+                    half_life_sessions=int(
+                        model_cfg.get("recency_weight_half_life_sessions", 252)
+                    ),
+                )
+                lgbm_candidates[candidate_name] = candidate_model
+
         mean_pred = mean_model.predict(test[FEATURE_COLUMNS])
         q50_pred = q50.predict(test[FEATURE_COLUMNS])
-        blend_pred = 0.5 * mean_pred + 0.5 * q50_pred
+        candidate_preds = {
+            "mean": mean_pred,
+            "q50": q50_pred,
+            "blend_mean_q50": 0.5 * mean_pred + 0.5 * q50_pred,
+        }
+        candidate_preds.update(
+            {
+                name: model.predict(test[FEATURE_COLUMNS])
+                for name, model in lgbm_candidates.items()
+            }
+        )
         y_ret = test["target_ret_1d"].to_numpy(dtype=float)
         group_keys = (
             test["session_date"].astype(str)
@@ -156,11 +187,7 @@ def main():
             else test["session_date"].astype(str)
         )
 
-        for name, pred in (
-            ("mean", mean_pred),
-            ("q50", q50_pred),
-            ("blend_mean_q50", blend_pred),
-        ):
+        for name, pred in candidate_preds.items():
             return_estimators[name].append({
                 "mae": float(mean_absolute_error(y_ret, pred)),
                 "rmse": float(mean_squared_error(y_ret, pred) ** 0.5),
@@ -667,21 +694,40 @@ def main():
                 return_fit["target_ret_1d"],
             )
             expected = return_model.predict(test[FEATURE_COLUMNS])
+        elif selected_return_estimator == "q50":
+            q50 = make_quantile_model(0.50)
+            q50.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
+            expected = q50.predict(test[FEATURE_COLUMNS])
+        elif selected_return_estimator in {"lightgbm_return", "lightgbm_return_recent"}:
+            factory = return_models().get(selected_return_estimator)
+            if factory is None:
+                raise SystemExit(
+                    f"DEFERRED: selected return challenger unavailable: {selected_return_estimator}"
+                )
+            return_model = factory()
+            fit_regressor(
+                return_model,
+                selected_return_estimator,
+                return_fit[FEATURE_COLUMNS],
+                return_fit["target_ret_1d"],
+                return_fit["session_date"],
+                half_life_sessions=int(
+                    model_cfg.get("recency_weight_half_life_sessions", 252)
+                ),
+            )
+            expected = return_model.predict(test[FEATURE_COLUMNS])
         else:
             q50 = make_quantile_model(0.50)
             q50.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
             q50_pred = q50.predict(test[FEATURE_COLUMNS])
-            if selected_return_estimator == "q50":
-                expected = q50_pred
-            else:
-                mean_model = make_return_model()
-                mean_model.fit(
-                    return_fit[FEATURE_COLUMNS],
-                    return_fit["target_ret_1d"],
-                )
-                expected = 0.5 * mean_model.predict(
-                    test[FEATURE_COLUMNS]
-                ) + 0.5 * q50_pred
+            mean_model = make_return_model()
+            mean_model.fit(
+                return_fit[FEATURE_COLUMNS],
+                return_fit["target_ret_1d"],
+            )
+            expected = 0.5 * mean_model.predict(
+                test[FEATURE_COLUMNS]
+            ) + 0.5 * q50_pred
 
         q10 = make_quantile_model(0.10)
         q90 = make_quantile_model(0.90)
