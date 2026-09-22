@@ -124,11 +124,10 @@ def main():
 
     # Evaluate the exact frozen production routing policy on the immutable
     # holdout, rather than evaluating only the globally-selected classifier.
-    vol_threshold = (
-        float(core["volatility_20"].dropna().quantile(0.75))
-        if core["volatility_20"].notna().any()
-        else 0.02
-    )
+    vol_threshold = frozen.get("regime_vol_threshold")
+    if not isinstance(vol_threshold, (int, float)) or not np.isfinite(float(vol_threshold)):
+        raise SystemExit("FAIL: frozen regime volatility threshold is missing")
+    vol_threshold = float(vol_threshold)
     frozen_routes = frozen
     routed_probabilities = []
     routed_models = []
