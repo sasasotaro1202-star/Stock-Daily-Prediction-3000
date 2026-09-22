@@ -228,3 +228,51 @@ def test_recency_weights_decay_and_normalize():
     assert np.isclose(weights.mean(), 1.0)
     assert weights[0] < weights[-1]
     assert np.isclose(weights[1] / weights[3], 0.5, atol=1e-6)
+
+
+def test_data_quality_gate_handles_retrieved_at_rows_without_unbound_session_dates(
+    tmp_path, monkeypatch
+):
+    import json
+    import pandas as pd
+    import scripts.data_quality_gate as gate
+
+    root = tmp_path / "data" / "prices"
+    root.mkdir(parents=True)
+    universe = tmp_path / "data" / "universe" / "latest.json"
+    universe.parent.mkdir(parents=True)
+    universe.write_text(
+        json.dumps(
+            {
+                "records": [
+                    {"symbol": "7203", "asset_class": "jp_stock", "tradeable": True}
+                ]
+            }
+        )
+    )
+    bars = pd.DataFrame(
+        [
+            {
+                "symbol": "7203",
+                "asset_class": "jp_stock",
+                "session_date": pd.Timestamp("2026-09-22").date(),
+                "available_at": pd.Timestamp("2026-09-22T07:00:00Z"),
+                "retrieved_at": pd.Timestamp("2026-09-22T07:30:00Z"),
+                "source": "yfinance",
+                "provider_symbol": "7203.T",
+                "open": 100.0,
+                "high": 101.0,
+                "low": 99.0,
+                "close": 100.5,
+                "volume": 1000.0,
+            }
+        ]
+    )
+    bars.to_parquet(root / "shard.parquet", index=False)
+    monkeypatch.chdir(tmp_path)
+    gate.UNIVERSE = universe
+
+    gate.main()
+    result = json.loads((tmp_path / "data" / "research" / "data_quality.json").read_text())
+    assert result["status"] == "PASS"
+    assert result["reasons"] == []

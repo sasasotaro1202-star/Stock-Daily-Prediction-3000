@@ -46,6 +46,8 @@ def main():
     if df.empty:
         reasons.append("empty_dataset")
     else:
+        session_ts=pd.to_datetime(df["session_date"],errors="coerce")
+        session_dates=session_ts.dt.date
         dup=int(df.duplicated(["asset_class","symbol","session_date"]).sum())
         numeric_cols=["open","high","low","close","volume"]
         missing_source=int(
@@ -95,8 +97,6 @@ def main():
         else:
             reasons.append("retrieved_at_missing")
             latest_retrieval_missing=1
-        session_ts=pd.to_datetime(df["session_date"],errors="coerce")
-        session_dates=session_ts.dt.date
         session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
         avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
         impossible_pit=int((avail_ts.lt(session_day_start)).fillna(False).sum())
