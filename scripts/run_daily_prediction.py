@@ -178,7 +178,7 @@ def main():
             raise SystemExit(f"DEFERRED: production classifier artifact missing {model_name}")
         model = entry["model"]
         calibrator = entry["calibrator"]
-        actual_scope = "global"
+        actual_scope = plan.scope
         raw_p = model.predict_proba(
             pd.DataFrame([row])[FEATURE_COLUMNS]
         )[:, 1]
