@@ -1,0 +1,71 @@
+name: Actions reliability watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 * * * *"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: actions-reliability-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Inspect recent critical workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          cutoff="$(date -u -d '96 hours ago' +%s)"
+          failures=0
+
+          inspect_workflow() {
+            local workflow_file="$1"
+            local workflow_name="$2"
+            local runs
+            runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20")"
+
+            while IFS= read -r encoded; do
+              [ -n "$encoded" ] || continue
+              run_json="$(printf '%s' "$encoded" | base64 -d)"
+              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
+              [ -n "$created" ] || continue
+              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+              [ "$created_epoch" -ge "$cutoff" ] || continue
+
+              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
+              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
+              attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
+              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+
+              echo "${workflow_name}: run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt}"
+
+              if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ] && [ "$attempt" -ge 2 ]; then
+                echo "::error title=${workflow_name} unresolved failure::run ${run_id} is still failing after bounded recovery"
+                failures=$((failures + 1))
+              fi
+            done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+          }
+
+          inspect_workflow "market-cycle.yml" "Market cycle"
+          inspect_workflow "us-close-prediction.yml" "U.S. close prediction"
+          inspect_workflow "prediction-monitoring.yml" "Prediction monitoring"
+
+          if [ "$failures" -gt 0 ]; then
+            echo "Actions reliability watchdog: FAIL (${failures} unresolved workflow failure(s))"
+            exit 1
+          fi
+
+          echo "Actions reliability watchdog: PASS"
