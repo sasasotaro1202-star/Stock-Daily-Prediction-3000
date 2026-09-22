@@ -64,6 +64,7 @@ jobs:
           PRICE_SHARD_INDEX: ${{ matrix.shard }}
           PRICE_SHARD_COUNT: 4
           PRICE_MAX_WORKERS: 2
+          PRICE_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/update_prices.py
       - uses: actions/upload-artifact@v4
         with:
@@ -102,6 +103,8 @@ jobs:
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Price data quality gate
+        env:
+          QUALITY_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/data_quality_gate.py
       - name: Production invariants
         run: python scripts/production_invariants.py
