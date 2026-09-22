@@ -15,6 +15,11 @@ ROOT=Path("data/prices")
 SHARD_INDEX=int(os.getenv("PRICE_SHARD_INDEX","0"))
 SHARD_COUNT=max(1,int(os.getenv("PRICE_SHARD_COUNT","1")))
 MAX_WORKERS=max(1,int(os.getenv("PRICE_MAX_WORKERS","2")))
+ASSET_SCOPE={
+    x.strip()
+    for x in os.getenv("PRICE_ASSET_CLASSES","").split(",")
+    if x.strip()
+}
 
 
 def one(i:int,batch:list[dict])->tuple[int,int,str]:
@@ -99,6 +104,15 @@ if __name__=="__main__":
     records=json.loads(
         U.read_text(encoding="utf-8")
     )["records"]
+    if ASSET_SCOPE:
+        records=[
+            row for row in records
+            if str(row.get("asset_class","")) in ASSET_SCOPE
+        ]
+        if not records:
+            raise SystemExit(
+                f"DEFERRED: no universe records match PRICE_ASSET_CLASSES={sorted(ASSET_SCOPE)}"
+            )
 
     all_batches=[records[i:i+75] for i in range(0,len(records),75)]
     selected=[
