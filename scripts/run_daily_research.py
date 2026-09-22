@@ -612,9 +612,14 @@ def main():
     uncertainty_penalty_grid = (0.0, 0.05, 0.10)
     for fold in folds:
         train_dates = dates[: fold.train_end]
-        cal_n = max(20, int(len(train_dates) * 0.2))
-        core_dates = set(train_dates[:-cal_n])
-        cal_dates = set(train_dates[-cal_n:])
+        selected_train_dates = (
+            train_dates
+            if selected_training_window == 0
+            else train_dates[-selected_training_window:]
+        )
+        cal_n = max(20, int(len(selected_train_dates) * 0.2))
+        core_dates = set(selected_train_dates[:-cal_n])
+        cal_dates = set(selected_train_dates[-cal_n:])
         test_dates = set(dates[fold.test_start : fold.test_end])
         core = df[df.session_date.isin(core_dates)]
         cal = df[df.session_date.isin(cal_dates)]
