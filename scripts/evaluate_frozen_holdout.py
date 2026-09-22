@@ -12,6 +12,7 @@ from src.prediction.model_factories import models
 from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
+from src.research.router import route_plan, regime_for_row
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
 
@@ -82,20 +83,101 @@ def main():
         model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
     )
 
-    model_metrics = classification_metrics(
+    global_model_metrics = classification_metrics(
         test.target_up_1d.astype(int), p
     )
 
-    q10=make_quantile_model(0.10)
-    q50=make_quantile_model(0.50)
-    q90=make_quantile_model(0.90)
+    # Evaluate the exact frozen production routing policy on the immutable
+    # holdout, rather than evaluating only the globally-selected classifier.
+    vol_threshold = (
+        float(core["volatility_20"].dropna().quantile(0.75))
+        if core["volatility_20"].notna().any()
+        else 0.02
+    )
+    frozen_routes = frozen
+    routed_probabilities = []
+    routed_models = []
+    routed_regimes = []
+    for _, row in test.iterrows():
+        regime = regime_for_row(
+            float(row["volatility_20"]) if pd.notna(row["volatility_20"]) else None,
+            float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
+            vol_threshold,
+            float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+        ).value
+        plan = route_plan(
+            str(row["asset_class"]) if "asset_class" in row and pd.notna(row["asset_class"]) else "",
+            regime,
+            locked_asset_regime=frozen_routes.get("asset_regime_selected_models"),
+            locked_asset=frozen_routes.get("asset_class_selected_models"),
+            locked_regime=frozen_routes.get("regime_selected_models"),
+            locked_global=frozen_routes.get("selected_model"),
+        )
+        model_name = plan.names[0]
+        entry = classifiers.get(model_name)
+        if entry is None:
+            raise SystemExit(
+                f"FAIL: frozen route requires classifier absent from evaluator: {model_name}"
+            )
+        one = pd.DataFrame([row])[FEATURE_COLUMNS]
+        raw = entry["model"].predict_proba(one)[:, 1]
+        calibrated = entry["calibrator"].predict(raw)[0]
+        routed_probabilities.append(float(np.clip(calibrated, 1e-5, 1 - 1e-5)))
+        routed_models.append(model_name)
+        routed_regimes.append(regime)
+
+    routed_probabilities = np.asarray(routed_probabilities, dtype=float)
+    routed_metrics = classification_metrics(
+        test.target_up_1d.astype(int), routed_probabilities
+    )
+    route_usage = {
+        name: int(sum(model == name for model in routed_models))
+        for name in sorted(set(routed_models))
+    }
+    regime_usage = {
+        name: int(sum(regime == name for regime in routed_regimes))
+        for name in sorted(set(routed_regimes))
+    }
+
+    q_global = {
+        "q10": make_quantile_model(0.10),
+        "q50": make_quantile_model(0.50),
+        "q90": make_quantile_model(0.90),
+    }
     core_q=cap_training_rows(core,max_rows=250_000,recent_sessions=252)
-    for qm in (q10,q50,q90):
+    for qm in q_global.values():
         qm.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
+
+    q_assets = {}
+    for asset, subset in core.groupby("asset_class", sort=False):
+        if len(subset) < 750:
+            continue
+        q_models = {
+            "q10": make_quantile_model(0.10),
+            "q50": make_quantile_model(0.50),
+            "q90": make_quantile_model(0.90),
+        }
+        subset_fit=cap_training_rows(subset,max_rows=200_000,recent_sessions=252)
+        for qm in q_models.values():
+            qm.fit(subset_fit[FEATURE_COLUMNS], subset_fit["target_ret_1d"])
+        q_assets[str(asset)] = q_models
+
     y_ret=test["target_ret_1d"].to_numpy(dtype=float)
-    lo=q10.predict(test[FEATURE_COLUMNS])
-    mid=q50.predict(test[FEATURE_COLUMNS])
-    hi=q90.predict(test[FEATURE_COLUMNS])
+    lo=np.empty(len(test),dtype=float)
+    mid=np.empty(len(test),dtype=float)
+    hi=np.empty(len(test),dtype=float)
+    for asset, subset in test.groupby("asset_class", sort=False):
+        qmodels=q_assets.get(str(asset), q_global)
+        idx=subset.index
+        lo_vals=qmodels["q10"].predict(subset[FEATURE_COLUMNS])
+        mid_vals=qmodels["q50"].predict(subset[FEATURE_COLUMNS])
+        hi_vals=qmodels["q90"].predict(subset[FEATURE_COLUMNS])
+        lo[test.index.get_indexer(idx)] = lo_vals
+        mid[test.index.get_indexer(idx)] = mid_vals
+        hi[test.index.get_indexer(idx)] = hi_vals
     lo=np.minimum(lo,mid)
     hi=np.maximum(hi,mid)
     return_holdout_metrics={
@@ -124,16 +206,21 @@ def main():
         "holdout_start": frozen["holdout_start"],
         "holdout_end": frozen["holdout_end"],
         "holdout_rows": int(len(test)),
-        "model_metrics": model_metrics,
+        "global_model_metrics": global_model_metrics,
+        "production_route_metrics": routed_metrics,
+        "production_route_model_usage": route_usage,
+        "production_route_regime_usage": regime_usage,
         "baseline_metrics": baseline_metrics,
         "return_holdout_metrics": return_holdout_metrics,
         "beats_baseline": bool(
-            model_metrics["logloss"] < baseline_metrics["logloss"]
+            routed_metrics["logloss"] < baseline_metrics["logloss"]
         ),
         "calibration_within_limit": bool(
-            model_metrics["ece"] <= max_ece
+            routed_metrics["ece"] <= max_ece
         ),
         "max_ece": max_ece,
+        "holdout_evaluation_mode": "frozen_production_routes",
+        "return_holdout_mode": "production_asset_quantile_routing",
         "feature_pipeline": "technical + market_context + cross_sectional_context",
     }
     result.parent.mkdir(parents=True, exist_ok=True)
