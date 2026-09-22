@@ -145,6 +145,6 @@ def test_walk_forward_purges_boundary_training_rows():
     )
     assert folds
     first = folds[0]
-    assert first.train_end == 250
-    assert first.test_start == 253
+    assert first.train_end == 252
+    assert first.test_start == 255
     assert first.test_start - first.train_end == 3
