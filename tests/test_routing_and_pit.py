@@ -130,3 +130,21 @@ def test_locked_regime_threshold_is_forwarded_to_route():
     )
     assert plan.names == ("logistic",)
     assert plan.scope == "regime:high_vol"
+
+
+def test_walk_forward_purges_boundary_training_rows():
+    from src.validation.walk_forward import make_date_folds
+
+    folds = make_date_folds(
+        list(range(320)),
+        min_train=252,
+        test_size=21,
+        step=21,
+        embargo=1,
+        purge=2,
+    )
+    assert folds
+    first = folds[0]
+    assert first.train_end == 250
+    assert first.test_start == 253
+    assert first.test_start - first.train_end == 3
