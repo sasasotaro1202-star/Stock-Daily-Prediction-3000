@@ -222,9 +222,11 @@ def audit_raw_inputs(
             prices["available_at"], errors="coerce", utc=True
         )
         impossible = int(
-            available_utc.notna()
-            & session_utc.notna()
-            & available_utc.lt(session_utc)
+            (
+                available_utc.notna()
+                & session_utc.notna()
+                & available_utc.lt(session_utc)
+            ).sum()
         )
         price_checks["available_before_session_date"] = impossible
         if impossible:
