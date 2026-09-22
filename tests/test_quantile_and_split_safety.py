@@ -124,3 +124,47 @@ def test_backtest_uses_next_session_outcome_availability_for_pit():
     assert result["status"] == "PASS"
     assert result["rows"] == 1
     assert result["days"] == 1
+
+
+def test_backtest_reports_cost_sensitivity():
+    from src.backtest.cross_sectional import evaluate_predictions
+
+    base = pd.Timestamp("2026-09-21")
+    bars = []
+    preds = []
+    for i in range(20):
+        symbol = f"C{i}"
+        bars.extend([
+            {
+                "symbol": symbol,
+                "asset_class": "jp_stock",
+                "session_date": base,
+                "close": 100.0,
+                "available_at": pd.Timestamp("2026-09-21T10:00:00Z"),
+            },
+            {
+                "symbol": symbol,
+                "asset_class": "jp_stock",
+                "session_date": base + pd.Timedelta(days=1),
+                "close": 101.0 + i,
+                "available_at": pd.Timestamp("2026-09-22T10:00:00Z"),
+            },
+        ])
+        preds.append({
+            "symbol": symbol,
+            "asset_class": "jp_stock",
+            "session_date": base,
+            "prediction_date": base,
+            "prediction_time": pd.Timestamp("2026-09-21T12:00:00Z"),
+            "expected_return_1d": float(i),
+        })
+
+    result = evaluate_predictions(
+        pd.DataFrame(preds),
+        pd.DataFrame(bars),
+        top_quantile=0.10,
+        cost_bps=5.0,
+    )
+    assert result["status"] == "PASS"
+    assert set(result["cost_sensitivity"]) == {"0", "5", "10", "20"}
+    assert result["cost_sensitivity"]["0"]["mean_daily_spread"] > result["cost_sensitivity"]["20"]["mean_daily_spread"]
