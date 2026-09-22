@@ -284,3 +284,67 @@ def test_production_ranking_uncertainty_uses_asset_quantiles_when_available():
     source = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
     assert 'asset_qmodels.get(str(asset), global_qmodels)' in source
     assert 'latest["ranking_uncertainty"] = np.nan' in source
+
+
+def test_future_value_poisoning_does_not_change_prior_features():
+    import numpy as np
+
+    base = sample()
+    base["asset_class"] = "jp_stock"
+    clean = add_technical_features(base)
+    poisoned = base.copy()
+    cutoff = 100
+    poisoned.loc[poisoned.index >= cutoff, "close"] *= 100.0
+    poisoned.loc[poisoned.index >= cutoff, "volume"] *= 0.01
+    changed = add_technical_features(poisoned)
+
+    cols = FEATURE_COLUMNS
+    pd.testing.assert_frame_equal(
+        clean.loc[:cutoff - 1, cols].reset_index(drop=True),
+        changed.loc[:cutoff - 1, cols].reset_index(drop=True),
+        check_dtype=False,
+        check_exact=False,
+        rtol=1e-12,
+        atol=1e-12,
+    )
+
+
+def test_future_market_context_poisoning_does_not_change_prior_features():
+    from src.features.context import add_market_context
+
+    prices = pd.DataFrame({
+        "symbol": ["AAA", "AAA", "AAA"],
+        "asset_class": ["jp_stock"] * 3,
+        "session_date": pd.to_datetime(
+            ["2026-09-22", "2026-09-23", "2026-09-24"]
+        ).date,
+        "available_at": pd.to_datetime([
+            "2026-09-22T07:00:00Z",
+            "2026-09-23T07:00:00Z",
+            "2026-09-24T07:00:00Z",
+        ]),
+    })
+    context = pd.DataFrame({
+        "session_date": pd.to_datetime([
+            "2026-09-21", "2026-09-22", "2026-09-23"
+        ]).date,
+        "family": ["sp500", "sp500", "sp500"],
+        "available_at": pd.to_datetime([
+            "2026-09-22T05:30:00Z",
+            "2026-09-23T05:30:00Z",
+            "2026-09-24T05:30:00Z",
+        ]),
+        "ret_1d": [0.01, 0.02, 0.03],
+        "volatility_20": [0.10, 0.20, 0.30],
+        "close": [100.0, 110.0, 120.0],
+    })
+    poisoned = context.copy()
+    poisoned.loc[poisoned["session_date"].eq(pd.Timestamp("2026-09-23").date()), "ret_1d"] = 9.99
+    clean = add_market_context(prices, context)
+    changed = add_market_context(prices, poisoned)
+
+    pd.testing.assert_series_equal(
+        clean.loc[:1, "sp500_ret_1d_lag1"].reset_index(drop=True),
+        changed.loc[:1, "sp500_ret_1d_lag1"].reset_index(drop=True),
+        check_dtype=False,
+    )
