@@ -446,3 +446,35 @@ def test_independent_raw_input_audit_is_temporal_and_fail_closed():
     bad_target = audit_raw_inputs(target_leak, context, now=now)
     assert bad_target.ok is False
     assert any("raw_target_column_present" in x for x in bad_target.violations)
+
+
+def test_soft_blend_challenger_is_cloneable_and_picklable():
+    import pickle
+    from src.prediction.model_factories import models
+
+    factories = models()
+    name = "blend_hgb_lgbm_regularized_recent"
+    assert name in factories
+
+    estimator = factories[name]()
+    assert estimator.left_weight == 0.5
+    assert estimator.right_weight == 0.5
+    pickle.loads(pickle.dumps(estimator))
+
+
+def test_soft_blend_challenger_is_registered_and_lightgbm_artifact_checked():
+    from pathlib import Path
+
+    pipeline = Path("config/pipeline.yml").read_text(encoding="utf-8")
+    artifact = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")
+
+    assert "blend_hgb_lgbm_regularized_recent" in pipeline
+    assert 'if any("lightgbm" in str(name).lower() for name in classifiers):' in artifact
+
+
+def test_soft_blend_challenger_reaches_oos_selection_candidates():
+    from src.research.router import CANDIDATES
+
+    name = "blend_hgb_lgbm_regularized_recent"
+    for regime in ("normal", "high_vol", "trend", "event"):
+        assert name in CANDIDATES[regime]

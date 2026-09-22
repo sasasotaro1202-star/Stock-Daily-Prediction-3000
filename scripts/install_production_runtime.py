@@ -30,7 +30,7 @@ def main():
         specs.append(f"{name}=={version}")
     lightgbm_version=versions.get("lightgbm")
     required_models=set(meta.get("required_classifiers") or [])
-    if any(str(name).startswith("lightgbm") for name in required_models):
+    if any("lightgbm" in str(name).lower() for name in required_models):
         if not lightgbm_version:
             raise SystemExit("DEFERRED: LightGBM runtime version missing")
         specs.append(f"lightgbm=={lightgbm_version}")
