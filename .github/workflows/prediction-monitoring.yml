@@ -40,9 +40,16 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
           mkdir -p data/prices
+          failed=0
           for i in 0 1 2 3; do
-            PRICE_SHARD_INDEX="$i" python scripts/restore_latest_price_state.py || true
+            if ! PRICE_SHARD_INDEX="$i" python scripts/restore_latest_price_state.py; then
+              failed=1
+            fi
           done
+          if [ "$failed" -ne 0 ]; then
+            echo "DEFERRED: one or more price-state shards could not be restored"
+            exit 1
+          fi
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Data quality
