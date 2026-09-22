@@ -658,3 +658,15 @@ def test_production_invariants_include_actions_watchdog():
     source = Path("scripts/production_invariants.py").read_text(encoding="utf-8")
     assert "actions_reliability_watchdog" in source
     assert "actions-reliability-watchdog.yml" in source
+
+def test_actions_watchdog_detects_stale_and_recovery_failures():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "120 minutes ago" in source
+    assert 'updated_at // empty' in source
+    assert "stale run" in source
+    assert 'bounded-production-recovery.yml' in source
+    assert "Bounded production recovery" in source
