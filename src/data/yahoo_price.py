@@ -59,8 +59,9 @@ def download_batch(
         threads=False,
         actions=True,
     )
-    frames = []
     retrieved_at = pd.Timestamp.now(tz="UTC")
+    retrieval_run_id = os.getenv("GITHUB_RUN_ID")
+    frames = []
     retrieval_run_id = os.getenv("GITHUB_RUN_ID")
 
     def normalize(part: pd.DataFrame, rec: dict, provider_symbol: str):
@@ -82,9 +83,10 @@ def download_batch(
         part["available_at"] = part["session_date"].map(
             lambda d: available_at_for(d, rec["asset_class"])
         )
+        part["retrieved_at"] = retrieved_at
+        part["available_at_method"] = "conservative_post_close_inferred"
         part["source"] = "yfinance"
         part["provider_symbol"] = provider_symbol
-        part["retrieved_at"] = retrieved_at
         part["retrieval_run_id"] = retrieval_run_id
 
         for optional in ("dividends","stock splits","capital gains"):
@@ -95,9 +97,10 @@ def download_batch(
             "asset_class",
             "session_date",
             "available_at",
+            "retrieved_at",
+            "available_at_method",
             "source",
             "provider_symbol",
-            "retrieved_at",
             "retrieval_run_id",
             "open",
             "high",
@@ -165,6 +168,11 @@ def upsert_batch_parquet(new_data: pd.DataFrame, path: str) -> int:
             keep="last",
         )
     )
-    combined = combined.sort_values(["symbol", "session_date"])
+    sort_keys=(
+        ["asset_class","symbol","session_date"]
+        if "asset_class" in combined.columns
+        else ["symbol","session_date"]
+    )
+    combined = combined.sort_values(sort_keys)
     combined.to_parquet(path, index=False)
     return len(combined)

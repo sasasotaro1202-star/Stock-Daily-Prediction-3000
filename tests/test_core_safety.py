@@ -196,3 +196,18 @@ def test_causal_correlation_and_trend_factors():
     last = out.groupby(group_keys).tail(1)
     assert last[cols].notna().all().all()
     assert ((last["trend_r2_20"] >= 0) & (last["trend_r2_20"] <= 1)).all()
+
+
+def test_retrieval_provenance_audit_rejects_inconsistent_times():
+    import pandas as pd
+    from src.validation.leakage import audit_retrieval_provenance
+
+    frame = pd.DataFrame({
+        "available_at": [pd.Timestamp("2026-01-02T00:00:00Z")],
+        "retrieved_at": [pd.Timestamp("2026-01-02T00:00:00Z")],
+    })
+    assert audit_retrieval_provenance(frame)["ok"] is True
+    frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-03T00:00:00Z")
+    assert audit_retrieval_provenance(frame)["ok"] is True
+    frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-01T00:00:00Z")
+    assert audit_retrieval_provenance(frame)["ok"] is False

@@ -67,7 +67,36 @@ def main():
         invalid_avail=int(
             pd.to_datetime(df["available_at"],utc=True,errors="coerce").isna().sum()
         )
+        retrieved_missing=0
+        retrieved_before_available=0
+        retrieved_future=0
+        latest_retrieval_missing=0
+        if "retrieved_at" in df.columns:
+            retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
+            avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
+            # Historical cache rows may predate provenance tracking. They remain
+            # auditable as legacy rows; only the currently-used latest PIT row
+            # must carry retrieval provenance.
+            current_available_mask=avail.le(pd.Timestamp.now(tz="UTC"))
+            latest_idx=(
+                df.loc[current_available_mask & session_dates.notna()]
+                .groupby(["asset_class","symbol"])["session_date"].idxmax()
+            )
+            latest_retrieval_missing=int(retrieved.loc[latest_idx].isna().sum())
+            retrieved_before_available=int(
+                avail.gt(retrieved).fillna(False).sum()
+            )
+            retrieved_future=int(
+                retrieved.gt(
+                    pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=5)
+                ).fillna(False).sum()
+            )
+            retrieved_missing=int(retrieved.isna().sum())
+        else:
+            reasons.append("retrieved_at_missing")
+            latest_retrieval_missing=1
         session_ts=pd.to_datetime(df["session_date"],errors="coerce")
+        session_dates=session_ts.dt.date
         session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
         avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
         impossible_pit=int((avail_ts.lt(session_day_start)).fillna(False).sum())
@@ -78,13 +107,10 @@ def main():
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
+        legacy_retrieval_missing = retrieved_missing
+        reasons += [f"latest_retrieval_at_missing:{latest_retrieval_missing}"] if latest_retrieval_missing else []
+        reasons += [f"available_at_after_retrieved_at:{retrieved_before_available}"] if retrieved_before_available else []
         reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
-        if "retrieved_at" in df.columns:
-            retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
-            invalid_retrieved=int(retrieved.isna().sum())
-            future_retrieved=int(retrieved.gt(pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=5)).fillna(False).sum())
-            reasons += [f"invalid_retrieved_at:{invalid_retrieved}"] if invalid_retrieved else []
-            reasons += [f"retrieved_at_future:{future_retrieved}"] if future_retrieved else []
 
         snap=json.loads(UNIVERSE.read_text(encoding="utf-8"))
         expected={
@@ -99,7 +125,6 @@ def main():
         missing_now=sorted(expected-observed)
         now=pd.Timestamp(datetime.now(ZoneInfo("Asia/Tokyo")))
         avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
-        session_dates=pd.to_datetime(df["session_date"],errors="coerce").dt.date
         current_mask=avail.le(now.tz_convert("UTC"))
         latest_by_symbol=(
             df.loc[current_mask & session_dates.notna(),["asset_class","symbol","session_date"]]
@@ -123,8 +148,8 @@ def main():
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
         "available_at_before_session_date",
-        "invalid_retrieved_at",
-        "retrieved_at_future",
+        "latest_retrieval_at_missing",
+        "available_at_after_retrieved_at",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
@@ -135,6 +160,7 @@ def main():
         "rows":int(len(df)),
         "files":len(files),
         "reasons":reasons,
+        "legacy_retrieval_missing": int(locals().get("legacy_retrieval_missing", 0)),
     }
     Path("data/research").mkdir(parents=True,exist_ok=True)
     Path("data/research/data_quality.json").write_text(
