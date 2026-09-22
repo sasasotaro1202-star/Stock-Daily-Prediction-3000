@@ -14,6 +14,11 @@ CONTEXT_SYMBOLS={
     "nasdaq":"^IXIC",
     "vix":"^VIX",
     "usd_jpy":"USDJPY=X",
+    "us10y":"^TNX",
+    "dxy":"DX-Y.NYB",
+    "gold":"GC=F",
+    "oil":"CL=F",
+    "hyg":"HYG",
 }
 
 
@@ -24,10 +29,18 @@ def _available_at(session_date, family: str) -> pd.Timestamp:
             time(16,30),
             tzinfo=ZoneInfo("Asia/Tokyo"),
         )
-    elif family in {"sp500","nasdaq","vix"}:
+    elif family in {"sp500","nasdaq","vix","us10y"}:
         dt=datetime.combine(
             session_date,
             time(16,30),
+            tzinfo=ZoneInfo("America/New_York"),
+        )
+    elif family in {"dxy","gold","oil","hyg"}:
+        # Conservative U.S. cross-asset availability: after the regular
+        # U.S. session, avoiding any same-day close look-ahead for Japan.
+        dt=datetime.combine(
+            session_date,
+            time(18,0),
             tzinfo=ZoneInfo("America/New_York"),
         )
     else:
