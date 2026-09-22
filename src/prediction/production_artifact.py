@@ -52,7 +52,22 @@ def validate_artifact(payload: dict) -> None:
         raise RuntimeError("production model artifact code fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
-    gate_path = RELEASE_GATE_PATH
+    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
+        raise RuntimeError("production model artifact feature schema mismatch")
+    if meta.get("python_version") != f"{sys.version_info.major}.{sys.version_info.minor}":
+        raise RuntimeError("production model artifact Python major/minor mismatch")
+    if meta.get("numpy_version") != np.__version__:
+        raise RuntimeError("production model artifact NumPy version mismatch")
+    if meta.get("sklearn_version") != sklearn.__version__:
+        raise RuntimeError("production model artifact scikit-learn version mismatch")
+
+    required_classifiers = set(meta.get("required_classifiers") or [])
+    if "hgb" not in required_classifiers:
+        raise RuntimeError("production model artifact must include hgb fallback")
+    if set(classifiers) != required_classifiers:
+        raise RuntimeError("production model artifact classifier set mismatch")
+
+    # Check release evidence after basic artifact structure so structural\n    # failures remain deterministic in unit tests. Production acceptance is\n    # still fail-closed because this block must pass before returning.\n    gate_path = RELEASE_GATE_PATH
     try:
         gate_payload = __import__("json").loads(
             gate_path.read_text(encoding="utf-8")
@@ -70,20 +85,7 @@ def validate_artifact(payload: dict) -> None:
         "research_code_fingerprint_sha256"
     ):
         raise RuntimeError("production research fingerprint mismatch")
-    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
-        raise RuntimeError("production model artifact feature schema mismatch")
-    if meta.get("python_version") != f"{sys.version_info.major}.{sys.version_info.minor}":
-        raise RuntimeError("production model artifact Python major/minor mismatch")
-    if meta.get("numpy_version") != np.__version__:
-        raise RuntimeError("production model artifact NumPy version mismatch")
-    if meta.get("sklearn_version") != sklearn.__version__:
-        raise RuntimeError("production model artifact scikit-learn version mismatch")
 
-    required_classifiers = set(meta.get("required_classifiers") or [])
-    if "hgb" not in required_classifiers:
-        raise RuntimeError("production model artifact must include hgb fallback")
-    if set(classifiers) != required_classifiers:
-        raise RuntimeError("production model artifact classifier set mismatch")
     selected = meta.get("selected_model")
     if selected not in classifiers:
         raise RuntimeError("production model artifact selected model is missing")
