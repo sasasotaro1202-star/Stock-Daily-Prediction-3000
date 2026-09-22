@@ -51,6 +51,7 @@ def add_market_context(
             "volatility_20":f"__{family}_vol",
             "close":f"__{family}_close",
         })
+        part[f"__{family}_available_at"] = part["available_at"]
         out=pd.merge_asof(
             out.sort_values("available_at"),
             part,
@@ -71,6 +72,17 @@ def add_market_context(
     }
     for target,source in mapping.items():
         out[target]=out[source] if source in out.columns else float("nan")
+
+    macro_age_columns=[]
+    for family in ("us10y","dxy","gold","oil","hyg"):
+        ts_col=f"__{family}_available_at"
+        if ts_col in out.columns:
+            age=(out["available_at"]-pd.to_datetime(out[ts_col],utc=True,errors="coerce"))
+            name=f"{family}_context_age_hours"
+            out[name]=(age.dt.total_seconds()/3600.0).clip(lower=0.0,upper=24*14)
+            macro_age_columns.append(name)
+    if macro_age_columns:
+        out["macro_context_missing_count"]=out[macro_age_columns].isna().sum(axis=1).astype(float)
 
     drop=[c for c in out.columns if c.startswith("__")]
     return out.drop(columns=drop)
