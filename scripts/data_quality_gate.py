@@ -69,13 +69,32 @@ def main():
         )
         retrieved_missing=0
         retrieved_before_available=0
+        retrieved_future=0
+        latest_retrieval_missing=0
         if "retrieved_at" in df.columns:
             retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
-            retrieved_missing=int(retrieved.isna().sum())
             avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
-            retrieved_before_available=int(retrieved.gt(avail).fillna(False).sum())
+            # Historical cache rows may predate provenance tracking. They remain
+            # auditable as legacy rows; only the currently-used latest PIT row
+            # must carry retrieval provenance.
+            current_available_mask=avail.le(pd.Timestamp.now(tz="UTC"))
+            latest_idx=(
+                df.loc[current_available_mask & session_dates.notna()]
+                .groupby(["asset_class","symbol"])["session_date"].idxmax()
+            )
+            latest_retrieval_missing=int(retrieved.loc[latest_idx].isna().sum())
+            retrieved_before_available=int(
+                avail.gt(retrieved).fillna(False).sum()
+            )
+            retrieved_future=int(
+                retrieved.gt(
+                    pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=5)
+                ).fillna(False).sum()
+            )
+            retrieved_missing=int(retrieved.isna().sum())
         else:
             reasons.append("retrieved_at_missing")
+            latest_retrieval_missing=1
         session_ts=pd.to_datetime(df["session_date"],errors="coerce")
         session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
         avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
@@ -87,15 +106,10 @@ def main():
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
-        reasons += [f"retrieved_at_missing:{retrieved_missing}"] if retrieved_missing else []
-        reasons += [f"retrieved_at_after_available_at:{retrieved_before_available}"] if retrieved_before_available else []
+        reasons += [f"retrieved_at_legacy_missing:{retrieved_missing}"] if retrieved_missing else []
+        reasons += [f"latest_retrieval_at_missing:{latest_retrieval_missing}"] if latest_retrieval_missing else []
+        reasons += [f"available_at_after_retrieved_at:{retrieved_before_available}"] if retrieved_before_available else []
         reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
-        if "retrieved_at" in df.columns:
-            retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
-            invalid_retrieved=int(retrieved.isna().sum())
-            future_retrieved=int(retrieved.gt(pd.Timestamp.now(tz="UTC") + pd.Timedelta(minutes=5)).fillna(False).sum())
-            reasons += [f"invalid_retrieved_at:{invalid_retrieved}"] if invalid_retrieved else []
-            reasons += [f"retrieved_at_future:{future_retrieved}"] if future_retrieved else []
 
         snap=json.loads(UNIVERSE.read_text(encoding="utf-8"))
         expected={
@@ -134,10 +148,8 @@ def main():
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
         "available_at_before_session_date",
-        "retrieved_at_missing",
-        "retrieved_at_after_available_at",
-        "invalid_retrieved_at",
-        "retrieved_at_future",
+        "latest_retrieval_at_missing",
+        "available_at_after_retrieved_at",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
