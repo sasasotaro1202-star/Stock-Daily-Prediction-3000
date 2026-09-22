@@ -113,7 +113,7 @@ def _audit_temporal_frame(
             )
 
     available_after_now = int(
-        available.notna() & available.gt(now)
+        (available.notna() & available.gt(now)).sum()
     )
     checks["available_after_now"] = available_after_now
     if available_after_now:
@@ -130,13 +130,17 @@ def _audit_temporal_frame(
         )
         retrieved_missing = int(retrieved.isna().sum())
         retrieved_after_now = int(
-            retrieved.notna()
-            & retrieved.gt(now + pd.Timedelta(minutes=5))
+            (
+                retrieved.notna()
+                & retrieved.gt(now + pd.Timedelta(minutes=5))
+            ).sum()
         )
         available_after_retrieved = int(
-            available.notna()
-            & retrieved.notna()
-            & available.gt(retrieved)
+            (
+                available.notna()
+                & retrieved.notna()
+                & available.gt(retrieved)
+            ).sum()
         )
         checks["retrieved_missing"] = retrieved_missing
         checks["retrieved_after_now"] = retrieved_after_now
