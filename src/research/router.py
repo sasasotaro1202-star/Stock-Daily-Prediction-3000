@@ -159,6 +159,7 @@ def choose_from_oos(
     candidates: tuple[str, ...] | None = None,
     scope: str = "global",
     min_folds: int = 3,
+    rank_ic_tiebreak_tolerance: float = 0.002,
 ) -> ModelPlan:
     try:
         reg = Regime(regime)
@@ -184,11 +185,26 @@ def choose_from_oos(
         )
 
     usable.sort(key=lambda x: x[1])
-    name, _ = usable[0]
+    best_score = usable[0][1]
+    close_names = {
+        name for name, score in usable
+        if score <= best_score + max(0.0, float(rank_ic_tiebreak_tolerance))
+    }
+    if len(close_names) > 1:
+        name = max(
+            close_names,
+            key=lambda candidate: float(
+                candidate_metrics[candidate].get("rank_ic", float("-inf"))
+            ),
+        )
+        reason = f"{regime}:minimum_stable_oos_logloss_rank_ic_tiebreak"
+    else:
+        name = usable[0][0]
+        reason = f"{regime}:minimum_stable_oos_logloss"
     return ModelPlan(
         (name,),
         (1.0,),
-        f"{regime}:minimum_stable_oos_logloss",
+        reason,
         scope,
     )
 
