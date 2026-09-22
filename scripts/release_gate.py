@@ -59,6 +59,12 @@ def main():
         reasons.append("holdout_not_using_frozen_production_routes")
     if frozen.get("return_holdout_mode") != "production_asset_quantile_routing":
         reasons.append("holdout_return_not_using_production_quantile_routes")
+    return_selected=(
+        frozen.get("return_holdout_metrics", {}).get("selected_estimator")
+        or frozen.get("return_selected_estimator")
+    )
+    if return_selected not in {"mean", "q50", "blend_mean_q50"}:
+        reasons.append("return_estimator_not_frozen")
     holdout_return=frozen.get("return_holdout_metrics",{})
     if not all(
         k in holdout_return and isinstance(holdout_return[k],(int,float))

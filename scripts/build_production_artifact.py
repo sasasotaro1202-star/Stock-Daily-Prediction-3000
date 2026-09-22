@@ -20,7 +20,7 @@ from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
 from src.prediction.production_artifact import ARTIFACT_PATH, release_signature
-from src.prediction.regression import make_quantile_models
+from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
 from src.validation.calibration import PlattCalibrator
 from src.validation.code_fingerprint import fingerprint_sha256
@@ -123,8 +123,13 @@ def main():
         )
         classifiers[name] = {"model": model, "calibrator": calibrator}
 
+    return_selected = frozen.get("return_selected_estimator", "q50")
+    if return_selected not in {"mean", "q50", "blend_mean_q50"}:
+        raise SystemExit("FAIL: frozen return estimator is invalid")
+    mean_return_model = make_return_model()
     q_global = make_quantile_models()
     q_fit = cap_training_rows(labeled, max_rows=250_000, recent_sessions=252)
+    mean_return_model.fit(q_fit[FEATURE_COLUMNS], q_fit["target_ret_1d"])
     for model in q_global.values():
         model.fit(q_fit[FEATURE_COLUMNS], q_fit["target_ret_1d"])
 
@@ -156,10 +161,18 @@ def main():
             "required_classifiers": sorted(required_classifiers),
             "regime_vol_threshold": threshold,
             "selected_model": metrics.get("selected_model"),
+            "return_selected_estimator": return_selected,
             "training_rows": int(len(labeled)),
             "training_latest_session": str(max(labeled["session_date"])),
         },
         "classifiers": classifiers,
+        "return": {
+            "selected": return_selected,
+            "global": {
+                "mean": mean_return_model,
+                "q50": q_global["q50"],
+            },
+        },
         "quantile": {
             "global": q_global,
             "assets": q_assets,

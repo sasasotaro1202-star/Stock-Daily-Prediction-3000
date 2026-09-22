@@ -36,10 +36,15 @@ def test_artifact_validation_requires_exact_required_classifier_set(
             "sklearn_version": sklearn.__version__,
             "required_classifiers": ["hgb"],
             "selected_model": "hgb",
+            "return_selected_estimator": "q50",
         },
         "classifiers": {
             "logistic": {"model": object(), "calibrator": object()},
             "hgb": {"model": object(), "calibrator": object()},
+        },
+        "return": {
+            "selected": "q50",
+            "global": {"mean": object(), "q50": object()},
         },
         "quantile": {"global": {}, "assets": {}},
     }

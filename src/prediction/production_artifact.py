@@ -35,10 +35,13 @@ def validate_artifact(payload: dict) -> None:
     meta = payload.get("metadata")
     classifiers = payload.get("classifiers")
     quantile = payload.get("quantile")
+    return_section = payload.get("return")
     if not isinstance(meta, dict) or not isinstance(classifiers, dict):
         raise RuntimeError("production model artifact metadata/classifiers are missing")
     if not isinstance(quantile, dict):
         raise RuntimeError("production model artifact quantile section is missing")
+    if not isinstance(return_section, dict):
+        raise RuntimeError("production return estimator section is missing")
 
     if meta.get("artifact_version") != 1:
         raise RuntimeError("unsupported production model artifact version")
@@ -68,6 +71,12 @@ def validate_artifact(payload: dict) -> None:
             raise RuntimeError(f"production classifier artifact missing components: {name}")
     if "global" not in quantile or "assets" not in quantile:
         raise RuntimeError("production quantile artifact is incomplete")
+    if return_section.get("selected") not in {"mean", "q50", "blend_mean_q50"}:
+        raise RuntimeError("production return estimator selection is invalid")
+    if set(return_section.get("global") or {}) != {"mean", "q50"}:
+        raise RuntimeError("production return estimator artifacts are incomplete")
+    if meta.get("return_selected_estimator") != return_section.get("selected"):
+        raise RuntimeError("production return estimator metadata mismatch")
     if "lightgbm" in classifiers:
         if meta.get("lightgbm_version") is None:
             raise RuntimeError("production model artifact LightGBM version is missing")
