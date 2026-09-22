@@ -67,6 +67,15 @@ def main():
         invalid_avail=int(
             pd.to_datetime(df["available_at"],utc=True,errors="coerce").isna().sum()
         )
+        retrieved_missing=0
+        retrieved_before_available=0
+        if "retrieved_at" in df.columns:
+            retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
+            retrieved_missing=int(retrieved.isna().sum())
+            avail=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
+            retrieved_before_available=int(retrieved.gt(avail).fillna(False).sum())
+        else:
+            reasons.append("retrieved_at_missing")
         session_ts=pd.to_datetime(df["session_date"],errors="coerce")
         session_day_start=session_ts.dt.tz_localize("UTC",ambiguous="NaT",nonexistent="NaT")
         avail_ts=pd.to_datetime(df["available_at"],utc=True,errors="coerce")
@@ -78,6 +87,8 @@ def main():
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
+        reasons += [f"retrieved_at_missing:{retrieved_missing}"] if retrieved_missing else []
+        reasons += [f"retrieved_at_after_available_at:{retrieved_before_available}"] if retrieved_before_available else []
         reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
         if "retrieved_at" in df.columns:
             retrieved=pd.to_datetime(df["retrieved_at"],utc=True,errors="coerce")
@@ -123,6 +134,8 @@ def main():
     critical_prefixes=(
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
         "available_at_before_session_date",
+        "retrieved_at_missing",
+        "retrieved_at_after_available_at",
         "invalid_retrieved_at",
         "retrieved_at_future",
         "universe_symbols_missing_from_price_history",
