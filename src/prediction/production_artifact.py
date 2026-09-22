@@ -32,6 +32,42 @@ def release_signature() -> str:
     return h.hexdigest()
 
 
+def _validate_artifact_structure(
+    meta: dict,
+    classifiers: dict,
+    quantile: dict,
+    return_section: dict,
+) -> None:
+    if meta.get("artifact_version") != 1:
+        raise RuntimeError("unsupported production model artifact version")
+    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
+        raise RuntimeError("production model artifact feature schema mismatch")
+
+    required_classifiers = set(meta.get("required_classifiers") or [])
+    if "hgb" not in required_classifiers:
+        raise RuntimeError("production model artifact must include hgb fallback")
+    if set(classifiers) != required_classifiers:
+        raise RuntimeError("production model artifact classifier set mismatch")
+
+    selected = meta.get("selected_model")
+    if selected not in classifiers:
+        raise RuntimeError("production model artifact selected model is missing")
+    for name, entry in classifiers.items():
+        if not isinstance(entry, dict) or "model" not in entry or "calibrator" not in entry:
+            raise RuntimeError(f"production classifier artifact missing components: {name}")
+
+    if "global" not in quantile or "assets" not in quantile:
+        raise RuntimeError("production quantile artifact is incomplete")
+    if return_section.get("selected") not in {"mean", "q50", "blend_mean_q50"}:
+        raise RuntimeError("production return estimator selection is invalid")
+    if set(return_section.get("global") or {}) != {"mean", "q50"}:
+        raise RuntimeError("production return estimator artifacts are incomplete")
+    if meta.get("return_selected_estimator") != return_section.get("selected"):
+        raise RuntimeError("production return estimator metadata mismatch")
+    if meta.get("calibration_method") not in {"platt", "beta", "isotonic"}:
+        raise RuntimeError("production calibration method is invalid")
+
+
 def validate_artifact(payload: dict) -> None:
     if not isinstance(payload, dict):
         raise RuntimeError("production model artifact is not a mapping")
@@ -46,24 +82,12 @@ def validate_artifact(payload: dict) -> None:
     if not isinstance(return_section, dict):
         raise RuntimeError("production return estimator section is missing")
 
-    if meta.get("artifact_version") != 1:
-        raise RuntimeError("unsupported production model artifact version")
-    if meta.get("release_signature") != release_signature():
-        raise RuntimeError("production model artifact release evidence mismatch")
-    if meta.get("feature_columns") != list(FEATURE_COLUMNS):
-        raise RuntimeError("production model artifact feature schema mismatch")
-    if meta.get("python_version") != f"{sys.version_info.major}.{sys.version_info.minor}":
-        raise RuntimeError("production model artifact Python major/minor mismatch")
-    if meta.get("numpy_version") != np.__version__:
-        raise RuntimeError("production model artifact NumPy version mismatch")
-    if meta.get("sklearn_version") != sklearn.__version__:
-        raise RuntimeError("production model artifact scikit-learn version mismatch")
-
-    required_classifiers = set(meta.get("required_classifiers") or [])
-    if "hgb" not in required_classifiers:
-        raise RuntimeError("production model artifact must include hgb fallback")
-    if set(classifiers) != required_classifiers:
-        raise RuntimeError("production model artifact classifier set mismatch")
+    _validate_artifact_structure(
+        meta,
+        classifiers,
+        quantile,
+        return_section,
+    )
 
     # Check release evidence after basic artifact structure so structural
     # failures remain deterministic in unit tests. Production acceptance is
