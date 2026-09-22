@@ -21,7 +21,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e .
+      - run: pip install -e ".[research]"
       - run: python scripts/freeze_holdout.py --cutoff-date "${{ inputs.cutoff_date }}"
       - run: python scripts/run_daily_research.py
       - run: python scripts/lock_frozen_model.py
