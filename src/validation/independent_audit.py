@@ -208,13 +208,13 @@ def audit_raw_inputs(
     # Check that the primary PIT timestamp is never earlier than the dated
     # observation's UTC midnight. This catches impossible timestamps without
     # making assumptions about exchange-local close times.
-    session_utc = pd.to_datetime(
-        prices.get("session_date"), errors="coerce", utc=True
-    )
-    available_utc = pd.to_datetime(
-        prices.get("available_at"), errors="coerce", utc=True
-    )
-    if session_utc is not None and available_utc is not None:
+    if {"session_date", "available_at"}.issubset(prices.columns):
+        session_utc = pd.to_datetime(
+            prices["session_date"], errors="coerce", utc=True
+        )
+        available_utc = pd.to_datetime(
+            prices["available_at"], errors="coerce", utc=True
+        )
         impossible = int(
             available_utc.notna()
             & session_utc.notna()
