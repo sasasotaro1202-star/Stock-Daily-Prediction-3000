@@ -77,7 +77,7 @@ def test_return_estimator_selector_guards_mae_and_uses_rank_ic():
     candidates = {
         "mean": {"mae": 0.010, "rank_ic": 0.040, "rank_ic_std": 0.010, "folds": 4},
         "q50": {"mae": 0.011, "rank_ic": 0.070, "rank_ic_std": 0.020, "folds": 4},
-        "blend_mean_q50": {"mae": 0.0115, "rank_ic": 0.090, "rank_ic_std": 0.015, "folds": 4},
+        "blend_mean_q50": {"mae": 0.0105, "rank_ic": 0.090, "rank_ic_std": 0.015, "folds": 4},
     }
     assert (
         choose_return_estimator(
