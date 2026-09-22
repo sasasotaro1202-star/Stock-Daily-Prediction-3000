@@ -211,6 +211,57 @@ def parse_rows(raw:bytes,market:str,url:str)->list[dict]:
     }.values())
 
 
+
+def parse_reader_text(raw: bytes, market: str, url: str) -> list[dict]:
+    text = raw.decode("utf-8", "ignore")
+    lines = [" ".join(line.split()).strip() for line in text.splitlines()]
+    section = ""
+    records = []
+    for i, line in enumerate(lines):
+        if not line:
+            continue
+        if line.startswith("#"):
+            section = line.lstrip("#").strip()
+        if "trade_on" not in line.lower() and "mini_on" not in line.lower():
+            continue
+        window = lines[max(0, i - 4): i + 1]
+        code = None
+        name = None
+        for candidate in window:
+            fields = [x.strip(" |") for x in re.split(r"\s*\|\s*", candidate)]
+            for field in fields:
+                if not field:
+                    continue
+                if market == "japan" and re.fullmatch(r"[0-9]{4}[A-Z]?", field):
+                    code = field
+                elif market == "us" and re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,7}", field):
+                    if field not in {"ETF", "NISA", "CFD", "USD", "JPY"}:
+                        code = field
+                elif name is None and len(field) >= 2:
+                    low = field.lower()
+                    if not low.startswith(("trade_", "mini_", "cfd_")) and field not in {"コード", "銘柄", "ticker"}:
+                        name = field
+        if not code or not name:
+            continue
+        asset_class = _asset_class(market, section, name)
+        if not asset_class:
+            continue
+        channels = []
+        if "trade_on" in line.lower():
+            channels.append("trade_on")
+        if "mini_on" in line.lower():
+            channels.append("mini_on")
+        records.append({
+            "symbol": code,
+            "name": name,
+            "asset_class": asset_class,
+            "source_url": url,
+            "tradeable": True,
+            "trade_channels": channels,
+            "paypay_section": section,
+        })
+    return list({(x["asset_class"], x["symbol"]): x for x in records}.values())
+
 def build_snapshot(out_path:str)->dict:
     sources=[
         ("japan","https://www.paypay-sec.co.jp/stock/list/"),
