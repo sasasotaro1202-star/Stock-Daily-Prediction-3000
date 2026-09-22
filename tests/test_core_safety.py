@@ -670,3 +670,47 @@ def test_actions_watchdog_detects_stale_and_recovery_failures():
     assert "stale run" in source
     assert 'bounded-production-recovery.yml' in source
     assert "Bounded production recovery" in source
+
+
+def test_capafy_inspired_anti_overfit_battery_is_deterministic():
+    import numpy as np
+    from src.validation.anti_overfit import (
+        anti_overfit_battery,
+        multiple_trial_sharpe_adjustment,
+    )
+
+    dates = pd.date_range("2022-01-03", periods=800, freq="D")
+    rng = np.random.default_rng(7)
+    returns = 0.0008 + rng.normal(0.0, 0.01, len(dates))
+
+    first = anti_overfit_battery(
+        dates,
+        returns,
+        trials=100,
+        permutations=250,
+        seed=42,
+    )
+    second = anti_overfit_battery(
+        dates,
+        returns,
+        trials=100,
+        permutations=250,
+        seed=42,
+    )
+    assert first == second
+    assert first["rows"] == 800
+    assert first["years"] >= 3
+    assert 0.0 <= first["mcpt_pvalue"] <= 1.0
+    assert np.isfinite(first["selection_adjusted_sharpe"])
+
+    adj = multiple_trial_sharpe_adjustment(2.0, 800, 1)
+    assert adj["selection_penalty"] >= 0.0
+    assert adj["selection_adjusted_sharpe"] <= 2.0
+
+
+def test_backtest_contains_capafy_inspired_audit_hook():
+    from pathlib import Path
+
+    source = Path("scripts/run_backtest.py").read_text(encoding="utf-8")
+    assert "anti_overfit_battery" in source
+    assert "trials=1000" in source
