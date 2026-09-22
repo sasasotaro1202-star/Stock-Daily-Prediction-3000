@@ -276,3 +276,11 @@ def test_data_quality_gate_handles_retrieved_at_rows_without_unbound_session_dat
     result = json.loads((tmp_path / "data" / "research" / "data_quality.json").read_text())
     assert result["status"] == "PASS"
     assert result["reasons"] == []
+
+
+def test_production_ranking_uncertainty_uses_asset_quantiles_when_available():
+    from pathlib import Path
+
+    source = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
+    assert 'asset_qmodels.get(str(asset), global_qmodels)' in source
+    assert 'latest["ranking_uncertainty"] = np.nan' in source
