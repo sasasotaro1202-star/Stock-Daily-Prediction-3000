@@ -207,7 +207,7 @@ def test_retrieval_provenance_audit_rejects_inconsistent_times():
         "retrieved_at": [pd.Timestamp("2026-01-02T00:00:00Z")],
     })
     assert audit_retrieval_provenance(frame)["ok"] is True
-    frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-01T00:00:00Z")
-    assert audit_retrieval_provenance(frame)["ok"] is True
     frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-03T00:00:00Z")
+    assert audit_retrieval_provenance(frame)["ok"] is True
+    frame.loc[0, "retrieved_at"] = pd.Timestamp("2026-01-01T00:00:00Z")
     assert audit_retrieval_provenance(frame)["ok"] is False
