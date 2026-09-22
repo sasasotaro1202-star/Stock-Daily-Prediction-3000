@@ -62,3 +62,10 @@ def test_price_update_has_bounded_retry():
     source = Path("scripts/update_prices.py").read_text(encoding="utf-8")
     assert "for attempt in range(3)" in source
     assert "time.sleep(2 ** attempt)" in source
+
+
+def test_paypay_runtime_dependency_is_declared():
+    from pathlib import Path
+
+    text = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert "curl-cffi>=0.16.0" in text
