@@ -16,6 +16,7 @@ RELEASE_FILES = (
     Path("data/research/latest_metrics.json"),
     Path("data/research/frozen_holdout_result.json"),
     Path("config/frozen_holdout.json"),
+    Path("data/research/release_gate.json"),
 )
 
 
@@ -49,6 +50,24 @@ def validate_artifact(payload: dict) -> None:
         raise RuntimeError("production model artifact code fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
+    gate_path = Path("data/research/release_gate.json")
+    try:
+        gate_payload = __import__("json").loads(
+            gate_path.read_text(encoding="utf-8")
+        )
+    except Exception as exc:
+        raise RuntimeError("production release gate is unreadable") from exc
+    if gate_payload.get("approved") is not True:
+        raise RuntimeError("production model artifact requires an approved release gate")
+    lock_payload = __import__("json").loads(
+        Path("config/frozen_holdout.json").read_text(encoding="utf-8")
+    )
+    if meta.get("holdout_generation") != lock_payload.get("holdout_generation"):
+        raise RuntimeError("production holdout generation mismatch")
+    if meta.get("research_code_fingerprint_sha256") != lock_payload.get(
+        "research_code_fingerprint_sha256"
+    ):
+        raise RuntimeError("production research fingerprint mismatch")
     if meta.get("feature_columns") != list(FEATURE_COLUMNS):
         raise RuntimeError("production model artifact feature schema mismatch")
     if meta.get("python_version") != f"{sys.version_info.major}.{sys.version_info.minor}":
