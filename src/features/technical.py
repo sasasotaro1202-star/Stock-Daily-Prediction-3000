@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 
 FEATURE_COLUMNS=[
-    "ret_1d","ret_5d","ret_20d",
+    "ret_1d","ret_5d","ret_20d","ret_60d",
     "close_vs_sma5","close_vs_sma20","close_vs_sma60","close_vs_ema20",
     "macd_pct","macd_signal_pct","macd_hist_pct",
     "rsi_14","stoch_k","stoch_d","bb_width","atr_pct","adx_14","obv_z20","mfi_14",
@@ -12,8 +12,8 @@ FEATURE_COLUMNS=[
     "positive_return_fraction_20","downside_volatility_20",
     "upside_volatility_20","drawdown_from_high_20",
     "distance_from_low_20","close_location_mean_20",
-    "return_autocorr_20","return_volume_corr_20",
-    "trend_slope_20","trend_r2_20","up_down_imbalance_20",
+    "return_autocorr_20","return_volume_corr_20","return_log_volume_corr_5","return_log_volume_corr_10",
+    "trend_slope_20","trend_r2_20","trend_slope_60","trend_r2_60","resi_5_pct","resi_10_pct","up_down_imbalance_20",
     "price_vs_sma20","price_vs_sma60",
     "cs_ret_1d_rank","cs_vol_rank","cs_ret_1d_robust_z",
     "cs_volatility_20_robust_z","cs_volume_ratio_20_robust_z",
@@ -28,7 +28,7 @@ FEATURE_COLUMNS=[
     "asset_is_jp","asset_is_us","asset_is_stock",
     "asset_is_etf","asset_is_reit",
     "ret_vs_market_median","vol_vs_market_median",
-    "volatility_5","volatility_ratio_5_20",
+    "volatility_5","volatility_ratio_5_20","wvma_5","volume_std_ratio_5",
     "volume_z20","dollar_volume_ratio_20",
     "amihud_20","return_z20","range_z20",
     "close_location","intraday_return",
@@ -52,6 +52,7 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["ret_1d"]=close.pct_change()
     out["ret_5d"]=close.pct_change(5)
     out["ret_20d"]=close.pct_change(20)
+    out["ret_60d"]=close.pct_change(60)
     sma5=close.transform(lambda s:s.rolling(5,min_periods=5).mean())
     sma20=close.transform(lambda s:s.rolling(20,min_periods=20).mean())
     sma60=close.transform(lambda s:s.rolling(60,min_periods=60).mean())
@@ -110,6 +111,18 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["volatility_ratio_5_20"]=(
         out["volatility_5"]/out["volatility_20"].replace(0,np.nan)
     )
+    abs_ret_volume=(out["ret_1d"].abs()*out["volume"].astype(float))
+    abs_ret_volume_std=abs_ret_volume.groupby(
+        [out[k] for k in series_keys]
+    ).transform(lambda s:s.rolling(5,min_periods=5).std())
+    abs_ret_volume_mean=abs_ret_volume.groupby(
+        [out[k] for k in series_keys]
+    ).transform(lambda s:s.rolling(5,min_periods=5).mean())
+    out["wvma_5"]=abs_ret_volume_std/abs_ret_volume_mean.replace(0,np.nan)
+    volume_std_5=volume.transform(
+        lambda s:s.rolling(5,min_periods=5).std()
+    )
+    out["volume_std_ratio_5"]=volume_std_5/out["volume"].replace(0,np.nan)
     out["volume_ratio_20"]=volume.transform(
         lambda s:s/s.rolling(20,min_periods=20).mean()
     )
@@ -173,6 +186,22 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
     out["return_volume_corr_20"]=cov_ret_vol/(
         ret_std*vol_std
     ).replace(0,np.nan)
+
+    log_volume=np.log1p(out["volume"].astype(float))
+    out["return_log_volume_corr_5"]=out["ret_1d"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s: s.rolling(5,min_periods=5).corr(
+            log_volume.loc[s.index]
+        )
+    )
+    out["return_log_volume_corr_10"]=out["ret_1d"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s: s.rolling(10,min_periods=10).corr(
+            log_volume.loc[s.index]
+        )
+    )
     out["trend_slope_20"]=out["close"].groupby(
         [out[k] for k in series_keys]
     ).transform(
@@ -191,6 +220,54 @@ def add_technical_features(df:pd.DataFrame,group_col:str="symbol")->pd.DataFrame
         )
     )
     out["trend_r2_20"]=trend_r2
+
+    out["trend_slope_60"]=out["close"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s: np.log(s.replace(0,np.nan)).rolling(
+            60,min_periods=60
+        ).apply(
+            lambda x: float(np.polyfit(np.arange(len(x)),x,1)[0]),
+            raw=True,
+        )
+    )
+    trend_r2_60=out["close"].groupby(
+        [out[k] for k in series_keys]
+    ).transform(
+        lambda s: np.log(s.replace(0,np.nan)).rolling(
+            60,min_periods=60
+        ).apply(
+            lambda x: float(
+                np.corrcoef(np.arange(len(x)),x)[0,1] ** 2
+            ) if np.isfinite(x).all() and np.std(x)>0 else np.nan,
+            raw=True,
+        )
+    )
+    out["trend_r2_60"]=trend_r2_60
+
+    def _residual_pct(x: np.ndarray) -> float:
+        if not np.isfinite(x).all() or len(x) < 5 or abs(float(x[-1])) <= 1e-12:
+            return np.nan
+        xx=np.arange(len(x),dtype=float)
+        slope,intercept=np.polyfit(xx,x,1)
+        residual=float(x[-1]-(slope*xx[-1]+intercept))
+        return residual/float(x[-1])
+
+    log_close=out["close"].astype(float).groupby(
+        [out[k] for k in series_keys]
+    )
+    out["resi_5_pct"]=log_close.transform(
+        lambda s: s.rolling(5,min_periods=5).apply(
+            lambda x: _residual_pct(x),
+            raw=True,
+        )
+    )
+    out["resi_10_pct"]=log_close.transform(
+        lambda s: s.rolling(10,min_periods=10).apply(
+            lambda x: _residual_pct(x),
+            raw=True,
+        )
+    )
     out["up_down_imbalance_20"]=out["ret_1d"].groupby(
         [out[k] for k in series_keys]
     ).transform(
