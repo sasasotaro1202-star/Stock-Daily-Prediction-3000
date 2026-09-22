@@ -38,19 +38,23 @@ def models():
         ),
     }
     if LGBMClassifier is not None:
-        out["lightgbm"] = lambda: make_pipeline(
-            SimpleImputer(strategy="median"),
-            LGBMClassifier(
-                n_estimators=400,
-                learning_rate=0.03,
-                num_leaves=31,
-                min_child_samples=50,
-                subsample=0.9,
-                colsample_bytree=0.9,
-                reg_lambda=1.0,
-                random_state=42,
-                n_jobs=-1,
-                verbosity=-1,
-            ),
-        )
+        def make_lightgbm():
+            return make_pipeline(
+                SimpleImputer(strategy="median"),
+                LGBMClassifier(
+                    n_estimators=400,
+                    learning_rate=0.03,
+                    num_leaves=31,
+                    min_child_samples=50,
+                    subsample=0.9,
+                    colsample_bytree=0.9,
+                    reg_lambda=1.0,
+                    random_state=42,
+                    n_jobs=-1,
+                    verbosity=-1,
+                ),
+            )
+
+        out["lightgbm"] = make_lightgbm
+        out["lightgbm_recent"] = make_lightgbm
     return out
