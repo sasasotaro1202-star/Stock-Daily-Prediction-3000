@@ -150,22 +150,17 @@ def _audit_temporal_frame(
             )
 
     # Enforce chronological integrity independently of any feature implementation.
-    if set(key_columns).issubset(frame.columns):
-        ordered = frame.assign(_audit_session=session).sort_values(
-            key_columns[:-1] + ["_audit_session"]
-            if len(key_columns) > 1
-            else ["_audit_session"]
-        )
-        if len(key_columns) >= 2:
-            for _, group in ordered.groupby(
-                key_columns[:-1], sort=False, dropna=False
-            ):
-                values = group["_audit_session"]
-                if values.notna().any() and not values.is_monotonic_increasing:
-                    violations.append(
-                        f"{prefix}:non_monotonic_session_order:1"
-                    )
-                    break
+    if len(key_columns) >= 2 and set(key_columns).issubset(frame.columns):
+        observed = frame.assign(_audit_session=session)
+        for _, group in observed.groupby(
+            key_columns[:-1], sort=False, dropna=False
+        ):
+            values = group["_audit_session"]
+            if values.notna().any() and not values.is_monotonic_increasing:
+                violations.append(
+                    f"{prefix}:non_monotonic_session_order:1"
+                )
+                break
 
     return violations, checks
 
