@@ -52,10 +52,10 @@ def test_artifact_validation_requires_exact_required_classifier_set(
         artifact_module.validate_artifact(payload)
 
 
-def test_runtime_restores_lightgbm_for_recent_route():
+def test_runtime_restores_lightgbm_for_recent_and_composite_routes():
     from pathlib import Path
     script = Path("scripts/install_production_runtime.py").read_text()
-    assert 'startswith("lightgbm")' in script
+    assert 'if any("lightgbm" in str(name).lower() for name in required_models):' in script
 
 
 def test_artifact_validates_lightgbm_and_composite_lightgbm_routes():
