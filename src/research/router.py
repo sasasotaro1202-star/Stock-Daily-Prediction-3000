@@ -24,19 +24,19 @@ class ModelPlan:
 
 
 CANDIDATES = {
-    Regime.NORMAL: ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    Regime.HIGH_VOL: ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    Regime.TREND: ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    Regime.EVENT: ("lightgbm_recent", "lightgbm", "hgb", "extra_trees"),
+    Regime.NORMAL: ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.HIGH_VOL: ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.TREND: ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.EVENT: ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees"),
     Regime.DATA_STRESSED: ("hgb",),
 }
 
 ASSET_CANDIDATES = {
-    "jp_stock": ("lightgbm_recent", "lightgbm", "extra_trees", "hgb", "logistic"),
-    "jp_etf": ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    "jp_reit": ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    "us_stock": ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
-    "us_etf": ("lightgbm_recent", "lightgbm", "hgb", "extra_trees", "logistic"),
+    "jp_stock": ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "extra_trees", "hgb", "logistic"),
+    "jp_etf": ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "jp_reit": ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "us_stock": ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "us_etf": ("lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
 }
 
 

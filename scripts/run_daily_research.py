@@ -564,9 +564,13 @@ def main():
                 recent_sessions=min(252, lookback or 252),
             )
             model = factory()
-            model.fit(
+            fit_classifier(
+                model,
+                global_selected,
                 fit_rows[FEATURE_COLUMNS],
                 fit_rows.target_up_1d.astype(int),
+                fit_rows["session_date"],
+                half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
             )
             cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
             calibrator = PlattCalibrator().fit(
@@ -646,9 +650,13 @@ def main():
         core_fit = cap_training_rows(
             core, max_rows=300_000, recent_sessions=252
         )
-        model.fit(
+        fit_classifier(
+            model,
+            global_selected,
             core_fit[FEATURE_COLUMNS],
             core_fit.target_up_1d.astype(int),
+            core_fit["session_date"],
+            half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
         )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
         calibrator = PlattCalibrator().fit(
