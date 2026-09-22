@@ -53,14 +53,20 @@ def main():
     df = add_market_context(df, market_context)
     df = add_targets(add_cross_sectional_context(df))
     cutoff = pd.Timestamp(frozen["cutoff_date"]).date()
+    holdout_end = pd.Timestamp(frozen["holdout_end"]).date()
     df["date"] = pd.to_datetime(df["session_date"]).dt.date
 
     train = df[
         df["date"].le(cutoff)
     ].dropna(subset=FEATURE_COLUMNS + ["target_up_1d"])
+    # The immutable holdout is exactly (cutoff, holdout_end], never the
+    # entire post-cutoff history. Any rows after holdout_end are excluded so
+    # future observations cannot silently enter one-time holdout evaluation.
     test = df[
-        df["date"].gt(cutoff)
+        df["date"].gt(cutoff) & df["date"].le(holdout_end)
     ].dropna(subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"])
+    if not test.empty and max(test["date"]) > holdout_end:
+        raise SystemExit("FAIL: frozen holdout contains rows after holdout_end")
 
     if len(train) < 1000 or len(test) < 500:
         raise SystemExit("DEFERRED: frozen holdout is too small")
