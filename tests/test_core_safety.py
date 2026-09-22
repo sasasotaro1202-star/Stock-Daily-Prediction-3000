@@ -352,3 +352,12 @@ def test_future_market_context_poisoning_does_not_change_prior_features():
         changed.loc[:1, "sp500_ret_1d_lag1"].reset_index(drop=True),
         check_dtype=False,
     )
+
+
+def test_frozen_holdout_uses_shared_production_ranking_and_asset_quantiles():
+    from pathlib import Path
+
+    source = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    assert "from src.ranking.cross_sectional import cross_sectional_rank" in source
+    assert "q_assets.get(str(asset), q_global)" in source
+    assert "cross_sectional_rank(" in source
