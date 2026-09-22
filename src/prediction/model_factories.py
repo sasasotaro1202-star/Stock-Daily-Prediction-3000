@@ -55,6 +55,27 @@ def models():
                 ),
             )
 
+        def make_lightgbm_regularized():
+            return make_pipeline(
+                SimpleImputer(strategy="median"),
+                LGBMClassifier(
+                    n_estimators=500,
+                    learning_rate=0.02,
+                    num_leaves=15,
+                    min_child_samples=80,
+                    subsample=0.9,
+                    subsample_freq=1,
+                    colsample_bytree=0.8,
+                    reg_alpha=0.1,
+                    reg_lambda=2.0,
+                    random_state=42,
+                    n_jobs=-1,
+                    verbosity=-1,
+                ),
+            )
+
         out["lightgbm"] = make_lightgbm
         out["lightgbm_recent"] = make_lightgbm
+        out["lightgbm_regularized"] = make_lightgbm_regularized
+        out["lightgbm_regularized_recent"] = make_lightgbm_regularized
     return out
