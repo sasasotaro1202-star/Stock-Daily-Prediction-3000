@@ -478,3 +478,17 @@ def test_soft_blend_challenger_reaches_oos_selection_candidates():
     name = "blend_hgb_lgbm_regularized_recent"
     for regime in ("normal", "high_vol", "trend", "event"):
         assert name in CANDIDATES[regime]
+
+
+def test_prediction_history_restore_fails_closed_on_partial_restore():
+    from pathlib import Path
+
+    script = Path("scripts/restore_prediction_history.py").read_text(
+        encoding="utf-8"
+    )
+    assert "errors=[]" in script
+    assert "errors.append({" in script
+    assert (
+        "DEFERRED: one or more prediction-history artifacts could not be restored"
+        in script
+    )

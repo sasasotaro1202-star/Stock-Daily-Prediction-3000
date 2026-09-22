@@ -38,6 +38,7 @@ def main():
     target=Path("data/predictions")
     target.mkdir(parents=True,exist_ok=True)
     restored=0
+    errors=[]
 
     for artifact in sorted(
         candidates,
@@ -70,11 +71,20 @@ def main():
                                 dst.write(src.read())
                             restored+=1
         except Exception as exc:
+            errors.append({
+                "artifact_id": artifact.get("id"),
+                "error": repr(exc),
+            })
             print(
                 "prediction_history_restore_deferred",
                 artifact.get("id"),
                 repr(exc),
             )
+
+    if errors:
+        raise SystemExit(
+            "DEFERRED: one or more prediction-history artifacts could not be restored"
+        )
 
     print(f"prediction-history-restored={restored}")
 
