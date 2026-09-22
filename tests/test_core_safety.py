@@ -54,3 +54,11 @@ def test_current_main_has_shared_model_and_route_holdout_contract():
     assert "from src.prediction.model_factories import models" in research
     assert "frozen_production_routes" in holdout
     assert "required_classifiers" in artifact
+
+
+def test_price_update_has_bounded_retry():
+    from pathlib import Path
+
+    source = Path("scripts/update_prices.py").read_text(encoding="utf-8")
+    assert "for attempt in range(3)" in source
+    assert "time.sleep(2 ** attempt)" in source
