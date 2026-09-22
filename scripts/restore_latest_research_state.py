@@ -22,7 +22,13 @@ def _download(url: str, token: str, timeout: int) -> bytes:
         return resp.read()
 
 
-def _has_approved_production_state(extract: Path) -> bool:
+def _has_approved_production_state(
+    extract: Path,
+    *,
+    expected_holdout_generation: object | None = None,
+    expected_research_fingerprint: str | None = None,
+    expected_full_fingerprint: str | None = None,
+) -> bool:
     src = extract / "data" / "research"
     if not src.exists():
         return False
@@ -30,6 +36,29 @@ def _has_approved_production_state(extract: Path) -> bool:
     metadata = src / "production_model_artifact.meta.json"
     gate = src / "release_gate.json"
     if not artifact.exists() or not metadata.exists() or not gate.exists():
+        return False
+    try:
+        metadata_payload = json.loads(
+            metadata.read_text(encoding="utf-8")
+        )
+    except (OSError, json.JSONDecodeError):
+        return False
+    if (
+        expected_holdout_generation is not None
+        and metadata_payload.get("holdout_generation") != expected_holdout_generation
+    ):
+        return False
+    if (
+        expected_research_fingerprint is not None
+        and metadata_payload.get("research_code_fingerprint_sha256")
+        != expected_research_fingerprint
+    ):
+        return False
+    if (
+        expected_full_fingerprint is not None
+        and metadata_payload.get("code_fingerprint_sha256")
+        != expected_full_fingerprint
+    ):
         return False
     try:
         payload = json.loads(gate.read_text(encoding="utf-8"))
@@ -41,6 +70,24 @@ def _has_approved_production_state(extract: Path) -> bool:
 def main():
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
+    lock_path = Path("config/frozen_holdout.json")
+    if not lock_path.exists():
+        raise SystemExit("DEFERRED: current frozen holdout lock is absent")
+    try:
+        lock_payload = json.loads(lock_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise SystemExit("DEFERRED: current frozen holdout lock is unreadable") from exc
+    if lock_payload.get("status") != "FROZEN":
+        raise SystemExit("DEFERRED: current frozen holdout is not locked")
+    from src.validation.code_fingerprint import (
+        fingerprint_sha256,
+        research_fingerprint_sha256,
+    )
+    expected_research_fingerprint = research_fingerprint_sha256()
+    expected_full_fingerprint = fingerprint_sha256()
+    expected_holdout_generation = lock_payload.get("holdout_generation")
+    if expected_holdout_generation is None:
+        raise SystemExit("DEFERRED: current holdout generation is absent")
     query = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
     payload = json.loads(_download(query, token, timeout=25))
 
@@ -73,7 +120,12 @@ def main():
             with zipfile.ZipFile(archive) as z:
                 z.extractall(extract)
 
-            if not _has_approved_production_state(extract):
+            if not _has_approved_production_state(
+                extract,
+                expected_holdout_generation=expected_holdout_generation,
+                expected_research_fingerprint=expected_research_fingerprint,
+                expected_full_fingerprint=expected_full_fingerprint,
+            ):
                 skipped += 1
                 continue
 

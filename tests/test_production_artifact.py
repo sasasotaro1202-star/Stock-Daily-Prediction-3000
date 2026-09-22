@@ -2,8 +2,6 @@ from pathlib import Path
 
 import pytest
 
-import pytest
-
 from src.prediction.production_artifact import load_production_artifact
 
 
@@ -24,6 +22,17 @@ def test_artifact_validation_requires_exact_required_classifier_set(
 
     monkeypatch.setattr(artifact_module, "fingerprint_sha256", lambda: "fp")
     monkeypatch.setattr(artifact_module, "release_signature", lambda: "sig")
+
+    gate_path = tmp_path / "release_gate.json"
+    lock_path = tmp_path / "frozen_holdout.json"
+    gate_path.write_text('{"approved": true}', encoding="utf-8")
+    lock_path.write_text(
+        '{"status":"FROZEN","holdout_generation":1,'
+        '"research_code_fingerprint_sha256":"rfp"}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(artifact_module, "RELEASE_GATE_PATH", gate_path)
+    monkeypatch.setattr(artifact_module, "FROZEN_LOCK_PATH", lock_path)
 
     payload = {
         "metadata": {

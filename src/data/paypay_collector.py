@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import shutil
+import subprocess
 import urllib.request
 
 from curl_cffi import requests as curl_requests
@@ -242,6 +244,70 @@ def _jina_reader(url: str) -> bytes:
         raise RuntimeError("Jina Reader response unexpectedly small")
     return body
 
+def _browser_dump_dom(url: str) -> bytes:
+    """Render the official PayPay page with a local headless browser."""
+    if "paypay-sec.co.jp" not in url:
+        raise RuntimeError("browser fallback is restricted to PayPay official hosts")
+
+    browser = next(
+        (
+            candidate
+            for candidate in (
+                "google-chrome-stable",
+                "google-chrome",
+                "chromium",
+                "chromium-browser",
+            )
+            if shutil.which(candidate)
+        ),
+        None,
+    )
+    if browser is None:
+        raise RuntimeError("no supported headless browser is installed")
+
+    user_agent = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36"
+    )
+    command = [
+        browser,
+        "--headless=new",
+        "--no-sandbox",
+        "--disable-gpu",
+        "--disable-dev-shm-usage",
+        "--window-size=1920,1080",
+        "--virtual-time-budget=8000",
+        f"--user-agent={user_agent}",
+        "--dump-dom",
+        url,
+    ]
+    try:
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=False,
+            timeout=55,
+            check=False,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError("headless browser timed out") from exc
+    except OSError as exc:
+        raise RuntimeError(f"headless browser could not start: {exc}") from exc
+
+    body = result.stdout or b""
+    if result.returncode != 0:
+        stderr = (result.stderr or b"").decode("utf-8", "ignore")[-500:]
+        raise RuntimeError(
+            "headless browser returned non-zero exit status "
+            f"{result.returncode}: {stderr}"
+        )
+    if len(body) < 10_000:
+        raise RuntimeError(
+            f"headless browser response unexpectedly small: {len(body)} bytes"
+        )
+    return body
+
+
 def fetch(url: str) -> bytes:
     headers = {
         "User-Agent": (
@@ -471,6 +537,28 @@ def build_snapshot(out_path:str)->dict:
                     method=reader_method
             except Exception as exc:
                 method=f"direct_parse_weak:{type(exc).__name__}"
+
+        # Some GitHub-hosted runner IPs receive a bot/challenge document from
+        # PayPay even though the same official page is publicly renderable.
+        # A bounded local-browser fallback keeps the source authoritative:
+        # it still fetches the exact official URL, then hashes the rendered DOM.
+        if len(parsed) < 100:
+            try:
+                browser_raw=_browser_dump_dom(url)
+                browser_candidates=[
+                    ("browser_rendered",parse_rows(browser_raw,market,url)),
+                    ("browser_visible_text",parse_visible_text(browser_raw,market,url)),
+                ]
+                browser_method,browser_parsed=max(
+                    browser_candidates,
+                    key=lambda item: len(item[1]),
+                )
+                if len(browser_parsed) > len(parsed):
+                    raw=browser_raw
+                    parsed=browser_parsed
+                    method=browser_method
+            except Exception as exc:
+                method=f"{method}+browser_failed:{type(exc).__name__}"
         hashes[market]=hashlib.sha256(raw).hexdigest()
         raw_lengths[market]=len(raw)
         retrieval_methods[market]=method
