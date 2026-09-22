@@ -25,8 +25,8 @@ def _download(url: str, token: str, timeout: int) -> bytes:
 def _has_approved_production_state(
     extract: Path,
     *,
-    expected_holdout_generation: object,
-    expected_research_fingerprint: str,
+    expected_holdout_generation: object | None = None,
+    expected_research_fingerprint: str | None = None,
 ) -> bool:
     src = extract / "data" / "research"
     if not src.exists():
@@ -42,11 +42,16 @@ def _has_approved_production_state(
         )
     except (OSError, json.JSONDecodeError):
         return False
-    if metadata_payload.get("holdout_generation") != expected_holdout_generation:
+    if (
+        expected_holdout_generation is not None
+        and metadata_payload.get("holdout_generation") != expected_holdout_generation
+    ):
         return False
-    if metadata_payload.get(
-        "research_code_fingerprint_sha256"
-    ) != expected_research_fingerprint:
+    if (
+        expected_research_fingerprint is not None
+        and metadata_payload.get("research_code_fingerprint_sha256")
+        != expected_research_fingerprint
+    ):
         return False
     try:
         payload = json.loads(gate.read_text(encoding="utf-8"))
