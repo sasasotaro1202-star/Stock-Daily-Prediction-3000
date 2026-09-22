@@ -9,6 +9,7 @@ import pandas as pd
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
+from src.prediction.fit import fit_classifier
 from src.prediction.regression import make_quantile_model, make_return_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics, cross_sectional_rank_ic
@@ -124,9 +125,17 @@ def main():
     classifiers = {}
     for model_name in sorted(required_classifiers):
         model = available_factories[model_name]()
-        model.fit(
+        fit_classifier(
+            model,
+            model_name,
             core_fit[FEATURE_COLUMNS],
             core_fit.target_up_1d.astype(int),
+            core_fit["date"],
+            half_life_sessions=int(
+                __import__("yaml").safe_load(
+                    Path("config/pipeline.yml").read_text(encoding="utf-8")
+                ).get("models", {}).get("recency_weight_half_life_sessions", 252)
+            ),
         )
         cal_p = model.predict_proba(model_cal[FEATURE_COLUMNS])[:, 1]
         calibrator = PlattCalibrator().fit(
