@@ -16,6 +16,7 @@ from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import route_plan, regime_for_row
 from src.validation.calibration import make_calibrator
+from src.validation.code_fingerprint import fingerprint_sha256
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 
@@ -366,6 +367,7 @@ def main():
         "status": "EVALUATED_ONCE",
         "frozen_model": selected,
         "holdout_generation": int(frozen.get("holdout_generation", 1)),
+        "code_fingerprint_sha256": fingerprint_sha256(),
         "research_code_fingerprint_sha256": frozen.get(
             "research_code_fingerprint_sha256"
         ),
