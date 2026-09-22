@@ -190,9 +190,9 @@ def main():
 
         g_probs = []
         one = pd.DataFrame([row])[FEATURE_COLUMNS]
-        for candidate in ("logistic", "extra_trees", "hgb"):
-            gm = classifiers[candidate]["model"]
-            gc = classifiers[candidate]["calibrator"]
+        for candidate, entry in sorted(classifiers.items()):
+            gm = entry["model"]
+            gc = entry["calibrator"]
             g_probs.append(float(gc.predict(gm.predict_proba(one)[:, 1])[0]))
         global_disagreement.append(float(np.std(g_probs)))
 
