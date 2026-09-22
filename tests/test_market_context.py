@@ -88,3 +88,32 @@ def test_market_context_requires_available_at():
         assert "available_at" in str(exc)
     else:
         raise AssertionError("expected missing available_at to fail")
+
+
+def test_cross_sectional_robust_zscores_are_market_scoped_and_clipped():
+    from src.features.context import add_cross_sectional_context
+
+    n=10
+    rows=[]
+    for i in range(n):
+        rows.append({
+            "symbol":f"A{i}",
+            "asset_class":"jp_stock",
+            "session_date":pd.Timestamp("2026-09-22"),
+            "ret_1d":float(i),
+            "volatility_20":float(10-i),
+            "volume_ratio_20":float(i+1),
+            "range_pct":float(i)/100.0,
+            "price_vs_sma20":float(i)/100.0,
+        })
+    out=add_cross_sectional_context(pd.DataFrame(rows))
+    cols=[
+        "cs_ret_1d_robust_z",
+        "cs_volatility_20_robust_z",
+        "cs_volume_ratio_20_robust_z",
+        "cs_range_pct_robust_z",
+        "cs_price_vs_sma20_robust_z",
+    ]
+    for col in cols:
+        assert out[col].notna().all()
+        assert float(out[col].abs().max()) <= 5.0

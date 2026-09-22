@@ -13,6 +13,7 @@ def main():
         ("pit_required","require_pit: true" in cfg),
         ("frozen_holdout","frozen_holdout: true" in cfg),
         ("causal_features","causal_only: true" in pipe),
+        ("cross_sectional_robust_zscore","cross_sectional_robust_zscore: true" in pipe and "_cross_sectional_robust_zscore" in Path("src/features/context.py").read_text()),
         ("raw_pit_price_modeling","price_feature_basis: raw_close" in pipe and "target_return_basis: raw_close" in pipe),
         ("quantile_intervals","interval_method: conditional_quantiles_q10_q50_q90" in pipe and "load_production_artifact" in Path("scripts/run_daily_prediction.py").read_text()),
         ("immutable_production_artifact","build_production_artifact.py" in Path(".github/workflows/market-cycle.yml").read_text() and Path("scripts/build_production_artifact.py").exists() and Path("src/prediction/production_artifact.py").exists()),

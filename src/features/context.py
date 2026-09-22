@@ -1,6 +1,20 @@
 from __future__ import annotations
 
+import numpy as np
 import pandas as pd
+
+
+def _cross_sectional_robust_zscore(s: pd.Series) -> pd.Series:
+    """Median/MAD z-score, clipped to reduce single-name outlier dominance."""
+    x=pd.to_numeric(s,errors="coerce")
+    if x.notna().sum() < 10:
+        return pd.Series(np.nan,index=x.index,dtype="float64")
+    med=float(x.median())
+    mad=float((x-med).abs().median())
+    scale=1.4826*mad
+    if not np.isfinite(scale) or scale<=1e-12:
+        return pd.Series(0.0,index=x.index,dtype="float64")
+    return ((x-med)/scale).clip(-5.0,5.0).astype("float64")
 
 
 def add_market_context(
@@ -93,6 +107,20 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
     out["cs_vol_rank"]=g["volatility_20"].rank(
         method="average",pct=True,ascending=False
     )
+
+    # Qlib-style robust cross-sectional normalization, scoped to each
+    # market family and trading date so the transform stays causal at the
+    # post-close prediction timestamp.
+    robust_sources={
+        "ret_1d":"cs_ret_1d_robust_z",
+        "volatility_20":"cs_volatility_20_robust_z",
+        "volume_ratio_20":"cs_volume_ratio_20_robust_z",
+        "range_pct":"cs_range_pct_robust_z",
+        "price_vs_sma20":"cs_price_vs_sma20_robust_z",
+    }
+    for source,target in robust_sources.items():
+        if source in out.columns:
+            out[target]=g[source].transform(_cross_sectional_robust_zscore)
 
     daily=g.agg(
         median_vol=("volatility_20","median"),
