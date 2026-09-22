@@ -23,3 +23,12 @@ def test_features_are_causal_and_targets_separate():
 def test_ece_bounds():
     v=expected_calibration_error([0,1,0,1],[0.1,0.9,0.2,0.8])
     assert 0<=v<=1
+
+
+def test_model_factory_matches_production_hgb_contract():
+    from src.prediction.model_factories import models
+
+    m = models()["hgb"]()
+    params = m.get_params()
+    assert params["histgradientboostingclassifier__max_iter"] == 300
+    assert params["histgradientboostingclassifier__learning_rate"] == 0.04
