@@ -204,6 +204,21 @@ def main():
     latest["model_disagreement"] = global_disagreement
 
     # Load immutable quantile models from the same approved artifact.
+    return_artifact = artifact["return"]
+    return_kind = return_artifact["selected"]
+    return_models = return_artifact["global"]
+
+    def expected_return_predict(frame: pd.DataFrame) -> np.ndarray:
+        mean_pred = return_models["mean"].predict(frame)
+        q50_pred = return_models["q50"].predict(frame)
+        if return_kind == "mean":
+            return mean_pred
+        if return_kind == "q50":
+            return q50_pred
+        if return_kind == "blend_mean_q50":
+            return 0.5 * mean_pred + 0.5 * q50_pred
+        raise RuntimeError(f"unknown return estimator: {return_kind}")
+
     q_artifact = artifact["quantile"]
     global_qmodels = q_artifact["global"]
     asset_qmodels = q_artifact["assets"]
@@ -218,7 +233,7 @@ def main():
         scope = f"asset:{asset}" if str(asset) in asset_qmodels else "global"
 
         lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
-        mid = qmodels["q50"].predict(group[FEATURE_COLUMNS])
+        mid = expected_return_predict(group[FEATURE_COLUMNS])
         hi = qmodels["q90"].predict(group[FEATURE_COLUMNS])
         lo = np.minimum(lo, mid)
         hi = np.maximum(hi, mid)
