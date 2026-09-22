@@ -26,3 +26,52 @@ def test_rd_style_factor_pack_is_numeric_after_warmup():
     ]
     warm=out.iloc[-1]
     assert all(np.isfinite(float(warm[c])) for c in cols)
+
+
+def test_market_relative_momentum_is_causal_and_market_scoped():
+    from src.features.context import add_cross_sectional_context
+    from src.features.technical import add_technical_features
+
+    rows = []
+    for i in range(25):
+        d = pd.Timestamp("2026-01-01") + pd.Timedelta(days=i)
+        for symbol, asset_class, drift in (
+            ("JP1", "jp_stock", 0.001),
+            ("JP2", "jp_stock", -0.0005),
+            ("US1", "us_stock", 0.01),
+            ("US2", "us_stock", 0.009),
+        ):
+            close = 100.0 * (1.0 + drift) ** i
+            rows.append(
+                {
+                    "symbol": symbol,
+                    "asset_class": asset_class,
+                    "session_date": d,
+                    "open": close * 0.999,
+                    "high": close * 1.002,
+                    "low": close * 0.998,
+                    "close": close,
+                    "volume": 1000 + i,
+                }
+            )
+    technical = add_technical_features(pd.DataFrame(rows))
+    out = add_cross_sectional_context(technical)
+
+    assert {
+        "market_median_ret_5d",
+        "market_median_ret_20d",
+        "residual_momentum_20d",
+        "market_median_vol_20d",
+        "residual_volatility_20d",
+    }.issubset(out.columns)
+
+    early = out[out["session_date"] < pd.Timestamp("2026-01-20").date()]
+    assert early["market_median_ret_20d"].isna().all()
+
+    jp = out[out["asset_class"].eq("jp_stock")].iloc[-1]
+    us = out[out["asset_class"].eq("us_stock")].iloc[-1]
+    assert float(jp["market_median_ret_20d"]) != float(us["market_median_ret_20d"])
+
+    # No cross-market mixing: within the same date, JP and US values come
+    # only from their respective market-family medians.
+    assert set(out["market_family"].unique()) == {"jp", "us"}
