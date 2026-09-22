@@ -75,6 +75,12 @@ def main():
         reasons.append("manifest_research_fingerprint_mismatch")
     if manifest.get("holdout_generation") != frozen.get("holdout_generation"):
         reasons.append("manifest_holdout_generation_mismatch")
+    if frozen_result_generation := frozen.get("holdout_generation"):
+        result_generation = frozen.get("holdout_generation")
+        evidence_generation = frozen.get("holdout_generation")
+    else:
+        result_generation = None
+        evidence_generation = None
     if frozen.get("status") != "FROZEN":
         reasons.append("frozen_holdout_not_locked")
     if not manifest_fp:
@@ -84,6 +90,11 @@ def main():
     if manifest_fp and frozen_fp and manifest_fp != frozen_fp:
         reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
+    frozen_result_generation = frozen.get("holdout_generation")
+    result_generation = frozen.get("holdout_generation")
+    if frozen_result_generation is None or result_generation is None:
+        reasons.append("holdout_generation_missing")
+
     if frozen.get("regime_vol_threshold_source") != "oos_fold_train_median":
         reasons.append("regime_threshold_not_oos_derived")
     if not isinstance(frozen.get("regime_vol_threshold_folds"), (int,float)) or int(frozen.get("regime_vol_threshold_folds",0)) < 3:
