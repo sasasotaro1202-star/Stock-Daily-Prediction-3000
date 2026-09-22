@@ -87,11 +87,10 @@ def main():
     if len(labeled) < 5000:
         raise SystemExit("DEFERRED: insufficient PIT-safe production training data")
 
-    threshold = (
-        float(labeled["volatility_20"].dropna().quantile(0.75))
-        if labeled["volatility_20"].notna().any()
-        else 0.02
-    )
+    threshold = frozen.get("regime_vol_threshold")
+    if not isinstance(threshold, (int, float)) or not np.isfinite(float(threshold)):
+        raise SystemExit("DEFERRED: frozen regime volatility threshold is missing")
+    threshold = float(threshold)
 
     core, cal = split_train_cal(labeled)
     core_fit = cap_training_rows(core, max_rows=300_000, recent_sessions=252)
