@@ -54,3 +54,10 @@ def test_current_main_has_shared_model_and_route_holdout_contract():
     assert "from src.prediction.model_factories import models" in research
     assert "frozen_production_routes" in holdout
     assert "required_classifiers" in artifact
+
+
+def test_paypay_runtime_dependency_is_declared():
+    from pathlib import Path
+
+    text = Path("pyproject.toml").read_text(encoding="utf-8")
+    assert "curl-cffi>=0.16.0" in text
