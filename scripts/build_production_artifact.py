@@ -70,6 +70,18 @@ def main():
         raise SystemExit("DEFERRED: frozen model routing is not locked")
 
     metrics = json.loads(METRICS.read_text(encoding="utf-8"))
+    if metrics.get("selected_model") != frozen.get("selected_model"):
+        raise SystemExit("DEFERRED: frozen and research selected models differ")
+    for key in (
+        "regime_selected_models",
+        "asset_class_selected_models",
+        "asset_regime_selected_models",
+        "rank_probability_weight",
+        "rank_uncertainty_penalty",
+        "classifier_training_window_sessions",
+    ):
+        if key in frozen and key in metrics and frozen[key] != metrics[key]:
+            raise SystemExit(f"DEFERRED: frozen/research mismatch for {key}")
     df = pd.read_parquet(PRICE)
     context_path = Path("data/market_context.parquet")
     if not context_path.exists():

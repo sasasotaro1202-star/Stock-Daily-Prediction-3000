@@ -50,3 +50,14 @@ def test_artifact_validation_requires_exact_required_classifier_set(
     }
     with pytest.raises(RuntimeError, match="classifier set mismatch"):
         artifact_module.validate_artifact(payload)
+
+
+def test_runtime_restores_lightgbm_for_recent_route():
+    from pathlib import Path
+    script = Path("scripts/install_production_runtime.py").read_text()
+    assert 'startswith("lightgbm")' in script
+
+
+def test_artifact_validates_lightgbm_recent_routes():
+    script = Path("src/prediction/production_artifact.py").read_text()
+    assert 'startswith("lightgbm")' in script
