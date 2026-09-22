@@ -35,10 +35,16 @@ jobs:
             echo "guard_reason=manual_dispatch" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20" 2>/dev/null || true)"
-          if [ -z "$runs" ]; then
+          if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20" 2>/dev/null)"; then
             echo "run_required=true" >> "$GITHUB_OUTPUT"
             echo "guard_reason=actions_api_unavailable_run_anyway" >> "$GITHUB_OUTPUT"
+            echo "market-cycle guard: Actions API unavailable; running cycle rather than suppressing it"
+            exit 0
+          fi
+          if [ -z "$runs" ]; then
+            echo "run_required=true" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=actions_api_empty_response_run_anyway" >> "$GITHUB_OUTPUT"
+            echo "market-cycle guard: Actions API returned empty response; running cycle"
             exit 0
           fi
           now="$(date -u +%s)"

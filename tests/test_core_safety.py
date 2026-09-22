@@ -594,3 +594,11 @@ def test_regime_volatility_threshold_is_oos_train_derived():
     assert "oos_fold_train_median" in research
     assert "oos_fold_train_median" in lock
     assert "oos_fold_train_median" in gate
+
+def test_market_cycle_guard_does_not_suppress_actions_api_failures():
+    from pathlib import Path
+
+    source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    assert "actions_api_unavailable_run_anyway" in source
+    assert "gh api \"repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20\" 2>/dev/null || true" not in source
+    assert "Actions API unavailable; running cycle rather than suppressing it" in source
