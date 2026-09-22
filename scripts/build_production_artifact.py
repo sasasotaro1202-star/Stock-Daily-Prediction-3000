@@ -93,8 +93,21 @@ def main():
         raise SystemExit("DEFERRED: frozen regime volatility threshold is missing")
     threshold = float(threshold)
 
-    core, cal = split_train_cal(labeled)
-    core_fit = cap_training_rows(core, max_rows=300_000, recent_sessions=252)
+    training_window = int(
+        frozen.get("classifier_training_window_sessions", 0)
+    )
+    if training_window < 0:
+        raise SystemExit("DEFERRED: frozen classifier training window is invalid")
+    training_labeled = restrict_to_lookback(
+        labeled,
+        None if training_window == 0 else training_window,
+    )
+    core, cal = split_train_cal(training_labeled)
+    core_fit = cap_training_rows(
+        core,
+        max_rows=300_000,
+        recent_sessions=min(252, training_window or 252),
+    )
 
     required_classifiers = {"hgb", str(frozen.get("selected_model", "hgb"))}
     for key in (
@@ -165,8 +178,8 @@ def main():
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
             "classifier_training_window_sessions": training_window,
-        "training_rows": int(len(training_labeled)),
-            "training_latest_session": str(max(labeled["session_date"])),
+            "training_rows": int(len(training_labeled)),
+            "training_latest_session": str(max(training_labeled["session_date"])),
         },
         "classifiers": classifiers,
         "return": {
