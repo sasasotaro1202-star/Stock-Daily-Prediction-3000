@@ -183,6 +183,7 @@ def evaluate_predictions(
         "max_drawdown": float(drawdown.min()),
         "cost_bps_per_side": float(cost_bps),
         "cost_sensitivity": sensitivity,
+        "_daily_rows": r.to_dict(orient="records"),
     }
     if asset_aware:
         result["asset_class_summary"] = {
