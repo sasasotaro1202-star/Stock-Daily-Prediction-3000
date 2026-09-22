@@ -9,7 +9,7 @@ import pandas as pd
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
-from src.prediction.regression import make_quantile_model
+from src.prediction.regression import make_quantile_model, make_return_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.research.router import route_plan, regime_for_row
@@ -189,12 +189,18 @@ def main():
         for name in sorted(set(routed_regimes))
     }
 
+    return_selected = frozen.get("return_selected_estimator", "q50")
+    if return_selected not in {"mean", "q50", "blend_mean_q50"}:
+        raise SystemExit("FAIL: frozen return estimator is invalid")
+
+    mean_return_model = make_return_model()
     q_global = {
         "q10": make_quantile_model(0.10),
         "q50": make_quantile_model(0.50),
         "q90": make_quantile_model(0.90),
     }
     core_q=cap_training_rows(core,max_rows=250_000,recent_sessions=252)
+    mean_return_model.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
     for qm in q_global.values():
         qm.fit(core_q[FEATURE_COLUMNS], core_q["target_ret_1d"])
 
@@ -213,24 +219,40 @@ def main():
         q_assets[str(asset)] = q_models
 
     y_ret=test["target_ret_1d"].to_numpy(dtype=float)
+    selected_pred_global_mean=mean_return_model.predict(test[FEATURE_COLUMNS])
+    selected_pred_global_q50=q_global["q50"].predict(test[FEATURE_COLUMNS])
+    if return_selected == "mean":
+        selected_return_pred=selected_pred_global_mean
+    elif return_selected == "q50":
+        selected_return_pred=selected_pred_global_q50
+    else:
+        selected_return_pred=0.5*(selected_pred_global_mean+selected_pred_global_q50)
+
     lo=np.empty(len(test),dtype=float)
-    mid=np.empty(len(test),dtype=float)
     hi=np.empty(len(test),dtype=float)
     for asset, subset in test.groupby("asset_class", sort=False):
         qmodels=q_assets.get(str(asset), q_global)
         idx=subset.index
+        pos=test.index.get_indexer(idx)
         lo_vals=qmodels["q10"].predict(subset[FEATURE_COLUMNS])
-        mid_vals=qmodels["q50"].predict(subset[FEATURE_COLUMNS])
         hi_vals=qmodels["q90"].predict(subset[FEATURE_COLUMNS])
-        lo[test.index.get_indexer(idx)] = lo_vals
-        mid[test.index.get_indexer(idx)] = mid_vals
-        hi[test.index.get_indexer(idx)] = hi_vals
-    lo=np.minimum(lo,mid)
-    hi=np.maximum(hi,mid)
+        lo[pos]=lo_vals
+        hi[pos]=hi_vals
+    lo=np.minimum(lo,selected_return_pred)
+    hi=np.maximum(hi,selected_return_pred)
     return_holdout_metrics={
         "selected_estimator": return_selected,
-        "mae":float(__import__("sklearn.metrics",fromlist=["mean_absolute_error"]).mean_absolute_error(y_ret,mid)),
-        "rmse":float(__import__("sklearn.metrics",fromlist=["mean_squared_error"]).mean_squared_error(y_ret,mid)**0.5),
+        "mae":float(__import__("sklearn.metrics",fromlist=["mean_absolute_error"]).mean_absolute_error(y_ret,selected_return_pred)),
+        "rmse":float(__import__("sklearn.metrics",fromlist=["mean_squared_error"]).mean_squared_error(y_ret,selected_return_pred)**0.5),
+        "sign_accuracy":float(np.mean((selected_return_pred>=0)==(y_ret>=0))),
+        "rank_ic":float(cross_sectional_rank_ic(
+            y_ret,
+            selected_return_pred,
+            (
+                test["date"].astype(str)+"::"+test["asset_class"].astype(str)
+                if "asset_class" in test.columns else test["date"].astype(str)
+            ),
+        )),
         "range_80_coverage":float(np.mean((y_ret>=lo)&(y_ret<=hi))),
     }
 
