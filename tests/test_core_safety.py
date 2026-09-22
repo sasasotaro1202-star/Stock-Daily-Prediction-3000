@@ -32,3 +32,11 @@ def test_model_factory_matches_production_hgb_contract():
     params = m.get_params()
     assert params["histgradientboostingclassifier__max_iter"] == 300
     assert params["histgradientboostingclassifier__learning_rate"] == 0.04
+
+
+def test_lightgbm_challenger_is_available_in_research_ci():
+    from src.prediction.model_factories import models
+    import lightgbm
+
+    assert "lightgbm" in models()
+    assert lightgbm.__version__

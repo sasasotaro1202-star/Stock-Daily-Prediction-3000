@@ -92,6 +92,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_research_state.py
+      - name: Install only required research challenger dependency
+        run: |
+          python - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+          meta_path=Path("data/research/production_model_artifact.meta.json")
+          if not meta_path.exists():
+              raise SystemExit("DEFERRED: production artifact metadata missing")
+          meta=json.loads(meta_path.read_text())
+          specs=[
+              f"numpy=={meta['numpy_version']}",
+              f"scikit-learn=={meta['sklearn_version']}",
+          ]
+          if meta.get("lightgbm_version") and "lightgbm" in set(meta.get("required_classifiers", [])):
+              specs.append(f"lightgbm=={meta['lightgbm_version']}")
+          subprocess.check_call(["python","-m","pip","install",*specs])
+          print("production-dependencies:", ", ".join(specs))
+          PY
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
       - name: Update free market context

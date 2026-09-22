@@ -96,8 +96,24 @@ def main():
     core, cal = split_train_cal(labeled)
     core_fit = cap_training_rows(core, max_rows=300_000, recent_sessions=252)
 
+    required_classifiers = {"hgb", str(frozen.get("selected_model", "hgb"))}
+    for key in (
+        "regime_selected_models",
+        "asset_class_selected_models",
+        "asset_regime_selected_models",
+    ):
+        required_classifiers.update(
+            str(value) for value in (frozen.get(key) or {}).values()
+        )
     classifiers = {}
-    for name, factory in models().items():
+    available_factories = models()
+    missing_required = sorted(set(required_classifiers) - set(available_factories))
+    if missing_required:
+        raise SystemExit(
+            f"DEFERRED: required production classifiers unavailable: {missing_required}"
+        )
+    for name in sorted(required_classifiers):
+        factory = available_factories[name]
         model = factory()
         model.fit(core_fit[FEATURE_COLUMNS], core_fit["target_up_1d"].astype(int))
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
@@ -137,6 +153,7 @@ def main():
             "sklearn_version": sklearn.__version__,
             "lightgbm_version": lightgbm.__version__ if lightgbm is not None else None,
             "available_classifiers": sorted(classifiers),
+            "required_classifiers": sorted(required_classifiers),
             "regime_vol_threshold": threshold,
             "selected_model": metrics.get("selected_model"),
             "training_rows": int(len(labeled)),
@@ -155,6 +172,10 @@ def main():
     ARTIFACT_PATH.parent.mkdir(parents=True, exist_ok=True)
     with ARTIFACT_PATH.open("wb") as f:
         pickle.dump(payload, f, protocol=pickle.HIGHEST_PROTOCOL)
+    Path("data/research/production_model_artifact.meta.json").write_text(
+        json.dumps(payload["metadata"], indent=2),
+        encoding="utf-8",
+    )
 
     print(
         f"production-model-artifact: rows={len(labeled)} "
