@@ -101,7 +101,7 @@ def validate_artifact(payload: dict) -> None:
                 f"{actual} != {expected}"
             )
 
-    if any(str(name).startswith("lightgbm") for name in classifiers):
+    if any("lightgbm" in str(name).lower() for name in classifiers):
         expected = runtime_versions.get("lightgbm") or meta.get("lightgbm_version")
         if expected is None:
             raise RuntimeError("production model artifact LightGBM version is missing")
