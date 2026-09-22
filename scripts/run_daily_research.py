@@ -559,7 +559,7 @@ def main():
                 model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             )
 
-            if return_selected_estimator == "mean":
+            if selected_return_estimator == "mean":
                 return_model = make_return_model()
                 return_fit = cap_training_rows(
                     core, max_rows=250_000, recent_sessions=252
@@ -576,7 +576,7 @@ def main():
                 )
                 q50.fit(return_fit[FEATURE_COLUMNS], return_fit["target_ret_1d"])
                 q50_pred = q50.predict(test[FEATURE_COLUMNS])
-                if return_selected_estimator == "q50":
+                if selected_return_estimator == "q50":
                     expected = q50_pred
                 else:
                     mean_model = make_return_model()
