@@ -33,6 +33,7 @@ def main():
         ("live_performance_gate","live_performance_gate.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/live_performance_gate.py").exists()),
         ("regime_thresholds","high_vol_vix: 30.0" in pipe and "event_gap_abs: 0.03" in pipe and "trend_breadth_low: 0.25" in pipe),
         ("price_shards","price_shards: 4" in pipe),
+        ("price_retrieval_provenance","retrieved_at" in Path("src/data/yahoo_price.py").read_text() and "retrieved_at_future" in Path("scripts/data_quality_gate.py").read_text()),
     ]
     bad=[name for name,ok in checks if not ok]
     for name,ok in checks: print(f"{name}: {'PASS' if ok else 'FAIL'}")
