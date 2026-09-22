@@ -39,6 +39,10 @@ def main():
         raise SystemExit("FAIL: OOS did not select a global model")
 
     lock["selected_model"]=selected
+    rank_weight=payload.get("rank_probability_weight", 0.50)
+    if not isinstance(rank_weight,(int,float)) or not 0.0 <= float(rank_weight) <= 1.0:
+        raise SystemExit("FAIL: OOS did not produce a valid ranking probability weight")
+    lock["rank_probability_weight"]=float(rank_weight)
     vol_threshold=payload.get("regime_vol_threshold")
     if not isinstance(vol_threshold,(int,float)) or not __import__("math").isfinite(float(vol_threshold)):
         raise SystemExit("FAIL: OOS did not produce a valid regime volatility threshold")
