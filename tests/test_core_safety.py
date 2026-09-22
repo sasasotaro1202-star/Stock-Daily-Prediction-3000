@@ -38,7 +38,10 @@ def test_lightgbm_challenger_is_available_in_research_ci():
     from src.prediction.model_factories import models
     import lightgbm
 
-    assert "lightgbm" in models()
+    available = models()
+    assert "lightgbm" in available
+    assert "lightgbm_regularized" in available
+    assert "lightgbm_regularized_recent" in available
     assert lightgbm.__version__
 
 
@@ -352,3 +355,26 @@ def test_future_market_context_poisoning_does_not_change_prior_features():
         changed.loc[:1, "sp500_ret_1d_lag1"].reset_index(drop=True),
         check_dtype=False,
     )
+
+
+
+def test_recency_challenger_fit_parity_across_research_holdout_artifact():
+    from pathlib import Path
+
+    research = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    holdout = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    artifact = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+
+    assert "fit_classifier(" in research
+    assert "fit_classifier(" in holdout
+    assert "fit_classifier(" in artifact
+    assert "recency_weight_half_life_sessions" in research
+
+
+
+def test_monitoring_workflow_does_not_silently_ignore_price_restore_failure():
+    from pathlib import Path
+
+    source = Path(".github/workflows/prediction-monitoring.yml").read_text(encoding="utf-8")
+    assert "|| true" not in source
+    assert "one or more price-state shards could not be restored" in source
