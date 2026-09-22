@@ -69,3 +69,32 @@ def test_paypay_runtime_dependency_is_declared():
 
     text = Path("pyproject.toml").read_text(encoding="utf-8")
     assert "curl-cffi>=0.16.0" in text
+
+
+def test_return_estimator_selector_guards_mae_and_uses_rank_ic():
+    from src.research.return_selection import choose_return_estimator
+
+    candidates = {
+        "mean": {"mae": 0.010, "rank_ic": 0.040, "rank_ic_std": 0.010, "folds": 4},
+        "q50": {"mae": 0.011, "rank_ic": 0.070, "rank_ic_std": 0.020, "folds": 4},
+        "blend_mean_q50": {"mae": 0.0115, "rank_ic": 0.090, "rank_ic_std": 0.015, "folds": 4},
+    }
+    assert (
+        choose_return_estimator(
+            candidates,
+            min_folds=3,
+            mae_guard=1.10,
+            stability_penalty=0.25,
+            rank_ic_tolerance=0.005,
+        )
+        == "blend_mean_q50"
+    )
+
+    bad_mae = dict(candidates)
+    bad_mae["blend_mean_q50"] = {
+        "mae": 0.020,
+        "rank_ic": 0.50,
+        "rank_ic_std": 0.01,
+        "folds": 4,
+    }
+    assert choose_return_estimator(bad_mae) == "mean"
