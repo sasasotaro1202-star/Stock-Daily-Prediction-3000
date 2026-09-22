@@ -30,7 +30,7 @@ def main():
         ("route_aware_frozen_holdout","frozen_production_routes" in Path("scripts/evaluate_frozen_holdout.py").read_text() and "holdout_not_using_frozen_production_routes" in Path("scripts/release_gate.py").read_text()),
         ("code_fingerprint","fingerprint_sha256" in Path("src/validation/code_fingerprint.py").read_text() and "code_fingerprint_sha256" in Path("scripts/build_manifest.py").read_text()),
         ("paypay_master_catalog",Path("config/paypay_catalog.yml").exists() and Path("scripts/catalog_integrity.py").exists()),
-        ("prediction_history_monitoring","restore_prediction_history.py" in Path(".github/workflows/prediction-monitoring.yml").read_text() and Path("scripts/monitor_predictions.py").exists() and 'cron: "27 0 * * 1-5"' in Path(".github/workflows/prediction-monitoring.yml").read_text()),
+        ("prediction_history_monitoring","restore_prediction_history.py" in Path(".github/workflows/prediction-monitoring.yml").read_text() and Path("scripts/monitor_predictions.py").exists() and 'cron: "27 9 * * 1-5"' in Path(".github/workflows/prediction-monitoring.yml").read_text()),
         ("live_performance_gate","live_performance_gate.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/live_performance_gate.py").exists()),
         ("regime_thresholds","high_vol_vix: 30.0" in pipe and "event_gap_abs: 0.03" in pipe and "trend_breadth_low: 0.25" in pipe),
         ("price_shards","price_shards: 4" in pipe),
