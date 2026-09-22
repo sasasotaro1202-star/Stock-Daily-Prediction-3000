@@ -24,7 +24,7 @@ from src.prediction.fit import fit_classifier
 from src.prediction.production_artifact import ARTIFACT_PATH, release_signature
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
-from src.validation.calibration import PlattCalibrator
+from src.validation.calibration import make_calibrator
 from src.validation.code_fingerprint import fingerprint_sha256
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
@@ -107,6 +107,10 @@ def main():
         raise SystemExit("DEFERRED: frozen regime volatility threshold is missing")
     threshold = float(threshold)
 
+    calibration_method = str(frozen.get("calibration_method", "platt"))
+    if calibration_method not in {"platt", "beta", "isotonic"}:
+        raise SystemExit("DEFERRED: frozen calibration method is invalid")
+
     training_window = int(
         frozen.get("classifier_training_window_sessions", 0)
     )
@@ -157,7 +161,7 @@ def main():
             half_life_sessions=recency_half_life,
         )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-        calibrator = PlattCalibrator().fit(
+        calibrator = make_calibrator(calibration_method).fit(
             cal_p,
             cal["target_up_1d"].astype(int),
         )
@@ -219,6 +223,7 @@ def main():
             "rank_uncertainty_penalty": float(frozen.get("rank_uncertainty_penalty", 0.0)),
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
+            "calibration_method": calibration_method,
             "classifier_training_window_sessions": training_window,
             "training_rows": int(len(training_labeled)),
             "training_latest_session": str(max(training_labeled["session_date"])),
