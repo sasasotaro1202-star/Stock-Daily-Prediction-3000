@@ -30,6 +30,7 @@ from src.research.router import (
 )
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
+from src.validation.training_window import restrict_to_lookback
 from src.validation.leakage import audit_feature_columns, audit_target_separation
 from src.validation.walk_forward import make_date_folds
 
@@ -516,6 +517,93 @@ def main():
     )
     global_selected = global_plan.names[0]
 
+    # Select classifier training-window length on chronological OOS after
+    # model-family selection. 0 means all eligible history.
+    window_candidates = (252, 504, 756, 0)
+    window_metrics = {}
+    for lookback in window_candidates:
+        fold_rows = []
+        for fold in folds:
+            train_dates = dates[: fold.train_end]
+            usable_train_dates = (
+                train_dates if lookback == 0 else train_dates[-lookback:]
+            )
+            cal_n = max(20, int(len(usable_train_dates) * 0.2))
+            if len(usable_train_dates) - cal_n < 40:
+                continue
+            core_dates = set(usable_train_dates[:-cal_n])
+            cal_dates = set(usable_train_dates[-cal_n:])
+            test_dates = set(dates[fold.test_start : fold.test_end])
+            core = df[df.session_date.isin(core_dates)]
+            cal = df[df.session_date.isin(cal_dates)]
+            test = df[df.session_date.isin(test_dates)]
+            if min(len(core), len(cal), len(test)) < 100:
+                continue
+            if (
+                core.target_up_1d.nunique() < 2
+                or cal.target_up_1d.nunique() < 2
+                or test.target_up_1d.nunique() < 2
+            ):
+                continue
+            factory = make_models().get(global_selected)
+            if factory is None:
+                continue
+            fit_rows = restrict_to_lookback(
+                core,
+                None if lookback == 0 else lookback,
+            )
+            fit_rows = cap_training_rows(
+                fit_rows,
+                max_rows=300_000,
+                recent_sessions=min(252, lookback or 252),
+            )
+            model = factory()
+            model.fit(
+                fit_rows[FEATURE_COLUMNS],
+                fit_rows.target_up_1d.astype(int),
+            )
+            cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+            calibrator = PlattCalibrator().fit(
+                cal_p,
+                cal.target_up_1d.astype(int),
+            )
+            p = calibrator.predict(
+                model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+            )
+            fold_rows.append(classification_metrics(
+                test.target_up_1d.astype(int), p
+            ))
+        if fold_rows:
+            logloss = np.asarray(
+                [row["logloss"] for row in fold_rows],
+                dtype=float,
+            )
+            window_metrics[str(lookback)] = {
+                "logloss": float(np.mean(logloss)),
+                "logloss_std": (
+                    float(np.std(logloss, ddof=1))
+                    if len(logloss) >= 2 else 0.0
+                ),
+                "folds": float(len(logloss)),
+            }
+
+    valid_windows = {
+        key: value for key, value in window_metrics.items()
+        if value["folds"] >= 3 and np.isfinite(value["logloss"])
+    }
+    if valid_windows:
+        selected_window_key = min(
+            valid_windows,
+            key=lambda key: (
+                valid_windows[key]["logloss"]
+                + 0.25 * valid_windows[key]["logloss_std"],
+                int(key) if int(key) > 0 else 10**9,
+            ),
+        )
+        selected_training_window = int(selected_window_key)
+    else:
+        selected_training_window = 0
+
     # Select the final production ranking blend on chronological OOS.
     # Each fold trains once; multiple score configurations are then evaluated,
     # so adding ranking candidates does not multiply model fitting cost.
@@ -693,6 +781,8 @@ def main():
         "asset_regime_metrics": asset_regime_metrics,
         "asset_regime_selected_models": asset_regime_selected,
         "selected_model": global_selected,
+        "classifier_training_window_sessions": selected_training_window,
+        "classifier_training_window_candidates": window_metrics,
         "rank_probability_weight": selected_rank_weight,
         "rank_uncertainty_penalty": selected_uncertainty_penalty,
         "ranking_weight_candidates": ranking_candidates,
