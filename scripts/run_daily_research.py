@@ -14,6 +14,7 @@ from sklearn.metrics import (
 
 from src.prediction.regression import make_quantile_model, make_return_model
 from src.prediction.model_factories import models
+from src.prediction.fit import fit_classifier
 
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
@@ -299,9 +300,13 @@ def main():
                 recent_sessions=252,
             )
             model = factory()
-            model.fit(
+            fit_classifier(
+                model,
+                name,
                 core_fit[FEATURE_COLUMNS],
                 core_fit.target_up_1d.astype(int),
+                core_fit["session_date"],
+                half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
             )
             cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
             calibrator = PlattCalibrator().fit(
