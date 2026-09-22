@@ -365,6 +365,10 @@ def main():
     payload = {
         "status": "EVALUATED_ONCE",
         "frozen_model": selected,
+        "holdout_generation": int(frozen.get("holdout_generation", 1)),
+        "research_code_fingerprint_sha256": frozen.get(
+            "research_code_fingerprint_sha256"
+        ),
         "holdout_start": frozen["holdout_start"],
         "holdout_end": frozen["holdout_end"],
         "holdout_rows": int(len(test)),
