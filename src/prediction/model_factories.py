@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+
 from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
