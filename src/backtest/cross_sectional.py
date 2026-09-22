@@ -129,6 +129,7 @@ def evaluate_predictions(
                 "n": len(g),
                 "long_return": float(long),
                 "short_return": float(short),
+                "gross_long_short_return": float(long - short),
                 "long_short_return": float(spread),
             }
         )
@@ -151,6 +152,22 @@ def evaluate_predictions(
     peak = equity.cummax()
     drawdown = equity / peak - 1
 
+    cost_grid = (0.0, 5.0, 10.0, 20.0)
+    sensitivity = {}
+    gross_by_day = r.groupby("date", sort=True)["gross_long_short_return"].mean()
+    for grid_cost in cost_grid:
+        net_by_day = gross_by_day - (2.0 * grid_cost / 10000.0)
+        net_equity = (1.0 + net_by_day.fillna(0.0)).cumprod()
+        net_peak = net_equity.cummax()
+        net_dd = net_equity / net_peak - 1.0
+        sensitivity[str(int(grid_cost))] = {
+            "cost_bps_per_side": float(grid_cost),
+            "mean_daily_spread": float(net_by_day.mean()),
+            "cumulative_spread": float(net_equity.iloc[-1] - 1.0),
+            "max_drawdown": float(net_dd.min()),
+            "positive_days": float((net_by_day > 0).mean()),
+        }
+
     result = {
         "status": "PASS",
         "rows": int(len(r)),
@@ -165,6 +182,7 @@ def evaluate_predictions(
         "cumulative_spread": float(equity.iloc[-1] - 1),
         "max_drawdown": float(drawdown.min()),
         "cost_bps_per_side": float(cost_bps),
+        "cost_sensitivity": sensitivity,
     }
     if asset_aware:
         result["asset_class_summary"] = {
