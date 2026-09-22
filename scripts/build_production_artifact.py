@@ -20,8 +20,9 @@ except ImportError:
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
-from src.prediction.fit import fit_classifier
+from src.prediction.fit import fit_classifier, fit_regressor
 from src.prediction.production_artifact import ARTIFACT_PATH, release_signature
+from src.prediction.model_factories import return_models
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
 from src.validation.calibration import PlattCalibrator
@@ -152,7 +153,8 @@ def main():
         classifiers[name] = {"model": model, "calibrator": calibrator}
 
     return_selected = frozen.get("return_selected_estimator", "q50")
-    if return_selected not in {"mean", "q50", "blend_mean_q50"}:
+    allowed_return = {"mean", "q50", "blend_mean_q50", "lightgbm_return", "lightgbm_return_recent"}
+    if return_selected not in allowed_return:
         raise SystemExit("FAIL: frozen return estimator is invalid")
     mean_return_model = make_return_model()
     q_global = make_quantile_models()
@@ -160,6 +162,27 @@ def main():
     mean_return_model.fit(q_fit[FEATURE_COLUMNS], q_fit["target_ret_1d"])
     for model in q_global.values():
         model.fit(q_fit[FEATURE_COLUMNS], q_fit["target_ret_1d"])
+
+    return_selected_model = {
+        "mean": mean_return_model,
+        "q50": q_global["q50"],
+        "blend_mean_q50": None,
+    }.get(return_selected)
+    if return_selected_model is None:
+        return_factory = return_models().get(return_selected)
+        if return_factory is None:
+            raise SystemExit(
+                f"DEFERRED: selected return challenger unavailable: {return_selected}"
+            )
+        return_selected_model = return_factory()
+        fit_regressor(
+            return_selected_model,
+            return_selected,
+            q_fit[FEATURE_COLUMNS],
+            q_fit["target_ret_1d"],
+            q_fit["session_date"],
+            half_life_sessions=252,
+        )
 
     q_assets = {}
     for asset, subset in labeled.groupby("asset_class", sort=False):
@@ -175,7 +198,7 @@ def main():
 
     payload = {
         "metadata": {
-            "artifact_version": 1,
+            "artifact_version": 2,
             "created_at": pd.Timestamp.now(tz="UTC").isoformat(),
             "git_sha": os.getenv("GITHUB_SHA"),
             "code_fingerprint_sha256": fingerprint_sha256(),
@@ -207,6 +230,7 @@ def main():
             "rank_uncertainty_penalty": float(frozen.get("rank_uncertainty_penalty", 0.0)),
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
+            "return_model_kind": return_selected,
             "classifier_training_window_sessions": training_window,
             "training_rows": int(len(training_labeled)),
             "training_latest_session": str(max(training_labeled["session_date"])),
@@ -214,7 +238,8 @@ def main():
         "classifiers": classifiers,
         "return": {
             "selected": return_selected,
-            "global": {
+            "model": return_selected_model,
+            "fallback": {
                 "mean": mean_return_model,
                 "q50": q_global["q50"],
             },
