@@ -39,6 +39,11 @@ def main():
         raise SystemExit("FAIL: OOS did not select a global model")
 
     lock["selected_model"]=selected
+    return_oos=payload.get("return_oos", {})
+    return_selected=return_oos.get("selected_estimator")
+    if return_selected not in {"mean", "q50", "blend_mean_q50"}:
+        raise SystemExit("FAIL: OOS did not select a valid return estimator")
+    lock["return_selected_estimator"]=return_selected
     lock["regime_selected_models"]=payload.get("regime_selected_models",{})
     lock["asset_class_selected_models"]=payload.get(
         "asset_class_selected_models",{}
