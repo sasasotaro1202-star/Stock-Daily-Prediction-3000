@@ -613,3 +613,26 @@ def test_research_state_restore_prefers_approved_production_artifacts():
     assert 'production_model_artifact.pkl' in source
     assert 'production_model_artifact.meta.json' in source
     assert "skipped_unapproved" in source
+
+
+def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
+    import json
+    from scripts.restore_latest_research_state import _has_approved_production_state
+
+    root = tmp_path / "extract"
+    research = root / "data" / "research"
+    research.mkdir(parents=True)
+    (research / "production_model_artifact.pkl").write_bytes(b"artifact")
+    (research / "production_model_artifact.meta.json").write_text("{}", encoding="utf-8")
+
+    (research / "release_gate.json").write_text(
+        json.dumps({"approved": False}),
+        encoding="utf-8",
+    )
+    assert _has_approved_production_state(root) is False
+
+    (research / "release_gate.json").write_text(
+        json.dumps({"approved": True}),
+        encoding="utf-8",
+    )
+    assert _has_approved_production_state(root) is True
