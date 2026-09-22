@@ -90,6 +90,28 @@ def models():
                 random_state=42,
             ),
         ),
+        "hgb_conservative": lambda: make_pipeline(
+            SimpleImputer(strategy="median"),
+            HistGradientBoostingClassifier(
+                max_iter=500,
+                learning_rate=0.02,
+                max_leaf_nodes=15,
+                min_samples_leaf=40,
+                l2_regularization=3.0,
+                random_state=42,
+            ),
+        ),
+        "hgb_conservative_recent": lambda: make_pipeline(
+            SimpleImputer(strategy="median"),
+            HistGradientBoostingClassifier(
+                max_iter=500,
+                learning_rate=0.02,
+                max_leaf_nodes=15,
+                min_samples_leaf=40,
+                l2_regularization=3.0,
+                random_state=42,
+            ),
+        ),
     }
     if LGBMClassifier is not None:
         def make_lightgbm():
