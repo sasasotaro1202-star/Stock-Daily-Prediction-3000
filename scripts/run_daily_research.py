@@ -630,6 +630,7 @@ def main():
     # on the fold's calibration slice, and the test slice is used only for
     # scoring. This keeps the calibration choice out of the frozen holdout.
     calibration_rows = {method: [] for method in CALIBRATION_METHODS}
+    asset_calibration_rows = {method: [] for method in CALIBRATION_METHODS}
     for fold in folds:
         train_dates = dates[: fold.train_end]
         usable_train_dates = (
@@ -691,22 +692,89 @@ def main():
             )
             calibration_rows[method].append(metrics)
 
+            # Measure calibration robustness across asset classes without
+            # changing the model fit. Each fold contributes one macro score,
+            # preventing a large universe segment from dominating method choice.
+            asset_metrics = []
+            if "asset_class" in test.columns:
+                for asset_class in sorted(test["asset_class"].dropna().unique()):
+                    mask = test["asset_class"].eq(asset_class).to_numpy()
+                    subset = test.loc[mask]
+                    if len(subset) < 30 or subset.target_up_1d.nunique() < 2:
+                        continue
+                    am = classification_metrics(
+                        subset.target_up_1d.astype(int),
+                        p[mask],
+                    )
+                    asset_metrics.append(am)
+            if len(asset_metrics) >= 2:
+                asset_calibration_rows[method].append({
+                    "logloss": float(np.mean([m["logloss"] for m in asset_metrics])),
+                    "brier": float(np.mean([m["brier"] for m in asset_metrics])),
+                    "ece": float(np.mean([m["ece"] for m in asset_metrics])),
+                    "assets": float(len(asset_metrics)),
+                })
+
     calibration_candidates = {}
+    calibration_balance_weight = float(
+        np.clip(model_cfg.get("asset_class_balance_weight", 0.50), 0.0, 1.0)
+    )
     for method, rows in calibration_rows.items():
         if len(rows) < 3:
             continue
         logloss = np.asarray([float(row["logloss"]) for row in rows], dtype=float)
         ece = np.asarray([float(row["ece"]) for row in rows], dtype=float)
         brier = np.asarray([float(row["brier"]) for row in rows], dtype=float)
+        asset_rows = asset_calibration_rows.get(method, [])
+        asset_logloss = np.asarray(
+            [float(row["logloss"]) for row in asset_rows],
+            dtype=float,
+        )
+        asset_brier = np.asarray(
+            [float(row["brier"]) for row in asset_rows],
+            dtype=float,
+        )
+        asset_ece = np.asarray(
+            [float(row["ece"]) for row in asset_rows],
+            dtype=float,
+        )
+        use_asset_macro = len(asset_rows) >= 3
+        global_std = (
+            float(np.std(logloss, ddof=1))
+            if len(logloss) >= 2
+            else 0.0
+        )
+        asset_std = (
+            float(np.std(asset_logloss, ddof=1))
+            if len(asset_logloss) >= 2
+            else 0.0
+        )
+        global_mean = float(np.mean(logloss))
+        asset_mean = float(np.mean(asset_logloss)) if use_asset_macro else global_mean
+        selection_mean = (
+            (1.0 - calibration_balance_weight) * global_mean
+            + calibration_balance_weight * asset_mean
+        )
+        selection_std = (
+            (1.0 - calibration_balance_weight) * global_std
+            + calibration_balance_weight * asset_std
+        )
         calibration_candidates[method] = {
-            "logloss": float(np.mean(logloss)),
-            "logloss_std": float(np.std(logloss, ddof=1)) if len(logloss) >= 2 else 0.0,
+            "logloss": global_mean,
+            "logloss_std": global_std,
             "ece": float(np.mean(ece)),
             "brier": float(np.mean(brier)),
+            "asset_macro_logloss": asset_mean,
+            "asset_macro_brier": (
+                float(np.mean(asset_brier)) if use_asset_macro else float(np.mean(brier))
+            ),
+            "asset_macro_ece": (
+                float(np.mean(asset_ece)) if use_asset_macro else float(np.mean(ece))
+            ),
+            "asset_macro_folds": float(len(asset_rows)),
+            "asset_balance_weight": calibration_balance_weight,
             "folds": float(len(rows)),
-            "selection_score": float(
-                np.mean(logloss) + 0.25 * np.std(logloss, ddof=1)
-            ) if len(logloss) >= 2 else float(np.mean(logloss)),
+            "selection_score": selection_mean + 0.25 * selection_std,
         }
 
     if calibration_candidates:

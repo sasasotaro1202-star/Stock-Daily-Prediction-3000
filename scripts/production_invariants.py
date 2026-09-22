@@ -44,6 +44,7 @@ def main():
         ("live_performance_gate","live_performance_gate.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/live_performance_gate.py").exists()),
         ("regime_thresholds","high_vol_vix: 30.0" in pipe and "event_gap_abs: 0.03" in pipe and "trend_breadth_low: 0.25" in pipe and "regime_vol_threshold" in Path("scripts/lock_frozen_model.py").read_text() and "regime_vol_threshold" in Path("scripts/build_production_artifact.py").read_text()),
         ("oos_calibration_selection","method: oos_selected" in pipe and "CALIBRATION_METHODS" in Path("src/validation/calibration.py").read_text() and "calibration_method" in Path("scripts/lock_frozen_model.py").read_text() and "calibration_method" in Path("scripts/build_production_artifact.py").read_text()),
+        ("asset_balanced_calibration","asset_calibration_rows" in Path("scripts/run_daily_research.py").read_text() and "asset_macro_logloss" in Path("scripts/run_daily_research.py").read_text()),
         ("price_shards","price_shards: 4" in pipe),
         ("price_retrieval_provenance","retrieved_at" in Path("src/data/yahoo_price.py").read_text() and "available_at_after_retrieved_at" in Path("scripts/data_quality_gate.py").read_text() and "audit_retrieval_provenance" in Path("src/validation/leakage.py").read_text()),
     ]

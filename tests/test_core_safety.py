@@ -20,6 +20,16 @@ def test_features_are_causal_and_targets_separate():
     assert audit_target_separation(FEATURE_COLUMNS,[c for c in x if c.startswith("target_")]).ok
     assert x.loc[x.groupby("symbol").tail(1).index,"target_up_1d"].isna().all()
 
+def test_calibration_selection_is_asset_balanced():
+    from pathlib import Path
+
+    source = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    assert "asset_calibration_rows" in source
+    assert "asset_macro_logloss" in source
+    assert "asset_balance_weight" in source
+    assert "selection_mean + 0.25 * selection_std" in source
+
+
 def test_oos_calibration_methods_fit_and_bound_outputs():
     import numpy as np
     from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
