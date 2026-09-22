@@ -20,6 +20,7 @@ except ImportError:
 from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
+from src.prediction.fit import fit_classifier
 from src.prediction.production_artifact import ARTIFACT_PATH, release_signature
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
@@ -126,10 +127,23 @@ def main():
         raise SystemExit(
             f"DEFERRED: required production classifiers unavailable: {missing_required}"
         )
+    pipeline_cfg = __import__("yaml").safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
+    recency_half_life = int(model_cfg.get("recency_weight_half_life_sessions", 252))
+
     for name in sorted(required_classifiers):
         factory = available_factories[name]
         model = factory()
-        model.fit(core_fit[FEATURE_COLUMNS], core_fit["target_up_1d"].astype(int))
+        fit_classifier(
+            model,
+            name,
+            core_fit[FEATURE_COLUMNS],
+            core_fit["target_up_1d"].astype(int),
+            core_fit["session_date"],
+            half_life_sessions=recency_half_life,
+        )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
         calibrator = PlattCalibrator().fit(
             cal_p,
