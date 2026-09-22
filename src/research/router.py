@@ -24,7 +24,7 @@ class ModelPlan:
 
 
 CANDIDATES = {
-    Regime.NORMAL: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.NORMAL: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb_conservative_recent", "hgb", "extra_trees", "logistic"),
     Regime.HIGH_VOL: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
     Regime.TREND: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
     Regime.EVENT: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees"),
