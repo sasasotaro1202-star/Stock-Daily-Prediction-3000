@@ -117,3 +117,16 @@ def test_rank_ic_tiebreak_prefers_rank_quality_within_tolerance():
     )
     assert plan.names == ("hgb",)
     assert "rank_ic_tiebreak" in plan.reason
+
+
+def test_locked_regime_threshold_is_forwarded_to_route():
+    from src.research.router import route_plan
+
+    plan = route_plan(
+        "jp_stock",
+        "high_vol",
+        locked_global="hgb",
+        locked_regime={"high_vol": "logistic"},
+    )
+    assert plan.names == ("logistic",)
+    assert plan.scope == "regime:high_vol"
