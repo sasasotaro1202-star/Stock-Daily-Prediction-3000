@@ -11,7 +11,7 @@ from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.model_factories import models
 from src.prediction.regression import make_quantile_model
 from src.prediction.targets import add_targets
-from src.research.metrics import classification_metrics
+from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.research.router import route_plan, regime_for_row
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
@@ -167,6 +167,18 @@ def main():
     routed_probabilities = np.asarray(routed_probabilities, dtype=float)
     routed_metrics = classification_metrics(
         test.target_up_1d.astype(int), routed_probabilities
+    )
+    routed_group_keys=(
+        test["date"].astype(str)
+        + "::"
+        + test["asset_class"].astype(str)
+        if "asset_class" in test.columns
+        else test["date"].astype(str)
+    )
+    routed_metrics["rank_ic"]=cross_sectional_rank_ic(
+        test["target_ret_1d"].astype(float),
+        routed_probabilities,
+        routed_group_keys,
     )
     route_usage = {
         name: int(sum(model == name for model in routed_models))
