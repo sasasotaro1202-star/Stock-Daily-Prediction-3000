@@ -73,7 +73,8 @@ def _safe_extract(zf: zipfile.ZipFile, destination: str) -> None:
             shutil.copyfileobj(src, dst)
 
 
-def main():    idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
+def main():
+    idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
     name = f"price-state-shard-{idx}"
