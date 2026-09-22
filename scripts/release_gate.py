@@ -10,6 +10,7 @@ def main():
     universe_path=Path("data/research/universe_quality.json")
     context_path=Path("data/research/market_context_quality.json")
     frozen_path=Path("data/research/frozen_holdout_result.json")
+    frozen_lock_path=Path("config/frozen_holdout.json")
     manifest_path=Path("data/research/reproducibility_manifest.json")
     reasons=[]
     if not metrics_path.exists(): reasons.append("missing_oos_metrics")
@@ -19,6 +20,7 @@ def main():
     if not universe_path.exists(): reasons.append("missing_universe_quality")
     if not context_path.exists(): reasons.append("missing_market_context_quality")
     if not frozen_path.exists(): reasons.append("missing_frozen_holdout_result")
+    if not frozen_lock_path.exists(): reasons.append("missing_frozen_holdout_lock")
     if not manifest_path.exists(): reasons.append("missing_reproducibility_manifest")
     metrics=json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     audit=json.loads(audit_path.read_text()) if audit_path.exists() else {}
@@ -27,6 +29,7 @@ def main():
     universe=json.loads(universe_path.read_text()) if universe_path.exists() else {}
     context=json.loads(context_path.read_text()) if context_path.exists() else {}
     frozen=json.loads(frozen_path.read_text()) if frozen_path.exists() else {}
+    frozen_lock=json.loads(frozen_lock_path.read_text()) if frozen_lock_path.exists() else {}
     manifest=json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
     if metrics.get("status")!="OOS_COMPLETE":
         reasons.append("direction_oos_not_complete")
@@ -75,14 +78,16 @@ def main():
         reasons.append("manifest_research_fingerprint_mismatch")
     if manifest.get("holdout_generation") != frozen.get("holdout_generation"):
         reasons.append("manifest_holdout_generation_mismatch")
-    if frozen_result_generation := frozen.get("holdout_generation"):
-        result_generation = frozen.get("holdout_generation")
-        evidence_generation = frozen.get("holdout_generation")
-    else:
-        result_generation = None
-        evidence_generation = None
-    if frozen.get("status") != "FROZEN":
+    if frozen_lock.get("status") != "FROZEN":
         reasons.append("frozen_holdout_not_locked")
+    if frozen_lock.get("holdout_generation") != frozen.get("holdout_generation"):
+        reasons.append("holdout_lock_result_generation_mismatch")
+    if frozen_lock.get("research_code_fingerprint_sha256") != current_research_fp:
+        reasons.append("holdout_lock_research_fingerprint_not_current")
+    if frozen.get("research_code_fingerprint_sha256") != frozen_lock.get(
+        "research_code_fingerprint_sha256"
+    ):
+        reasons.append("holdout_result_research_fingerprint_mismatch")
     if not manifest_fp:
         reasons.append("manifest_code_fingerprint_missing")
     if not frozen_fp:
@@ -90,11 +95,8 @@ def main():
     if manifest_fp and frozen_fp and manifest_fp != frozen_fp:
         reasons.append("frozen_code_fingerprint_mismatch")
     if frozen.get("status")!="EVALUATED_ONCE": reasons.append("holdout_not_evaluated_once")
-    frozen_result_generation = frozen.get("holdout_generation")
-    result_generation = frozen.get("holdout_generation")
-    if frozen_result_generation is None or result_generation is None:
+    if frozen.get("holdout_generation") is None:
         reasons.append("holdout_generation_missing")
-
     if frozen.get("regime_vol_threshold_source") != "oos_fold_train_median":
         reasons.append("regime_threshold_not_oos_derived")
     if not isinstance(frozen.get("regime_vol_threshold_folds"), (int,float)) or int(frozen.get("regime_vol_threshold_folds",0)) < 3:
