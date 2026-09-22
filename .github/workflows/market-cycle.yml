@@ -5,6 +5,8 @@ on:
   schedule:
     - cron: "17 18 * * 1-5"
       timezone: "Asia/Tokyo"
+    - cron: "37 18 * * 1-5"
+      timezone: "Asia/Tokyo"
 
 permissions:
   actions: read
@@ -15,7 +17,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare-cycle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_required: ${{ steps.guard.outputs.run_required }}
+    steps:
+      - name: Avoid duplicate scheduled cycles
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "run_required=true" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=manual_dispatch" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20" 2>/dev/null || true)"
+          if [ -z "$runs" ]; then
+            echo "run_required=true" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=actions_api_unavailable_run_anyway" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          now="$(date -u +%s)"
+          run_required=true
+          reason="no_recent_cycle"
+          while IFS= read -r encoded; do
+            [ -n "$encoded" ] || continue
+            run_json="$(printf "%s" "$encoded" | base64 -d)"
+            run_id="$(printf "%s" "$run_json" | jq -r ".id")"
+            [ "$run_id" = "${{ github.run_id }}" ] && continue
+            created="$(printf "%s" "$run_json" | jq -r ".created_at // empty")"
+            [ -n "$created" ] || continue
+            created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+            [ "$created_epoch" -gt 0 ] || continue
+            age="$((now - created_epoch))"
+            [ "$age" -ge 0 ] && [ "$age" -le 5400 ] || continue
+            status="$(printf "%s" "$run_json" | jq -r ".status // empty")"
+            conclusion="$(printf "%s" "$run_json" | jq -r ".conclusion // empty")"
+            if [ "$status" = "queued" ] || [ "$status" = "in_progress" ]; then
+              run_required=false
+              reason="recent_cycle_${status}"
+              break
+            fi
+            if [ "$conclusion" = "success" ]; then
+              run_required=false
+              reason="recent_successful_cycle"
+              break
+            fi
+          done < <(printf "%s" "$runs" | jq -r ".workflow_runs[] | @base64")
+          echo "run_required=$run_required" >> "$GITHUB_OUTPUT"
+          echo "guard_reason=$reason" >> "$GITHUB_OUTPUT"
+          echo "market-cycle guard: run_required=$run_required reason=$reason"
+
   refresh-universe:
+    if: needs.prepare-cycle.outputs.run_required == 'true'
+    needs: prepare-cycle
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -33,7 +92,8 @@ jobs:
           retention-days: 7
 
   price-shards:
-    needs: refresh-universe
+    if: needs.prepare-cycle.outputs.run_required == 'true'
+    needs: [prepare-cycle, refresh-universe]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -69,7 +129,8 @@ jobs:
           retention-days: 7
 
   research-and-gate:
-    needs: price-shards
+    if: needs.prepare-cycle.outputs.run_required == 'true'
+    needs: [prepare-cycle, price-shards]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

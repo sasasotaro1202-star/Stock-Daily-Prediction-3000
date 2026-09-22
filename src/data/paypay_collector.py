@@ -57,6 +57,175 @@ class CellParser(HTMLParser):
 
 
 
+
+class VisibleTextParser(HTMLParser):
+    """Extract block-oriented visible text from non-table HTML layouts."""
+
+    BLOCK_TAGS = {
+        "article", "br", "div", "h1", "h2", "h3", "h4", "h5",
+        "label", "li", "p", "section", "td", "th", "tr",
+    }
+
+    def __init__(self):
+        super().__init__()
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_startendtag(self, tag, attrs):
+        if tag in self.BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_endtag(self, tag):
+        if tag in self.BLOCK_TAGS:
+            self.parts.append("\n")
+
+    def handle_data(self, data):
+        self.parts.append(data)
+
+
+def _visible_lines(raw: bytes) -> list[str]:
+    parser = VisibleTextParser()
+    parser.feed(raw.decode("utf-8", "ignore"))
+    return [
+        " ".join(line.split()).strip()
+        for line in "".join(parser.parts).splitlines()
+        if " ".join(line.split()).strip()
+    ]
+
+
+def _visible_name_noise(value: str) -> bool:
+    normalized = value.strip().lower()
+    if not normalized or len(normalized) < 2:
+        return True
+    if normalized in {
+        "code", "ticker", "銘柄", "コード", "nisa", "nisa対象",
+        "アプリ", "取扱いアプリ", "paypay証券アプリ",
+        "paypay証券ミニアプリ", "日本株cfd", "すべて",
+        "usd", "jpy", "成長投資",
+        "a-", "d-", "g-", "j-", "m-", "p-", "s-", "v-",
+    }:
+        return True
+    return normalized.startswith(("trade_", "mini_", "cfd_"))
+
+
+def _section_from_line(line: str, market: str) -> str | None:
+    upper = line.upper()
+    if market == "japan":
+        if "REIT" in upper or "不動産投資信託" in line:
+            return "REIT"
+        if "国内ETF" in line or "上場投資信託" in line:
+            return "国内ETF"
+        if "日本株" in line and ("個別" in line or "銘柄一覧" in line):
+            return "日本株 個別銘柄"
+        if line.strip() == "日本株":
+            return "日本株"
+        return None
+    if "米国ETF" in line or "US ETF" in upper:
+        return "米国ETF"
+    if "米国株" in line and "ETF" not in upper:
+        return "米国株"
+    return None
+
+
+def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
+    """Parse rendered code/name/channel records from div/list layouts."""
+    lines = _visible_lines(raw)
+    section = ""
+    records: list[dict] = []
+    known_us_noise = {
+        "A-", "D-", "G-", "J-", "M-", "P-", "S-", "V-",
+        "ETF", "NISA", "CFD",
+    }
+
+    for i, line in enumerate(lines):
+        detected = _section_from_line(line, market)
+        if detected:
+            section = detected
+
+        if market == "japan":
+            codes = re.findall(r"(?<!\d)(\d{4}[A-Z]?)(?!\d)", line)
+        else:
+            codes = re.findall(
+                r"(?<![A-Z0-9])([A-Z][A-Z0-9.\-]{0,7})(?![A-Z0-9])",
+                line,
+            )
+
+        for code in codes:
+            if market == "us" and code in known_us_noise:
+                continue
+
+            window = lines[i : min(len(lines), i + 8)]
+            window_text = " ".join(window)
+            if not any(token in window_text.lower() for token in PAYPAY_APP_TOKENS):
+                continue
+
+            fields: list[str] = []
+            for candidate in window:
+                fields.extend(
+                    value.strip(" |")
+                    for value in re.split(r"\s*\|\s*", candidate)
+                    if value.strip(" |")
+                )
+
+            try:
+                code_position = fields.index(code)
+            except ValueError:
+                code_position = 0
+
+            name = ""
+            for candidate in fields[code_position + 1 :]:
+                candidate = candidate.strip()
+                if candidate == code or _visible_name_noise(candidate):
+                    continue
+                if market == "us" and candidate in known_us_noise:
+                    continue
+                if any(token in candidate.lower() for token in PAYPAY_APP_TOKENS):
+                    continue
+                if len(candidate) > 80:
+                    continue
+                name = candidate
+                break
+
+            if not name:
+                remainder = re.sub(
+                    rf"(?<!\d){re.escape(code)}(?!\d)",
+                    "",
+                    line,
+                ).strip(" |:-")
+                if remainder and not _visible_name_noise(remainder):
+                    name = remainder.split("|", 1)[0].strip()
+
+            if not name:
+                continue
+
+            asset_class = _asset_class(market, section, name)
+            if not asset_class:
+                continue
+
+            channels = [
+                token
+                for token in PAYPAY_APP_TOKENS
+                if token in window_text.lower()
+            ]
+            records.append({
+                "symbol": code,
+                "name": name,
+                "asset_class": asset_class,
+                "source_url": url,
+                "tradeable": True,
+                "trade_channels": list(dict.fromkeys(channels)),
+                "paypay_section": section,
+            })
+
+    return list({
+        (x["asset_class"], x["symbol"]): x
+        for x in records
+    }.values())
+
+
 def _jina_reader(url: str) -> bytes:
     reader_url = "https://r.jina.ai/" + url
     req = urllib.request.Request(
@@ -276,14 +445,30 @@ def build_snapshot(out_path:str)->dict:
         raw=fetch(url)
         parsed=parse_rows(raw,market,url)
         method="direct"
+
+        # PayPay can expose the current catalog in div/list markup rather
+        # than table rows. Parse rendered text before using any external
+        # free reader fallback.
+        visible_parsed=parse_visible_text(raw,market,url)
+        if len(visible_parsed) > len(parsed):
+            parsed=visible_parsed
+            method="direct_visible_text"
+
         if len(parsed) < 50:
             try:
                 reader_raw=_jina_reader(url)
-                reader_parsed=parse_reader_text(reader_raw,market,url)
+                reader_candidates=[
+                    ("jina_reader",parse_reader_text(reader_raw,market,url)),
+                    ("jina_reader_visible_text",parse_visible_text(reader_raw,market,url)),
+                ]
+                reader_method,reader_parsed=max(
+                    reader_candidates,
+                    key=lambda item: len(item[1]),
+                )
                 if len(reader_parsed) > len(parsed):
                     raw=reader_raw
                     parsed=reader_parsed
-                    method="jina_reader_fallback"
+                    method=reader_method
             except Exception as exc:
                 method=f"direct_parse_weak:{type(exc).__name__}"
         hashes[market]=hashlib.sha256(raw).hexdigest()
