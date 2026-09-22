@@ -77,8 +77,33 @@ def validate_artifact(payload: dict) -> None:
         raise RuntimeError("production return estimator artifacts are incomplete")
     if meta.get("return_selected_estimator") != return_section.get("selected"):
         raise RuntimeError("production return estimator metadata mismatch")
+    runtime_versions = meta.get("runtime_dependency_versions") or {}
+    for package in (
+        "numpy",
+        "pandas",
+        "scikit-learn",
+        "scipy",
+        "pyarrow",
+        "yfinance",
+        "PyYAML",
+        "curl_cffi",
+    ):
+        expected = runtime_versions.get(package)
+        if expected is None:
+            raise RuntimeError(f"production runtime dependency version is missing: {package}")
+        try:
+            actual = __import__("importlib.metadata", fromlist=["version"]).version(package)
+        except Exception as exc:
+            raise RuntimeError(f"production runtime dependency is missing: {package}") from exc
+        if actual != expected:
+            raise RuntimeError(
+                f"production runtime dependency version mismatch for {package}: "
+                f"{actual} != {expected}"
+            )
+
     if "lightgbm" in classifiers:
-        if meta.get("lightgbm_version") is None:
+        expected = runtime_versions.get("lightgbm") or meta.get("lightgbm_version")
+        if expected is None:
             raise RuntimeError("production model artifact LightGBM version is missing")
         try:
             import lightgbm

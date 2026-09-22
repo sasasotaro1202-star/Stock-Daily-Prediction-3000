@@ -17,6 +17,7 @@ def main():
         ("raw_pit_price_modeling","price_feature_basis: raw_close" in pipe and "target_return_basis: raw_close" in pipe),
         ("quantile_intervals","interval_method: conditional_quantiles_q10_q50_q90" in pipe and "load_production_artifact" in Path("scripts/run_daily_prediction.py").read_text()),
         ("immutable_production_artifact","build_production_artifact.py" in Path(".github/workflows/market-cycle.yml").read_text() and Path("scripts/build_production_artifact.py").exists() and Path("src/prediction/production_artifact.py").exists()),
+        ("exact_runtime_restore","install_production_runtime.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and "runtime_dependency_versions" in Path("scripts/build_production_artifact.py").read_text()),
         ("oos_selection","selection_source: chronological_oos_only" in pipe and "rank_ic_tiebreak_tolerance: 0.002" in pipe),
         ("rank_ic_oos","cross_sectional_rank_ic" in Path("scripts/run_daily_research.py").read_text() and "rank_ic" in Path("src/research/router.py").read_text()),
         ("oos_optimized_ranking_weight","rank_probability_weight" in Path("scripts/run_daily_research.py").read_text() and "rank_probability_weight" in Path("scripts/lock_frozen_model.py").read_text() and "probability_weight=rank_weight" in Path("scripts/run_daily_prediction.py").read_text()),
