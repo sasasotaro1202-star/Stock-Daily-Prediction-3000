@@ -29,6 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           cutoff="$(date -u -d '96 hours ago' +%s)"
+          stale_cutoff="$(date -u -d '120 minutes ago' +%s)"
           failures=0
 
           inspect_workflow() {
@@ -49,11 +50,17 @@ jobs:
               conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
               attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
               run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+              updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
+              updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
 
               echo "${workflow_name}: run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt}"
 
               if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ] && [ "$attempt" -ge 2 ]; then
                 echo "::error title=${workflow_name} unresolved failure::run ${run_id} is still failing after bounded recovery"
+                failures=$((failures + 1))
+              fi
+              if [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
+                echo "::error title=${workflow_name} stale run::run ${run_id} has been non-completed for over 120 minutes"
                 failures=$((failures + 1))
               fi
             done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
@@ -62,6 +69,7 @@ jobs:
           inspect_workflow "market-cycle.yml" "Market cycle"
           inspect_workflow "us-close-prediction.yml" "U.S. close prediction"
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring"
+          inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery"
 
           if [ "$failures" -gt 0 ]; then
             echo "Actions reliability watchdog: FAIL (${failures} unresolved workflow failure(s))"
