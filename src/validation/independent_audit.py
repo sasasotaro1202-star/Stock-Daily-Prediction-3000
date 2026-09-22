@@ -101,9 +101,11 @@ def _audit_temporal_frame(
     if pd.notna(max_session):
         today_local = now.tz_convert(ZoneInfo("Asia/Tokyo")).date()
         future_sessions = int(
-            session.notna()
-            & session.dt.date.gt(today_local)
-        ).sum()
+            (
+                session.notna()
+                & session.dt.date.gt(today_local)
+            ).sum()
+        )
         checks["future_sessions"] = future_sessions
         if future_sessions:
             violations.append(
