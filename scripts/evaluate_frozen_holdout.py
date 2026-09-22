@@ -13,6 +13,7 @@ from src.prediction.fit import fit_classifier
 from src.prediction.regression import make_quantile_model, make_return_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics, cross_sectional_rank_ic
+from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import route_plan, regime_for_row
 from src.validation.calibration import PlattCalibrator
 from src.validation.training_sample import cap_training_rows
@@ -290,16 +291,40 @@ def main():
     rank_weight = frozen.get("rank_probability_weight", 0.50)
     if not isinstance(rank_weight, (int, float)) or not 0.0 <= float(rank_weight) <= 1.0:
         raise SystemExit("FAIL: frozen ranking probability weight is invalid")
-    holdout_rank_probability = pd.Series(routed_probabilities, index=test.index)
-    holdout_rank_return = pd.Series(selected_return_pred, index=test.index)
-    group_cols = ["date"] + (["asset_class"] if "asset_class" in test.columns else [])
-    rank_prob = holdout_rank_probability.groupby(
-        [test[c] for c in group_cols]
-    ).rank(method="average", ascending=False, pct=True)
-    rank_ret = holdout_rank_return.groupby(
-        [test[c] for c in group_cols]
-    ).rank(method="average", ascending=False, pct=True)
-    holdout_rank_score = rank_weight * rank_prob + (1.0 - rank_weight) * rank_ret
+    rank_uncertainty_penalty = frozen.get("rank_uncertainty_penalty", 0.0)
+    if (
+        not isinstance(rank_uncertainty_penalty, (int, float))
+        or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0
+    ):
+        raise SystemExit("FAIL: frozen ranking uncertainty penalty is invalid")
+
+    ranking_frame = pd.DataFrame(
+        {
+            "prediction_date": test["date"].astype(str).to_numpy(),
+            "asset_class": test["asset_class"].astype(str).to_numpy(),
+            "p_up_1d": routed_probabilities,
+            "expected_return_1d": selected_return_pred,
+        },
+        index=test.index,
+    )
+    ranking_frame["ranking_uncertainty"] = np.nan
+    for asset, subset in test.groupby("asset_class", sort=False):
+        qmodels = q_assets.get(str(asset), q_global)
+        lo_vals = qmodels["q10"].predict(subset[FEATURE_COLUMNS])
+        hi_vals = qmodels["q90"].predict(subset[FEATURE_COLUMNS])
+        ranking_frame.loc[subset.index, "ranking_uncertainty"] = np.maximum(
+            hi_vals - lo_vals,
+            0.0,
+        )
+
+    ranked = cross_sectional_rank(
+        ranking_frame,
+        probability_col="p_up_1d",
+        return_col="expected_return_1d",
+        probability_weight=float(rank_weight),
+        uncertainty_col="ranking_uncertainty",
+        uncertainty_penalty=float(rank_uncertainty_penalty),
+    )
     holdout_group_keys = (
         test["date"].astype(str)
         + "::"
@@ -307,34 +332,16 @@ def main():
         if "asset_class" in test.columns
         else test["date"].astype(str)
     )
-    rank_uncertainty_penalty = frozen.get("rank_uncertainty_penalty", 0.0)
-    if (
-        not isinstance(rank_uncertainty_penalty, (int, float))
-        or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0
-    ):
-        raise SystemExit("FAIL: frozen ranking uncertainty penalty is invalid")
-    global_q10_pred = q_global["q10"].predict(test[FEATURE_COLUMNS])
-    global_q90_pred = q_global["q90"].predict(test[FEATURE_COLUMNS])
-    ranking_uncertainty = pd.Series(
-        np.maximum(global_q90_pred - global_q10_pred, 0.0),
-        index=test.index,
-    )
-    rank_uncertainty = ranking_uncertainty.groupby(
-        [test[c] for c in group_cols]
-    ).rank(method="average", ascending=True, pct=True)
-    holdout_rank_score = (
-        rank_weight * rank_prob
-        + (1.0 - rank_weight) * rank_ret
-        - float(rank_uncertainty_penalty) * rank_uncertainty
-    )
     ranking_holdout = {
         "probability_weight": float(rank_weight),
         "uncertainty_penalty": float(rank_uncertainty_penalty),
-        "rank_ic": float(cross_sectional_rank_ic(
-            test["target_ret_1d"].astype(float),
-            holdout_rank_score.to_numpy(dtype=float),
-            holdout_group_keys,
-        )),
+        "rank_ic": float(
+            cross_sectional_rank_ic(
+                test["target_ret_1d"].astype(float),
+                ranked["rank_score"].reindex(test.index).to_numpy(dtype=float),
+                holdout_group_keys,
+            )
+        ),
     }
 
     base = float(core.target_up_1d.mean())
