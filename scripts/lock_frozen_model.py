@@ -39,6 +39,10 @@ def main():
         raise SystemExit("FAIL: OOS did not select a global model")
 
     lock["selected_model"]=selected
+    vol_threshold=payload.get("regime_vol_threshold")
+    if not isinstance(vol_threshold,(int,float)) or not __import__("math").isfinite(float(vol_threshold)):
+        raise SystemExit("FAIL: OOS did not produce a valid regime volatility threshold")
+    lock["regime_vol_threshold"]=float(vol_threshold)
     return_oos=payload.get("return_oos", {})
     return_selected=return_oos.get("selected_estimator")
     if return_selected not in {"mean", "q50", "blend_mean_q50"}:
