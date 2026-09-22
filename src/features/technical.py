@@ -28,6 +28,8 @@ FEATURE_COLUMNS=[
     "asset_is_jp","asset_is_us","asset_is_stock",
     "asset_is_etf","asset_is_reit",
     "ret_vs_market_median","vol_vs_market_median",
+    "market_median_ret_5d","market_median_ret_20d","residual_momentum_20d",
+    "market_median_vol_20d","residual_volatility_20d",
     "volatility_5","volatility_ratio_5_20","wvma_5","volume_std_ratio_5",
     "volume_z20","dollar_volume_ratio_20",
     "amihud_20","return_z20","range_z20",
