@@ -160,6 +160,7 @@ def main():
             "required_classifiers": sorted(required_classifiers),
             "regime_vol_threshold": threshold,
             "rank_probability_weight": float(frozen.get("rank_probability_weight", 0.50)),
+            "rank_uncertainty_penalty": float(frozen.get("rank_uncertainty_penalty", 0.0)),
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
             "training_rows": int(len(labeled)),
