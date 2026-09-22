@@ -271,11 +271,25 @@ def build_snapshot(out_path:str)->dict:
     hashes={}
     raw_lengths={}
 
+    retrieval_methods={}
     for market,url in sources:
         raw=fetch(url)
+        parsed=parse_rows(raw,market,url)
+        method="direct"
+        if len(parsed) < 50:
+            try:
+                reader_raw=_jina_reader(url)
+                reader_parsed=parse_reader_text(reader_raw,market,url)
+                if len(reader_parsed) > len(parsed):
+                    raw=reader_raw
+                    parsed=reader_parsed
+                    method="jina_reader_fallback"
+            except Exception as exc:
+                method=f"direct_parse_weak:{type(exc).__name__}"
         hashes[market]=hashlib.sha256(raw).hexdigest()
         raw_lengths[market]=len(raw)
-        records.extend(parse_rows(raw,market,url))
+        retrieval_methods[market]=method
+        records.extend(parsed)
 
     if len(records)<100:
         raise RuntimeError(
@@ -293,6 +307,7 @@ def build_snapshot(out_path:str)->dict:
         "retrieved_at":datetime.now(timezone.utc).isoformat(),
         "source_hashes":hashes,
         "raw_lengths":raw_lengths,
+        "retrieval_methods":retrieval_methods,
         "record_count":len(records),
         "asset_class_counts":asset_counts,
         "records":sorted(
