@@ -17,7 +17,7 @@ features:
   cross_sectional_robust_zscore_min_group: 10
   fundamentals: planned
   news_ir: planned
-  macro: planned
+  macro: free_yahoo_cross_asset_context
 models:
   primary_candidates:
     - logistic
