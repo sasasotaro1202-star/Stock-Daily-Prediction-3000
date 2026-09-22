@@ -46,3 +46,28 @@ def test_paypay_parser_detects_us_ticker_and_section():
         ("BRK.B","us_stock"),
         ("SPY","us_etf"),
     }
+
+
+def test_reader_fallback_parse_stays_tradeable_and_section_aware():
+    markdown = """
+# 日本株 個別銘柄
+| コード | 銘柄 | 取扱いアプリ |
+| 7203 | トヨタ | trade_on,mini_on,cfd_on |
+# 国内ETF（上場投資信託）
+| 1306 | TOPIX ETF | mini_on,cfd_off |
+| 1475 | iShares ETF | trade_on,cfd_off |
+# REIT（不動産投資信託）
+| 8951 | 日本ビルファンド投資法人 | trade_on,mini_on,cfd_off |
+"""
+    from src.data.paypay_collector import parse_reader_text
+
+    rows = parse_reader_text(
+        markdown.encode("utf-8"),
+        "japan",
+        "https://www.paypay-sec.co.jp/stock/list/",
+    )
+    pairs = {(r["symbol"], r["asset_class"]) for r in rows}
+    assert ("7203", "jp_stock") in pairs
+    assert ("1475", "jp_etf") in pairs
+    assert ("8951", "jp_reit") in pairs
+    assert ("1306", "jp_etf") not in pairs
