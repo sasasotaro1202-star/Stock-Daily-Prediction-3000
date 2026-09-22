@@ -103,6 +103,10 @@ def main():
         df = df[pd.to_datetime(df["session_date"]).dt.date <= cutoff].copy()
 
     dates = sorted(pd.to_datetime(df["session_date"]).dt.date.unique())
+    pipeline_cfg = yaml.safe_load(
+        Path("config/pipeline.yml").read_text(encoding="utf-8")
+    )
+    model_cfg = pipeline_cfg.get("models", {})
     folds = make_date_folds(
         dates,
         min_train=252,
@@ -227,10 +231,6 @@ def main():
         for name, rows in return_estimators.items()
         if rows
     }
-    pipeline_cfg = yaml.safe_load(
-        Path("config/pipeline.yml").read_text(encoding="utf-8")
-    )
-    model_cfg = pipeline_cfg.get("models", {})
     return_mae_guard = float(
         model_cfg.get("return_estimator_mae_guard", 1.10)
     )
