@@ -107,7 +107,7 @@ def main():
         reasons += [f"bad_ohlc:{bad_ohlc}"] if bad_ohlc else []
         reasons += [f"negative_volume:{neg_vol}"] if neg_vol else []
         reasons += [f"invalid_available_at:{invalid_avail}"] if invalid_avail else []
-        reasons += [f"retrieved_at_legacy_missing:{retrieved_missing}"] if retrieved_missing else []
+        legacy_retrieval_missing = retrieved_missing
         reasons += [f"latest_retrieval_at_missing:{latest_retrieval_missing}"] if latest_retrieval_missing else []
         reasons += [f"available_at_after_retrieved_at:{retrieved_before_available}"] if retrieved_before_available else []
         reasons += [f"available_at_before_session_date:{impossible_pit}"] if impossible_pit else []
@@ -160,6 +160,7 @@ def main():
         "rows":int(len(df)),
         "files":len(files),
         "reasons":reasons,
+        "legacy_retrieval_missing": int(locals().get("legacy_retrieval_missing", 0)),
     }
     Path("data/research").mkdir(parents=True,exist_ok=True)
     Path("data/research/data_quality.json").write_text(
