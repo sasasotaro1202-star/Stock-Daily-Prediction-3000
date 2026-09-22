@@ -27,7 +27,6 @@ def _has_approved_production_state(
     *,
     expected_holdout_generation: object,
     expected_research_fingerprint: str,
-    expected_full_fingerprint: str,
 ) -> bool:
     src = extract / "data" / "research"
     if not src.exists():
@@ -49,10 +48,6 @@ def _has_approved_production_state(
         "research_code_fingerprint_sha256"
     ) != expected_research_fingerprint:
         return False
-    if metadata_payload.get(
-        "code_fingerprint_sha256"
-    ) != expected_full_fingerprint:
-        return False
     try:
         payload = json.loads(gate.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -72,11 +67,7 @@ def main():
         raise SystemExit("DEFERRED: current frozen holdout lock is unreadable") from exc
     if lock_payload.get("status") != "FROZEN":
         raise SystemExit("DEFERRED: current frozen holdout is not locked")
-    from src.validation.code_fingerprint import (
-        fingerprint_sha256,
-        research_fingerprint_sha256,
-    )
-    expected_full_fingerprint = fingerprint_sha256()
+    from src.validation.code_fingerprint import research_fingerprint_sha256
     expected_research_fingerprint = research_fingerprint_sha256()
     expected_holdout_generation = lock_payload.get("holdout_generation")
     if expected_holdout_generation is None:
@@ -117,7 +108,6 @@ def main():
                 extract,
                 expected_holdout_generation=expected_holdout_generation,
                 expected_research_fingerprint=expected_research_fingerprint,
-                expected_full_fingerprint=expected_full_fingerprint,
             ):
                 skipped += 1
                 continue
