@@ -51,10 +51,19 @@ def main():
     if not isinstance(rank_uncertainty_penalty,(int,float)) or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0:
         raise SystemExit("FAIL: OOS did not produce a valid ranking uncertainty penalty")
     lock["rank_uncertainty_penalty"]=float(rank_uncertainty_penalty)
+    vol_threshold_source=payload.get("regime_vol_threshold_source")
+    if vol_threshold_source != "oos_fold_train_median":
+        raise SystemExit("FAIL: regime volatility threshold is not OOS-train-derived")
+    threshold_folds=payload.get("regime_vol_threshold_folds")
+    if not isinstance(threshold_folds,(int,float)) or int(threshold_folds) < 3:
+        raise SystemExit("FAIL: insufficient OOS folds for regime volatility threshold")
+
     vol_threshold=payload.get("regime_vol_threshold")
     if not isinstance(vol_threshold,(int,float)) or not __import__("math").isfinite(float(vol_threshold)):
         raise SystemExit("FAIL: OOS did not produce a valid regime volatility threshold")
     lock["regime_vol_threshold"]=float(vol_threshold)
+    lock["regime_vol_threshold_source"]=vol_threshold_source
+    lock["regime_vol_threshold_folds"]=int(threshold_folds)
     return_oos=payload.get("return_oos", {})
     return_selected=return_oos.get("selected_estimator")
     if return_selected not in {"mean", "q50", "blend_mean_q50"}:
