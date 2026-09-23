@@ -183,5 +183,21 @@ def models():
                 left_weight=0.5,
             )
 
+        def make_hgb_lgbm_blend_hgb_heavy_recent():
+            return SoftBlendClassifier(
+                out["hgb"](),
+                out["lightgbm_regularized"](),
+                left_weight=0.75,
+            )
+
+        def make_hgb_lgbm_blend_lgbm_heavy_recent():
+            return SoftBlendClassifier(
+                out["hgb"](),
+                out["lightgbm_regularized"](),
+                left_weight=0.25,
+            )
+
         out["blend_hgb_lgbm_regularized_recent"] = make_hgb_lgbm_blend_recent
+        out["blend_hgb_lgbm_regularized_recent_75_25"] = make_hgb_lgbm_blend_hgb_heavy_recent
+        out["blend_hgb_lgbm_regularized_recent_25_75"] = make_hgb_lgbm_blend_lgbm_heavy_recent
     return out
