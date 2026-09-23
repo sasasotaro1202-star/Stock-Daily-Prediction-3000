@@ -955,3 +955,14 @@ def test_prediction_output_integrity_gate_rejects_jst_date_mismatch(tmp_path, mo
 
     with pytest.raises(SystemExit, match="prediction_date does not match"):
         validator.main()
+
+
+def test_bounded_recovery_retries_cancelled_runs_once():
+    from pathlib import Path
+
+    source = Path(".github/workflows/bounded-production-recovery.yml").read_text(encoding="utf-8")
+    assert "conclusion == 'failure'" in source
+    assert "conclusion == 'cancelled'" in source
+    assert "run_attempt == 1" in source
+    assert "gh run rerun ${{ github.event.workflow_run.id }} --repo" in source
+    assert "Re-run failed or cancelled run once" in source
