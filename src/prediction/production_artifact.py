@@ -52,6 +52,14 @@ def _validate_artifact_structure(
     selected = meta.get("selected_model")
     if selected not in classifiers:
         raise RuntimeError("production model artifact selected model is missing")
+    for route_key in ("symbol_selected_models", "symbol_regime_selected_models"):
+        route_map = meta.get(route_key)
+        if route_map is None:
+            continue
+        if not isinstance(route_map, dict):
+            raise RuntimeError(f"production route metadata is invalid: {route_key}")
+        if not set(str(v) for v in route_map.values()).issubset(classifiers):
+            raise RuntimeError(f"production route metadata references missing classifier: {route_key}")
     for name, entry in classifiers.items():
         if not isinstance(entry, dict) or "model" not in entry or "calibrator" not in entry:
             raise RuntimeError(
