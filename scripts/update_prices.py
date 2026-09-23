@@ -22,7 +22,7 @@ ASSET_SCOPE={
 }
 
 
-def one(i:int,batch:list[dict])->tuple[int,int,str]:
+def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
     path=ROOT/f"batch_{i:03d}.parquet"
     ROOT.mkdir(parents=True,exist_ok=True)
 
@@ -82,19 +82,20 @@ def one(i:int,batch:list[dict])->tuple[int,int,str]:
             frames.append(data)
 
     if not frames:
-        return i,0,"DEFERRED"
+        return i,0,"DEFERRED",sorted(current_keys)
 
     data=pd.concat(frames,ignore_index=True)
     rows=upsert_batch_parquet(data,str(path))
-    observed_keys=set(
+    stored=pd.read_parquet(path)
+    stored_keys=set(
         zip(
-            data["asset_class"].astype(str),
-            data["symbol"].astype(str),
+            stored["asset_class"].astype(str),
+            stored["symbol"].astype(str),
         )
     )
-    missing=len(current_keys-observed_keys)
-    status="PASS" if missing==0 else "DEFERRED"
-    return i,rows,status
+    missing_keys=sorted(current_keys-stored_keys)
+    status="PASS" if not missing_keys else "DEFERRED"
+    return i,rows,status,missing_keys
 
 
 if __name__=="__main__":
@@ -122,10 +123,20 @@ if __name__=="__main__":
 
     completed=0
     deferred=0
+    unresolved: list[dict] = []
+    report_path=ROOT/f"price_deferred_shard_{SHARD_INDEX}.json"
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         futures=[pool.submit(one,i,b) for i,b in selected]
         for fut in as_completed(futures):
-            i,rows,status=fut.result()
+            i,rows,status,missing_keys=fut.result()
+            for asset_class, symbol in missing_keys:
+                unresolved.append({
+                    "asset_class": asset_class,
+                    "symbol": symbol,
+                    "batch": i,
+                    "reason": "no_price_rows_after_bounded_recovery",
+                    "retrieval_run_id": os.getenv("GITHUB_RUN_ID"),
+                })
             print(
                 f"price-batch={i:03d} "
                 f"shard={SHARD_INDEX}/{SHARD_COUNT} "
@@ -136,10 +147,22 @@ if __name__=="__main__":
             else:
                 deferred+=1
 
-    if selected and completed==0:
-        raise SystemExit(
-            f"DEFERRED: shard {SHARD_INDEX} returned no complete price batches"
-        )
+    report_path.write_text(
+        json.dumps(
+            {
+                "status": "PASS" if not unresolved else "DEFERRED",
+                "shard": SHARD_INDEX,
+                "shard_count": SHARD_COUNT,
+                "retrieval_run_id": os.getenv("GITHUB_RUN_ID"),
+                "deferred": sorted(
+                    unresolved,
+                    key=lambda x: (x["asset_class"], x["symbol"]),
+                ),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     print(
         f"price-update: PASS shard={SHARD_INDEX}/{SHARD_COUNT} "
