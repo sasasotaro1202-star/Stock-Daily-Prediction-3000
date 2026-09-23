@@ -1004,8 +1004,11 @@ def test_actions_watchdog_ignores_superseded_workflow_failures():
     )
     assert 'current_sha="$GITHUB_SHA"' in source
     assert "head_sha=\"$(printf '%s' \"$run_json\" | jq -r '.head_sha // empty')\"" in source
-    assert 'if [ "$head_sha" != "$current_sha" ]; then' in source
-    assert "belongs to superseded SHA" in source
+    assert (
+        'if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then'
+        in source
+    )
+    assert 'ignoring run ${run_id} on superseded SHA' in source
     assert "status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}" in source
 
 
