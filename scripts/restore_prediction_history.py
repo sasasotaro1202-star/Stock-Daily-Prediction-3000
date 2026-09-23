@@ -65,7 +65,7 @@ def main():
         reverse=True,
     )[:20]:
         try:
-            req=Request(
+            req=urllib.request.Request(
                 artifact["archive_download_url"],
                 headers={
                     "Authorization":f"Bearer {token}",
