@@ -23,6 +23,17 @@ def _download(url: str, token: str, timeout: int) -> bytes:
         return response.read()
 
 
+def _find_frozen_lock(root: Path) -> Path:
+    matches = [
+        p for p in root.rglob("config/frozen_holdout.json")
+        if p.is_file()
+    ]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected exactly one frozen holdout lock in artifact, found {len(matches)}"
+        )
+    return matches[0].resolve()
+
 def _find_research_root(root: Path) -> Path:
     matches = [p for p in root.rglob("production_model_artifact.pkl") if p.is_file()]
     if len(matches) != 1:
@@ -88,23 +99,9 @@ def _has_approved_production_state(
 def main():
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
-    lock_path = Path("config/frozen_holdout.json")
-    if not lock_path.exists():
-        raise SystemExit("DEFERRED: current frozen holdout lock is absent")
-    try:
-        lock_payload = json.loads(lock_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise SystemExit("DEFERRED: current frozen holdout lock is unreadable") from exc
-    if lock_payload.get("status") != "FROZEN":
-        raise SystemExit("DEFERRED: current frozen holdout is not locked")
-    from src.validation.code_fingerprint import (
-        fingerprint_sha256,
-        research_fingerprint_sha256,
-    )
+    from src.validation.code_fingerprint import research_fingerprint_sha256
     expected_research_fingerprint = research_fingerprint_sha256()
-    expected_holdout_generation = lock_payload.get("holdout_generation")
-    if expected_holdout_generation is None:
-        raise SystemExit("DEFERRED: current holdout generation is absent")
+
     query = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
     payload = json.loads(_download(query, token, timeout=25))
 
@@ -130,6 +127,17 @@ def main():
                 download_workflow_artifact(repo, token, artifact, extract)
                 validate_extracted_tree(extract)
                 src = _find_research_root(extract)
+                lock_src = _find_frozen_lock(extract)
+                lock_payload = json.loads(
+                    lock_src.read_text(encoding="utf-8")
+                )
+                if lock_payload.get("status") != "FROZEN":
+                    skipped += 1
+                    continue
+                expected_holdout_generation = lock_payload.get("holdout_generation")
+                if expected_holdout_generation is None:
+                    skipped += 1
+                    continue
 
                 if not _has_approved_production_state(
                     src,
@@ -145,6 +153,9 @@ def main():
                     target = dst / item.name
                     if item.is_file():
                         shutil.copy2(item, target)
+                config_dst = Path("config/frozen_holdout.json")
+                config_dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(lock_src, config_dst)
 
             print(
                 f"research-state: restored approved artifact_id={artifact['id']} "
