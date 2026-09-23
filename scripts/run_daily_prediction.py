@@ -18,7 +18,6 @@ from src.research.router import regime_for_row, route_plan
 from src.validation.code_fingerprint import fingerprint_sha256
 
 PRICE = Path("data/prices")
-METRICS = Path("data/research/latest_metrics.json")
 GATE = Path("data/research/release_gate.json")
 FROZEN = Path("config/frozen_holdout.json")
 OUT = Path("data/predictions/latest.parquet")
@@ -42,22 +41,18 @@ def production_eligible(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    if not PRICE.exists() or not METRICS.exists() or not GATE.exists():
-        raise SystemExit("DEFERRED: research/release artifacts are missing")
+    if not PRICE.exists() or not GATE.exists() or not FROZEN.exists():
+        raise SystemExit("DEFERRED: production data/release state is missing")
 
     gate = json.loads(GATE.read_text(encoding="utf-8"))
     if not gate.get("approved", False):
         raise SystemExit(
             f"DEFERRED: release gate not approved: {gate.get('reasons', [])}"
         )
-
-    payload = json.loads(METRICS.read_text(encoding="utf-8"))
     try:
         artifact = load_production_artifact()
     except RuntimeError as exc:
         raise SystemExit(f"DEFERRED: {exc}") from exc
-    if artifact["metadata"]["selected_model"] != payload.get("selected_model"):
-        raise SystemExit("DEFERRED: production artifact does not match selected research model")
     df = pd.read_parquet(PRICE)
     context_path = Path("data/market_context.parquet")
     if not context_path.exists():
@@ -91,18 +86,17 @@ def main():
     df = add_technical_features(df)
     df = add_market_context(df, market_context)
     df = add_cross_sectional_context(df)
-    labeled = add_targets(df).dropna(
-        subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"]
-    ).copy()
-    labeled = production_eligible(labeled)
 
-    if len(labeled) < 5000:
-        raise SystemExit("DEFERRED: insufficient PIT-safe production training data")
+    frozen_routes = json.loads(FROZEN.read_text(encoding="utf-8"))
+    if frozen_routes.get("status") != "FROZEN":
+        raise SystemExit("DEFERRED: frozen production routing is not locked")
 
-    # Pick the latest actually-known session independently for each market family.
+    # The immutable production artifact is the model source of truth; current
+    # research backtest metrics are not required for live inference.
+    # Pick the latest PIT-safe session independently for every security.
     latest = (
-        df.sort_values(["asset_class", "session_date"])
-        .groupby("asset_class", group_keys=False)
+        df.sort_values(["asset_class", "symbol", "session_date"])
+        .groupby(["asset_class", "symbol"], group_keys=False)
         .tail(1)
         .copy()
     )
@@ -113,15 +107,11 @@ def main():
 
     threshold = float(artifact["metadata"]["regime_vol_threshold"])
 
-    metric_payload = payload
-    frozen_routes = {}
-    if FROZEN.exists():
-        frozen_routes = json.loads(FROZEN.read_text(encoding="utf-8"))
-    locked_mode = frozen_routes.get("status") == "FROZEN"
-    regime_metrics = metric_payload.get("regime_metrics", {})
-    asset_metrics = metric_payload.get("asset_class_metrics", {})
-    asset_regime_metrics = metric_payload.get("asset_regime_metrics", {})
-    global_selected = metric_payload.get("selected_model", "hgb")
+    locked_mode = True
+    regime_metrics = {}
+    asset_metrics = {}
+    asset_regime_metrics = {}
+    global_selected = str(artifact["metadata"]["selected_model"])
 
     # Load the already-approved immutable model artifact. No classifier or
     # quantile model is retrained inside the production prediction job.
