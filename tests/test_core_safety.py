@@ -1026,3 +1026,14 @@ def test_actions_watchdog_scopes_sha_filter_except_bounded_recovery():
     assert "continue" in source
     assert 'if [ "$workflow_name" = "Bounded production recovery" ]' in source
     assert "no applicable run found in watchdog window" in source
+
+
+def test_market_cycle_guard_is_current_sha_aware_and_non_overlapping():
+    from pathlib import Path
+
+    source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    assert 'current_sha="$GITHUB_SHA"' in source
+    assert 'head_sha="$(printf "%s" "$run_json" | jq -r ".head_sha // empty")"' in source
+    assert "Never overlap with any recent cycle, regardless of SHA." in source
+    assert 'if [ "$head_sha" != "$current_sha" ]; then' in source
+    assert 'reason="recent_successful_current_sha_cycle"' in source
