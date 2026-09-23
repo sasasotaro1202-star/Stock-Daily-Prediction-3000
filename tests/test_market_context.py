@@ -138,7 +138,6 @@ def test_topix_provider_symbol_is_supported_yahoo_index_code():
 
 
 def test_market_context_quality_requires_extended_macro_families(tmp_path, monkeypatch):
-    import json
     import scripts.update_market_context as updater
 
     rows = []
@@ -158,3 +157,22 @@ def test_market_context_quality_requires_extended_macro_families(tmp_path, monke
     monkeypatch.chdir(tmp_path)
     updater.OUT = tmp_path / "data" / "market_context.parquet"
     updater.RESULT = tmp_path / "data" / "research" / "market_context_quality.json"
+
+
+def test_market_context_download_records_retrieval_provenance(monkeypatch):
+    import numpy as np
+    import src.data.market_context as market_context
+
+    idx=pd.to_datetime(["2026-09-22"])
+    columns=pd.MultiIndex.from_product(
+        [["^TOPX"],["Close"]]
+    )
+    raw=pd.DataFrame([[2500.0]],index=idx,columns=columns)
+    monkeypatch.setenv("GITHUB_RUN_ID","123456")
+    monkeypatch.setattr(market_context.yf,"download",lambda *args,**kwargs: raw)
+    out=market_context.download_market_context(period="1mo")
+    assert out["source"].tolist()==["yfinance"]
+    assert out["provider_symbol"].tolist()==["^TOPX"]
+    assert out["retrieved_at"].notna().all()
+    assert out["retrieval_run_id"].tolist()==["123456"]
+    assert pd.api.types.is_datetime64tz_dtype(out["retrieved_at"])
