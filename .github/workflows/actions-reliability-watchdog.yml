@@ -40,6 +40,7 @@ jobs:
             runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20")"
 
             latest_run_found=false
+            current_run_found=false
           while IFS= read -r encoded; do
             [ -n "$encoded" ] || continue
             run_json="$(printf '%s' "$encoded" | base64 -d)"
@@ -55,14 +56,15 @@ jobs:
             head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
             updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
+            if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then
+              echo "${workflow_name}: ignoring run ${run_id} on superseded SHA ${head_sha}; current=${current_sha}"
+              continue
+            fi
+
             latest_run_found=true
+            current_run_found=true
 
             echo "WATCHDOG_LATEST workflow=${workflow_name} run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}"
-
-            if [ "$head_sha" != "$current_sha" ]; then
-              echo "${workflow_name}: latest run ${run_id} belongs to superseded SHA ${head_sha}; current=${current_sha}"
-              break
-            fi
 
             if [ "$workflow_name" = "Bounded production recovery" ]; then
               if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
@@ -89,8 +91,8 @@ jobs:
             break
           done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
 
-          if [ "$latest_run_found" = false ]; then
-            echo "${workflow_name}: no run found in watchdog window"
+          if [ "$current_run_found" = false ]; then
+            echo "${workflow_name}: no applicable run found in watchdog window"
           fi
           }
 
