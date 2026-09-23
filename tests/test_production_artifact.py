@@ -20,7 +20,7 @@ def test_artifact_validation_requires_exact_required_classifier_set(
     import src.prediction.production_artifact as artifact_module
     from src.features.technical import FEATURE_COLUMNS
 
-    monkeypatch.setattr(artifact_module, "fingerprint_sha256", lambda: "fp")
+    monkeypatch.setattr(artifact_module, "research_fingerprint_sha256", lambda: "rfp")
     monkeypatch.setattr(artifact_module, "release_signature", lambda: "sig")
 
     gate_path = tmp_path / "release_gate.json"
@@ -37,7 +37,8 @@ def test_artifact_validation_requires_exact_required_classifier_set(
     payload = {
         "metadata": {
             "artifact_version": 1,
-            "code_fingerprint_sha256": "fp",
+            "code_fingerprint_sha256": "legacy-fp",
+            "research_code_fingerprint_sha256": "rfp",
             "release_signature": "sig",
             "feature_columns": list(FEATURE_COLUMNS),
             "python_version": f"{__import__('sys').version_info.major}.{__import__('sys').version_info.minor}",
@@ -75,3 +76,21 @@ def test_artifact_validates_lightgbm_and_composite_lightgbm_routes():
 def test_release_files_include_approved_gate():
     from src.prediction.production_artifact import RELEASE_FILES
     assert any(str(path) == "data/research/release_gate.json" for path in RELEASE_FILES)
+
+
+def test_prediction_targets_each_security_not_only_each_asset_class():
+    script = Path("scripts/run_daily_prediction.py").read_text()
+    assert 'groupby(["asset_class", "symbol"], group_keys=False)' in script
+
+
+def test_production_artifact_uses_research_fingerprint_for_compatibility():
+    script = Path("src/prediction/production_artifact.py").read_text()
+    assert "research_code_fingerprint_sha256" in script
+    assert "research_fingerprint_sha256()" in script
+
+
+def test_on_demand_prediction_workflow_is_present():
+    workflow = Path(".github/workflows/on-demand-production-prediction.yml").read_text()
+    assert "workflow_dispatch:" in workflow
+    assert "run_daily_prediction.py" in workflow
+    assert "load_production_artifact" in workflow
