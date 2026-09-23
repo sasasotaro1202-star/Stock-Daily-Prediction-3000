@@ -102,7 +102,6 @@ def main():
         research_fingerprint_sha256,
     )
     expected_research_fingerprint = research_fingerprint_sha256()
-    expected_full_fingerprint = fingerprint_sha256()
     expected_holdout_generation = lock_payload.get("holdout_generation")
     if expected_holdout_generation is None:
         raise SystemExit("DEFERRED: current holdout generation is absent")
@@ -136,7 +135,6 @@ def main():
                     src,
                     expected_holdout_generation=expected_holdout_generation,
                     expected_research_fingerprint=expected_research_fingerprint,
-                    expected_full_fingerprint=expected_full_fingerprint,
                 ):
                     skipped += 1
                     continue
