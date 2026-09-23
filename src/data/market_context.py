@@ -10,7 +10,10 @@ import yfinance as yf
 
 CONTEXT_SYMBOLS={
     "nikkei":"^N225",
-    "topix":"^TOPX",
+    # Yahoo Finance index endpoint is not reliably available to yfinance
+    # in the GitHub Actions environment. 1306.T is a listed ETF whose stated
+    # underlying is TOPIX; use its raw-close return as a transparent proxy.
+    "topix":"1306.T",
     "sp500":"^GSPC",
     "nasdaq":"^IXIC",
     "vix":"^VIX",
