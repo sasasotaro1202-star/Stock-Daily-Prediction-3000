@@ -205,8 +205,14 @@ def main():
         reason for reason in reasons
         if not reason.startswith("provider_deferred_current_cycle:")
     ]
+    if hard_reasons:
+        overall_status = "DEFERRED"
+    elif deferred_keys:
+        overall_status = "DEGRADED"
+    else:
+        overall_status = "PASS"
     result={
-        "status":"PASS" if not hard_reasons else "DEFERRED",
+        "status": overall_status,
         "rows":int(len(df)),
         "asset_scope":sorted(ASSET_SCOPE) if ASSET_SCOPE else None,
         "files":len(files),
