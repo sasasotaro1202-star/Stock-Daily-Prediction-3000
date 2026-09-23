@@ -700,3 +700,108 @@ def test_capafy_inspired_anti_overfit_battery_is_deterministic():
         seed=42,
     )
     assert first == second
+
+def test_data_quality_provider_deferred_symbols_are_bounded():
+    import json
+    from pathlib import Path
+    import pytest
+    import scripts.data_quality_gate as gate
+
+    root = Path("data")
+    price_root = root / "prices"
+    universe = root / "universe" / "latest.json"
+    price_root.mkdir(parents=True)
+    universe.parent.mkdir(parents=True)
+
+    rows = []
+    records = []
+    for i in range(100):
+        symbol = f"{i:04d}"
+        records.append({"symbol": symbol, "asset_class": "jp_stock", "tradeable": True})
+        rows.append({
+            "symbol": symbol,
+            "asset_class": "jp_stock",
+            "session_date": pd.Timestamp("2026-09-23").date(),
+            "available_at": pd.Timestamp("2026-09-23T07:00:00Z"),
+            "retrieved_at": pd.Timestamp("2026-09-23T07:30:00Z"),
+            "source": "yfinance",
+            "provider_symbol": f"{symbol}.T",
+            "open": 100.0,
+            "high": 101.0,
+            "low": 99.0,
+            "close": 100.5,
+            "volume": 1000.0,
+        })
+    universe.write_text(json.dumps({"records": records}), encoding="utf-8")
+    # One provider-deferred symbol (<5%) is permitted as explicit degradation.
+    pd.DataFrame(rows[:99]).to_parquet(price_root / "canonical.parquet", index=False)
+    (price_root / "price_deferred_shard_0.json").write_text(
+        json.dumps({
+            "status": "DEFERRED",
+            "retrieval_run_id": "test-run",
+            "deferred": [{
+                "asset_class": "jp_stock",
+                "symbol": "0099",
+            }],
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr(gate, "UNIVERSE", universe)
+    import os
+    os.environ["GITHUB_RUN_ID"] = "test-run"
+    monkeypatch.chdir(Path("."))
+    gate.main()
+    result = json.loads(
+        Path("data/research/data_quality.json").read_text(encoding="utf-8")
+    )
+    assert result["provider_deferred_symbols"] == 1
+    assert result["provider_deferred_ratio"] < 0.05
+    monkeypatch.undo()
+
+
+def test_data_quality_provider_deferred_ratio_blocks_large_omission(tmp_path, monkeypatch):
+    import json
+    import scripts.data_quality_gate as gate
+
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "data"
+    price_root = root / "prices"
+    universe = root / "universe" / "latest.json"
+    price_root.mkdir(parents=True)
+    universe.parent.mkdir(parents=True)
+    records = [
+        {"symbol": f"{i:04d}", "asset_class": "jp_stock", "tradeable": True}
+        for i in range(20)
+    ]
+    universe.write_text(json.dumps({"records": records}), encoding="utf-8")
+    rows = [{
+        "symbol": f"{i:04d}",
+        "asset_class": "jp_stock",
+        "session_date": pd.Timestamp("2026-09-23").date(),
+        "available_at": pd.Timestamp("2026-09-23T07:00:00Z"),
+        "retrieved_at": pd.Timestamp("2026-09-23T07:30:00Z"),
+        "source": "yfinance",
+        "provider_symbol": f"{i:04d}.T",
+        "open": 100.0,
+        "high": 101.0,
+        "low": 99.0,
+        "close": 100.5,
+        "volume": 1000.0,
+    } for i in range(10)]
+    pd.DataFrame(rows).to_parquet(price_root / "canonical.parquet", index=False)
+    (price_root / "price_deferred_shard_0.json").write_text(
+        json.dumps({
+            "status": "DEFERRED",
+            "retrieval_run_id": "large-test",
+            "deferred": [
+                {"asset_class": "jp_stock", "symbol": f"{i:04d}"}
+                for i in range(10,20)
+            ],
+        }),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GITHUB_RUN_ID", "large-test")
+    gate.UNIVERSE = universe
+    with __import__("pytest").raises(SystemExit, match="critical"):
+        gate.main()
