@@ -994,3 +994,16 @@ def test_asymmetric_blend_candidates_are_in_routing_search_space():
     assert "blend_hgb_lgbm_regularized_recent_75_25" in router
     assert "blend_hgb_lgbm_regularized_recent_25_75" in pipe
     assert "blend_hgb_lgbm_regularized_recent_75_25" in pipe
+
+
+def test_actions_watchdog_ignores_superseded_workflow_failures():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'current_sha="$GITHUB_SHA"' in source
+    assert "head_sha=\"$(printf '%s' \"$run_json\" | jq -r '.head_sha // empty')\"" in source
+    assert 'if [ "$head_sha" != "$current_sha" ]; then' in source
+    assert "belongs to superseded SHA" in source
+    assert "status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}" in source
