@@ -76,6 +76,8 @@ def main():
         "regime_selected_models",
         "asset_class_selected_models",
         "asset_regime_selected_models",
+        "symbol_selected_models",
+        "symbol_regime_selected_models",
         "rank_probability_weight",
         "rank_uncertainty_penalty",
         "classifier_training_window_sessions",
