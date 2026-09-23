@@ -165,7 +165,7 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
     records: list[dict] = []
     known_us_noise = {
         "A-", "D-", "G-", "J-", "M-", "P-", "S-", "V-",
-        "ETF", "NISA", "CFD",
+        "ETF", "NISA", "CFD", "ADR", "ADS", "NYRS", "US",
     }
 
     for i, line in enumerate(lines):
@@ -503,7 +503,7 @@ def parse_reader_text(raw: bytes, market: str, url: str) -> list[dict]:
                 if market == "japan" and re.fullmatch(r"[0-9]{4}[A-Z]?", field):
                     code = field
                 elif market == "us" and re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,7}", field):
-                    if field not in {"ETF", "NISA", "CFD", "USD", "JPY"}:
+                    if field not in {"ETF", "NISA", "CFD", "ADR", "ADS", "NYRS", "US", "USD", "JPY"}:
                         code = field
                 elif name is None and len(field) >= 2:
                     low = field.lower()
