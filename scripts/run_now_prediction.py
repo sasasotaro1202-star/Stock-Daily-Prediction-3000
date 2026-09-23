@@ -16,7 +16,7 @@ from src.prediction.production_artifact import ARTIFACT_PATH, load_production_ar
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
-from src.research.router import regime_for_row
+from src.research.router import regime_for_row, situation_for_row
 from src.validation.calibration import make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
@@ -195,6 +195,7 @@ def _predict_near_production(
     out["return_training_scope"] = "near_production_global"
     out["route_reason"] = f"near_production:{selection_source}"
     out["regime"] = "near_production"
+    out["market_situation"] = "near_production"
     out["model_disagreement"] = np.nan
     out["prediction_mode"] = "NEAR_PRODUCTION"
     out["prediction_time"] = pd.Timestamp(datetime.now(timezone.utc))
@@ -207,7 +208,7 @@ def _predict_near_production(
         "p_up_1d", "expected_return_1d", "expected_close_1d",
         "range_low_1d", "range_high_1d", "model_id",
         "training_scope", "return_training_scope", "route_reason",
-        "regime", "model_disagreement", "prediction_status",
+        "regime", "market_situation", "model_disagreement", "prediction_status",
         "prediction_mode",
     ]
     out["ranking_uncertainty"] = np.maximum(
