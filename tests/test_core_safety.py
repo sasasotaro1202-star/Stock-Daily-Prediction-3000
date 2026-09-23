@@ -701,13 +701,12 @@ def test_capafy_inspired_anti_overfit_battery_is_deterministic():
     )
     assert first == second
 
-def test_data_quality_provider_deferred_symbols_are_bounded():
+def test_data_quality_provider_deferred_symbols_are_bounded(tmp_path, monkeypatch):
     import json
-    from pathlib import Path
-    import pytest
     import scripts.data_quality_gate as gate
 
-    root = Path("data")
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "data"
     price_root = root / "prices"
     universe = root / "universe" / "latest.json"
     price_root.mkdir(parents=True)
@@ -717,7 +716,11 @@ def test_data_quality_provider_deferred_symbols_are_bounded():
     records = []
     for i in range(100):
         symbol = f"{i:04d}"
-        records.append({"symbol": symbol, "asset_class": "jp_stock", "tradeable": True})
+        records.append({
+            "symbol": symbol,
+            "asset_class": "jp_stock",
+            "tradeable": True,
+        })
         rows.append({
             "symbol": symbol,
             "asset_class": "jp_stock",
@@ -733,8 +736,10 @@ def test_data_quality_provider_deferred_symbols_are_bounded():
             "volume": 1000.0,
         })
     universe.write_text(json.dumps({"records": records}), encoding="utf-8")
-    # One provider-deferred symbol (<5%) is permitted as explicit degradation.
-    pd.DataFrame(rows[:99]).to_parquet(price_root / "canonical.parquet", index=False)
+    pd.DataFrame(rows[:99]).to_parquet(
+        price_root / "canonical.parquet",
+        index=False,
+    )
     (price_root / "price_deferred_shard_0.json").write_text(
         json.dumps({
             "status": "DEFERRED",
@@ -746,18 +751,16 @@ def test_data_quality_provider_deferred_symbols_are_bounded():
         }),
         encoding="utf-8",
     )
-    monkeypatch = pytest.MonkeyPatch()
-    monkeypatch.setattr(gate, "UNIVERSE", universe)
-    import os
-    os.environ["GITHUB_RUN_ID"] = "test-run"
-    monkeypatch.chdir(Path("."))
+    monkeypatch.setenv("GITHUB_RUN_ID", "test-run")
+    gate.UNIVERSE = universe
     gate.main()
     result = json.loads(
-        Path("data/research/data_quality.json").read_text(encoding="utf-8")
+        (root / "research" / "data_quality.json").read_text(
+            encoding="utf-8"
+        )
     )
     assert result["provider_deferred_symbols"] == 1
     assert result["provider_deferred_ratio"] < 0.05
-    monkeypatch.undo()
 
 
 def test_data_quality_provider_deferred_ratio_blocks_large_omission(tmp_path, monkeypatch):
