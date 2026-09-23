@@ -921,3 +921,42 @@ def test_market_cycle_pushes_cancel_obsolete_queue_entries():
 
     source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
     assert "cancel-in-progress: ${{ github.event_name == 'push' }}" in source
+
+
+def test_market_context_persistence_filters_future_available_rows(tmp_path, monkeypatch):
+    import json
+    import pandas as pd
+    import scripts.update_market_context as updater
+
+    monkeypatch.chdir(tmp_path)
+    updater.RESULT = tmp_path / "data" / "research" / "market_context_quality.json"
+    updater.OUT = tmp_path / "data" / "market_context.parquet"
+
+    now = pd.Timestamp.now(tz="UTC")
+    future = now + pd.Timedelta(hours=2)
+    rows = pd.DataFrame([
+        {
+            "session_date": now.date(), "family": "nikkei",
+            "provider_symbol": "^N225", "source": "yfinance",
+            "retrieved_at": now, "retrieval_run_id": "t",
+            "close": 100.0, "ret_1d": 0.01, "volatility_20": 0.02,
+            "available_at": now,
+        },
+        {
+            "session_date": now.date(), "family": "topix",
+            "provider_symbol": "1306.T", "source": "yfinance",
+            "retrieved_at": now, "retrieval_run_id": "t",
+            "close": 100.0, "ret_1d": 0.01, "volatility_20": 0.02,
+            "available_at": future,
+        },
+    ])
+
+    monkeypatch.setattr(updater, "download_market_context", lambda period: rows)
+    # Only the persistence filter is under test; bypass family completeness.
+    updater.MAX_STALENESS_DAYS = 9999
+    updater.main()
+    saved = pd.read_parquet(updater.OUT)
+    assert len(saved) == 1
+    assert saved.iloc[0]["family"] == "nikkei"
+    payload = json.loads(updater.RESULT.read_text(encoding="utf-8"))
+    assert payload["status"] == "DEFERRED"
