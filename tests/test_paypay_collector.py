@@ -116,12 +116,12 @@ def test_short_us_name_collision_is_rejected_when_official_resource_is_missing(m
         "_official_us_symbol_resource_exists",
         lambda _symbol: False,
     )
-    raw = b"""
+    raw = """
     <div>米国株</div>
     <div>DR</div>
     <div>D.R.ホートン</div>
     <div>trade_on</div>
-    """
+    """.encode()
     rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
     assert rows == []
 
