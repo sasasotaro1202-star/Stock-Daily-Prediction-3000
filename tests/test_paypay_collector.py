@@ -105,3 +105,40 @@ def test_browser_dump_dom_rejects_non_paypay_url():
 
     with pytest.raises(RuntimeError, match="PayPay official hosts"):
         _browser_dump_dom("https://example.com/")
+
+
+from __future__ import annotations
+
+from src.data import paypay_collector
+
+
+def test_short_us_name_collision_is_rejected_when_official_resource_is_missing(monkeypatch):
+    monkeypatch.setattr(
+        paypay_collector,
+        "_official_us_symbol_resource_exists",
+        lambda _symbol: False,
+    )
+    raw = b"""
+    <div>米国株</div>
+    <div>DR</div>
+    <div>D.R.ホートン</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
+    assert rows == []
+
+
+def test_short_us_real_symbol_is_kept_when_official_resource_exists(monkeypatch):
+    monkeypatch.setattr(
+        paypay_collector,
+        "_official_us_symbol_resource_exists",
+        lambda symbol: symbol == "IBM",
+    )
+    raw = b"""
+    <div>米国株</div>
+    <div>IBM</div>
+    <div>IBM</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
+    assert [(row["symbol"], row["asset_class"]) for row in rows] == [("IBM", "us_stock")]
