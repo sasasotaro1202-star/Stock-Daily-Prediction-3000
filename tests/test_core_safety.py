@@ -927,3 +927,31 @@ def test_prediction_output_integrity_gate_rejects_invalid_interval(tmp_path, mon
 
     with pytest.raises(SystemExit, match="return interval ordering is invalid"):
         validator.main()
+
+
+def test_prediction_output_integrity_gate_rejects_all_deferred(tmp_path, monkeypatch):
+    import pytest
+    import scripts.validate_prediction_output as validator
+
+    frame = _prediction_output_sample()
+    frame.loc[0, "prediction_status"] = "DEFERRED_INCOMPLETE_FEATURES"
+    path = tmp_path / "prediction.parquet"
+    frame.to_parquet(path, index=False)
+    monkeypatch.setenv("PREDICTION_OUTPUT", str(path))
+
+    with pytest.raises(SystemExit, match="contains no READY rows"):
+        validator.main()
+
+
+def test_prediction_output_integrity_gate_rejects_jst_date_mismatch(tmp_path, monkeypatch):
+    import pytest
+    import scripts.validate_prediction_output as validator
+
+    frame = _prediction_output_sample()
+    frame.loc[0, "prediction_date"] = "2026-09-24"
+    path = tmp_path / "prediction.parquet"
+    frame.to_parquet(path, index=False)
+    monkeypatch.setenv("PREDICTION_OUTPUT", str(path))
+
+    with pytest.raises(SystemExit, match="prediction_date does not match"):
+        validator.main()
