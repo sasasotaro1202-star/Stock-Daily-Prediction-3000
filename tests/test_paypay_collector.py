@@ -132,12 +132,12 @@ def test_short_us_real_symbol_is_kept_when_official_resource_exists(monkeypatch)
         "_official_us_symbol_resource_exists",
         lambda symbol: symbol == "IBM",
     )
-    raw = b"""
+    raw = """
     <div>米国株</div>
     <div>IBM</div>
     <div>IBM</div>
     <div>trade_on</div>
-    """
+    """.encode()
     rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
     assert [(row["symbol"], row["asset_class"]) for row in rows] == [("IBM", "us_stock")]
 
