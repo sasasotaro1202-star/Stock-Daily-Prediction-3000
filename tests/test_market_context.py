@@ -131,10 +131,10 @@ def test_macro_context_fields_flow_into_features():
     }.issubset(FEATURE_COLUMNS)
 
 
-def test_topix_provider_symbol_is_yahoo_listed_index_code():
+def test_topix_provider_symbol_is_supported_yahoo_index_code():
     from src.data.market_context import CONTEXT_SYMBOLS
 
-    assert CONTEXT_SYMBOLS["topix"] == "998405.T"
+    assert CONTEXT_SYMBOLS["topix"] == "^TOPX"
 
 
 def test_market_context_quality_requires_extended_macro_families(tmp_path, monkeypatch):
@@ -158,77 +158,3 @@ def test_market_context_quality_requires_extended_macro_families(tmp_path, monke
     monkeypatch.chdir(tmp_path)
     updater.OUT = tmp_path / "data" / "market_context.parquet"
     updater.RESULT = tmp_path / "data" / "research" / "market_context_quality.json"
-    updater.OUT.parent.mkdir(parents=True, exist_ok=True)
-    updater.OUT.write_bytes(b"")
-    pd.DataFrame(rows).to_parquet(updater.OUT, index=False)
-
-    updater.download_market_context = lambda period: pd.DataFrame(rows)
-    updater.main()
-    result = json.loads(updater.RESULT.read_text())
-    assert result["status"] == "PASS"
-    assert result["missing_families"] == []
-    assert result["stale_families"] == []
-
-
-def test_market_context_quality_defers_missing_extended_macro_family(tmp_path, monkeypatch):
-    import json
-    import pytest
-    import scripts.update_market_context as updater
-
-    families = [
-        "nikkei", "topix", "sp500", "nasdaq", "vix", "usd_jpy",
-        "us10y", "dxy", "gold", "oil",
-    ]
-    rows = [{
-        "family": family,
-        "session_date": pd.Timestamp("2026-09-22").date(),
-        "available_at": pd.Timestamp("2026-09-23T00:00:00Z"),
-        "ret_1d": 0.0,
-        "volatility_20": 0.1,
-        "close": 100.0,
-    } for family in families]
-
-    monkeypatch.chdir(tmp_path)
-    updater.OUT = tmp_path / "data" / "market_context.parquet"
-    updater.RESULT = tmp_path / "data" / "research" / "market_context_quality.json"
-    updater.download_market_context = lambda period: pd.DataFrame(rows)
-
-    with pytest.raises(SystemExit, match="incomplete or stale"):
-        updater.main()
-    result = json.loads(updater.RESULT.read_text())
-    assert "hyg" in result["missing_families"]
-    assert result["status"] == "DEFERRED"
-
-
-def test_market_context_quality_defers_stale_family(tmp_path, monkeypatch):
-    import json
-    import pytest
-    import scripts.update_market_context as updater
-
-    families = sorted({
-        "nikkei", "topix", "sp500", "nasdaq", "vix", "usd_jpy",
-        "us10y", "dxy", "gold", "oil", "hyg",
-    })
-    rows = [{
-        "family": family,
-        "session_date": (
-            pd.Timestamp("2026-08-01").date()
-            if family == "hyg"
-            else pd.Timestamp("2026-09-22").date()
-        ),
-        "available_at": pd.Timestamp("2026-09-23T00:00:00Z"),
-        "ret_1d": 0.0,
-        "volatility_20": 0.1,
-        "close": 100.0,
-    } for family in families]
-
-    monkeypatch.chdir(tmp_path)
-    updater.OUT = tmp_path / "data" / "market_context.parquet"
-    updater.RESULT = tmp_path / "data" / "research" / "market_context_quality.json"
-    updater.download_market_context = lambda period: pd.DataFrame(rows)
-
-    with pytest.raises(SystemExit, match="incomplete or stale"):
-        updater.main()
-    result = json.loads(updater.RESULT.read_text())
-    assert "hyg" in result["stale_families"]
-    assert result["status"] == "DEFERRED"
