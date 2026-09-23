@@ -902,3 +902,11 @@ def test_production_artifact_requires_frozen_security_routes_when_present():
     assert '"symbol_regime_selected_models": dict(frozen.get("symbol_regime_selected_models") or {})' in source
     assert '"symbol_selected_models",' in source
     assert '"symbol_regime_selected_models",' in source
+
+
+def test_security_route_requires_per_fold_oos_evidence():
+    from pathlib import Path
+
+    source = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    assert '"n_test_min"' in source
+    assert 'metric.get("n_test_min", 0.0)' in source
