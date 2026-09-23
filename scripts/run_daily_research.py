@@ -300,7 +300,7 @@ def main():
 
             core = df[df.session_date.isin(core_dates)]
             cal = df[df.session_date.isin(cal_dates)]
-            test = df[df.session_date.isin(test_dates)]
+            test = df[df.session_date.isin(test_dates)].reset_index(drop=True)
 
             if min(len(core), len(cal), len(test)) < 50:
                 continue
@@ -448,11 +448,7 @@ def main():
                 ):
                     if len(subset) < 10 or subset.target_up_1d.nunique() < 2:
                         continue
-                    sr = classification_metrics(
-                        subset.target_up_1d.astype(int),
-                        p[subset.index.to_numpy() - test.index.min()] if False else p[test.index.get_indexer(subset.index)],
-                    )
-                    subset_positions = test.index.get_indexer(subset.index)
+                    subset_positions = subset.index.to_numpy(dtype=int)
                     sr = classification_metrics(
                         subset.target_up_1d.astype(int),
                         p[subset_positions],
@@ -473,7 +469,7 @@ def main():
                             or route_subset.target_up_1d.nunique() < 2
                         ):
                             continue
-                        route_positions = test.index.get_indexer(route_subset.index)
+                        route_positions = route_subset.index.to_numpy(dtype=int)
                         rr_symbol = classification_metrics(
                             route_subset.target_up_1d.astype(int),
                             p[route_positions],
