@@ -39,7 +39,11 @@ jobs:
             local workflow_name="$2"
             local self_heal_queued="${3:-false}"
             local runs
-            runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20")"
+            if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
+              echo "::error title=${workflow_name} Actions API unavailable::unable to inspect recent workflow runs"
+              failures=$((failures + 1))
+              return 0
+            fi
 
             latest_run_found=false
             current_run_found=false
@@ -142,9 +146,12 @@ jobs:
           inspect_workflow "us-close-prediction.yml" "U.S. close prediction" false
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
-          heartbeat_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/heartbeat.yml/runs?status=success&per_page=1")"
-          latest_heartbeat="$(printf '%s' "$heartbeat_runs" | jq -r '.workflow_runs[0].created_at // empty')"
-          if [ -z "$latest_heartbeat" ]; then
+          if ! heartbeat_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/heartbeat.yml/runs?status=success&per_page=1" 2>/dev/null)"; then
+            echo "::error title=Automation heartbeat API unavailable::unable to inspect successful heartbeat runs"
+            failures=$((failures + 1))
+          else
+            latest_heartbeat="$(printf '%s' "$heartbeat_runs" | jq -r '.workflow_runs[0].created_at // empty')"
+            if [ -z "$latest_heartbeat" ]; then
             echo "::error title=Automation heartbeat missing::no successful heartbeat run is available"
             failures=$((failures + 1))
           else
@@ -156,6 +163,7 @@ jobs:
             else
               echo "Automation heartbeat: fresh ($latest_heartbeat)"
             fi
+          fi
           fi
 
           if [ "$failures" -gt 0 ]; then
