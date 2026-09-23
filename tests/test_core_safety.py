@@ -646,7 +646,7 @@ def test_actions_watchdog_is_hourly_and_fail_visible():
         encoding="utf-8"
     )
     assert 'cron: "7 * * * *"' in source
-    assert "actions: read" in source
+    assert "actions: write" in source
     assert "96 hours ago" in source
     assert "bounded recovery" in source
     assert "Actions reliability watchdog: PASS" in source
