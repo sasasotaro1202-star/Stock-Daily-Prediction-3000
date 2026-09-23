@@ -55,6 +55,7 @@ def main():
         ("asset_balanced_calibration","asset_calibration_rows" in Path("scripts/run_daily_research.py").read_text() and "asset_macro_logloss" in Path("scripts/run_daily_research.py").read_text()),
         ("price_shards","price_shards: 4" in pipe),
         ("price_retrieval_provenance","retrieved_at" in Path("src/data/yahoo_price.py").read_text() and "available_at_after_retrieved_at" in Path("scripts/data_quality_gate.py").read_text() and "audit_retrieval_provenance" in Path("src/validation/leakage.py").read_text()),
+        ("market_context_retrieval_provenance","retrieved_at" in Path("src/data/market_context.py").read_text() and "retrieval_run_id" in Path("src/data/market_context.py").read_text() and "\"source\"" in Path("src/data/market_context.py").read_text()),
     ]
     bad=[name for name,ok in checks if not ok]
     for name,ok in checks: print(f"{name}: {'PASS' if ok else 'FAIL'}")
