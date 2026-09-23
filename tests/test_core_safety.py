@@ -910,3 +910,11 @@ def test_security_route_requires_per_fold_oos_evidence():
     source = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
     assert '"n_test_min"' in source
     assert 'metric.get("n_test_min", 0.0)' in source
+
+
+
+def test_market_cycle_pushes_cancel_obsolete_queue_entries():
+    from pathlib import Path
+
+    source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    assert "cancel-in-progress: ${{ github.event_name == 'push' }}" in source
