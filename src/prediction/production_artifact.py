@@ -9,7 +9,7 @@ import numpy as np
 import sklearn
 
 from src.features.technical import FEATURE_COLUMNS
-from src.validation.code_fingerprint import fingerprint_sha256
+from src.validation.code_fingerprint import fingerprint_sha256, research_fingerprint_sha256
 
 ARTIFACT_PATH = Path("data/research/production_model_artifact.pkl")
 RELEASE_GATE_PATH = Path("data/research/release_gate.json")
@@ -99,8 +99,11 @@ def validate_artifact(payload: dict) -> None:
         return_section,
     )
 
-    if meta.get("code_fingerprint_sha256") != fingerprint_sha256():
-        raise RuntimeError("production model artifact code fingerprint mismatch")
+    expected_research_fp = meta.get("research_code_fingerprint_sha256")
+    if not expected_research_fp:
+        raise RuntimeError("production model artifact research fingerprint is missing")
+    if expected_research_fp != research_fingerprint_sha256():
+        raise RuntimeError("production model artifact research code fingerprint mismatch")
     if meta.get("release_signature") != release_signature():
         raise RuntimeError("production model artifact release evidence mismatch")
 
