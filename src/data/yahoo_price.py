@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from datetime import datetime, time
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -143,6 +144,59 @@ def download_batch(
             records[0]["symbol"],
             records[0]["asset_class"],
         ))
+
+    # Multi-ticker yfinance calls can silently omit a subset of valid tickers.
+    # Recover those symbols individually before returning a partial batch.
+    observed = {
+        (str(frame["asset_class"].iloc[0]), str(frame["symbol"].iloc[0]))
+        for frame in frames
+        if not frame.empty and {"asset_class", "symbol"}.issubset(frame.columns)
+    }
+    missing_records = [
+        rec for rec in records
+        if (str(rec["asset_class"]), str(rec["symbol"])) not in observed
+    ]
+    for rec in missing_records:
+        key = (str(rec["asset_class"]), str(rec["symbol"]))
+        provider_symbol = yahoo_symbol(rec["symbol"], rec["asset_class"])
+        recovered = False
+        for attempt in range(3):
+            try:
+                single = yf.Ticker(provider_symbol).history(
+                    period=period,
+                    auto_adjust=False,
+                    actions=True,
+                )
+            except Exception as exc:
+                print(
+                    f"price-single-retry provider_symbol={provider_symbol} "
+                    f"attempt={attempt + 1}/3 error={type(exc).__name__}"
+                )
+                single = pd.DataFrame()
+            if isinstance(single, pd.DataFrame) and not single.empty:
+                before = len(frames)
+                if isinstance(single.columns, pd.MultiIndex):
+                    levels = single.columns.get_level_values(0)
+                    if provider_symbol in levels:
+                        single = single[provider_symbol]
+                    elif len(set(levels)) == 1:
+                        single = single.droplevel(0, axis=1)
+                normalize(single, rec, provider_symbol)
+                if len(frames) > before and not frames[-1].empty:
+                    observed.add(key)
+                    recovered = True
+                    print(
+                        f"price-single-recovery provider_symbol={provider_symbol} "
+                        f"rows={len(frames[-1])}"
+                    )
+                    break
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+        if not recovered:
+            print(
+                f"price-single-deferred symbol={rec['symbol']} "
+                f"asset_class={rec['asset_class']} provider_symbol={provider_symbol}"
+            )
 
     if not frames:
         return pd.DataFrame()
