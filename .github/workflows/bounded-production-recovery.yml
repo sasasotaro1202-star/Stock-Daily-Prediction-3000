@@ -26,7 +26,40 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Re-run failed or cancelled run once
+      - name: Recover current or latest workflow execution once
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run rerun ${{ github.event.workflow_run.id }} --repo ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          workflow_id="$(jq -r '.workflow_run.id' "$GITHUB_EVENT_PATH")"
+          workflow_name="$(jq -r '.workflow_run.name' "$GITHUB_EVENT_PATH")"
+          failed_sha="$(jq -r '.workflow_run.head_sha' "$GITHUB_EVENT_PATH")"
+          conclusion="$(jq -r '.workflow_run.conclusion' "$GITHUB_EVENT_PATH")"
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+
+          if [ "$failed_sha" = "$current_sha" ]; then
+            echo "recovery-mode=rerun-current-sha workflow=$workflow_name conclusion=$conclusion"
+            gh run rerun "$workflow_id" --repo "$GITHUB_REPOSITORY"
+            exit 0
+          fi
+
+          echo "recovery-mode=dispatch-current-main workflow=$workflow_name conclusion=$conclusion"
+
+          existing="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow "$workflow_name" \
+            --branch main \
+            --limit 20 \
+            --json headSha,status \
+            --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "in_progress"))')"
+
+          if [ -n "$existing" ]; then
+            echo "current-main-run-already-active=true"
+            exit 0
+          fi
+
+          gh workflow run "$workflow_name" \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main
