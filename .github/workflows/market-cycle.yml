@@ -195,6 +195,9 @@ jobs:
         env:
           PREDICT_ASSET_CLASSES: jp_stock,jp_etf,jp_reit
         run: python scripts/run_daily_prediction.py
+      - name: Validate production prediction output
+        if: steps.gate.outputs.approved == 'true' && success()
+        run: python scripts/validate_prediction_output.py
       - name: Cross-sectional backtest evidence
         if: steps.gate.outputs.approved == 'true'
         run: python scripts/run_backtest.py
