@@ -24,19 +24,19 @@ class ModelPlan:
 
 
 CANDIDATES = {
-    Regime.NORMAL: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb_conservative_recent", "hgb", "extra_trees", "logistic"),
-    Regime.HIGH_VOL: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
-    Regime.TREND: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
-    Regime.EVENT: ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees"),
+    Regime.NORMAL: ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb_conservative_recent", "hgb", "extra_trees", "logistic"),
+    Regime.HIGH_VOL: ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.TREND: ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    Regime.EVENT: ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees"),
     Regime.DATA_STRESSED: ("hgb",),
 }
 
 ASSET_CANDIDATES = {
-    "jp_stock": ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "extra_trees", "hgb", "logistic"),
-    "jp_etf": ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
-    "jp_reit": ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
-    "us_stock": ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
-    "us_etf": ("blend_hgb_lgbm_regularized_recent", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "jp_stock": ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_recent", "lightgbm_regularized_recent", "lightgbm", "lightgbm_regularized", "extra_trees", "hgb", "logistic"),
+    "jp_etf": ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "jp_reit": ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "us_stock": ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
+    "us_etf": ("blend_hgb_lgbm_regularized_recent_25_75", "blend_hgb_lgbm_regularized_recent", "blend_hgb_lgbm_regularized_recent_75_25", "lightgbm_conservative_recent", "lightgbm_regularized_recent", "lightgbm_recent", "lightgbm", "lightgbm_regularized", "hgb", "extra_trees", "logistic"),
 }
 
 
