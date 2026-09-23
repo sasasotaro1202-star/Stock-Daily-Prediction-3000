@@ -806,8 +806,11 @@ def test_data_quality_provider_deferred_ratio_blocks_large_omission(tmp_path, mo
     )
     monkeypatch.setenv("GITHUB_RUN_ID", "large-test")
     gate.UNIVERSE = universe
-    with __import__("pytest").raises(SystemExit, match="critical"):
-        gate.main()
+    result = gate.main()
+    payload = json.loads((root / "research" / "data_quality.json").read_text(encoding="utf-8"))
+    assert result == 0
+    assert payload["status"] == "DEFERRED"
+    assert payload["provider_deferred_ratio"] == 0.5
 
 
 def test_release_gate_rejects_degraded_price_quality():
@@ -847,7 +850,7 @@ def test_watchdog_cleans_stale_bounded_recovery_without_recovery_loop():
         encoding="utf-8"
     )
     assert "stale queued recovery run" in source
-    assert 'workflow_name = "Bounded production recovery"' in source
+    assert '[ "$workflow_name" = "Bounded production recovery" ]' in source
     assert "without dispatching a recovery-of-recovery run" in source
 
 
