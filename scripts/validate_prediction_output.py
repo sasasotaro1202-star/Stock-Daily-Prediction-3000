@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 
@@ -57,9 +58,9 @@ def main() -> None:
 
     ready = df["prediction_status"].eq("READY")
     for col in ("p_up_1d", "expected_return_1d", "expected_close_1d", "range_low_1d", "range_high_1d"):
-        values = pd.to_numeric(df.loc[ready, col], errors="coerce")
-        if values.isna().any() or not values.map(lambda x: pd.notna(x) and pd.api.types.is_number(x)).all():
-            raise SystemExit(f"FAIL: READY rows contain invalid numeric values in {col}")
+        values = pd.to_numeric(df.loc[ready, col], errors="coerce").to_numpy(dtype=float)
+        if values.size and not np.isfinite(values).all():
+            raise SystemExit(f"FAIL: READY rows contain non-finite numeric values in {col}")
 
     p = pd.to_numeric(df.loc[ready, "p_up_1d"], errors="coerce")
     if not p.between(0.0, 1.0).all():
@@ -75,11 +76,6 @@ def main() -> None:
         raise SystemExit("FAIL: READY rows contain empty model_id")
     if df.loc[ready, "route_reason"].astype(str).str.strip().eq("").any():
         raise SystemExit("FAIL: READY rows contain empty route_reason")
-
-    for col in ("expected_return_1d", "expected_close_1d", "range_low_1d", "range_high_1d"):
-        values = pd.to_numeric(df.loc[ready, col], errors="coerce")
-        if not values.map(pd.notna).all():
-            raise SystemExit(f"FAIL: READY rows contain non-finite numeric values in {col}")
 
     print(
         f"prediction-output-integrity: PASS rows={len(df)} "
