@@ -882,3 +882,13 @@ def test_security_routing_artifacts_are_part_of_research_and_lock_contract():
     assert "symbol_regime_selected_models" in lock
     assert "locked_symbol_regime" in holdout
     assert "locked_symbol_regime" in prediction
+
+
+def test_production_artifact_validates_security_route_metadata():
+    from pathlib import Path
+
+    source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")
+    artifact = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+    assert "symbol_selected_models" in source
+    assert "symbol_regime_selected_models" in source
+    assert '"symbol_selected_models": dict(frozen.get("symbol_selected_models") or {})' in artifact
