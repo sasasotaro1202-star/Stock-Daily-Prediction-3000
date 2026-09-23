@@ -57,6 +57,12 @@ def main() -> None:
         raise SystemExit(f"FAIL: unknown prediction_status values: {bad}")
 
     ready = df["prediction_status"].eq("READY")
+    if not ready.any():
+        raise SystemExit("FAIL: prediction output contains no READY rows")
+    expected_prediction_date = prediction_time.dt.tz_convert("Asia/Tokyo").dt.date.astype(str)
+    if not df["prediction_date"].astype(str).eq(expected_prediction_date).all():
+        raise SystemExit("FAIL: prediction_date does not match prediction_time in JST")
+
     for col in ("p_up_1d", "expected_return_1d", "expected_close_1d", "range_low_1d", "range_high_1d"):
         values = pd.to_numeric(df.loc[ready, col], errors="coerce").to_numpy(dtype=float)
         if values.size and not np.isfinite(values).all():
@@ -76,6 +82,13 @@ def main() -> None:
         raise SystemExit("FAIL: READY rows contain empty model_id")
     if df.loc[ready, "route_reason"].astype(str).str.strip().eq("").any():
         raise SystemExit("FAIL: READY rows contain empty route_reason")
+    if df.loc[ready, "training_scope"].astype(str).str.strip().eq("").any():
+        raise SystemExit("FAIL: READY rows contain empty training_scope")
+    if df.loc[ready, "return_training_scope"].astype(str).str.strip().eq("").any():
+        raise SystemExit("FAIL: READY rows contain empty return_training_scope")
+    disagreement = pd.to_numeric(df.loc[ready, "model_disagreement"], errors="coerce").to_numpy(dtype=float)
+    if not np.isfinite(disagreement).all() or (disagreement < 0.0).any():
+        raise SystemExit("FAIL: READY rows contain invalid model_disagreement")
 
     print(
         f"prediction-output-integrity: PASS rows={len(df)} "
