@@ -838,3 +838,14 @@ def test_bounded_recovery_targets_current_main_for_obsolete_runs():
     assert "git/ref/heads/main" in source
     assert "gh workflow run" in source
     assert "current-main-run-already-active=true" in source
+
+
+def test_watchdog_cleans_stale_bounded_recovery_without_recovery_loop():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "stale queued recovery run" in source
+    assert 'workflow_name = "Bounded production recovery"' in source
+    assert "without dispatching a recovery-of-recovery run" in source
