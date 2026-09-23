@@ -259,6 +259,9 @@ def route_plan(
     asset_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     regime_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     global_selected: str = "hgb",
+    symbol: str | None = None,
+    locked_symbol_regime: dict[str, str] | None = None,
+    locked_symbol: dict[str, str] | None = None,
     locked_asset_regime: dict[str, str] | None = None,
     locked_asset: dict[str, str] | None = None,
     locked_regime: dict[str, str] | None = None,
@@ -271,6 +274,30 @@ def route_plan(
         return ModelPlan(("hgb",), (1.0,), "data_stressed:fail_closed_fallback", "fallback")
 
     key = f"{asset_class}::{regime}"
+    symbol_key = (
+        f"{asset_class}::{str(symbol).strip()}"
+        if symbol is not None and str(symbol).strip()
+        else None
+    )
+
+    # Exact security routes are allowed only when they were selected by
+    # chronological OOS and frozen into the production release.
+    if symbol_key and locked_symbol_regime:
+        symbol_regime_key = f"{symbol_key}::{regime}"
+        if symbol_regime_key in locked_symbol_regime:
+            return ModelPlan(
+                (locked_symbol_regime[symbol_regime_key],),
+                (1.0,),
+                f"locked:symbol_regime:{symbol_regime_key}",
+                symbol_regime_key,
+            )
+    if symbol_key and locked_symbol and symbol_key in locked_symbol:
+        return ModelPlan(
+            (locked_symbol[symbol_key],),
+            (1.0,),
+            f"locked:symbol:{symbol_key}",
+            symbol_key,
+        )
 
     # Once a model release is frozen, the selected route cannot silently
     # change on the next scheduled run.
