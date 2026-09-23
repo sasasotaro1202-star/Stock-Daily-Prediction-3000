@@ -25,7 +25,7 @@ from src.prediction.production_artifact import ARTIFACT_PATH, release_signature
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
 from src.validation.calibration import make_calibrator
-from src.validation.code_fingerprint import fingerprint_sha256
+from src.validation.code_fingerprint import fingerprint_sha256, research_fingerprint_sha256
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 
@@ -195,6 +195,7 @@ def main():
             "created_at": pd.Timestamp.now(tz="UTC").isoformat(),
             "git_sha": os.getenv("GITHUB_SHA"),
             "code_fingerprint_sha256": fingerprint_sha256(),
+            "research_code_fingerprint_sha256": research_fingerprint_sha256(),
             "release_signature": release_signature(),
             "feature_columns": list(FEATURE_COLUMNS),
             "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
