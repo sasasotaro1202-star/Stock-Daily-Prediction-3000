@@ -813,3 +813,12 @@ def test_release_gate_rejects_degraded_price_quality():
     source = Path("scripts/release_gate.py").read_text(encoding="utf-8")
     assert 'quality.get("status")!="PASS"' in source
     assert '"data_quality_not_pass"' in source
+
+
+def test_repository_verification_prioritizes_latest_sha():
+    from pathlib import Path
+
+    source = Path(".github/workflows/repository-verification.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "cancel-in-progress: true" in source
