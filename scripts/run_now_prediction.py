@@ -12,7 +12,7 @@ from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.fit import fit_classifier
 from src.prediction.model_factories import models
-from src.prediction.production_artifact import load_production_artifact
+from src.prediction.production_artifact import ARTIFACT_PATH, load_production_artifact
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
@@ -44,7 +44,7 @@ def _load_model_choice() -> tuple[str, str]:
         payload = json.loads(FROZEN.read_text(encoding="utf-8"))
         selected = payload.get("selected_model")
         if selected:
-            return str(selected), "frozen_routing"
+            return str(selected), "frozen_selected_model"
     if METRICS.exists():
         payload = json.loads(METRICS.read_text(encoding="utf-8"))
         selected = payload.get("selected_model")
@@ -231,10 +231,17 @@ def main() -> None:
         ).split(",") if x.strip()
     }
 
-    # Preferred path: exact approved immutable production artifact.
-    try:
-        artifact = load_production_artifact()
-    except RuntimeError:
+    # Preferred path: exact approved immutable production artifact. If an
+    # artifact is present but fails validation, fail closed instead of silently
+    # switching to a research/near-production model.
+    if ARTIFACT_PATH.exists():
+        try:
+            artifact = load_production_artifact()
+        except RuntimeError as exc:
+            raise SystemExit(
+                f"DEFERRED: approved production artifact failed validation: {exc}"
+            ) from exc
+    else:
         artifact = None
 
     df = pd.read_parquet(PRICE_DIR)
@@ -253,8 +260,13 @@ def main() -> None:
         import scripts.run_daily_prediction as production
         old_filter = os.environ.get("PREDICT_ASSET_CLASSES")
         os.environ["PREDICT_ASSET_CLASSES"] = ",".join(sorted(asset_filter))
-        production.main()
-        os.environ.pop("PREDICT_ASSET_CLASSES", None)
+        try:
+            production.main()
+        finally:
+            if old_filter is None:
+                os.environ.pop("PREDICT_ASSET_CLASSES", None)
+            else:
+                os.environ["PREDICT_ASSET_CLASSES"] = old_filter
         produced = pd.read_parquet(production.OUT)
         produced["prediction_mode"] = "PRODUCTION"
         OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -91,9 +91,16 @@ def test_production_artifact_uses_research_fingerprint_for_compatibility():
 
 def test_on_demand_prediction_workflow_is_present():
     workflow = Path(".github/workflows/on-demand-production-prediction.yml").read_text()
+    runtime = Path("scripts/run_now_prediction.py").read_text()
     assert "workflow_dispatch:" in workflow
     assert "run_now_prediction.py" in workflow
-    assert "load_production_artifact" in workflow
+    assert "load_production_artifact" in runtime
+    assert "NEAR_PRODUCTION" in runtime
+
+
+def test_prediction_normalizes_latest_index_before_rowwise_access():
+    script = Path("scripts/run_daily_prediction.py").read_text()
+    assert "latest = latest.reset_index(drop=True)" in script
 
 def test_near_production_training_enforces_pit_cutoff():
     script = Path("scripts/run_now_prediction.py").read_text()

@@ -101,13 +101,17 @@ jobs:
         shell: bash
         run: |
           set +e
-          python scripts/restore_latest_research_state.py
-          rc=$?
+          restore_log="$(mktemp)"
+          python scripts/restore_latest_research_state.py 2>&1 | tee "$restore_log"
+          rc=${PIPESTATUS[0]}
           set -e
           if [ "$rc" -eq 0 ]; then
             echo "approved production state restored"
-          else
+          elif grep -q "DEFERRED:" "$restore_log"; then
             echo "approved production state unavailable; controlled NEAR_PRODUCTION fallback will be used"
+          else
+            echo "::error title=Production-state restore failed::unexpected restore error; refusing silent fallback"
+            exit "$rc"
           fi
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py

@@ -102,6 +102,9 @@ def main():
     )
     if asset_filter:
         latest = latest[latest["asset_class"].isin(asset_filter)].copy()
+    # Normalize the index before row-wise masks and dictionaries so
+    # duplicate source indexes can never create ambiguous .loc semantics.
+    latest = latest.reset_index(drop=True)
     if latest.empty:
         raise SystemExit("DEFERRED: no latest PIT-safe session rows")
 
