@@ -968,3 +968,29 @@ def test_bounded_recovery_retries_cancelled_runs_once():
     assert "run_attempt == 1" in source
     assert "gh run rerun ${{ github.event.workflow_run.id }} --repo" in source
     assert "Re-run failed or cancelled run once" in source
+
+
+def test_asymmetric_hgb_lgbm_blend_candidates_are_available():
+    from src.prediction.model_factories import models
+
+    available = models()
+    assert "blend_hgb_lgbm_regularized_recent_25_75" in available
+    assert "blend_hgb_lgbm_regularized_recent_75_25" in available
+
+    a = available["blend_hgb_lgbm_regularized_recent_25_75"]()
+    b = available["blend_hgb_lgbm_regularized_recent_75_25"]()
+    assert a.left_weight == 0.25
+    assert a.right_weight == 0.75
+    assert b.left_weight == 0.75
+    assert b.right_weight == 0.25
+
+
+def test_asymmetric_blend_candidates_are_in_routing_search_space():
+    from pathlib import Path
+
+    router = Path("src/research/router.py").read_text(encoding="utf-8")
+    pipe = Path("config/pipeline.yml").read_text(encoding="utf-8")
+    assert "blend_hgb_lgbm_regularized_recent_25_75" in router
+    assert "blend_hgb_lgbm_regularized_recent_75_25" in router
+    assert "blend_hgb_lgbm_regularized_recent_25_75" in pipe
+    assert "blend_hgb_lgbm_regularized_recent_75_25" in pipe

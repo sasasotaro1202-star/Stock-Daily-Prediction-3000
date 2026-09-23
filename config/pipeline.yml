@@ -27,6 +27,8 @@ models:
     - lightgbm
     - hgb_conservative_recent
     - blend_hgb_lgbm_regularized_recent
+    - blend_hgb_lgbm_regularized_recent_25_75
+    - blend_hgb_lgbm_regularized_recent_75_25
     - lightgbm_conservative
     - xgboost
     - catboost
