@@ -620,7 +620,7 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
     from scripts.restore_latest_research_state import _has_approved_production_state
 
     root = tmp_path / "extract"
-    research = root / "data" / "research"
+    research = root / "research"
     research.mkdir(parents=True)
     (research / "production_model_artifact.pkl").write_bytes(b"artifact")
     (research / "production_model_artifact.meta.json").write_text("{}", encoding="utf-8")
@@ -629,13 +629,13 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
         json.dumps({"approved": False}),
         encoding="utf-8",
     )
-    assert _has_approved_production_state(root) is False
+    assert _has_approved_production_state(research) is False
 
     (research / "release_gate.json").write_text(
         json.dumps({"approved": True}),
         encoding="utf-8",
     )
-    assert _has_approved_production_state(root) is True
+    assert _has_approved_production_state(research) is True
 
 def test_actions_watchdog_is_hourly_and_fail_visible():
     from pathlib import Path
