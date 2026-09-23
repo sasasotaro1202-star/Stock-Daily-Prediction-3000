@@ -1037,3 +1037,12 @@ def test_market_cycle_guard_is_current_sha_aware_and_non_overlapping():
     assert "Never overlap with any recent cycle, regardless of SHA." in source
     assert 'if [ "$head_sha" != "$current_sha" ]; then' in source
     assert 'reason="recent_successful_current_sha_cycle"' in source
+
+
+def test_market_cycle_skips_superseded_workflow_sha():
+    from pathlib import Path
+
+    source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    assert 'gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq ".object.sha"' in source
+    assert 'reason="superseded_workflow_sha"' in source
+    assert "deferring stale cycle" in source
