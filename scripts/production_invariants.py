@@ -28,6 +28,7 @@ def main():
         ("asset_class_balanced_selection","asset_class_balance_weight: 0.50" in pipe and "rebalance_global_oos_candidates" in Path("scripts/run_daily_research.py").read_text()),
         ("recency_weighted_challenger","recency_weighted_challenger: true" in pipe and "fit_classifier" in Path("scripts/run_daily_research.py").read_text()),
         ("optional_lightgbm_challenger","lightgbm" in pipe and "LGBMClassifier" in Path("src/prediction/model_factories.py").read_text() and "lightgbm_regularized_recent" in Path("src/prediction/model_factories.py").read_text() and "research" in Path("pyproject.toml").read_text()),
+        ("asymmetric_blend_challengers","blend_hgb_lgbm_regularized_recent_25_75" in Path("src/prediction/model_factories.py").read_text() and "blend_hgb_lgbm_regularized_recent_75_25" in Path("src/research/router.py").read_text() and "blend_hgb_lgbm_regularized_recent_25_75" in pipe),
         ("hgb_conservative_challenger","hgb_conservative_recent" in Path("src/prediction/model_factories.py").read_text() and "hgb_conservative_recent" in router),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
         ("scoped_route_parent_edge","minimum_scoped_oos_improvement_logloss: 0.002" in pipe and "materially_better_than_parent" in router and "minimum_scoped_oos_improvement_logloss" in Path("scripts/run_daily_research.py").read_text()),
