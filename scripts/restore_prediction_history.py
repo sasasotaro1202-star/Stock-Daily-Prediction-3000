@@ -3,13 +3,13 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import urllib.request
 import zipfile
 from pathlib import Path
-from urllib.request import Request, build_opener
 from urllib.parse import urlparse
 
 
-class _CrossHostRedirectHandler(__import__("urllib.request", fromlist=["HTTPRedirectHandler"]).HTTPRedirectHandler):
+class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Never forward GitHub API credentials to an external artifact host."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
@@ -23,12 +23,12 @@ class _CrossHostRedirectHandler(__import__("urllib.request", fromlist=["HTTPRedi
 
 
 def _opener():
-    return build_opener(_CrossHostRedirectHandler())
+    return urllib.request.build_opener(_CrossHostRedirectHandler())
 
 
 def api(url: str, token: str) -> dict:
 
-    req=Request(
+    req=urllib.request.Request(
         url,
         headers={
             "Authorization":f"Bearer {token}",
