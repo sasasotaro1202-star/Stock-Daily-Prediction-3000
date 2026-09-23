@@ -99,6 +99,30 @@ def _score(metric: dict[str, float]) -> float:
     return mean + 0.25 * std
 
 
+def materially_better_than_parent(
+    candidate_metrics: dict[str, dict[str, float]],
+    candidate_model: str,
+    parent_model: str,
+    *,
+    min_improvement_logloss: float = 0.0,
+) -> bool:
+    """Return True only when a scoped model clears a stable OOS LogLoss edge over its parent."""
+    if candidate_model == parent_model:
+        return False
+    candidate = candidate_metrics.get(candidate_model)
+    parent = candidate_metrics.get(parent_model)
+    if not candidate or not parent:
+        # If the parent model is not measured in the scoped slice, do not
+        # promote a specialist based on an incomparable objective.
+        return False
+    candidate_score = _score(candidate)
+    parent_score = _score(parent)
+    if not math.isfinite(candidate_score) or not math.isfinite(parent_score):
+        return False
+    margin = max(0.0, float(min_improvement_logloss))
+    return (parent_score - candidate_score) >= margin
+
+
 def rebalance_global_oos_candidates(
     global_candidates: dict[str, dict[str, float]],
     asset_metrics: dict[str, dict[str, dict[str, float]]],

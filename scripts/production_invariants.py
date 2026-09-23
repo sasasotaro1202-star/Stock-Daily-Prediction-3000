@@ -30,6 +30,7 @@ def main():
         ("optional_lightgbm_challenger","lightgbm" in pipe and "LGBMClassifier" in Path("src/prediction/model_factories.py").read_text() and "lightgbm_regularized_recent" in Path("src/prediction/model_factories.py").read_text() and "research" in Path("pyproject.toml").read_text()),
         ("hgb_conservative_challenger","hgb_conservative_recent" in Path("src/prediction/model_factories.py").read_text() and "hgb_conservative_recent" in router),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
+        ("scoped_route_parent_edge","minimum_scoped_oos_improvement_logloss: 0.002" in pipe and "materially_better_than_parent" in router and "minimum_scoped_oos_improvement_logloss" in Path("scripts/run_daily_research.py").read_text()),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),
         ("market_clock_split","groupby(\"asset_class\"" in prediction),
