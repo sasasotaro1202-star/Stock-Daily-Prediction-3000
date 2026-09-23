@@ -117,6 +117,8 @@ def main():
         "regime_selected_models",
         "asset_class_selected_models",
         "asset_regime_selected_models",
+        "symbol_selected_models",
+        "symbol_regime_selected_models",
     ):
         required_classifiers.update(
             str(value) for value in (frozen.get(key) or {}).values()
@@ -180,9 +182,14 @@ def main():
             float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
             float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
         ).value
+        asset_class = str(row["asset_class"]) if "asset_class" in row and pd.notna(row["asset_class"]) else ""
+        symbol_value = str(row["symbol"]) if "symbol" in row and pd.notna(row["symbol"]) else None
         plan = route_plan(
-            str(row["asset_class"]) if "asset_class" in row and pd.notna(row["asset_class"]) else "",
+            asset_class,
             regime,
+            symbol=symbol_value,
+            locked_symbol_regime=frozen_routes.get("symbol_regime_selected_models"),
+            locked_symbol=frozen_routes.get("symbol_selected_models"),
             locked_asset_regime=frozen_routes.get("asset_regime_selected_models"),
             locked_asset=frozen_routes.get("asset_class_selected_models"),
             locked_regime=frozen_routes.get("regime_selected_models"),
