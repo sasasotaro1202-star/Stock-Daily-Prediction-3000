@@ -90,6 +90,40 @@ def regime_for_row(
     return Regime.NORMAL
 
 
+def situation_for_row(
+    regime: str,
+    *,
+    gap_pct: float | None = None,
+    volume_ratio_20: float | None = None,
+    vix_level: float | None = None,
+    breadth_up: float | None = None,
+    price_vs_sma60: float | None = None,
+) -> str:
+    """Compact human-readable market situation label for production telemetry."""
+    try:
+        if regime == Regime.EVENT.value:
+            if gap_pct is not None and math.isfinite(float(gap_pct)) and abs(float(gap_pct)) >= 0.03:
+                return "event_gap"
+            if volume_ratio_20 is not None and math.isfinite(float(volume_ratio_20)) and float(volume_ratio_20) >= 3.0:
+                return "event_volume"
+            return "event"
+        if regime == Regime.HIGH_VOL.value:
+            if vix_level is not None and math.isfinite(float(vix_level)) and float(vix_level) >= 30.0:
+                return "high_vol_vix"
+            return "high_vol"
+        if regime == Regime.TREND.value:
+            if price_vs_sma60 is not None and math.isfinite(float(price_vs_sma60)):
+                return "trend_up" if float(price_vs_sma60) > 0 else "trend_down"
+            if breadth_up is not None and math.isfinite(float(breadth_up)):
+                return "breadth_up" if float(breadth_up) >= 0.75 else "breadth_down"
+            return "trend"
+        if regime == Regime.DATA_STRESSED.value:
+            return "data_stressed"
+        return "range"
+    except (TypeError, ValueError):
+        return "data_stressed"
+
+
 def _score(metric: dict[str, float]) -> float:
     # Penalize unstable OOS results without allowing dispersion to dominate.
     mean = float(metric.get("selection_logloss", metric.get("logloss", float("inf"))))
