@@ -3,13 +3,32 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import urllib.request
 import zipfile
 from pathlib import Path
-from urllib.request import Request, urlopen
+from urllib.parse import urlparse
+
+
+class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Never forward GitHub API credentials to an external artifact host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is None:
+            return None
+        if urlparse(req.full_url).netloc != urlparse(newurl).netloc:
+            for key in ("Authorization", "Accept", "X-GitHub-Api-Version"):
+                redirected.headers.pop(key, None)
+        return redirected
+
+
+def _opener():
+    return urllib.request.build_opener(_CrossHostRedirectHandler())
 
 
 def api(url: str, token: str) -> dict:
-    req=Request(
+
+    req=urllib.request.Request(
         url,
         headers={
             "Authorization":f"Bearer {token}",
@@ -17,7 +36,7 @@ def api(url: str, token: str) -> dict:
             "X-GitHub-Api-Version":"2022-11-28",
         },
     )
-    with urlopen(req,timeout=30) as response:
+    with _opener().open(req,timeout=30) as response:
         return json.load(response)
 
 
@@ -45,16 +64,16 @@ def main():
         key=lambda a:a.get("created_at",""),
         reverse=True,
     )[:20]:
-        req=Request(
-            artifact["archive_download_url"],
-            headers={
-                "Authorization":f"Bearer {token}",
-                "Accept":"application/vnd.github+json",
-                "X-GitHub-Api-Version":"2022-11-28",
-            },
-        )
         try:
-            with urlopen(req,timeout=60) as response:
+            req=urllib.request.Request(
+                artifact["archive_download_url"],
+                headers={
+                    "Authorization":f"Bearer {token}",
+                    "Accept":"application/vnd.github+json",
+                    "X-GitHub-Api-Version":"2022-11-28",
+                },
+            )
+            with _opener().open(req,timeout=60) as response:
                 blob=response.read()
             with tempfile.TemporaryDirectory() as tmp:
                 archive=Path(tmp)/"artifact.zip"

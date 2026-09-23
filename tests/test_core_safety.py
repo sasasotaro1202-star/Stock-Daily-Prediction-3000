@@ -739,6 +739,116 @@ def test_artifact_redirect_does_not_forward_github_token_cross_host():
     assert urlparse(redirected.full_url).netloc == "blob.example.net"
 
 
+def test_universe_artifact_redirect_does_not_forward_github_token():
+    from scripts.restore_latest_universe_state import _CrossHostRedirectHandler
+    from urllib.parse import urlparse
+    from urllib.request import Request
+
+    handler = _CrossHostRedirectHandler()
+    req = Request(
+        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
+        headers={"Authorization": "Bearer secret"},
+    )
+    redirected = handler.redirect_request(
+        req,
+        None,
+        302,
+        "Found",
+        {},
+        "https://blob.example.net/artifact.zip",
+    )
+    assert redirected is not None
+    assert "Authorization" not in redirected.headers
+    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+
+
+def test_research_artifact_redirect_does_not_forward_github_token():
+    from scripts.restore_latest_research_state import _CrossHostRedirectHandler
+    from urllib.parse import urlparse
+    from urllib.request import Request
+
+    handler = _CrossHostRedirectHandler()
+    req = Request(
+        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
+        headers={"Authorization": "Bearer secret"},
+    )
+    redirected = handler.redirect_request(
+        req,
+        None,
+        302,
+        "Found",
+        {},
+        "https://blob.example.net/artifact.zip",
+    )
+    assert redirected is not None
+    assert "Authorization" not in redirected.headers
+    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+
+
+def test_prediction_history_artifact_redirect_does_not_forward_github_token():
+    from scripts.restore_prediction_history import _CrossHostRedirectHandler
+    from urllib.parse import urlparse
+    from urllib.request import Request
+
+    handler = _CrossHostRedirectHandler()
+    req = Request(
+        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
+        headers={"Authorization": "Bearer secret"},
+    )
+    redirected = handler.redirect_request(
+        req,
+        None,
+        302,
+        "Found",
+        {},
+        "https://blob.example.net/artifact.zip",
+    )
+    assert redirected is not None
+    assert "Authorization" not in redirected.headers
+    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+
+
+def test_non_price_artifact_restores_avoid_unsafe_extractall():
+    from pathlib import Path
+
+    for path in (
+        "scripts/restore_latest_universe_state.py",
+        "scripts/restore_latest_research_state.py",
+    ):
+        source = Path(path).read_text(encoding="utf-8")
+        assert ".extractall(" not in source
+
+
+def test_universe_restore_rejects_zip_slip(tmp_path):
+    import pytest
+    import zipfile
+    from scripts.restore_latest_universe_state import _safe_extract
+
+    archive = tmp_path / "payload.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("../escaped.txt", "malicious")
+
+    with zipfile.ZipFile(archive) as zf:
+        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
+            _safe_extract(zf, tmp_path / "restore")
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_research_restore_rejects_zip_slip(tmp_path):
+    import pytest
+    import zipfile
+    from scripts.restore_latest_research_state import _safe_extract
+
+    archive = tmp_path / "payload.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("../escaped.txt", "malicious")
+
+    with zipfile.ZipFile(archive) as zf:
+        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
+            _safe_extract(zf, tmp_path / "restore")
+    assert not (tmp_path / "escaped.txt").exists()
+
+
 def test_price_state_restore_rejects_zip_slip(tmp_path):
     import pytest
     import zipfile
