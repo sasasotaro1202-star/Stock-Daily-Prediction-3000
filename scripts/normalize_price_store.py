@@ -73,7 +73,9 @@ def main() -> None:
         KEYS + ["retrieved_at", "available_at"],
         na_position="first",
     )
+    pre_dedup_rows = len(work)
     work = work.drop_duplicates(KEYS, keep="last")
+    duplicate_key_rows_removed = int(pre_dedup_rows - len(work))
     work = work.sort_values(KEYS).reset_index(drop=True)
 
     for path in files:
@@ -86,22 +88,13 @@ def main() -> None:
         "input_files": len(files),
         "input_rows": int(before),
         "output_rows": int(len(work)),
-        "duplicate_rows_removed": int(max(0, duplicate_rows - (duplicate_rows and len(work) or 0))
-        ),
         "duplicate_rows_detected": duplicate_rows,
+        "duplicate_key_rows_removed": duplicate_key_rows_removed,
         "conflicting_duplicate_groups": conflict_groups,
         "future_pit_rows_removed": invalid_pit,
         "invalid_ohlc_rows_removed": invalid_ohlc,
         "output": str(OUT),
     }
-    # Keep the exact removed-duplicate count audit-friendly by calculating it
-    # from key cardinality rather than assuming one duplicate per group.
-    input_unique = int(
-        df.loc[~(df["available_at"] > df["retrieved_at"])]
-        .drop_duplicates(KEYS)
-        .shape[0]
-    )
-    result["duplicate_key_rows_removed"] = max(0, before - invalid_pit - invalid_ohlc - input_unique)
 
     AUDIT.parent.mkdir(parents=True, exist_ok=True)
     AUDIT.write_text(json.dumps(result, indent=2), encoding="utf-8")
