@@ -819,6 +819,36 @@ def test_non_price_artifact_restores_avoid_unsafe_extractall():
         assert ".extractall(" not in source
 
 
+def test_universe_restore_rejects_zip_slip(tmp_path):
+    import pytest
+    import zipfile
+    from scripts.restore_latest_universe_state import _safe_extract
+
+    archive = tmp_path / "payload.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("../escaped.txt", "malicious")
+
+    with zipfile.ZipFile(archive) as zf:
+        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
+            _safe_extract(zf, tmp_path / "restore")
+    assert not (tmp_path / "escaped.txt").exists()
+
+
+def test_research_restore_rejects_zip_slip(tmp_path):
+    import pytest
+    import zipfile
+    from scripts.restore_latest_research_state import _safe_extract
+
+    archive = tmp_path / "payload.zip"
+    with zipfile.ZipFile(archive, "w") as zf:
+        zf.writestr("../escaped.txt", "malicious")
+
+    with zipfile.ZipFile(archive) as zf:
+        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
+            _safe_extract(zf, tmp_path / "restore")
+    assert not (tmp_path / "escaped.txt").exists()
+
+
 def test_price_state_restore_rejects_zip_slip(tmp_path):
     import pytest
     import zipfile
