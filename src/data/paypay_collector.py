@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 import urllib.request
+from functools import lru_cache
 
 from curl_cffi import requests as curl_requests
 from datetime import datetime, timezone
@@ -96,6 +97,31 @@ def _visible_lines(raw: bytes) -> list[str]:
         for line in "".join(parser.parts).splitlines()
         if " ".join(line.split()).strip()
     ]
+
+
+@lru_cache(maxsize=256)
+def _official_us_symbol_resource_exists(symbol: str) -> bool:
+    """Confirm short/ambiguous US codes against PayPay's official issuer-resource path."""
+    code = str(symbol).strip().upper()
+    if not re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,7}", code):
+        return False
+    url = f"https://www.paypay-sec.co.jp/pub-web/resource/{code.lower()}.pdf"
+    try:
+        response = curl_requests.get(
+            url,
+            headers={"User-Agent": "Stock-Daily-Prediction-PayPay/1.0"},
+            timeout=10,
+            impersonate="chrome",
+            allow_redirects=True,
+        )
+        content_type = response.headers.get("Content-Type", "").lower()
+        return (
+            response.status_code == 200
+            and "application/pdf" in content_type
+            and len(response.content) >= 2_000
+        )
+    except Exception:
+        return False
 
 
 def _visible_name_noise(value: str) -> bool:
@@ -206,6 +232,13 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
             asset_class = _asset_class(market, section, name)
             if not asset_class:
                 continue
+
+            if market == "us" and len(code) <= 3:
+                compact_name = re.sub(r"[^A-Z0-9]", "", name.upper())
+                compact_code = re.sub(r"[^A-Z0-9]", "", code.upper())
+                if compact_name.startswith(compact_code):
+                    if not _official_us_symbol_resource_exists(code):
+                        continue
 
             channels = [
                 token
