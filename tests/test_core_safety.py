@@ -1007,3 +1007,19 @@ def test_actions_watchdog_ignores_superseded_workflow_failures():
     assert 'if [ "$head_sha" != "$current_sha" ]; then' in source
     assert "belongs to superseded SHA" in source
     assert "status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}" in source
+
+
+def test_actions_watchdog_scopes_sha_filter_except_bounded_recovery():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert (
+        'if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then'
+        in source
+    )
+    assert 'ignoring run ${run_id} on superseded SHA' in source
+    assert "continue" in source
+    assert 'if [ "$workflow_name" = "Bounded production recovery" ]' in source
+    assert "no applicable run found in watchdog window" in source
