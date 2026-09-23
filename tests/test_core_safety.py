@@ -822,3 +822,16 @@ def test_repository_verification_prioritizes_latest_sha():
         encoding="utf-8"
     )
     assert "cancel-in-progress: true" in source
+
+
+def test_bounded_recovery_targets_current_main_for_obsolete_runs():
+    from pathlib import Path
+
+    source = Path(".github/workflows/bounded-production-recovery.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "recovery-mode=rerun-current-sha" in source
+    assert "recovery-mode=dispatch-current-main" in source
+    assert "git/ref/heads/main" in source
+    assert "gh workflow run" in source
+    assert "current-main-run-already-active=true" in source
