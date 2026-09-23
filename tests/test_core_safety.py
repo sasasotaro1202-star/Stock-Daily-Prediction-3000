@@ -849,3 +849,36 @@ def test_watchdog_cleans_stale_bounded_recovery_without_recovery_loop():
     assert "stale queued recovery run" in source
     assert 'workflow_name = "Bounded production recovery"' in source
     assert "without dispatching a recovery-of-recovery run" in source
+
+
+def test_security_route_precedes_higher_level_frozen_routes():
+    from src.research.router import route_plan
+
+    plan = route_plan(
+        "jp_stock",
+        "trend",
+        symbol="7203",
+        locked_symbol_regime={"jp_stock::7203::trend": "logistic"},
+        locked_symbol={"jp_stock::7203": "hgb"},
+        locked_asset_regime={"jp_stock::trend": "extra_trees"},
+        locked_asset={"jp_stock": "hgb_conservative_recent"},
+        locked_regime={"trend": "hgb"},
+        locked_global="hgb",
+    )
+    assert plan.names == ("logistic",)
+    assert plan.scope == "jp_stock::7203::trend"
+
+
+def test_security_routing_artifacts_are_part_of_research_and_lock_contract():
+    from pathlib import Path
+
+    research = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    lock = Path("scripts/lock_frozen_model.py").read_text(encoding="utf-8")
+    holdout = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
+    prediction = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
+    assert "symbol_selected_models" in research
+    assert "symbol_regime_selected_models" in research
+    assert "symbol_selected_models" in lock
+    assert "symbol_regime_selected_models" in lock
+    assert "locked_symbol_regime" in holdout
+    assert "locked_symbol_regime" in prediction
