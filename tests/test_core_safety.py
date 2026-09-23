@@ -864,3 +864,19 @@ def test_scoped_route_parent_edge_is_wired_into_research_config():
     assert "minimum_scoped_oos_improvement_logloss: 0.002" in pipe
     assert "materially_better_than_parent" in research
     assert "scope_improvement" in research
+
+
+def test_prediction_output_integrity_gate_is_wired():
+    from pathlib import Path
+
+    script = Path("scripts/validate_prediction_output.py").read_text(encoding="utf-8")
+    market = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    us = Path(".github/workflows/us-close-prediction.yml").read_text(encoding="utf-8")
+
+    assert "prediction-output-integrity: PASS" in script
+    assert "prediction_time" in script
+    assert "duplicate prediction security/date rows detected" in script
+    assert "p_up_1d outside [0,1]" in script
+    assert "return interval ordering is invalid" in script
+    assert "validate_prediction_output.py" in market
+    assert "validate_prediction_output.py" in us
