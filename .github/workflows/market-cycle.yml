@@ -59,6 +59,20 @@ jobs:
           current_sha="$GITHUB_SHA"
           run_required=true
           reason="no_recent_cycle"
+
+          if ! branch_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq ".object.sha")"; then
+            echo "market-cycle guard: unable to resolve current main SHA; continuing with normal guard"
+          elif [ "$branch_sha" != "$current_sha" ]; then
+            echo "market-cycle guard: superseded workflow SHA=$current_sha current_main=$branch_sha; deferring stale cycle"
+            run_required=false
+            reason="superseded_workflow_sha"
+          fi
+          if [ "$run_required" = false ]; then
+            echo "run_required=$run_required" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=$reason" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
           while IFS= read -r encoded; do
             [ -n "$encoded" ] || continue
             run_json="$(printf "%s" "$encoded" | base64 -d)"
