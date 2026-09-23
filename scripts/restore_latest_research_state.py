@@ -42,6 +42,15 @@ def _has_approved_production_state(
     if not src.exists():
         return False
     artifact = src / "production_model_artifact.pkl"
+    if not artifact.exists():
+        matches = [
+            p for p in src.rglob("production_model_artifact.pkl")
+            if p.is_file()
+        ]
+        if len(matches) != 1:
+            return False
+        src = matches[0].parent
+        artifact = src / "production_model_artifact.pkl"
     metadata = src / "production_model_artifact.meta.json"
     gate = src / "release_gate.json"
     if not artifact.exists() or not metadata.exists() or not gate.exists():
