@@ -42,6 +42,13 @@ def main():
         .reset_index(drop=True)
     )
 
+    # Keep only observations already legally available at this execution time.
+    # Future-available rows are not useful to the current cycle and must not
+    # enter the persisted context store, where the independent PIT auditor
+    # would correctly reject them.
+    audit_now=pd.Timestamp.now(tz="UTC")
+    df=df[df["available_at"].le(audit_now)].copy()
+
     OUT.parent.mkdir(parents=True,exist_ok=True)
     df.to_parquet(OUT,index=False)
 
