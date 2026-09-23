@@ -89,6 +89,12 @@ def main():
     lock["asset_regime_selected_models"]=payload.get(
         "asset_regime_selected_models",{}
     )
+    lock["symbol_selected_models"]=payload.get(
+        "symbol_selected_models",{}
+    )
+    lock["symbol_regime_selected_models"]=payload.get(
+        "symbol_regime_selected_models",{}
+    )
     lock["selection_locked_at"]=datetime.now(timezone.utc).isoformat()
     lock["selection_locked_git_sha"]=os.getenv("GITHUB_SHA")
     lock["code_fingerprint_sha256"]=current_fp
