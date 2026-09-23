@@ -880,3 +880,50 @@ def test_prediction_output_integrity_gate_is_wired():
     assert "return interval ordering is invalid" in script
     assert "validate_prediction_output.py" in market
     assert "validate_prediction_output.py" in us
+
+
+def _prediction_output_sample():
+    return pd.DataFrame(
+        {
+            "symbol": ["AAA"],
+            "asset_class": ["jp_stock"],
+            "prediction_time": ["2026-09-23T05:00:00Z"],
+            "prediction_date": ["2026-09-23"],
+            "p_up_1d": [0.62],
+            "expected_return_1d": [0.01],
+            "expected_close_1d": [101.0],
+            "range_low_1d": [98.0],
+            "range_high_1d": [104.0],
+            "model_id": ["hgb"],
+            "training_scope": ["global"],
+            "return_training_scope": ["global"],
+            "route_reason": ["global_oos_fallback"],
+            "regime": ["normal"],
+            "model_disagreement": [0.02],
+            "prediction_status": ["READY"],
+        }
+    )
+
+
+def test_prediction_output_integrity_gate_accepts_valid_output(tmp_path, monkeypatch):
+    import scripts.validate_prediction_output as validator
+
+    path = tmp_path / "prediction.parquet"
+    _prediction_output_sample().to_parquet(path, index=False)
+    monkeypatch.setenv("PREDICTION_OUTPUT", str(path))
+
+    validator.main()
+
+
+def test_prediction_output_integrity_gate_rejects_invalid_interval(tmp_path, monkeypatch):
+    import pytest
+    import scripts.validate_prediction_output as validator
+
+    frame = _prediction_output_sample()
+    frame.loc[0, "range_low_1d"] = 0.02
+    path = tmp_path / "prediction.parquet"
+    frame.to_parquet(path, index=False)
+    monkeypatch.setenv("PREDICTION_OUTPUT", str(path))
+
+    with pytest.raises(SystemExit, match="return interval ordering is invalid"):
+        validator.main()
