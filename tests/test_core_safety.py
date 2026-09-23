@@ -873,3 +873,13 @@ def test_actions_watchdog_requires_fresh_heartbeat():
     assert "heartbeat.yml/runs?status=success" in source
     assert "10 hours ago" in source
     assert "Automation heartbeat stale" in source
+
+def test_actions_watchdog_evaluates_latest_state_not_historical_failures():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    assert "latest_run_found=false" in source
+    assert "WATCHDOG_LATEST" in source
+    assert "latest run failed on attempt 1; bounded recovery is expected to handle it" in source
+    assert "latest run ${run_id} is still failing after bounded recovery" in source
+    assert "done < <(printf '%s' \"$runs\" | jq -r '.workflow_runs[] | @base64')" in source
