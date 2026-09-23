@@ -43,6 +43,8 @@ jobs:
 
             latest_run_found=false
             current_run_found=false
+            stale_queued_found=false
+            stale_queue_recovery_failed=false
           while IFS= read -r encoded; do
             [ -n "$encoded" ] || continue
             run_json="$(printf '%s' "$encoded" | base64 -d)"
@@ -58,6 +60,19 @@ jobs:
             head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
             updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
+
+            if [ "$status" = "queued" ] && [ "$self_heal_queued" = "true" ] && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
+              stale_queued_found=true
+              echo "::warning title=$workflow_name queued stall::queued run $run_id has remained queued for over 30 minutes; cancelling stale queue entry"
+              if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
+                echo "$workflow_name: stale queued run $run_id cancelled"
+              else
+                echo "::error title=$workflow_name queued recovery cancel failed::unable to cancel stale queued run $run_id"
+                stale_queue_recovery_failed=true
+                failures=$((failures + 1))
+              fi
+              continue
+            fi
             if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then
               echo "${workflow_name}: ignoring run ${run_id} on superseded SHA ${head_sha}; current=${current_sha}"
               continue
@@ -67,23 +82,6 @@ jobs:
             current_run_found=true
 
             echo "WATCHDOG_LATEST workflow=${workflow_name} run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}"
-
-            if [ "$status" = "queued" ] && [ "$self_heal_queued" = "true" ] && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
-              echo "::warning title=$workflow_name queued stall::latest run $run_id has remained queued for over 30 minutes; attempting bounded cancel-and-dispatch recovery"
-              if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
-                echo "$workflow_name: stale queued run $run_id cancelled"
-                if ! gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
-                  echo "::error title=$workflow_name queued recovery dispatch failed::unable to dispatch a fresh main-branch run"
-                  failures=$((failures + 1))
-                else
-                  echo "$workflow_name: bounded queued recovery dispatched on main"
-                fi
-              else
-                echo "::error title=$workflow_name queued recovery cancel failed::unable to cancel stale queued run $run_id"
-                failures=$((failures + 1))
-              fi
-              break
-            fi
 
             if [ "$workflow_name" = "Bounded production recovery" ]; then
               if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
@@ -109,6 +107,20 @@ jobs:
             fi
             break
           done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+
+          if [ "$stale_queued_found" = true ]; then
+            if [ "$stale_queue_recovery_failed" = true ]; then
+              echo "::error title=$workflow_name queued recovery incomplete::at least one stale queued run could not be cancelled; refusing to dispatch another run"
+            else
+              if ! gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "::error title=$workflow_name queued recovery dispatch failed::unable to dispatch a fresh main-branch run"
+                failures=$((failures + 1))
+              else
+                echo "$workflow_name: bounded queued recovery dispatched on main"
+              fi
+            fi
+            return 0
+          fi
 
           if [ "$current_run_found" = false ]; then
             echo "${workflow_name}: no applicable run found in watchdog window"
