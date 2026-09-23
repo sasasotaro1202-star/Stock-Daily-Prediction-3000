@@ -55,14 +55,14 @@ jobs:
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
             latest_run_found=true
 
-            echo "WATCHDOG_LATEST workflow=\${workflow_name} run=\${run_id} status=\${status} conclusion=\${conclusion} attempt=\${attempt}"
+            echo "WATCHDOG_LATEST workflow=${workflow_name} run=${run_id} status=\${status} conclusion=\${conclusion} attempt=\${attempt}"
 
             if [ "$workflow_name" = "Bounded production recovery" ]; then
               if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
-                echo "::error title=\${workflow_name} recovery failure::latest recovery run \${run_id} failed"
+                echo "::error title=${workflow_name} recovery failure::latest recovery run ${run_id} failed"
                 failures=$((failures + 1))
               elif [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
-                echo "::error title=\${workflow_name} stale recovery::latest recovery run \${run_id} has been non-completed for over 120 minutes"
+                echo "::error title=${workflow_name} stale recovery::latest recovery run ${run_id} has been non-completed for over 120 minutes"
                 failures=$((failures + 1))
               fi
               break
@@ -70,20 +70,20 @@ jobs:
 
             if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
               if [ "$attempt" -ge 2 ]; then
-                echo "::error title=\${workflow_name} unresolved failure::latest run \${run_id} is still failing after bounded recovery"
+                echo "::error title=${workflow_name} unresolved failure::latest run ${run_id} is still failing after bounded recovery"
                 failures=$((failures + 1))
               else
-                echo "\${workflow_name}: latest run failed on attempt 1; bounded recovery is expected to handle it"
+                echo "${workflow_name}: latest run failed on attempt 1; bounded recovery is expected to handle it"
               fi
             elif [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
-              echo "::error title=\${workflow_name} stale run::latest run \${run_id} has been non-completed for over 120 minutes"
+              echo "::error title=${workflow_name} stale run::latest run ${run_id} has been non-completed for over 120 minutes"
               failures=$((failures + 1))
             fi
             break
           done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
 
           if [ "$latest_run_found" = false ]; then
-            echo "\${workflow_name}: no run found in watchdog window"
+            echo "${workflow_name}: no run found in watchdog window"
           fi
           }
 
