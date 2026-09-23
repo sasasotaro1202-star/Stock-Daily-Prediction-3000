@@ -132,6 +132,8 @@ def main():
         "regime_selected_models",
         "asset_class_selected_models",
         "asset_regime_selected_models",
+        "symbol_selected_models",
+        "symbol_regime_selected_models",
     ):
         required_classifiers.update(
             str(value) for value in (frozen.get(key) or {}).values()
@@ -222,6 +224,8 @@ def main():
             "regime_vol_threshold": threshold,
             "rank_probability_weight": float(frozen.get("rank_probability_weight", 0.50)),
             "rank_uncertainty_penalty": float(frozen.get("rank_uncertainty_penalty", 0.0)),
+            "symbol_selected_models": dict(frozen.get("symbol_selected_models") or {}),
+            "symbol_regime_selected_models": dict(frozen.get("symbol_regime_selected_models") or {}),
             "selected_model": metrics.get("selected_model"),
             "return_selected_estimator": return_selected,
             "calibration_method": calibration_method,
