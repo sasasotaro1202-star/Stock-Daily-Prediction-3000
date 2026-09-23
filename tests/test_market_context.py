@@ -175,4 +175,4 @@ def test_market_context_download_records_retrieval_provenance(monkeypatch):
     assert out["provider_symbol"].tolist()==["1306.T"]
     assert out["retrieved_at"].notna().all()
     assert out["retrieval_run_id"].tolist()==["123456"]
-    assert pd.api.types.is_datetime64tz_dtype(out["retrieved_at"])
+    assert isinstance(out["retrieved_at"].dtype, pd.DatetimeTZDtype)
