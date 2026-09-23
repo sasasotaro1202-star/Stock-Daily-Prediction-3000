@@ -96,10 +96,10 @@ def main():
             raise SystemExit(f"FAIL: {exc}") from exc
 
         if rotate:
-            prices = Path("data/prices")
+            prices = Path("data/prices/canonical.parquet")
             if not prices.exists():
                 raise SystemExit(
-                    "DEFERRED: price data is required to rotate the frozen holdout"
+                    "DEFERRED: canonical price data is required to rotate the frozen holdout"
                 )
             df = pd.read_parquet(prices)
             archive = _archive_previous_generation(previous)
@@ -126,9 +126,9 @@ def main():
         print("frozen-holdout: already locked")
         return
 
-    root=Path("data/prices")
+    root=Path("data/prices/canonical.parquet")
     if not root.exists():
-        raise SystemExit("DEFERRED: price data is required")
+        raise SystemExit("DEFERRED: canonical price data is required")
     df=pd.read_parquet(root)
     lock = _new_generation(df, None)
     LOCK.parent.mkdir(parents=True,exist_ok=True)
