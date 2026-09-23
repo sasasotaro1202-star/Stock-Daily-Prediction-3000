@@ -25,6 +25,8 @@ def main() -> None:
         "p_up_1d",
         "expected_return_1d",
         "expected_close_1d",
+        "return_q10_1d",
+        "return_q90_1d",
         "range_low_1d",
         "range_high_1d",
         "model_id",
@@ -72,11 +74,17 @@ def main() -> None:
     if not p.between(0.0, 1.0).all():
         raise SystemExit("FAIL: p_up_1d outside [0,1]")
 
-    low = pd.to_numeric(df.loc[ready, "range_low_1d"], errors="coerce")
-    mid = pd.to_numeric(df.loc[ready, "expected_return_1d"], errors="coerce")
-    high = pd.to_numeric(df.loc[ready, "range_high_1d"], errors="coerce")
-    if ((low > mid) | (mid > high)).any():
+    return_low = pd.to_numeric(df.loc[ready, "return_q10_1d"], errors="coerce")
+    return_mid = pd.to_numeric(df.loc[ready, "expected_return_1d"], errors="coerce")
+    return_high = pd.to_numeric(df.loc[ready, "return_q90_1d"], errors="coerce")
+    if ((return_low > return_mid) | (return_mid > return_high)).any():
         raise SystemExit("FAIL: return interval ordering is invalid")
+
+    close_low = pd.to_numeric(df.loc[ready, "range_low_1d"], errors="coerce")
+    close_mid = pd.to_numeric(df.loc[ready, "expected_close_1d"], errors="coerce")
+    close_high = pd.to_numeric(df.loc[ready, "range_high_1d"], errors="coerce")
+    if ((close_low > close_mid) | (close_mid > close_high)).any():
+        raise SystemExit("FAIL: price interval ordering is invalid")
 
     if df.loc[ready, "model_id"].astype(str).str.strip().eq("").any():
         raise SystemExit("FAIL: READY rows contain empty model_id")
