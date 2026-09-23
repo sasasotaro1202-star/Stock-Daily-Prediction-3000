@@ -231,6 +231,7 @@ def main():
         x.startswith(critical_prefixes) for x in hard_reasons
     ):
         raise SystemExit("FAIL: critical price/universe quality issue")
+    return 0
 
 
 if __name__=="__main__":
