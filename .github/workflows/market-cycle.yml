@@ -40,11 +40,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "run_required=true" >> "$GITHUB_OUTPUT"
-            echo "guard_reason=manual_dispatch" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+          # Manual/recovery dispatches use the same duplicate and stale-SHA
+          # guard as scheduled/push executions. Never bypass the run gate.
           if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/market-cycle.yml/runs?per_page=20" 2>/dev/null)"; then
             echo "run_required=false" >> "$GITHUB_OUTPUT"
             echo "guard_reason=actions_api_unavailable_defer" >> "$GITHUB_OUTPUT"
