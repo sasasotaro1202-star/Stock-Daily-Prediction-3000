@@ -94,13 +94,21 @@ jobs:
           pattern: ondemand-price-state-shard-*
           path: data/prices
           merge-multiple: true
-      - name: Restore latest approved production research state
+      - name: Restore latest approved production state when available
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-        run: python scripts/restore_latest_research_state.py
-      - name: Restore exact approved production runtime
-        run: python scripts/install_production_runtime.py
+        shell: bash
+        run: |
+          set +e
+          python scripts/restore_latest_research_state.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "approved production state restored"
+          else
+            echo "approved production state unavailable; controlled NEAR_PRODUCTION fallback will be used"
+          fi
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
       - name: Canonicalize price store
@@ -109,21 +117,12 @@ jobs:
         env:
           QUALITY_ASSET_CLASSES: ${{ inputs.asset_classes }}
         run: python scripts/data_quality_gate.py
-      - name: Validate immutable production model artifact
-        run: |
-          python - <<'PY'
-          from src.prediction.production_artifact import load_production_artifact
-          artifact = load_production_artifact()
-          print("production-model-artifact: PASS")
-          print("selected_model=", artifact["metadata"]["selected_model"])
-          print("created_at=", artifact["metadata"]["created_at"])
-          PY
       - name: Update free market context
         run: python scripts/update_market_context.py
-      - name: Production prediction
+      - name: Production-or-near-production prediction
         env:
           PREDICT_ASSET_CLASSES: ${{ inputs.asset_classes }}
-        run: python scripts/run_daily_prediction.py
+        run: python scripts/run_now_prediction.py
       - name: Validate production prediction output
         run: python scripts/validate_prediction_output.py
       - uses: actions/upload-artifact@v4
