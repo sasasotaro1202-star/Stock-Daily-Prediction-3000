@@ -139,6 +139,23 @@ def main():
                 overall["beats_baseline"]
                 and overall["metrics"]["ece"]<=0.25
             )
+            segment_metrics={}
+            segment_cols=[
+                col for col in ("asset_class","regime","market_situation")
+                if col in m.columns
+            ]
+            if segment_cols:
+                for key, group in m.groupby(segment_cols, dropna=False, sort=True):
+                    key_values=key if isinstance(key, tuple) else (key,)
+                    segment_name="|".join(
+                        f"{col}={value}"
+                        for col, value in zip(segment_cols, key_values)
+                    )
+                    # Segment metrics are diagnostic only. Require enough
+                    # observations to avoid noisy one-off conclusions.
+                    if len(group) >= 30:
+                        segment_metrics[segment_name]=evaluate(group)
+
             payload={
                 "status":"PASS"
                 if valid_recent and valid_overall
@@ -146,6 +163,7 @@ def main():
                 "evaluated":int(n),
                 "overall":overall,
                 "recent_20_sessions":recent_eval,
+                "segment_metrics_min_30":segment_metrics,
                 "latest_outcome_date":str(max(m["session_date"])),
                 "route_counts":(
                     m["model_id"].value_counts(dropna=False).to_dict()
