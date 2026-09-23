@@ -160,10 +160,9 @@ def test_market_context_quality_requires_extended_macro_families(tmp_path, monke
 
 
 def test_market_context_download_records_retrieval_provenance(monkeypatch):
-    import numpy as np
     import src.data.market_context as market_context
 
-    idx=pd.to_datetime(["2026-09-22"])
+    idx=pd.to_datetime(["2026-09-22"], name="Date")
     columns=pd.MultiIndex.from_product(
         [["^TOPX"],["Close"]]
     )
