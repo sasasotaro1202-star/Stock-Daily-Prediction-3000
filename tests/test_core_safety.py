@@ -620,7 +620,7 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
     from scripts.restore_latest_research_state import _has_approved_production_state
 
     root = tmp_path / "extract"
-    research = root / "data" / "research"
+    research = root / "research"
     research.mkdir(parents=True)
     (research / "production_model_artifact.pkl").write_bytes(b"artifact")
     (research / "production_model_artifact.meta.json").write_text("{}", encoding="utf-8")
@@ -629,13 +629,13 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
         json.dumps({"approved": False}),
         encoding="utf-8",
     )
-    assert _has_approved_production_state(root) is False
+    assert _has_approved_production_state(research) is False
 
     (research / "release_gate.json").write_text(
         json.dumps({"approved": True}),
         encoding="utf-8",
     )
-    assert _has_approved_production_state(root) is True
+    assert _has_approved_production_state(research) is True
 
 def test_actions_watchdog_is_hourly_and_fail_visible():
     from pathlib import Path
@@ -716,152 +716,97 @@ def test_backtest_contains_capafy_inspired_audit_hook():
     assert "trials=1000" in source
 
 
-def test_artifact_redirect_does_not_forward_github_token_cross_host():
-    from scripts.restore_latest_price_state import _CrossHostRedirectHandler
-    from urllib.parse import urlparse
-    from urllib.request import Request
+def test_artifact_downloader_uses_gh_cli_without_token_in_argv(monkeypatch, tmp_path):
+    from src.data.github_artifact import download_workflow_artifact
 
-    handler = _CrossHostRedirectHandler()
-    req = Request(
-        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
-        headers={"Authorization": "Bearer secret"},
+    calls = {}
+
+    class Result:
+        returncode = 0
+        stdout = "downloaded"
+        stderr = ""
+
+    def fake_run(command, **kwargs):
+        calls["command"] = command
+        calls["kwargs"] = kwargs
+        return Result()
+
+    monkeypatch.setattr("src.data.github_artifact.subprocess.run", fake_run)
+    artifact = {
+        "id": 123,
+        "name": "universe-123",
+        "workflow_run": {"id": 456},
+    }
+    out = download_workflow_artifact(
+        "owner/repo",
+        "secret-token",
+        artifact,
+        tmp_path / "artifact",
     )
-    redirected = handler.redirect_request(
-        req,
-        None,
-        302,
-        "Found",
-        {},
-        "https://blob.example.net/artifact.zip",
-    )
-    assert redirected is not None
-    assert "Authorization" not in redirected.headers
-    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+    assert out.is_dir()
+    assert "secret-token" not in calls["command"]
+    assert calls["command"][:4] == ["gh", "run", "download", "456"]
+    assert calls["kwargs"]["env"]["GH_TOKEN"] == "secret-token"
+    assert calls["kwargs"]["env"]["GITHUB_TOKEN"] == "secret-token"
 
 
-def test_universe_artifact_redirect_does_not_forward_github_token():
-    from scripts.restore_latest_universe_state import _CrossHostRedirectHandler
-    from urllib.parse import urlparse
-    from urllib.request import Request
+def test_artifact_downloader_requires_workflow_run_id(tmp_path):
+    import pytest
+    from src.data.github_artifact import download_workflow_artifact
 
-    handler = _CrossHostRedirectHandler()
-    req = Request(
-        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
-        headers={"Authorization": "Bearer secret"},
-    )
-    redirected = handler.redirect_request(
-        req,
-        None,
-        302,
-        "Found",
-        {},
-        "https://blob.example.net/artifact.zip",
-    )
-    assert redirected is not None
-    assert "Authorization" not in redirected.headers
-    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+    with pytest.raises(ValueError, match="workflow_run.id is missing"):
+        download_workflow_artifact(
+            "owner/repo",
+            "secret-token",
+            {"name": "artifact"},
+            tmp_path / "artifact",
+        )
 
 
-def test_research_artifact_redirect_does_not_forward_github_token():
-    from scripts.restore_latest_research_state import _CrossHostRedirectHandler
-    from urllib.parse import urlparse
-    from urllib.request import Request
+def test_artifact_tree_rejects_external_symlink(tmp_path):
+    import pytest
+    from src.data.github_artifact import validate_extracted_tree
 
-    handler = _CrossHostRedirectHandler()
-    req = Request(
-        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
-        headers={"Authorization": "Bearer secret"},
-    )
-    redirected = handler.redirect_request(
-        req,
-        None,
-        302,
-        "Found",
-        {},
-        "https://blob.example.net/artifact.zip",
-    )
-    assert redirected is not None
-    assert "Authorization" not in redirected.headers
-    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+    root = tmp_path / "artifact"
+    root.mkdir()
+    outside = tmp_path / "outside.txt"
+    outside.write_text("outside", encoding="utf-8")
+    link = root / "escape.txt"
+    link.symlink_to(outside)
+    with pytest.raises(RuntimeError, match="symlink escapes"):
+        validate_extracted_tree(root)
 
 
-def test_prediction_history_artifact_redirect_does_not_forward_github_token():
-    from scripts.restore_prediction_history import _CrossHostRedirectHandler
-    from urllib.parse import urlparse
-    from urllib.request import Request
+def test_universe_restore_accepts_flattened_upload_artifact(tmp_path):
+    from scripts.restore_latest_universe_state import _find_universe_snapshot
 
-    handler = _CrossHostRedirectHandler()
-    req = Request(
-        "https://api.github.com/repos/example/repo/actions/artifacts/1/zip",
-        headers={"Authorization": "Bearer secret"},
-    )
-    redirected = handler.redirect_request(
-        req,
-        None,
-        302,
-        "Found",
-        {},
-        "https://blob.example.net/artifact.zip",
-    )
-    assert redirected is not None
-    assert "Authorization" not in redirected.headers
-    assert urlparse(redirected.full_url).netloc == "blob.example.net"
+    snapshot = tmp_path / "latest.json"
+    snapshot.write_text("{}", encoding="utf-8")
+    assert _find_universe_snapshot(tmp_path) == snapshot.resolve()
 
 
-def test_non_price_artifact_restores_avoid_unsafe_extractall():
+def test_research_state_restore_locates_flattened_upload_artifact(tmp_path):
+    from scripts.restore_latest_research_state import _find_research_root
+
+    root = tmp_path / "research"
+    root.mkdir()
+    artifact = root / "production_model_artifact.pkl"
+    artifact.write_bytes(b"artifact")
+    assert _find_research_root(tmp_path) == root.resolve()
+
+
+def test_all_artifact_restores_use_shared_gh_downloader():
     from pathlib import Path
 
     for path in (
         "scripts/restore_latest_universe_state.py",
         "scripts/restore_latest_research_state.py",
+        "scripts/restore_latest_price_state.py",
+        "scripts/restore_prediction_history.py",
     ):
         source = Path(path).read_text(encoding="utf-8")
-        assert ".extractall(" not in source
-
-
-def test_universe_restore_rejects_zip_slip(tmp_path):
-    import pytest
-    import zipfile
-    from scripts.restore_latest_universe_state import _safe_extract
-
-    archive = tmp_path / "payload.zip"
-    with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr("../escaped.txt", "malicious")
-
-    with zipfile.ZipFile(archive) as zf:
-        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
-            _safe_extract(zf, tmp_path / "restore")
-    assert not (tmp_path / "escaped.txt").exists()
-
-
-def test_research_restore_rejects_zip_slip(tmp_path):
-    import pytest
-    import zipfile
-    from scripts.restore_latest_research_state import _safe_extract
-
-    archive = tmp_path / "payload.zip"
-    with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr("../escaped.txt", "malicious")
-
-    with zipfile.ZipFile(archive) as zf:
-        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
-            _safe_extract(zf, tmp_path / "restore")
-    assert not (tmp_path / "escaped.txt").exists()
-
-
-def test_price_state_restore_rejects_zip_slip(tmp_path):
-    import pytest
-    import zipfile
-    from scripts.restore_latest_price_state import _safe_extract
-
-    archive = tmp_path / "payload.zip"
-    with zipfile.ZipFile(archive, "w") as zf:
-        zf.writestr("../escaped.txt", "malicious")
-
-    with zipfile.ZipFile(archive) as zf:
-        with pytest.raises(RuntimeError, match="unsafe artifact member path"):
-            _safe_extract(zf, str(tmp_path / "restore"))
-    assert not (tmp_path / "escaped.txt").exists()
+        assert "download_workflow_artifact" in source
+        assert "validate_extracted_tree" in source
 
 
 def test_actions_watchdog_requires_fresh_heartbeat():

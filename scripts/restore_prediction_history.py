@@ -2,28 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 import urllib.request
-import zipfile
 from pathlib import Path
-from urllib.parse import urlparse
 
-
-class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Never forward GitHub API credentials to an external artifact host."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if redirected is None:
-            return None
-        if urlparse(req.full_url).netloc != urlparse(newurl).netloc:
-            for key in ("Authorization", "Accept", "X-GitHub-Api-Version"):
-                redirected.headers.pop(key, None)
-        return redirected
-
-
-def _opener():
-    return urllib.request.build_opener(_CrossHostRedirectHandler())
+from src.data.github_artifact import download_workflow_artifact, validate_extracted_tree
 
 
 def api(url: str, token: str) -> dict:
@@ -33,10 +17,10 @@ def api(url: str, token: str) -> dict:
         headers={
             "Authorization":f"Bearer {token}",
             "Accept":"application/vnd.github+json",
-            "X-GitHub-Api-Version":"2022-11-28",
+            "X-GitHub-Api-Version":"2026-03-10",
         },
     )
-    with _opener().open(req,timeout=30) as response:
+    with urllib.request.urlopen(req,timeout=30) as response:
         return json.load(response)
 
 
@@ -65,30 +49,17 @@ def main():
         reverse=True,
     )[:20]:
         try:
-            req=urllib.request.Request(
-                artifact["archive_download_url"],
-                headers={
-                    "Authorization":f"Bearer {token}",
-                    "Accept":"application/vnd.github+json",
-                    "X-GitHub-Api-Version":"2022-11-28",
-                },
-            )
-            with _opener().open(req,timeout=60) as response:
-                blob=response.read()
             with tempfile.TemporaryDirectory() as tmp:
-                archive=Path(tmp)/"artifact.zip"
-                archive.write_bytes(blob)
-                with zipfile.ZipFile(archive) as z:
-                    for name in z.namelist():
-                        normalized="/"+name.lstrip("/")
-                        if (
-                            name.endswith(".parquet")
-                            and "/data/predictions/" in normalized
-                        ):
-                            out=target/Path(name).name
-                            with z.open(name) as src, out.open("wb") as dst:
-                                dst.write(src.read())
-                            restored+=1
+                extract = Path(tmp) / "artifact"
+                download_workflow_artifact(repo, token, artifact, extract)
+                validate_extracted_tree(extract)
+                matches = [
+                    p for p in extract.rglob("*.parquet")
+                    if p.is_file() and "predictions" in p.parts
+                ]
+                for source in matches:
+                    shutil.copy2(source, target / source.name)
+                restored += len(matches)
         except Exception as exc:
             errors.append({
                 "artifact_id": artifact.get("id"),

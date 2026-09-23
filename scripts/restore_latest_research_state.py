@@ -5,71 +5,52 @@ import os
 import shutil
 import tempfile
 import urllib.request
-import zipfile
 from pathlib import Path
-from urllib.parse import urlparse
 
-
-class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
-    """Never forward GitHub API credentials to an external artifact host."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
-        if redirected is None:
-            return None
-        if urlparse(req.full_url).netloc != urlparse(newurl).netloc:
-            for key in ("Authorization", "Accept", "X-GitHub-Api-Version"):
-                redirected.headers.pop(key, None)
-        return redirected
-
-
-def _github_opener():
-    return urllib.request.build_opener(_CrossHostRedirectHandler())
-
-
-def _safe_extract(zf: zipfile.ZipFile, destination: Path) -> None:
-    """Extract only regular files/directories below destination."""
-    root = destination.resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    for member in zf.infolist():
-        target = (root / member.filename).resolve()
-        if target != root and root not in target.parents:
-            raise RuntimeError(
-                f"unsafe artifact member path outside restore root: {member.filename}"
-            )
-        if member.is_dir():
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with zf.open(member, "r") as src, target.open("wb") as dst:
-            shutil.copyfileobj(src, dst)
+from src.data.github_artifact import download_workflow_artifact, validate_extracted_tree
 
 
 def _download(url: str, token: str, timeout: int) -> bytes:
-
     req = urllib.request.Request(
         url,
         headers={
             "Authorization": f"Bearer {token}",
             "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
+            "X-GitHub-Api-Version": "2026-03-10",
         },
     )
-    with _github_opener().open(req, timeout=timeout) as resp:
-        return resp.read()
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return response.read()
+
+
+def _find_research_root(root: Path) -> Path:
+    matches = [p for p in root.rglob("production_model_artifact.pkl") if p.is_file()]
+    if len(matches) != 1:
+        raise ValueError(
+            f"expected exactly one production_model_artifact.pkl in artifact, found {len(matches)}"
+        )
+    return matches[0].parent.resolve()
 
 
 def _has_approved_production_state(
-    extract: Path,
+    src: Path,
     *,
     expected_holdout_generation: object | None = None,
     expected_research_fingerprint: str | None = None,
     expected_full_fingerprint: str | None = None,
 ) -> bool:
-    src = extract / "data" / "research"
     if not src.exists():
         return False
     artifact = src / "production_model_artifact.pkl"
+    if not artifact.exists():
+        matches = [
+            p for p in src.rglob("production_model_artifact.pkl")
+            if p.is_file()
+        ]
+        if len(matches) != 1:
+            return False
+        src = matches[0].parent
+        artifact = src / "production_model_artifact.pkl"
     metadata = src / "production_model_artifact.meta.json"
     gate = src / "release_gate.json"
     if not artifact.exists() or not metadata.exists() or not gate.exists():
@@ -142,43 +123,41 @@ def main():
         raise SystemExit("DEFERRED: no previous research-cycle artifact")
 
     skipped = 0
+    errors = []
     for artifact in candidates:
-        blob = _download(
-            artifact["archive_download_url"],
-            token,
-            timeout=60,
-        )
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                extract = Path(tmp) / "artifact"
+                download_workflow_artifact(repo, token, artifact, extract)
+                validate_extracted_tree(extract)
+                src = _find_research_root(extract)
 
-        with tempfile.TemporaryDirectory() as tmp:
-            archive = Path(tmp) / "research.zip"
-            archive.write_bytes(blob)
-            extract = Path(tmp) / "extract"
-            extract.mkdir()
-            with zipfile.ZipFile(archive) as z:
-                _safe_extract(z, extract)
+                if not _has_approved_production_state(
+                    src,
+                    expected_holdout_generation=expected_holdout_generation,
+                    expected_research_fingerprint=expected_research_fingerprint,
+                    expected_full_fingerprint=expected_full_fingerprint,
+                ):
+                    skipped += 1
+                    continue
 
-            if not _has_approved_production_state(
-                extract,
-                expected_holdout_generation=expected_holdout_generation,
-                expected_research_fingerprint=expected_research_fingerprint,
-                expected_full_fingerprint=expected_full_fingerprint,
-            ):
-                skipped += 1
-                continue
+                dst = Path("data/research")
+                dst.mkdir(parents=True, exist_ok=True)
+                for item in src.iterdir():
+                    target = dst / item.name
+                    if item.is_file():
+                        shutil.copy2(item, target)
 
-            src = extract / "data" / "research"
-            dst = Path("data/research")
-            dst.mkdir(parents=True, exist_ok=True)
-            for item in src.iterdir():
-                target = dst / item.name
-                if item.is_file():
-                    shutil.copy2(item, target)
-
-        print(
-            f"research-state: restored approved artifact_id={artifact['id']} "
-            f"created_at={artifact['created_at']} skipped_unapproved={skipped}"
-        )
-        return
+            print(
+                f"research-state: restored approved artifact_id={artifact['id']} "
+                f"created_at={artifact['created_at']} skipped_unapproved={skipped}"
+            )
+            return
+        except Exception as exc:
+            skipped += 1
+            errors.append(
+                f"artifact_id={artifact.get('id')}:{type(exc).__name__}:{exc}"
+            )
 
     raise SystemExit(
         "DEFERRED: no retained research-cycle artifact contains an approved "
