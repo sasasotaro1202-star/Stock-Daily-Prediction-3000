@@ -128,6 +128,8 @@ jobs:
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/run_daily_prediction.py
+      - name: Validate production prediction output
+        run: python scripts/validate_prediction_output.py
       - uses: actions/upload-artifact@v4
         with:
           name: morning-prediction-${{ github.run_id }}
