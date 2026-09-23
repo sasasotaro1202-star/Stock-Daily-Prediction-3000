@@ -14,7 +14,9 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-recovery-${{ github.event.workflow_run.id }}
+  # Serialize bounded recovery so simultaneous failures cannot race into
+  # duplicate current-main dispatches.
+  group: production-recovery
   cancel-in-progress: false
 
 jobs:
