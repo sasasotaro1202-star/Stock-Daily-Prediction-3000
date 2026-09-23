@@ -56,6 +56,7 @@ jobs:
             exit 0
           fi
           now="$(date -u +%s)"
+          current_sha="$GITHUB_SHA"
           run_required=true
           reason="no_recent_cycle"
           while IFS= read -r encoded; do
@@ -71,14 +72,26 @@ jobs:
             [ "$age" -ge 0 ] && [ "$age" -le 5400 ] || continue
             status="$(printf "%s" "$run_json" | jq -r ".status // empty")"
             conclusion="$(printf "%s" "$run_json" | jq -r ".conclusion // empty")"
+            head_sha="$(printf "%s" "$run_json" | jq -r ".head_sha // empty")"
+
+            # Never overlap with any recent cycle, regardless of SHA.
+            # This prevents two expensive price/research cycles from running
+            # concurrently after back-to-back production-code commits.
             if [ "$status" = "queued" ] || [ "$status" = "in_progress" ]; then
               run_required=false
               reason="recent_cycle_${status}"
               break
             fi
+
+            # A completed run from a superseded SHA must not suppress a fresh
+            # cycle for the current production code.
+            if [ "$head_sha" != "$current_sha" ]; then
+              continue
+            fi
+
             if [ "$conclusion" = "success" ]; then
               run_required=false
-              reason="recent_successful_cycle"
+              reason="recent_successful_current_sha_cycle"
               break
             fi
           done < <(printf "%s" "$runs" | jq -r ".workflow_runs[] | @base64")
