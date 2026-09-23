@@ -805,3 +805,11 @@ def test_data_quality_provider_deferred_ratio_blocks_large_omission(tmp_path, mo
     gate.UNIVERSE = universe
     with __import__("pytest").raises(SystemExit, match="critical"):
         gate.main()
+
+
+def test_release_gate_rejects_degraded_price_quality():
+    from pathlib import Path
+
+    source = Path("scripts/release_gate.py").read_text(encoding="utf-8")
+    assert 'quality.get("status")!="PASS"' in source
+    assert '"data_quality_not_pass"' in source
