@@ -96,6 +96,8 @@ def test_on_demand_prediction_workflow_is_present():
     assert "run_now_prediction.py" in workflow
     assert "load_production_artifact" in runtime
     assert "NEAR_PRODUCTION" in runtime
+    assert '"prediction_mode"' in Path("scripts/validate_prediction_output.py").read_text()
+    assert '"READY_NEAR_PRODUCTION"' in Path("scripts/validate_prediction_output.py").read_text()
 
 
 def test_prediction_normalizes_latest_index_before_rowwise_access():

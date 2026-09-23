@@ -254,6 +254,8 @@ def main():
         scope_by_index.get(idx, "") for idx in latest.index
     ]
 
+    latest["prediction_mode"] = "PRODUCTION"
+
     latest["return_q10_1d"] = latest["return_q10_1d"].clip(
         lower=-0.99
     )
@@ -305,6 +307,7 @@ def main():
         "model_id",
         "training_scope",
         "return_training_scope",
+        "prediction_mode",
         "route_reason",
         "regime",
         "model_disagreement",

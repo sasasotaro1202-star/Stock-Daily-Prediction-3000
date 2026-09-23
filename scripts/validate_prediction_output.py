@@ -8,7 +8,8 @@ import pandas as pd
 
 
 OUT = Path("data/predictions/latest.parquet")
-ALLOWED_STATUS = {"READY", "DEFERRED_INCOMPLETE_FEATURES"}
+ALLOWED_STATUS = {"READY", "READY_NEAR_PRODUCTION", "DEFERRED_INCOMPLETE_FEATURES"}
+ALLOWED_MODES = {"PRODUCTION", "NEAR_PRODUCTION"}
 
 
 def main() -> None:
@@ -36,6 +37,7 @@ def main() -> None:
         "regime",
         "model_disagreement",
         "prediction_status",
+        "prediction_mode",
     }
     missing = sorted(required - set(df.columns))
     if missing:
@@ -54,6 +56,9 @@ def main() -> None:
     if (prediction_time > now).any():
         raise SystemExit("FAIL: prediction_time is in the future")
 
+    if not df["prediction_mode"].isin(ALLOWED_MODES).all():
+        bad = sorted(df.loc[~df["prediction_mode"].isin(ALLOWED_MODES), "prediction_mode"].astype(str).unique())
+        raise SystemExit(f"FAIL: unknown prediction_mode values: {bad}")
     if not df["prediction_status"].isin(ALLOWED_STATUS).all():
         bad = sorted(df.loc[~df["prediction_status"].isin(ALLOWED_STATUS), "prediction_status"].astype(str).unique())
         raise SystemExit(f"FAIL: unknown prediction_status values: {bad}")
@@ -94,9 +99,10 @@ def main() -> None:
         raise SystemExit("FAIL: READY rows contain empty training_scope")
     if df.loc[ready, "return_training_scope"].astype(str).str.strip().eq("").any():
         raise SystemExit("FAIL: READY rows contain empty return_training_scope")
-    disagreement = pd.to_numeric(df.loc[ready, "model_disagreement"], errors="coerce").to_numpy(dtype=float)
-    if not np.isfinite(disagreement).all() or (disagreement < 0.0).any():
-        raise SystemExit("FAIL: READY rows contain invalid model_disagreement")
+    production_ready = ready & df["prediction_mode"].eq("PRODUCTION")
+    disagreement = pd.to_numeric(df.loc[production_ready, "model_disagreement"], errors="coerce").to_numpy(dtype=float)
+    if disagreement.size and (not np.isfinite(disagreement).all() or (disagreement < 0.0).any()):
+        raise SystemExit("FAIL: PRODUCTION rows contain invalid model_disagreement")
 
     print(
         f"prediction-output-integrity: PASS rows={len(df)} "
