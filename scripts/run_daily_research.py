@@ -715,6 +715,14 @@ def main():
         ):
             symbol_regime_selected[key] = plan.names[0]
 
+    security_route_summary = {
+        "symbol_routes": int(len(symbol_selected)),
+        "symbol_regime_routes": int(len(symbol_regime_selected)),
+        "total_security_routes": int(len(symbol_selected) + len(symbol_regime_selected)),
+        "symbol_route_examples": sorted(symbol_selected)[:20],
+        "symbol_regime_route_examples": sorted(symbol_regime_selected)[:20],
+    }
+
     # Select classifier training-window length on chronological OOS after
     # model-family selection. 0 means all eligible history.
     window_candidates = (252, 504, 756, 0)
@@ -1159,6 +1167,7 @@ def main():
         "symbol_regime_metrics": symbol_regime_metrics,
         "symbol_selected_models": symbol_selected,
         "symbol_regime_selected_models": symbol_regime_selected,
+        "security_route_summary": security_route_summary,
         "selected_model": global_selected,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
