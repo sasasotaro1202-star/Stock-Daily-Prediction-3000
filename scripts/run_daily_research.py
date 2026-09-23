@@ -27,6 +27,7 @@ from src.research.router import (
     Regime,
     asset_plan,
     choose_from_oos,
+    materially_better_than_parent,
     rebalance_global_oos_candidates,
 )
 from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
@@ -475,45 +476,14 @@ def main():
         model_cfg.get("rank_ic_tiebreak_tolerance", 0.002)
     )
 
-    regime_selected = {}
-    for reg_name, candidates in regime_metrics.items():
-        if candidates:
-            plan = choose_from_oos(
-                reg_name,
-                candidates,
-                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
-            )
-            if not plan.reason.endswith("fallback"):
-                regime_selected[reg_name] = plan.names[0]
-
-    asset_selected = {}
-    for asset_class, candidates in asset_class_metrics.items():
-        if candidates:
-            plan = asset_plan(
-                asset_class,
-                candidates,
-                min_folds=3,
-                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
-            )
-            if not plan.reason.endswith("fallback"):
-                asset_selected[asset_class] = plan.names[0]
-
-    asset_regime_selected = {}
-    for key, candidates in asset_regime_metrics.items():
-        asset_class, reg_name = key.split("::", 1)
-        if candidates:
-            plan = choose_from_oos(
-                reg_name,
-                candidates,
-                candidates=ASSET_CANDIDATES.get(
-                    asset_class, CANDIDATES[Regime.NORMAL]
-                ),
-                scope=key,
-                min_folds=2,
-                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
-            )
-            if not plan.reason.endswith("fallback"):
-                asset_regime_selected[key] = plan.names[0]
+    routing_cfg = pipeline_cfg.get("routing", {})
+    scope_improvement = float(
+        routing_cfg.get("minimum_scoped_oos_improvement_logloss", 0.002)
+    )
+    if not 0.0 <= scope_improvement <= 1.0:
+        raise SystemExit(
+            "FAIL: minimum scoped OOS improvement LogLoss must be in [0, 1]"
+        )
 
     global_candidates = {
         name: dict(value["metrics"], folds=float(value["folds"]))
@@ -533,6 +503,75 @@ def main():
         rank_ic_tiebreak_tolerance=rank_ic_tolerance,
     )
     global_selected = global_plan.names[0]
+
+    regime_selected = {}
+    for reg_name, candidates in regime_metrics.items():
+        if candidates:
+            plan = choose_from_oos(
+                reg_name,
+                candidates,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
+            if (
+                not plan.reason.endswith("fallback")
+                and materially_better_than_parent(
+                    candidates,
+                    plan.names[0],
+                    global_selected,
+                    min_improvement_logloss=scope_improvement,
+                )
+            ):
+                regime_selected[reg_name] = plan.names[0]
+
+    asset_selected = {}
+    for asset_class, candidates in asset_class_metrics.items():
+        if candidates:
+            plan = asset_plan(
+                asset_class,
+                candidates,
+                min_folds=3,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
+            if (
+                not plan.reason.endswith("fallback")
+                and materially_better_than_parent(
+                    candidates,
+                    plan.names[0],
+                    global_selected,
+                    min_improvement_logloss=scope_improvement,
+                )
+            ):
+                asset_selected[asset_class] = plan.names[0]
+
+    asset_regime_selected = {}
+    for key, candidates in asset_regime_metrics.items():
+        asset_class, reg_name = key.split("::", 1)
+        if candidates:
+            plan = choose_from_oos(
+                reg_name,
+                candidates,
+                candidates=ASSET_CANDIDATES.get(
+                    asset_class, CANDIDATES[Regime.NORMAL]
+                ),
+                scope=key,
+                min_folds=2,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
+            parent_model = (
+                asset_selected.get(asset_class)
+                or regime_selected.get(reg_name)
+                or global_selected
+            )
+            if (
+                not plan.reason.endswith("fallback")
+                and materially_better_than_parent(
+                    candidates,
+                    plan.names[0],
+                    parent_model,
+                    min_improvement_logloss=scope_improvement,
+                )
+            ):
+                asset_regime_selected[key] = plan.names[0]
 
     # Select classifier training-window length on chronological OOS after
     # model-family selection. 0 means all eligible history.
@@ -981,6 +1020,7 @@ def main():
         "calibration_method_candidates": calibration_candidates,
         "rank_probability_weight": selected_rank_weight,
         "rank_uncertainty_penalty": selected_uncertainty_penalty,
+        "minimum_scoped_oos_improvement_logloss": scope_improvement,
         "ranking_weight_candidates": ranking_candidates,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
