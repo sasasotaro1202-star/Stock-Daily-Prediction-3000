@@ -7,9 +7,46 @@ import tempfile
 import urllib.request
 import zipfile
 from pathlib import Path
+from urllib.parse import urlparse
+
+
+class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Never forward GitHub API credentials to an external artifact host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is None:
+            return None
+        if urlparse(req.full_url).netloc != urlparse(newurl).netloc:
+            for key in ("Authorization", "Accept", "X-GitHub-Api-Version"):
+                redirected.headers.pop(key, None)
+        return redirected
+
+
+def _github_opener():
+    return urllib.request.build_opener(_CrossHostRedirectHandler())
+
+
+def _safe_extract(zf: zipfile.ZipFile, destination: Path) -> None:
+    """Extract only regular files/directories below destination."""
+    root = destination.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    for member in zf.infolist():
+        target = (root / member.filename).resolve()
+        if target != root and root not in target.parents:
+            raise RuntimeError(
+                f"unsafe artifact member path outside restore root: {member.filename}"
+            )
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(member, "r") as src, target.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
 
 
 def _download(url: str, token: str, timeout: int) -> bytes:
+
     req = urllib.request.Request(
         url,
         headers={
@@ -18,7 +55,7 @@ def _download(url: str, token: str, timeout: int) -> bytes:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
+    with _github_opener().open(req, timeout=timeout) as resp:
         return resp.read()
 
 
@@ -118,7 +155,7 @@ def main():
             extract = Path(tmp) / "extract"
             extract.mkdir()
             with zipfile.ZipFile(archive) as z:
-                z.extractall(extract)
+                _safe_extract(z, extract)
 
             if not _has_approved_production_state(
                 extract,
