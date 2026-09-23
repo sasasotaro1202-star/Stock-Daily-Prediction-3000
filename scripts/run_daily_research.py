@@ -52,6 +52,14 @@ def make_models():
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
     payload = aggregate_metric_rows(rows)
     payload["folds"] = float(len(rows))
+    n_tests = [
+        float(row["n_test"])
+        for row in rows
+        if "n_test" in row and np.isfinite(float(row["n_test"]))
+    ]
+    if n_tests:
+        payload["n_test_min"] = float(min(n_tests))
+        payload["n_test_max"] = float(max(n_tests))
     for key in ("logloss", "brier", "ece", "accuracy", "roc_auc", "rank_ic"):
         values = [float(r[key]) for r in rows if key in r and np.isfinite(r[key])]
         payload[f"{key}_std"] = float(np.std(values, ddof=1)) if len(values) >= 2 else 0.0
@@ -640,7 +648,7 @@ def main():
             name: metric
             for name, metric in candidates.items()
             if int(metric.get("folds", 0)) >= 4
-            and float(metric.get("n_test", 0.0)) >= 10.0
+            and float(metric.get("n_test_min", 0.0)) >= 10.0
             and np.isfinite(float(metric.get("logloss", float("nan"))))
         }
 
