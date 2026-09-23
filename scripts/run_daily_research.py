@@ -286,6 +286,8 @@ def main():
     regime_rows = {reg.value: [] for reg in Regime if reg is not Regime.DATA_STRESSED}
     asset_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     asset_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
+    symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
+    symbol_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
 
     for name, factory in make_models().items():
         fold_rows = []
@@ -440,6 +442,53 @@ def main():
                         key = f"{asset_class}::{reg_name}"
                         asset_regime_rows.setdefault(key, []).append((name, kr))
 
+            if "symbol" in test.columns and "asset_class" in test.columns:
+                for (asset_class, symbol_value), subset in test.groupby(
+                    ["asset_class", "symbol"], sort=False
+                ):
+                    if len(subset) < 10 or subset.target_up_1d.nunique() < 2:
+                        continue
+                    sr = classification_metrics(
+                        subset.target_up_1d.astype(int),
+                        p[subset.index.to_numpy() - test.index.min()] if False else p[test.index.get_indexer(subset.index)],
+                    )
+                    subset_positions = test.index.get_indexer(subset.index)
+                    sr = classification_metrics(
+                        subset.target_up_1d.astype(int),
+                        p[subset_positions],
+                    )
+                    sr["rank_ic"] = cross_sectional_rank_ic(
+                        subset["target_ret_1d"].astype(float),
+                        p[subset_positions],
+                        subset["session_date"].astype(str),
+                    )
+                    sr["n_test"] = float(len(subset))
+                    symbol_key = f"{asset_class}::{symbol_value}"
+                    symbol_rows.setdefault(symbol_key, []).append((name, sr))
+                    subset_regime = regime.loc[subset.index]
+                    for reg_name in sorted(subset_regime.dropna().unique()):
+                        route_subset = subset.loc[subset_regime.eq(reg_name)]
+                        if (
+                            len(route_subset) < 10
+                            or route_subset.target_up_1d.nunique() < 2
+                        ):
+                            continue
+                        route_positions = test.index.get_indexer(route_subset.index)
+                        rr_symbol = classification_metrics(
+                            route_subset.target_up_1d.astype(int),
+                            p[route_positions],
+                        )
+                        rr_symbol["rank_ic"] = cross_sectional_rank_ic(
+                            route_subset["target_ret_1d"].astype(float),
+                            p[route_positions],
+                            route_subset["session_date"].astype(str),
+                        )
+                        rr_symbol["n_test"] = float(len(route_subset))
+                        symbol_regime_key = f"{symbol_key}::{reg_name}"
+                        symbol_regime_rows.setdefault(symbol_regime_key, []).append(
+                            (name, rr_symbol)
+                        )
+
         model_results[name] = {
             "folds": len(fold_rows),
             "metrics": aggregate_group(fold_rows) if fold_rows else {},
@@ -572,6 +621,95 @@ def main():
                 )
             ):
                 asset_regime_selected[key] = plan.names[0]
+
+
+
+    # Security-level routes are selected only when each candidate has enough
+    # chronological OOS evidence and clears the same minimum stable edge as
+    # higher-level routes. This adds granularity without forcing noisy
+    # per-security choices.
+    symbol_metrics = {
+        key: aggregate_model_rows(rows)
+        for key, rows in symbol_rows.items()
+    }
+    symbol_regime_metrics = {
+        key: aggregate_model_rows(rows)
+        for key, rows in symbol_regime_rows.items()
+    }
+
+    def _eligible_security_candidates(
+        candidates: dict[str, dict[str, float]],
+    ) -> dict[str, dict[str, float]]:
+        return {
+            name: metric
+            for name, metric in candidates.items()
+            if int(metric.get("folds", 0)) >= 4
+            and float(metric.get("n_test", 0.0)) >= 10.0
+            and np.isfinite(float(metric.get("logloss", float("nan"))))
+        }
+
+    symbol_selected = {}
+    for key, candidates in symbol_metrics.items():
+        asset_class, _symbol_value = key.split("::", 1)
+        eligible = _eligible_security_candidates(candidates)
+        if not eligible:
+            continue
+        plan = choose_from_oos(
+            "normal",
+            eligible,
+            candidates=ASSET_CANDIDATES.get(asset_class),
+            scope=f"symbol:{key}",
+            min_folds=4,
+            rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+        )
+        parent_model = asset_selected.get(asset_class) or global_selected
+        if (
+            not plan.reason.endswith("fallback")
+            and parent_model in eligible
+            and materially_better_than_parent(
+                eligible,
+                plan.names[0],
+                parent_model,
+                min_improvement_logloss=scope_improvement,
+            )
+        ):
+            symbol_selected[key] = plan.names[0]
+
+    symbol_regime_selected = {}
+    for key, candidates in symbol_regime_metrics.items():
+        parts = key.split("::", 2)
+        if len(parts) != 3:
+            continue
+        asset_class, _symbol_value, reg_name = parts
+        eligible = _eligible_security_candidates(candidates)
+        if not eligible:
+            continue
+        plan = choose_from_oos(
+            reg_name,
+            eligible,
+            candidates=ASSET_CANDIDATES.get(asset_class),
+            scope=f"symbol_regime:{key}",
+            min_folds=4,
+            rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+        )
+        asset_regime_key = f"{asset_class}::{reg_name}"
+        parent_model = (
+            asset_regime_selected.get(asset_regime_key)
+            or asset_selected.get(asset_class)
+            or regime_selected.get(reg_name)
+            or global_selected
+        )
+        if (
+            not plan.reason.endswith("fallback")
+            and parent_model in eligible
+            and materially_better_than_parent(
+                eligible,
+                plan.names[0],
+                parent_model,
+                min_improvement_logloss=scope_improvement,
+            )
+        ):
+            symbol_regime_selected[key] = plan.names[0]
 
     # Select classifier training-window length on chronological OOS after
     # model-family selection. 0 means all eligible history.
@@ -1013,6 +1151,10 @@ def main():
         "asset_class_selected_models": asset_selected,
         "asset_regime_metrics": asset_regime_metrics,
         "asset_regime_selected_models": asset_regime_selected,
+        "symbol_metrics": symbol_metrics,
+        "symbol_regime_metrics": symbol_regime_metrics,
+        "symbol_selected_models": symbol_selected,
+        "symbol_regime_selected_models": symbol_regime_selected,
         "selected_model": global_selected,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
@@ -1031,7 +1173,9 @@ def main():
             "row-weighted LogLoss with a configurable macro asset-class blend "
             "to reduce universe-size dominance, then applies the 0.25 stability "
             "penalty; route hierarchy is asset_class+regime -> asset_class -> "
-            "regime -> global; calibration is fit inside each OOS training fold; "
+            "regime -> symbol_regime -> symbol, with security routes requiring " 
+            ">=4 folds and >=10 observations/fold plus a stable parent edge; " 
+            "calibration is fit inside each OOS training fold; "
             "frozen holdout remains unused during selection"
         ),
         "status": "OOS_COMPLETE",
