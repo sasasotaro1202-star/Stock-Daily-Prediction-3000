@@ -143,11 +143,11 @@ def test_short_us_real_symbol_is_kept_when_official_resource_exists(monkeypatch)
 
 
 def test_non_ticker_us_labels_are_not_treated_as_symbols():
-    raw = b"""
+    raw = """
     <div>米国株</div>
     <div>NYRS</div>
     <div>ASML</div>
     <div>trade_on</div>
-    """
+    """.encode()
     rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
     assert all(row["symbol"] != "NYRS" for row in rows)
