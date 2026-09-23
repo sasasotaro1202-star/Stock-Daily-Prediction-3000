@@ -233,7 +233,7 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
             if not asset_class:
                 continue
 
-            if market == "us" and len(code) <= 3:
+            if market == "us" and (len(code) <= 3 or "." in code or "-" in code):
                 compact_name = re.sub(r"[^A-Z0-9]", "", name.upper())
                 compact_code = re.sub(r"[^A-Z0-9]", "", code.upper())
                 if compact_name.startswith(compact_code):
