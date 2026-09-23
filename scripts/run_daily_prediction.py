@@ -14,7 +14,7 @@ from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.production_artifact import load_production_artifact
 from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
-from src.research.router import regime_for_row, route_plan
+from src.research.router import regime_for_row, route_plan, situation_for_row
 from src.validation.code_fingerprint import fingerprint_sha256
 
 PRICE = Path("data/prices")
@@ -125,6 +125,7 @@ def main():
     p_values: list[float] = []
     global_disagreement: list[float] = []
     regimes: list[str] = []
+    situations: list[str] = []
 
     ready_mask = latest[FEATURE_COLUMNS].notna().all(axis=1)
     latest["prediction_status"] = np.where(
@@ -140,6 +141,7 @@ def main():
             selected_scopes.append("")
             selected_reasons.append("deferred:incomplete_features")
             regimes.append("data_stressed")
+            situations.append("data_stressed")
             global_disagreement.append(float("nan"))
             continue
 
@@ -183,6 +185,16 @@ def main():
         selected_scopes.append(actual_scope)
         selected_reasons.append(plan.reason)
         regimes.append(regime)
+        situations.append(
+            situation_for_row(
+                regime,
+                gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+                volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+                vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+                breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+                price_vs_sma60=float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
+            )
+        )
 
         g_probs = []
         one = pd.DataFrame([row])[FEATURE_COLUMNS]
@@ -197,6 +209,7 @@ def main():
     latest["training_scope"] = selected_scopes
     latest["route_reason"] = selected_reasons
     latest["regime"] = regimes
+    latest["market_situation"] = situations
     latest["model_disagreement"] = global_disagreement
 
     # Load immutable quantile models from the same approved artifact.
@@ -313,6 +326,7 @@ def main():
         "prediction_mode",
         "route_reason",
         "regime",
+        "market_situation",
         "model_disagreement",
         "prediction_status",
     ]
