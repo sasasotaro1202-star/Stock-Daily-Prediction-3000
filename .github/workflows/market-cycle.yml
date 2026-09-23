@@ -61,7 +61,9 @@ jobs:
           reason="no_recent_cycle"
 
           if ! branch_sha="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq ".object.sha")"; then
-            echo "market-cycle guard: unable to resolve current main SHA; continuing with normal guard"
+            echo "market-cycle guard: unable to resolve current main SHA; deferring cycle fail-closed"
+            run_required=false
+            reason="current_main_sha_unavailable"
           elif [ "$branch_sha" != "$current_sha" ]; then
             echo "market-cycle guard: superseded workflow SHA=$current_sha current_main=$branch_sha; deferring stale cycle"
             run_required=false
