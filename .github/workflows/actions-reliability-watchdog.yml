@@ -31,6 +31,7 @@ jobs:
           cutoff="$(date -u -d '96 hours ago' +%s)"
           stale_cutoff="$(date -u -d '120 minutes ago' +%s)"
           failures=0
+          current_sha="$GITHUB_SHA"
 
           inspect_workflow() {
             local workflow_file="$1"
@@ -51,11 +52,17 @@ jobs:
             conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
             attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
             run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+            head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
             updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
             latest_run_found=true
 
-            echo "WATCHDOG_LATEST workflow=${workflow_name} run=${run_id} status=\${status} conclusion=\${conclusion} attempt=\${attempt}"
+            echo "WATCHDOG_LATEST workflow=${workflow_name} run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt} head_sha=${head_sha}"
+
+            if [ "$head_sha" != "$current_sha" ]; then
+              echo "${workflow_name}: latest run ${run_id} belongs to superseded SHA ${head_sha}; current=${current_sha}"
+              break
+            fi
 
             if [ "$workflow_name" = "Bounded production recovery" ]; then
               if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
