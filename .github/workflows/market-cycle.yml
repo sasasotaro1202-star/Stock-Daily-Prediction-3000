@@ -22,7 +22,9 @@ permissions:
 
 concurrency:
   group: market-cycle
-  cancel-in-progress: false
+  # Code pushes should invalidate queued/stale cycles on obsolete SHAs;
+  # scheduled/manual market runs remain non-canceling.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   prepare-cycle:
