@@ -160,6 +160,28 @@ def main():
         ]
         missing_latest=sorted(expected-set(latest_by_symbol.index))
 
+        # Provider-unavailable symbols are allowed only as bounded degradation.
+        # A large current-cycle omission still blocks release.
+        deferred_expected = sorted(
+            key for key in deferred_keys if key in expected
+        )
+        deferred_unknown = sorted(
+            key for key in deferred_keys if key not in expected
+        )
+        deferred_ratio = (
+            len(deferred_expected) / len(expected)
+            if expected
+            else 0.0
+        )
+        if deferred_unknown:
+            reasons.append(
+                f"provider_deferred_unknown_symbols:{len(deferred_unknown)}"
+            )
+        if deferred_ratio > 0.05:
+            reasons.append(
+                f"provider_deferred_ratio_over_5pct:{deferred_ratio:.6f}"
+            )
+
         missing_now_non_deferred=[key for key in missing_now if key not in deferred_keys]
         missing_latest_non_deferred=[key for key in missing_latest if key not in deferred_keys]
         if missing_now_non_deferred:
@@ -190,6 +212,9 @@ def main():
         "files":len(files),
         "reasons":reasons,
         "legacy_retrieval_missing": int(locals().get("legacy_retrieval_missing", 0)),
+        "expected_symbols": int(locals().get("expected", set()).__len__()),
+        "provider_deferred_symbols": int(len(locals().get("deferred_expected", []))),
+        "provider_deferred_ratio": float(locals().get("deferred_ratio", 0.0)),
     }
     Path("data/research").mkdir(parents=True,exist_ok=True)
     Path("data/research/data_quality.json").write_text(
