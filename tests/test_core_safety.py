@@ -954,7 +954,9 @@ def test_market_context_persistence_filters_future_available_rows(tmp_path, monk
     monkeypatch.setattr(updater, "download_market_context", lambda period: rows)
     # Only the persistence filter is under test; bypass family completeness.
     updater.MAX_STALENESS_DAYS = 9999
-    updater.main()
+    import pytest
+    with pytest.raises(SystemExit, match="incomplete or stale market context"):
+        updater.main()
     saved = pd.read_parquet(updater.OUT)
     assert len(saved) == 1
     assert saved.iloc[0]["family"] == "nikkei"
