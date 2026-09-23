@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
+import os
 
 import pandas as pd
 import yfinance as yf
@@ -63,6 +64,8 @@ def download_market_context(period: str="5y") -> pd.DataFrame:
         threads=False,
     )
     frames=[]
+    retrieved_at=pd.Timestamp(datetime.now(timezone.utc))
+    retrieval_run_id=os.getenv("GITHUB_RUN_ID")
     if isinstance(raw.columns,pd.MultiIndex):
         for family, symbol in CONTEXT_SYMBOLS.items():
             if symbol not in raw.columns.get_level_values(0):
@@ -79,14 +82,18 @@ def download_market_context(period: str="5y") -> pd.DataFrame:
             ).std()
             part["family"]=family
             part["provider_symbol"]=symbol
+            part["source"]="yfinance"
+            part["retrieved_at"]=retrieved_at
+            part["retrieval_run_id"]=retrieval_run_id
             part["available_at"]=part["session_date"].map(
                 lambda d:_available_at(d,family)
             )
             frames.append(
                 part[
                     [
-                        "session_date","family","provider_symbol",
-                        "close","ret_1d","volatility_20","available_at"
+                        "session_date","family","provider_symbol","source",
+                        "retrieved_at","retrieval_run_id","close","ret_1d",
+                        "volatility_20","available_at"
                     ]
                 ]
             )
