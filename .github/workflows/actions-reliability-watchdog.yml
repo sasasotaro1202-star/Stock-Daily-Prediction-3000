@@ -61,17 +61,28 @@ jobs:
             updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
 
-            if [ "$status" = "queued" ] && [ "$self_heal_queued" = "true" ] && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
-              stale_queued_found=true
-              echo "::warning title=$workflow_name queued stall::queued run $run_id has remained queued for over 30 minutes; cancelling stale queue entry"
-              if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
-                echo "$workflow_name: stale queued run $run_id cancelled"
-              else
-                echo "::error title=$workflow_name queued recovery cancel failed::unable to cancel stale queued run $run_id"
-                stale_queue_recovery_failed=true
-                failures=$((failures + 1))
+            if [ "$status" = "queued" ] && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
+              if [ "$self_heal_queued" = "true" ]; then
+                stale_queued_found=true
+                echo "::warning title=$workflow_name queued stall::queued run $run_id has remained queued for over 30 minutes; cancelling stale queue entry"
+                if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "$workflow_name: stale queued run $run_id cancelled"
+                else
+                  echo "::error title=$workflow_name queued recovery cancel failed::unable to cancel stale queued run $run_id"
+                  stale_queue_recovery_failed=true
+                  failures=$((failures + 1))
+                fi
+                continue
+              elif [ "$workflow_name" = "Bounded production recovery" ]; then
+                echo "::warning title=$workflow_name stale queue cleanup::queued recovery run $run_id is stale; cancelling without dispatching a recovery-of-recovery run"
+                if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "$workflow_name: stale queued recovery run $run_id cancelled"
+                else
+                  echo "::error title=$workflow_name stale queue cleanup failed::unable to cancel stale queued recovery run $run_id"
+                  failures=$((failures + 1))
+                fi
+                continue
               fi
-              continue
             fi
             if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then
               echo "${workflow_name}: ignoring run ${run_id} on superseded SHA ${head_sha}; current=${current_sha}"
