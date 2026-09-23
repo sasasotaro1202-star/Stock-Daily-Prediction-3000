@@ -20,7 +20,7 @@ def api(url: str, token: str) -> dict:
             "X-GitHub-Api-Version":"2026-03-10",
         },
     )
-    with _opener().open(req,timeout=30) as response:
+    with urllib.request.urlopen(req,timeout=30) as response:
         return json.load(response)
 
 
