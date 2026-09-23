@@ -2,14 +2,53 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import tempfile
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
+from urllib.parse import urlparse
 
 
 MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+
+
+class _CrossHostRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Never forward GitHub API credentials to an external artifact host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if redirected is None:
+            return None
+        source_host = urlparse(req.full_url).netloc
+        target_host = urlparse(newurl).netloc
+        if source_host != target_host:
+            for key in ("Authorization", "Accept", "X-GitHub-Api-Version"):
+                redirected.headers.pop(key, None)
+        return redirected
+
+
+def _github_opener():
+    return urllib.request.build_opener(_CrossHostRedirectHandler())
+
+
+def _safe_extract(zf: zipfile.ZipFile, destination: Path) -> None:
+    """Extract only regular files/directories below destination."""
+    root = destination.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    for member in zf.infolist():
+        target = (root / member.filename).resolve()
+        if target != root and root not in target.parents:
+            raise RuntimeError(
+                f"unsafe artifact member path outside restore root: {member.filename}"
+            )
+        if member.is_dir():
+            target.mkdir(parents=True, exist_ok=True)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(member, "r") as src, target.open("wb") as dst:
+            shutil.copyfileobj(src, dst)
 
 
 def _api(url: str, token: str) -> dict:
@@ -21,7 +60,7 @@ def _api(url: str, token: str) -> dict:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=25) as response:
+    with _github_opener().open(req, timeout=25) as response:
         return json.load(response)
 
 
@@ -34,7 +73,7 @@ def _download(url: str, token: str) -> bytes:
             "X-GitHub-Api-Version": "2022-11-28",
         },
     )
-    with urllib.request.urlopen(req, timeout=60) as response:
+    with _github_opener().open(req, timeout=60) as response:
         return response.read()
 
 
@@ -97,7 +136,7 @@ def main():
                 archive.write_bytes(blob)
                 extract.mkdir()
                 with zipfile.ZipFile(archive) as zf:
-                    zf.extractall(extract)
+                    _safe_extract(zf, extract)
                 src = extract / "data" / "universe" / "latest.json"
                 if not src.exists():
                     raise ValueError("artifact does not contain data/universe/latest.json")
