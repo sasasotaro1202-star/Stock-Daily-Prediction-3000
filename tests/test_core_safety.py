@@ -828,3 +828,39 @@ def test_actions_watchdog_evaluates_latest_state_not_historical_failures():
     assert "latest run failed on attempt 1; bounded recovery is expected to handle it" in source
     assert "latest run ${run_id} is still failing after bounded recovery" in source
     assert "done < <(printf '%s' \"$runs\" | jq -r '.workflow_runs[] | @base64')" in source
+
+
+def test_scoped_route_requires_material_oos_edge():
+    from src.research.router import materially_better_than_parent
+
+    close = {
+        "specialist": {"logloss": 0.500, "logloss_std": 0.004},
+        "parent": {"logloss": 0.501, "logloss_std": 0.004},
+    }
+    assert not materially_better_than_parent(
+        close,
+        "specialist",
+        "parent",
+        min_improvement_logloss=0.002,
+    )
+
+    clear = {
+        "specialist": {"logloss": 0.500, "logloss_std": 0.004},
+        "parent": {"logloss": 0.506, "logloss_std": 0.004},
+    }
+    assert materially_better_than_parent(
+        clear,
+        "specialist",
+        "parent",
+        min_improvement_logloss=0.002,
+    )
+
+
+def test_scoped_route_parent_edge_is_wired_into_research_config():
+    from pathlib import Path
+
+    pipe = Path("config/pipeline.yml").read_text(encoding="utf-8")
+    research = Path("scripts/run_daily_research.py").read_text(encoding="utf-8")
+    assert "minimum_scoped_oos_improvement_logloss: 0.002" in pipe
+    assert "materially_better_than_parent" in research
+    assert "scope_improvement" in research
