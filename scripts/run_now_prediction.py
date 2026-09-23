@@ -101,6 +101,10 @@ def _predict_near_production(
         model_name = "hgb"
         selection_source = "deterministic_hgb_fallback"
 
+    asof = pd.Timestamp(datetime.now(timezone.utc))
+    available = pd.to_datetime(df["available_at"], utc=True, errors="coerce")
+    df = df.loc[available.le(asof)].copy()
+
     labeled = add_targets(df).dropna(
         subset=FEATURE_COLUMNS + ["target_up_1d", "target_ret_1d"]
     ).copy()
