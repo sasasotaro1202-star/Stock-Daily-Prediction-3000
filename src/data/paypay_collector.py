@@ -226,6 +226,14 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
                 if remainder and not _visible_name_noise(remainder):
                     name = remainder.split("|", 1)[0].strip()
 
+            if not name and market == "us":
+                repeated_code = any(
+                    candidate == code
+                    for candidate in fields[code_position + 1 :]
+                )
+                if repeated_code:
+                    name = code
+
             if not name:
                 continue
 
@@ -234,11 +242,10 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
                 continue
 
             if market == "us" and (len(code) <= 3 or "." in code or "-" in code):
-                compact_name = re.sub(r"[^A-Z0-9]", "", name.upper())
-                compact_code = re.sub(r"[^A-Z0-9]", "", code.upper())
-                if compact_name.startswith(compact_code):
-                    if not _official_us_symbol_resource_exists(code):
-                        continue
+                # Short/punctuated US symbols are ambiguous in rendered text.
+                # Require an authoritative PayPay issuer resource before keeping them.
+                if not _official_us_symbol_resource_exists(code):
+                    continue
 
             channels = [
                 token
