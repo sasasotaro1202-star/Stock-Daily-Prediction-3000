@@ -107,8 +107,6 @@ def test_browser_dump_dom_rejects_non_paypay_url():
         _browser_dump_dom("https://example.com/")
 
 
-from __future__ import annotations
-
 from src.data import paypay_collector
 
 
@@ -142,3 +140,14 @@ def test_short_us_real_symbol_is_kept_when_official_resource_exists(monkeypatch)
     """
     rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
     assert [(row["symbol"], row["asset_class"]) for row in rows] == [("IBM", "us_stock")]
+
+
+def test_non_ticker_us_labels_are_not_treated_as_symbols():
+    raw = b"""
+    <div>米国株</div>
+    <div>NYRS</div>
+    <div>ASML</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
+    assert all(row["symbol"] != "NYRS" for row in rows)
