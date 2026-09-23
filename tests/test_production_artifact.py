@@ -94,3 +94,8 @@ def test_on_demand_prediction_workflow_is_present():
     assert "workflow_dispatch:" in workflow
     assert "run_now_prediction.py" in workflow
     assert "load_production_artifact" in workflow
+
+def test_near_production_training_enforces_pit_cutoff():
+    script = Path("scripts/run_now_prediction.py").read_text()
+    assert 'available = pd.to_datetime(df["available_at"], utc=True, errors="coerce")' in script
+    assert "df = df.loc[available.le(asof)].copy()" in script
