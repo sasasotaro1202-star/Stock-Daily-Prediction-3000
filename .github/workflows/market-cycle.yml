@@ -197,6 +197,8 @@ jobs:
         run: python scripts/update_market_context.py
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
+      - name: Canonicalize price store
+        run: python scripts/normalize_price_store.py
       - name: Universe quality gate
         run: python scripts/universe_quality_gate.py
       - name: Price data quality gate
