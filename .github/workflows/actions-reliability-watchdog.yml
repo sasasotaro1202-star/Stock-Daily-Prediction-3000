@@ -38,32 +38,53 @@ jobs:
             local runs
             runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20")"
 
-            while IFS= read -r encoded; do
-              [ -n "$encoded" ] || continue
-              run_json="$(printf '%s' "$encoded" | base64 -d)"
-              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
-              [ -n "$created" ] || continue
-              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
-              [ "$created_epoch" -ge "$cutoff" ] || continue
+            latest_run_found=false
+          while IFS= read -r encoded; do
+            [ -n "$encoded" ] || continue
+            run_json="$(printf '%s' "$encoded" | base64 -d)"
+            created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
+            [ -n "$created" ] || continue
+            created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+            [ "$created_epoch" -ge "$cutoff" ] || break
 
-              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
-              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
-              attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
-              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
-              updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
-              updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
+            status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
+            conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
+            attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
+            run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+            updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
+            updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
+            latest_run_found=true
 
-              echo "${workflow_name}: run=${run_id} status=${status} conclusion=${conclusion} attempt=${attempt}"
+            echo "WATCHDOG_LATEST workflow=\${workflow_name} run=\${run_id} status=\${status} conclusion=\${conclusion} attempt=\${attempt}"
 
-              if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ] && [ "$attempt" -ge 2 ]; then
-                echo "::error title=${workflow_name} unresolved failure::run ${run_id} is still failing after bounded recovery"
+            if [ "$workflow_name" = "Bounded production recovery" ]; then
+              if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
+                echo "::error title=\${workflow_name} recovery failure::latest recovery run \${run_id} failed"
+                failures=$((failures + 1))
+              elif [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
+                echo "::error title=\${workflow_name} stale recovery::latest recovery run \${run_id} has been non-completed for over 120 minutes"
                 failures=$((failures + 1))
               fi
-              if [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
-                echo "::error title=${workflow_name} stale run::run ${run_id} has been non-completed for over 120 minutes"
+              break
+            fi
+
+            if [ "$status" = "completed" ] && [ "$conclusion" = "failure" ]; then
+              if [ "$attempt" -ge 2 ]; then
+                echo "::error title=\${workflow_name} unresolved failure::latest run \${run_id} is still failing after bounded recovery"
                 failures=$((failures + 1))
+              else
+                echo "\${workflow_name}: latest run failed on attempt 1; bounded recovery is expected to handle it"
               fi
-            done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+            elif [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
+              echo "::error title=\${workflow_name} stale run::latest run \${run_id} has been non-completed for over 120 minutes"
+              failures=$((failures + 1))
+            fi
+            break
+          done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+
+          if [ "$latest_run_found" = false ]; then
+            echo "\${workflow_name}: no run found in watchdog window"
+          fi
           }
 
           inspect_workflow "market-cycle.yml" "Market cycle"
