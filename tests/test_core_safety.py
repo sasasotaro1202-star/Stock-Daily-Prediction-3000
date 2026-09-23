@@ -892,3 +892,13 @@ def test_production_artifact_validates_security_route_metadata():
     assert "symbol_selected_models" in source
     assert "symbol_regime_selected_models" in source
     assert '"symbol_selected_models": dict(frozen.get("symbol_selected_models") or {})' in artifact
+
+
+def test_production_artifact_requires_frozen_security_routes_when_present():
+    from pathlib import Path
+
+    source = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+    assert '"symbol_selected_models": dict(frozen.get("symbol_selected_models") or {})' in source
+    assert '"symbol_regime_selected_models": dict(frozen.get("symbol_regime_selected_models") or {})' in source
+    assert '"symbol_selected_models",' in source
+    assert '"symbol_regime_selected_models",' in source
