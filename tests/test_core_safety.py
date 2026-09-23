@@ -960,3 +960,15 @@ def test_market_context_persistence_filters_future_available_rows(tmp_path, monk
     assert saved.iloc[0]["family"] == "nikkei"
     payload = json.loads(updater.RESULT.read_text(encoding="utf-8"))
     assert payload["status"] == "DEFERRED"
+
+
+def test_situation_labels_are_deterministic():
+    from src.research.router import situation_for_row
+
+    assert situation_for_row("event", gap_pct=0.04) == "event_gap"
+    assert situation_for_row("event", volume_ratio_20=3.5) == "event_volume"
+    assert situation_for_row("high_vol", vix_level=31) == "high_vol_vix"
+    assert situation_for_row("trend", price_vs_sma60=0.05) == "trend_up"
+    assert situation_for_row("trend", price_vs_sma60=-0.05) == "trend_down"
+    assert situation_for_row("normal") == "range"
+    assert situation_for_row("data_stressed") == "data_stressed"
