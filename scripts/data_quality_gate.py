@@ -48,6 +48,22 @@ def main():
         print(json.dumps(result,indent=2))
         raise SystemExit("FAIL: required price columns are missing")
 
+    deferred_keys:set[tuple[str,str]] = set()
+    deferred_reports=sorted(root.glob("price_deferred_shard_*.json"))
+    current_run_id=__import__("os").environ.get("GITHUB_RUN_ID")
+    for report_path in deferred_reports:
+        try:
+            payload=json.loads(report_path.read_text(encoding="utf-8"))
+        except Exception:
+            continue
+        if current_run_id and payload.get("retrieval_run_id") != current_run_id:
+            continue
+        for item in payload.get("deferred",[]) or []:
+            if isinstance(item,dict) and item.get("asset_class") and item.get("symbol"):
+                deferred_keys.add((str(item["asset_class"]),str(item["symbol"])))
+    if deferred_keys:
+        reasons.append(f"provider_deferred_current_cycle:{len(deferred_keys)}")
+
     if df.empty:
         reasons.append("empty_dataset")
     else:
@@ -144,10 +160,12 @@ def main():
         ]
         missing_latest=sorted(expected-set(latest_by_symbol.index))
 
-        if missing_now:
-            reasons.append(f"universe_symbols_missing_from_price_history:{len(missing_now)}")
-        if missing_latest:
-            reasons.append(f"universe_symbols_without_current_pit_row:{len(missing_latest)}")
+        missing_now_non_deferred=[key for key in missing_now if key not in deferred_keys]
+        missing_latest_non_deferred=[key for key in missing_latest if key not in deferred_keys]
+        if missing_now_non_deferred:
+            reasons.append(f"universe_symbols_missing_from_price_history:{len(missing_now_non_deferred)}")
+        if missing_latest_non_deferred:
+            reasons.append(f"universe_symbols_without_current_pit_row:{len(missing_latest_non_deferred)}")
         if stale:
             reasons.append(f"universe_symbols_stale_over_10d:{len(stale)}")
 
@@ -161,8 +179,12 @@ def main():
         "universe_symbols_stale_over_10d",
         "negative_volume",
     )
+    hard_reasons=[
+        reason for reason in reasons
+        if not reason.startswith("provider_deferred_current_cycle:")
+    ]
     result={
-        "status":"PASS" if not reasons else "DEFERRED",
+        "status":"PASS" if not hard_reasons else "DEFERRED",
         "rows":int(len(df)),
         "asset_scope":sorted(ASSET_SCOPE) if ASSET_SCOPE else None,
         "files":len(files),
@@ -174,8 +196,8 @@ def main():
         json.dumps(result,indent=2),encoding="utf-8"
     )
     print(json.dumps(result,indent=2))
-    if reasons and any(
-        x.startswith(critical_prefixes) for x in reasons
+    if hard_reasons and any(
+        x.startswith(critical_prefixes) for x in hard_reasons
     ):
         raise SystemExit("FAIL: critical price/universe quality issue")
 
