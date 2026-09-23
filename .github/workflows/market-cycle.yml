@@ -188,6 +188,11 @@ jobs:
           pattern: price-state-shard-*
           path: data/prices
           merge-multiple: true
+      - name: Restore current-cycle universe
+        uses: actions/download-artifact@v4
+        with:
+          name: universe-${{ github.run_id }}
+          path: data/universe
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: PayPay master catalog integrity
