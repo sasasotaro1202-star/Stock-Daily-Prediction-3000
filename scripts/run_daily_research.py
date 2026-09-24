@@ -657,6 +657,38 @@ def main():
             ):
                 asset_selected[asset_class] = plan.names[0]
 
+    asset_regime_selected = {}
+    for key, candidates in asset_regime_metrics.items():
+        asset_class, reg_name = key.split("::", 1)
+        if candidates:
+            plan = choose_from_oos(
+                reg_name,
+                candidates,
+                candidates=ASSET_CANDIDATES.get(
+                    asset_class, CANDIDATES[Regime.NORMAL]
+                ),
+                scope=key,
+                min_folds=2,
+                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+            )
+            parent_model = (
+                asset_selected.get(asset_class)
+                or regime_selected.get(reg_name)
+                or global_selected
+            )
+            if (
+                not plan.reason.endswith("fallback")
+                and materially_better_than_parent(
+                    candidates,
+                    plan.names[0],
+                    parent_model,
+                    min_improvement_logloss=scope_improvement,
+                )
+            ):
+                asset_regime_selected[key] = plan.names[0]
+
+
+
     # Situation specialists are selected strictly from chronological OOS slices.
     # Global situation routes must beat the global model on the same situation
     # slice; asset+situation routes must beat the best non-situation parent on
@@ -741,37 +773,6 @@ def main():
             )
         ):
             asset_situation_selected[key] = plan.names[0]
-
-    asset_regime_selected = {}
-    for key, candidates in asset_regime_metrics.items():
-        asset_class, reg_name = key.split("::", 1)
-        if candidates:
-            plan = choose_from_oos(
-                reg_name,
-                candidates,
-                candidates=ASSET_CANDIDATES.get(
-                    asset_class, CANDIDATES[Regime.NORMAL]
-                ),
-                scope=key,
-                min_folds=2,
-                rank_ic_tiebreak_tolerance=rank_ic_tolerance,
-            )
-            parent_model = (
-                asset_selected.get(asset_class)
-                or regime_selected.get(reg_name)
-                or global_selected
-            )
-            if (
-                not plan.reason.endswith("fallback")
-                and materially_better_than_parent(
-                    candidates,
-                    plan.names[0],
-                    parent_model,
-                    min_improvement_logloss=scope_improvement,
-                )
-            ):
-                asset_regime_selected[key] = plan.names[0]
-
 
 
     # Security-level routes are selected only when each candidate has enough

@@ -136,6 +136,8 @@ def main():
         "regime_selected_models",
         "asset_class_selected_models",
         "asset_regime_selected_models",
+        "situation_selected_models",
+        "asset_situation_selected_models",
         "symbol_selected_models",
         "symbol_regime_selected_models",
     ):
