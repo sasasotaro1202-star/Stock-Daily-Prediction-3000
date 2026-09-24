@@ -160,8 +160,16 @@ jobs:
       - name: Validate production prediction output
         if: steps.research_state.outputs.available == 'true'
         run: python scripts/validate_prediction_output.py
+      - name: Record deferred U.S. prediction
+        if: steps.research_state.outputs.available != 'true'
+        run: |
+          mkdir -p data/research
+          printf '%s\n' '{"status":"DEFERRED","reason":"no_approved_production_research_state","production_action":"DEFERRED"}' > data/research/us_prediction_deferred.json
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: morning-prediction-${{ github.run_id }}
-          path: data/predictions/
+          path: |
+            data/predictions/
+            data/research/us_prediction_deferred.json
           retention-days: 7
