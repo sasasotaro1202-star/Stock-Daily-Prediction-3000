@@ -194,8 +194,38 @@ def _predict_near_production(
     out["training_scope"] = "near_production_global"
     out["return_training_scope"] = "near_production_global"
     out["route_reason"] = f"near_production:{selection_source}"
-    out["regime"] = "near_production"
-    out["market_situation"] = "near_production"
+    frozen_payload = json.loads(FROZEN.read_text(encoding="utf-8")) if FROZEN.exists() else {}
+    threshold = frozen_payload.get("regime_vol_threshold")
+    if not isinstance(threshold, (int, float)) or not np.isfinite(float(threshold)):
+        threshold = float(labeled["volatility_20"].dropna().median())
+    regimes = []
+    situations = []
+    for _, row in out.iterrows():
+        if not bool(ready.loc[row.name]):
+            regimes.append("data_stressed")
+            situations.append("data_stressed")
+            continue
+        regime = regime_for_row(
+            float(row["volatility_20"]),
+            float(row["price_vs_sma60"]),
+            float(threshold),
+            gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+        )
+        situation = situation_for_row(
+            regime.value,
+            gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+            price_vs_sma60=float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
+        )
+        regimes.append(regime.value)
+        situations.append(situation)
+    out["regime"] = regimes
+    out["market_situation"] = situations
     out["model_disagreement"] = np.nan
     out["prediction_mode"] = "NEAR_PRODUCTION"
     out["prediction_time"] = pd.Timestamp(datetime.now(timezone.utc))
