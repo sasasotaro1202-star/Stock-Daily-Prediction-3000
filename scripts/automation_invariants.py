@@ -104,7 +104,7 @@ def main() -> int:
     )
     _assert_once(
         research,
-        "paired_logloss_selection_evidence",
+        "paired_logloss_selection_evidence(",
         "oos_selection_evidence_used",
     )
     _assert_once(
