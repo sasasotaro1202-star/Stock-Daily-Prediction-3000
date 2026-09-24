@@ -147,6 +147,59 @@ jobs:
           inspect_workflow "us-close-prediction.yml" "U.S. close prediction" false
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
+
+          recover_missing_scheduled_run() {
+            local workflow_file="$1"
+            local workflow_name="$2"
+            local due_hhmm="$3"
+            local grace_minutes="$4"
+            local current_date
+            current_date="$(TZ=Asia/Tokyo date '+%Y-%m-%d')"
+            local weekday
+            weekday="$(TZ=Asia/Tokyo date '+%u')"
+            [ "$weekday" -le 5 ] || return 0
+
+            local due_epoch now_epoch
+            due_epoch="$(TZ=Asia/Tokyo date -d "$current_date $due_hhmm" +%s 2>/dev/null || echo 0)"
+            now_epoch="$(date -u +%s)"
+            [ "$due_epoch" -gt 0 ] || return 0
+            [ "$now_epoch" -ge "$((due_epoch + grace_minutes * 60))" ] || return 0
+
+            local runs
+            if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
+              echo "::error title=${workflow_name} scheduled-run API unavailable::unable to verify whether today's scheduled run exists"
+              failures=$((failures + 1))
+              return 0
+            fi
+
+            local active_runs
+            active_runs="$(printf '%s' "$runs" | jq '[.workflow_runs[] | select(.status == "queued" or .status == "pending" or .status == "in_progress")] | length')"
+            if [ "$active_runs" -gt 0 ]; then
+              echo "${workflow_name}: scheduled recovery suppressed; an active run already exists"
+              return 0
+            fi
+
+            local current_today
+            current_today="$(printf '%s' "$runs" | jq --arg sha "$current_sha" --arg date "$current_date" '[.workflow_runs[] | select(.head_sha == $sha) | select((.created_at | fromdateiso8601) >= ($date + "T00:00:00+09:00" | fromdateiso8601))] | length')"
+            if [ "$current_today" -gt 0 ]; then
+              echo "${workflow_name}: today's current-SHA scheduled run already exists"
+              return 0
+            fi
+
+            if gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+              echo "$workflow_name: missing scheduled run recovered on main"
+            else
+              echo "::error title=${workflow_name} scheduled recovery dispatch failed::unable to dispatch missing scheduled run"
+              failures=$((failures + 1))
+            fi
+          }
+
+          # Recover only after the expected scheduled window, only on weekdays,
+          # and never while another run for the same workflow is active.
+          recover_missing_scheduled_run "us-close-prediction.yml" "U.S. close prediction" "07:17" 30
+          recover_missing_scheduled_run "prediction-monitoring.yml" "Prediction monitoring" "09:27" 30
+          recover_missing_scheduled_run "market-cycle.yml" "Market cycle" "18:37" 30
+
           if ! heartbeat_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/heartbeat.yml/runs?status=success&per_page=1" 2>/dev/null)"; then
             echo "::error title=Automation heartbeat API unavailable::unable to inspect successful heartbeat runs"
             failures=$((failures + 1))
