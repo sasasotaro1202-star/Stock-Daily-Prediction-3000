@@ -154,19 +154,19 @@ def add_sec_filing_features(
             event_ns, is_8k, is_10q, is_10k, is_proxy, valid_query_ns, 90
         )
 
-        qmap = query.copy()
-        qmap["_row"] = qmap.index
         valid_positions = np.flatnonzero(valid_q)
-        row_positions = qmap["_row"].to_numpy()[valid_positions]
+        # query retains the original out index labels, even after sorting by
+        # available_at. Preserve those labels explicitly so a non-monotone
+        # input row order can never redirect SEC features to another security.
+        target_idx = query.index.to_numpy()[valid_positions]
+        order = np.argsort(target_idx)
+        target_idx = target_idx[order]
 
-        # Align back to the original out indices.
-        order = np.argsort(row_positions)
-        target_idx = row_positions[order]
         out.loc[target_idx, "sec_data_available"] = (
-            has_prev.astype(float)[order]
+            has_prev[order].astype(float)
         )
         out.loc[target_idx, "sec_days_since_filing"] = (
-            np.maximum(age_days, 0.0)[order]
+            np.maximum(age_days[order], 0.0)
         )
         out.loc[target_idx, "sec_filings_30d"] = total_30[order]
         out.loc[target_idx, "sec_filings_90d"] = total_90[order]
