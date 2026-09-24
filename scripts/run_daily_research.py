@@ -696,99 +696,109 @@ def main():
     # Research-only online expert aggregation. Predictions for each session
     # use weights learned strictly before that session. We update weights only
     # after the whole session's outcomes are available, avoiding within-session
-    # leakage. Fixed learning rates form an ablation panel; none is selected
-    # from these same OOS test results.
+    # leakage. Learning-rate/share-rate panels are ablations only; none is
+    # selected from these same OOS test results.
     online_expert_research = {}
     for learning_rate in (0.5, 1.0, 2.0, 4.0):
-        fold_rows = []
-        situation_rows_online: dict[str, list[dict[str, float]]] = {}
-        for fold_idx in sorted(online_prediction_by_fold):
-            bank = online_prediction_by_fold[fold_idx]
-            predictions = bank["predictions"]
-            if len(predictions) < 2:
-                continue
-            try:
-                ensemble_p, final_weights, history = online_expert_average(
-                    predictions,
-                    bank["y"],
-                    bank["session_dates"],
-                    learning_rate=learning_rate,
+        for share_rate in (0.0, 0.02, 0.05, 0.10):
+            fold_rows = []
+            situation_rows_online: dict[str, list[dict[str, float]]] = {}
+            for fold_idx in sorted(online_prediction_by_fold):
+                bank = online_prediction_by_fold[fold_idx]
+                predictions = bank["predictions"]
+                if len(predictions) < 2:
+                    continue
+                try:
+                    ensemble_p, final_weights, history = online_expert_average(
+                        predictions,
+                        bank["y"],
+                        bank["session_dates"],
+                        learning_rate=learning_rate,
+                        share_rate=share_rate,
+                    )
+                except ValueError as exc:
+                    raise SystemExit(
+                        f"FAIL: online expert input validation failed in fold {fold_idx}: {exc}"
+                    ) from exc
+                y = np.asarray(bank["y"], dtype=int)
+                metrics = classification_metrics(y, ensemble_p)
+                metrics["rank_ic"] = cross_sectional_rank_ic(
+                    y.astype(float),
+                    ensemble_p,
+                    pd.Series(bank["session_dates"]).astype(str).to_numpy(),
                 )
-            except ValueError:
-                continue
-            y = np.asarray(bank["y"], dtype=int)
-            metrics = classification_metrics(y, ensemble_p)
-            metrics["rank_ic"] = cross_sectional_rank_ic(
-                y.astype(float),
-                ensemble_p,
-                pd.Series(bank["session_dates"]).astype(str).to_numpy(),
-            )
-            baseline = predictions.get(global_selected)
-            if baseline is not None:
-                baseline_ll = classification_metrics(y, baseline)["logloss"]
-                metrics["delta_logloss_vs_global_selected"] = float(
-                    baseline_ll - metrics["logloss"]
+                baseline = predictions.get(global_selected)
+                if baseline is not None:
+                    baseline_ll = classification_metrics(y, baseline)["logloss"]
+                    metrics["delta_logloss_vs_global_selected"] = float(
+                        baseline_ll - metrics["logloss"]
+                    )
+                else:
+                    metrics["delta_logloss_vs_global_selected"] = float("nan")
+                metrics["n_test"] = float(len(y))
+                metrics["fold"] = float(fold_idx)
+                metrics["learning_rate"] = float(learning_rate)
+                metrics["share_rate"] = float(share_rate)
+                metrics["final_weight_max"] = float(np.max(final_weights))
+                metrics["final_weight_entropy"] = float(
+                    -np.sum(final_weights * np.log(np.clip(final_weights, 1e-12, 1.0)))
                 )
-            else:
-                metrics["delta_logloss_vs_global_selected"] = float("nan")
-            metrics["n_test"] = float(len(y))
-            metrics["fold"] = float(fold_idx)
-            metrics["learning_rate"] = float(learning_rate)
-            metrics["final_weight_max"] = float(np.max(final_weights))
-            metrics["final_weight_entropy"] = float(
-                -np.sum(final_weights * np.log(np.clip(final_weights, 1e-12, 1.0)))
-            )
-            metrics["online_sessions"] = float(len(history))
-            fold_rows.append(metrics)
+                metrics["online_sessions"] = float(len(history))
+                fold_rows.append(metrics)
 
-            situations = bank.get("situations")
-            if situations is not None:
-                situations = np.asarray(situations, dtype=str)
-                for situation_name in sorted(set(situations.tolist())):
-                    mask = situations == situation_name
-                    if mask.sum() < 30 or len(np.unique(y[mask])) < 2:
-                        continue
-                    sm = classification_metrics(y[mask], ensemble_p[mask])
-                    if baseline is not None:
-                        sm["delta_logloss_vs_global_selected"] = float(
-                            classification_metrics(y[mask], baseline[mask])["logloss"]
-                            - sm["logloss"]
-                        )
-                    sm["n_test"] = float(mask.sum())
-                    situation_rows_online.setdefault(situation_name, []).append(sm)
+                situations = bank.get("situations")
+                if situations is not None:
+                    situations = np.asarray(situations, dtype=str)
+                    for situation_name in sorted(set(situations.tolist())):
+                        mask = situations == situation_name
+                        if mask.sum() < 30 or len(np.unique(y[mask])) < 2:
+                            continue
+                        sm = classification_metrics(y[mask], ensemble_p[mask])
+                        if baseline is not None:
+                            sm["delta_logloss_vs_global_selected"] = float(
+                                classification_metrics(y[mask], baseline[mask])["logloss"]
+                                - sm["logloss"]
+                            )
+                        sm["n_test"] = float(mask.sum())
+                        situation_rows_online.setdefault(situation_name, []).append(sm)
 
-        if fold_rows:
-            gains = np.asarray(
-                [r["delta_logloss_vs_global_selected"] for r in fold_rows],
-                dtype=float,
-            )
-            gains = gains[np.isfinite(gains)]
-            online_expert_research[str(learning_rate)] = {
-                "research_only": True,
-                "production_changed": False,
-                "promotion_allowed": False,
-                "learning_rate": float(learning_rate),
-                "selection_protocol": "fixed_learning_rate_chronological_online_update_after_each_session",
-                "test_tuning_allowed": False,
-                "folds": len(fold_rows),
-                "mean_logloss": float(np.mean([r["logloss"] for r in fold_rows])),
-                "logloss_std": float(np.std([r["logloss"] for r in fold_rows], ddof=1)) if len(fold_rows) >= 2 else 0.0,
-                "mean_logloss_improvement_vs_global_selected": float(np.mean(gains)) if len(gains) else 0.0,
-                "positive_fold_ratio_vs_global_selected": float(np.mean(gains > 0.0)) if len(gains) else 0.0,
-                "metrics_by_fold": fold_rows,
-                "situation_metrics": {
-                    key: {
-                        "folds": len(rows),
-                        "logloss": float(np.mean([r["logloss"] for r in rows])),
-                        "delta_logloss_vs_global_selected": float(
-                            np.nanmean([r.get("delta_logloss_vs_global_selected", np.nan) for r in rows])
-                        ),
-                        "n_test_min": float(min(r["n_test"] for r in rows)),
-                    }
-                    for key, rows in situation_rows_online.items()
-                },
-            }
-
+            if fold_rows:
+                gains = np.asarray(
+                    [r["delta_logloss_vs_global_selected"] for r in fold_rows],
+                    dtype=float,
+                )
+                gains = gains[np.isfinite(gains)]
+                result_key = (
+                    str(learning_rate)
+                    if share_rate == 0.0
+                    else f"{learning_rate}::share={share_rate:g}"
+                )
+                online_expert_research[result_key] = {
+                    "research_only": True,
+                    "production_changed": False,
+                    "promotion_allowed": False,
+                    "learning_rate": float(learning_rate),
+                    "share_rate": float(share_rate),
+                    "selection_protocol": "fixed_learning_rate_and_share_rate_chronological_online_update_after_each_session",
+                    "test_tuning_allowed": False,
+                    "folds": len(fold_rows),
+                    "mean_logloss": float(np.mean([r["logloss"] for r in fold_rows])),
+                    "logloss_std": float(np.std([r["logloss"] for r in fold_rows], ddof=1)) if len(fold_rows) >= 2 else 0.0,
+                    "mean_logloss_improvement_vs_global_selected": float(np.mean(gains)) if len(gains) else 0.0,
+                    "positive_fold_ratio_vs_global_selected": float(np.mean(gains > 0.0)) if len(gains) else 0.0,
+                    "metrics_by_fold": fold_rows,
+                    "situation_metrics": {
+                        key: {
+                            "folds": len(rows),
+                            "logloss": float(np.mean([r["logloss"] for r in rows])),
+                            "delta_logloss_vs_global_selected": float(
+                                np.nanmean([r.get("delta_logloss_vs_global_selected", np.nan) for r in rows])
+                            ),
+                            "n_test_min": float(min(r["n_test"] for r in rows)),
+                        }
+                        for key, rows in situation_rows_online.items()
+                    },
+                }
     # Do not tune or promote an online learning rate from these same OOS folds.
     # A future promotion requires nested selection or a separate untouched period.
 

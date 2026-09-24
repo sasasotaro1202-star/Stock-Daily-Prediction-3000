@@ -40,6 +40,26 @@ def test_past_outcomes_change_only_future_session_weights():
     assert out1[2] > out2[2]
 
 
+def test_fixed_share_recovers_switching_expert_on_future_sessions():
+    dates = np.array(["2026-01-02"] * 2 + ["2026-01-05"] * 2)
+    predictions = {
+        "a": np.array([0.9, 0.9, 0.1, 0.1]),
+        "b": np.array([0.1, 0.1, 0.9, 0.9]),
+    }
+    y = np.array([1, 1, 1, 1], dtype=int)
+
+    plain, _, _ = online_expert_average(
+        predictions, y, dates, learning_rate=4.0
+    )
+    fixed, _, history = online_expert_average(
+        predictions, y, dates, learning_rate=4.0, share_rate=0.20
+    )
+
+    assert fixed[2] > plain[2]
+    assert history[0]["share_rate"] == pytest.approx(0.20)
+    assert min(history[0]["weights_after"]) >= 0.10
+
+
 def test_input_validation():
     with pytest.raises(ValueError):
         online_expert_average({}, [0, 1], ["a", "b"], learning_rate=1.0)
@@ -56,6 +76,21 @@ def test_input_validation():
             [0, 1],
             ["a"],
             learning_rate=1.0,
+        )
+    with pytest.raises(ValueError):
+        online_expert_average(
+            {"a": [0.5, 0.5], "b": [0.5, 0.5]},
+            [0.5, 1.0],
+            ["a", "b"],
+            learning_rate=1.0,
+        )
+    with pytest.raises(ValueError):
+        online_expert_average(
+            {"a": [0.5, 0.5], "b": [0.5, 0.5]},
+            [0, 1],
+            ["a", "b"],
+            learning_rate=1.0,
+            share_rate=1.1,
         )
 
 
