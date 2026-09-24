@@ -285,6 +285,23 @@ def asset_plan(
     )
 
 
+
+def regime_for_situation(situation: str | None) -> str | None:
+    """Map a production situation label to its parent regime for OOS gating."""
+    if not situation:
+        return None
+    value = str(situation)
+    if value.startswith("event"):
+        return Regime.EVENT.value
+    if value.startswith("high_vol"):
+        return Regime.HIGH_VOL.value
+    if value in {"trend", "trend_up", "trend_down", "breadth_up", "breadth_down"}:
+        return Regime.TREND.value
+    if value == "range":
+        return Regime.NORMAL.value
+    return None
+
+
 def route_plan(
     asset_class: str,
     regime: str,
@@ -292,6 +309,7 @@ def route_plan(
     asset_regime_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     asset_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
     regime_metrics: dict[str, dict[str, dict[str, float]]] | None = None,
+    situation: str | None = None,
     global_selected: str = "hgb",
     symbol: str | None = None,
     locked_symbol_regime: dict[str, str] | None = None,
@@ -299,8 +317,10 @@ def route_plan(
     locked_asset_regime: dict[str, str] | None = None,
     locked_asset: dict[str, str] | None = None,
     locked_regime: dict[str, str] | None = None,
+    locked_situation: dict[str, str] | None = None,
     locked_global: str | None = None,
     min_folds_asset_regime: int = 2,
+    min_folds_situation: int = 3,
     min_folds_asset: int = 3,
     min_folds_regime: int = 3,
 ) -> ModelPlan:
@@ -332,6 +352,20 @@ def route_plan(
             f"locked:symbol:{symbol_key}",
             symbol_key,
         )
+
+    # Situation specialists are intentionally below exact security routes.
+    # They may only activate from a frozen OOS-selected map; otherwise the
+    # ordinary asset/regime hierarchy remains the fallback.
+    if situation and locked_situation:
+        situation_model = locked_situation.get(str(situation))
+        parent_regime = regime_for_situation(situation)
+        if situation_model and parent_regime != Regime.DATA_STRESSED.value:
+            return ModelPlan(
+                (str(situation_model),),
+                (1.0,),
+                f"locked:situation:{situation}",
+                f"situation:{situation}",
+            )
 
     # Once a model release is frozen, the selected route cannot silently
     # change on the next scheduled run.
