@@ -166,6 +166,7 @@ def main():
         plan = route_plan(
             asset,
             regime,
+            situation=situation,
             asset_regime_metrics=asset_regime_metrics,
             asset_metrics=asset_metrics,
             regime_metrics=regime_metrics,
