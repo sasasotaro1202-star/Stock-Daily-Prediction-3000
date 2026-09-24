@@ -44,7 +44,7 @@ jobs:
           # Never create a second execution when the current SHA already has
           # a queued/in-progress run. GitHub keeps only one pending run per
           # concurrency group, so dispatching here can replace useful work.
-          existing="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow "$workflow_name"             --branch main             --limit 20             --json headSha,status             --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "in_progress"))')"
+          existing="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow "$workflow_name"             --branch main             --limit 20             --json headSha,status             --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "pending" or .status == "in_progress"))')"
 
           if [ -n "$existing" ]; then
             echo "current-main-run-already-active=true"
@@ -65,7 +65,7 @@ jobs:
             --branch main \
             --limit 20 \
             --json headSha,status \
-            --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "in_progress"))')"
+            --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "pending" or .status == "in_progress"))')"
 
           if [ -n "$existing" ]; then
             echo "current-main-run-already-active=true"
