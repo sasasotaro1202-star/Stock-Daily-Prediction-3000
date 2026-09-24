@@ -112,10 +112,21 @@ def situation_for_row(
                 return "high_vol_vix"
             return "high_vol"
         if regime == Regime.TREND.value:
-            if price_vs_sma60 is not None and math.isfinite(float(price_vs_sma60)):
+            # Preserve the actual trigger for trend classification. A market
+            # can enter TREND because breadth is extreme while price_vs_sma60
+            # remains near zero; labeling that case as trend_up/down would
+            # erase useful breadth-driven situation information.
+            if (
+                price_vs_sma60 is not None
+                and math.isfinite(float(price_vs_sma60))
+                and abs(float(price_vs_sma60)) >= 0.02
+            ):
                 return "trend_up" if float(price_vs_sma60) > 0 else "trend_down"
             if breadth_up is not None and math.isfinite(float(breadth_up)):
-                return "breadth_up" if float(breadth_up) >= 0.75 else "breadth_down"
+                if float(breadth_up) >= 0.75:
+                    return "breadth_up"
+                if float(breadth_up) <= 0.25:
+                    return "breadth_down"
             return "trend"
         if regime == Regime.DATA_STRESSED.value:
             return "data_stressed"

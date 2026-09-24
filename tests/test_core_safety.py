@@ -973,5 +973,7 @@ def test_situation_labels_are_deterministic():
     assert situation_for_row("high_vol", vix_level=31) == "high_vol_vix"
     assert situation_for_row("trend", price_vs_sma60=0.05) == "trend_up"
     assert situation_for_row("trend", price_vs_sma60=-0.05) == "trend_down"
+    assert situation_for_row("trend", price_vs_sma60=0.005, breadth_up=0.80) == "breadth_up"
+    assert situation_for_row("trend", price_vs_sma60=-0.005, breadth_up=0.20) == "breadth_down"
     assert situation_for_row("normal") == "range"
     assert situation_for_row("data_stressed") == "data_stressed"
