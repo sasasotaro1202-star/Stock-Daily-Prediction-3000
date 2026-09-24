@@ -91,6 +91,48 @@ def main() -> int:
         "cancellation_triggered_recovery",
     )
 
+    # Production freezes must consume explicit, conservative OOS selection
+    # evidence rather than treating the top raw score as sufficient.
+    research = str(
+        (ROOT / "scripts" / "run_daily_research.py").read_text(encoding="utf-8")
+    )
+    locker = str(
+        (ROOT / "scripts" / "lock_frozen_model.py").read_text(encoding="utf-8")
+    )
+    pipeline = str(
+        (ROOT / "config" / "pipeline.yml").read_text(encoding="utf-8")
+    )
+    _assert_once(
+        research,
+        "paired_logloss_selection_evidence",
+        "oos_selection_evidence_used",
+    )
+    _assert_once(
+        research,
+        'row["fold"] = float(fold_idx)',
+        "oos_fold_identity_recorded",
+    )
+    _assert_once(
+        locker,
+        "global OOS model selection lacks statistically supported",
+        "freeze_requires_selection_evidence",
+    )
+    _assert_once(
+        pipeline,
+        "selection_evidence_min_relative_improvement: 0.03",
+        "selection_evidence_min_three_percent_gain",
+    )
+    _assert_once(
+        pipeline,
+        "selection_evidence_min_common_oos_folds: 5",
+        "selection_evidence_min_five_common_folds",
+    )
+    _assert_once(
+        pipeline,
+        "selection_evidence_alpha: 0.05",
+        "selection_evidence_alpha_floor",
+    )
+
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
     # Guard against silently masking automation failures in the critical lane.
