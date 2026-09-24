@@ -131,6 +131,8 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
         median_vol=("volatility_20","median"),
         median_ret=("ret_1d","median"),
         breadth_up=("ret_1d",lambda s:float((s>0).mean())),
+        cross_sectional_dispersion_1d=("ret_1d",lambda s:float(s.quantile(0.90)-s.quantile(0.10)) if s.notna().any() else np.nan),
+        cross_sectional_ret_iqr=("ret_1d",lambda s:float(s.quantile(0.75)-s.quantile(0.25)) if s.notna().any() else np.nan),
     ).reset_index()
 
     out=out.merge(
@@ -144,6 +146,8 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
         /out["median_vol"].replace(0,float("nan"))
         -1.0
     )
+    out["market_dispersion_1d"] = out["cross_sectional_dispersion_1d"]
+    out["market_ret_iqr_1d"] = out["cross_sectional_ret_iqr"]
 
     # Market-family residual momentum/volatility. These aggregates use the
     # current session's already-observed cross-section; the 5/20-session
@@ -176,12 +180,24 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
     )["median_vol"].transform(
         lambda s: s.rolling(20, min_periods=20).median()
     )
+    daily_roll["market_dispersion_5d"] = daily_roll.groupby(
+        "market_family"
+    )["cross_sectional_dispersion_1d"].transform(
+        lambda s:s.rolling(5, min_periods=5).median()
+    )
+    daily_roll["market_dispersion_20d"] = daily_roll.groupby(
+        "market_family"
+    )["cross_sectional_dispersion_1d"].transform(
+        lambda s:s.rolling(20, min_periods=20).median()
+    )
     roll_cols = [
         "market_family",
         "session_date",
         "market_median_ret_5d",
         "market_median_ret_20d",
         "market_median_vol_20d",
+        "market_dispersion_5d",
+        "market_dispersion_20d",
     ]
     out = out.merge(
         daily_roll[roll_cols],
@@ -198,6 +214,11 @@ def add_cross_sectional_context(df: pd.DataFrame) -> pd.DataFrame:
     out["residual_volatility_20d"] = (
         out["volatility_20"]
         /out["market_median_vol_20d"].replace(0,float("nan"))
+        -1.0
+    )
+    out["market_dispersion_vs_20d"] = (
+        out["market_dispersion_1d"]
+        /out["market_dispersion_20d"].replace(0,float("nan"))
         -1.0
     )
 
