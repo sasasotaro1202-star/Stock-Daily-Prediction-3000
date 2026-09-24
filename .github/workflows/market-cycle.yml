@@ -71,6 +71,12 @@ jobs:
             [ -n "$encoded" ] || continue
             run_json="$(printf "%s" "$encoded" | base64 -d)"
             run_id="$(printf "%s" "$run_json" | jq -r ".id")"
+            # A newer run may already exist because GitHub can enqueue a scheduled/manual trigger
+            # while this guard is starting. It must never suppress the current run; only older
+            # executions are eligible to act as duplicate/stale blockers.
+            if [ "$run_id" -gt "$GITHUB_RUN_ID" ]; then
+              continue
+            fi
             [ "$run_id" = "${{ github.run_id }}" ] && continue
             created="$(printf "%s" "$run_json" | jq -r ".created_at // empty")"
             [ -n "$created" ] || continue

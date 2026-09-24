@@ -74,6 +74,12 @@ def main() -> int:
     )
 
     _assert_once(
+        market,
+        'if [ "$run_id" -gt "$GITHUB_RUN_ID" ]; then',
+        "market_cycle_ignores_future_runs",
+    )
+
+    _assert_once(
         recovery,
         "github.event.workflow_run.conclusion == 'failure'",
         "failure_only_bounded_recovery",
