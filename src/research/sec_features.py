@@ -143,7 +143,7 @@ def add_sec_filing_features(
             event_ns, is_8k, is_10q, is_10k, is_proxy, valid_query_ns, 180
         )
         _, _, _, k_365b, _ = _counts_before(
-            event_ns, is_8k, is_10q, is_10k, is_10k, valid_query_ns, 365
+            event_ns, is_8k, is_10q, is_10k, is_proxy, valid_query_ns, 365
         )
         _, _, _, _, proxy_90b = _counts_before(
             event_ns, is_8k, is_10q, is_10k, is_proxy, valid_query_ns, 90

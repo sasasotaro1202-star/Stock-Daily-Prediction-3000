@@ -212,6 +212,8 @@ jobs:
 
       - name: Run SEC filing OOS challenger ablation
         run: python scripts/run_sec_filing_ablation.py
+      - name: CPCV leakage-boundary research audit
+        run: python scripts/run_cpcv_validation_audit.py
 
       - name: Lock model routing
         run: python scripts/lock_frozen_model.py
