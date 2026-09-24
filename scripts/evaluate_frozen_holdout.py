@@ -83,7 +83,7 @@ def main():
         raise SystemExit("DEFERRED: calibration split lacks both target classes")
 
     calibration_method = str(frozen.get("calibration_method", "platt"))
-    if calibration_method not in {"platt", "beta", "isotonic"}:
+    if calibration_method not in {"platt", "beta", "isotonic", "temperature"}:
         raise SystemExit("FAIL: frozen calibration method is invalid")
 
     training_window = int(frozen.get("classifier_training_window_sessions", 0))
