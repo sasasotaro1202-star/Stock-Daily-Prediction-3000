@@ -73,26 +73,56 @@ jobs:
         if: steps.price_state.outputs.available == 'true'
         run: python scripts/update_market_context.py
       - name: Data quality
+        id: data_quality
         if: steps.price_state.outputs.available == 'true'
-        run: python scripts/data_quality_gate.py
+        shell: bash
+        run: |
+          set +e
+          python scripts/data_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/data_quality.json ]; then
+            status="$(python - <<'PY'
+import json
+from pathlib import Path
+try:
+    print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
+except Exception:
+    print('')
+PY
+)"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "DEFERRED" ]; then
+            echo "monitor data quality: DEFERRED (recording safe deferred state)"
+            exit 0
+          fi
+          exit "$rc"
       - name: Monitor realized outcomes
-        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true'
+        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && steps.data_quality.outputs.status != 'DEFERRED'
         run: python scripts/monitor_predictions.py
       - name: Record deferred monitoring state
-        if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true'
+        if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || steps.data_quality.outputs.status == 'DEFERRED'
         env:
           PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
-        shell: bash
+          PRICE_STATE_AVAILABLE: ${{ steps.price_state.outputs.available }}
+          DATA_QUALITY_STATUS: ${{ steps.data_quality.outputs.status }}
         run: |
           mkdir -p data/research
           python - <<'PY'
           import json
           from pathlib import Path
           import os
+          data_quality_deferred = os.environ.get("DATA_QUALITY_STATUS") == "DEFERRED"
           reason = (
               "price_state_restore_failed"
               if os.environ.get("PRICE_RESTORE_OK") != "true"
               else "price_state_unavailable"
+              if os.environ.get("PRICE_STATE_AVAILABLE") != "true"
+              else "data_quality_deferred"
+              if data_quality_deferred
+              else "monitoring_deferred"
           )
           payload = {
               "status": "DEFERRED",
