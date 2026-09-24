@@ -40,7 +40,7 @@ from src.research.regime_threshold import (
 from src.validation.leakage import audit_feature_columns, audit_target_separation
 from src.validation.walk_forward import make_date_folds
 
-PRICE_DIR = Path("data/prices")
+PRICE_DIR = Path("data/prices/canonical.parquet")
 OUT = Path("data/research/latest_metrics.json")
 AUDIT = Path("data/research/leakage_audit.json")
 
@@ -77,7 +77,7 @@ def aggregate_model_rows(
 
 def main():
     if not PRICE_DIR.exists():
-        raise SystemExit("DEFERRED: price dataset is absent")
+        raise SystemExit("DEFERRED: canonical price dataset is absent")
 
     df = pd.read_parquet(PRICE_DIR)
     context_path = Path("data/market_context.parquet")
