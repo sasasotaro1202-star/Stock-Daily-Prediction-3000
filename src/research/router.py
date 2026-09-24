@@ -314,10 +314,11 @@ def route_plan(
     symbol: str | None = None,
     locked_symbol_regime: dict[str, str] | None = None,
     locked_symbol: dict[str, str] | None = None,
+    locked_asset_situation: dict[str, str] | None = None,
+    locked_situation: dict[str, str] | None = None,
     locked_asset_regime: dict[str, str] | None = None,
     locked_asset: dict[str, str] | None = None,
     locked_regime: dict[str, str] | None = None,
-    locked_situation: dict[str, str] | None = None,
     locked_global: str | None = None,
     min_folds_asset_regime: int = 2,
     min_folds_situation: int = 3,
@@ -356,12 +357,19 @@ def route_plan(
     # Situation specialists are intentionally below exact security routes.
     # They may only activate from a frozen OOS-selected map; otherwise the
     # ordinary asset/regime hierarchy remains the fallback.
-    if situation and locked_situation:
-        situation_model = locked_situation.get(str(situation))
-        parent_regime = regime_for_situation(situation)
-        if situation_model and parent_regime != Regime.DATA_STRESSED.value:
+    parent_regime = regime_for_situation(situation)
+    if situation and parent_regime != Regime.DATA_STRESSED.value:
+        asset_situation_key = f"{asset_class}::{situation}"
+        if locked_asset_situation and asset_situation_key in locked_asset_situation:
             return ModelPlan(
-                (str(situation_model),),
+                (locked_asset_situation[asset_situation_key],),
+                (1.0,),
+                f"locked:asset_situation:{asset_situation_key}",
+                f"asset_situation:{asset_situation_key}",
+            )
+        if locked_situation and str(situation) in locked_situation:
+            return ModelPlan(
+                (locked_situation[str(situation)],),
                 (1.0,),
                 f"locked:situation:{situation}",
                 f"situation:{situation}",

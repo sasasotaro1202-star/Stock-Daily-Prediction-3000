@@ -119,6 +119,37 @@ def test_rank_ic_tiebreak_prefers_rank_quality_within_tolerance():
     assert "rank_ic_tiebreak" in plan.reason
 
 
+def test_locked_asset_situation_precedes_global_situation_and_asset_regime():
+    from src.research.router import route_plan
+
+    plan = route_plan(
+        "jp_stock",
+        "high_vol",
+        situation="high_vol_vix",
+        locked_asset_situation={"jp_stock::high_vol_vix": "logistic"},
+        locked_situation={"high_vol_vix": "hgb"},
+        locked_asset_regime={"jp_stock::high_vol": "extra_trees"},
+        locked_global="hgb",
+    )
+    assert plan.names == ("logistic",)
+    assert plan.scope == "asset_situation:jp_stock::high_vol_vix"
+
+
+def test_locked_global_situation_precedes_asset_regime_when_asset_slice_is_unavailable():
+    from src.research.router import route_plan
+
+    plan = route_plan(
+        "jp_stock",
+        "high_vol",
+        situation="high_vol_vix",
+        locked_situation={"high_vol_vix": "logistic"},
+        locked_asset_regime={"jp_stock::high_vol": "extra_trees"},
+        locked_global="hgb",
+    )
+    assert plan.names == ("logistic",)
+    assert plan.scope == "situation:high_vol_vix"
+
+
 def test_locked_regime_threshold_is_forwarded_to_route():
     from src.research.router import route_plan
 

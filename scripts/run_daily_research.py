@@ -29,6 +29,7 @@ from src.research.router import (
     choose_from_oos,
     materially_better_than_parent,
     rebalance_global_oos_candidates,
+    regime_for_situation,
     situation_for_row,
 )
 from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
@@ -294,6 +295,7 @@ def main():
     model_results = {}
     regime_rows = {reg.value: [] for reg in Regime if reg is not Regime.DATA_STRESSED}
     situation_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
+    asset_situation_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     asset_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     asset_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
@@ -424,6 +426,28 @@ def main():
                 sm["n_test"] = float(mask.sum())
                 situation_rows.setdefault(str(situation_name), []).append((name, sm))
 
+                if "asset_class" in subset.columns:
+                    for asset_class in sorted(subset["asset_class"].dropna().unique()):
+                        asset_mask = mask & test["asset_class"].eq(asset_class)
+                        asset_subset = test.loc[asset_mask]
+                        if (
+                            len(asset_subset) < 30
+                            or asset_subset.target_up_1d.nunique() < 2
+                        ):
+                            continue
+                        asm = classification_metrics(
+                            asset_subset.target_up_1d.astype(int),
+                            p[asset_mask],
+                        )
+                        asm["rank_ic"] = cross_sectional_rank_ic(
+                            asset_subset["target_ret_1d"].astype(float),
+                            p[asset_mask],
+                            asset_subset["session_date"].astype(str),
+                        )
+                        asm["n_test"] = float(asset_mask.sum())
+                        key = f"{asset_class}::{situation_name}"
+                        asset_situation_rows.setdefault(key, []).append((name, asm))
+
             for reg_name in regime.unique():
                 mask = regime.eq(reg_name)
                 if mask.sum() == 0:
@@ -545,6 +569,10 @@ def main():
         situation: aggregate_model_rows(rows)
         for situation, rows in situation_rows.items()
     }
+    asset_situation_metrics = {
+        key: aggregate_model_rows(rows)
+        for key, rows in asset_situation_rows.items()
+    }
     asset_class_metrics = {
         asset: aggregate_model_rows(rows)
         for asset, rows in asset_rows.items()
@@ -628,6 +656,91 @@ def main():
                 )
             ):
                 asset_selected[asset_class] = plan.names[0]
+
+    # Situation specialists are selected strictly from chronological OOS slices.
+    # Global situation routes must beat the global model on the same situation
+    # slice; asset+situation routes must beat the best non-situation parent on
+    # the same asset+situation slice. Sparse situations never get promoted.
+    def _eligible_situation_candidates(
+        candidates: dict[str, dict[str, float]],
+    ) -> dict[str, dict[str, float]]:
+        return {
+            name: metric
+            for name, metric in candidates.items()
+            if int(metric.get("folds", 0)) >= 3
+            and float(metric.get("n_test_min", 0.0)) >= 30.0
+            and np.isfinite(float(metric.get("logloss", float("nan"))))
+        }
+
+    situation_selected = {}
+    for situation_name, candidates in situation_metrics.items():
+        parent_regime = regime_for_situation(situation_name)
+        if parent_regime is None:
+            continue
+        eligible = _eligible_situation_candidates(candidates)
+        if not eligible or global_selected not in eligible:
+            continue
+        plan = choose_from_oos(
+            parent_regime,
+            eligible,
+            candidates=CANDIDATES.get(
+                Regime(parent_regime),
+                CANDIDATES[Regime.NORMAL],
+            ),
+            scope=f"situation:{situation_name}",
+            min_folds=3,
+            rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+        )
+        if (
+            not plan.reason.endswith("fallback")
+            and materially_better_than_parent(
+                eligible,
+                plan.names[0],
+                global_selected,
+                min_improvement_logloss=scope_improvement,
+            )
+        ):
+            situation_selected[str(situation_name)] = plan.names[0]
+
+    asset_situation_selected = {}
+    for key, candidates in asset_situation_metrics.items():
+        asset_class, situation_name = key.split("::", 1)
+        parent_regime = regime_for_situation(situation_name)
+        if parent_regime is None:
+            continue
+        eligible = _eligible_situation_candidates(candidates)
+        if not eligible:
+            continue
+        asset_regime_key = f"{asset_class}::{parent_regime}"
+        parent_model = (
+            asset_regime_selected.get(asset_regime_key)
+            or asset_selected.get(asset_class)
+            or regime_selected.get(parent_regime)
+            or global_selected
+        )
+        if parent_model not in eligible:
+            continue
+        plan = choose_from_oos(
+            parent_regime,
+            eligible,
+            candidates=ASSET_CANDIDATES.get(
+                asset_class,
+                CANDIDATES[Regime(parent_regime)],
+            ),
+            scope=f"asset_situation:{key}",
+            min_folds=3,
+            rank_ic_tiebreak_tolerance=rank_ic_tolerance,
+        )
+        if (
+            not plan.reason.endswith("fallback")
+            and materially_better_than_parent(
+                eligible,
+                plan.names[0],
+                parent_model,
+                min_improvement_logloss=scope_improvement,
+            )
+        ):
+            asset_situation_selected[key] = plan.names[0]
 
     asset_regime_selected = {}
     for key, candidates in asset_regime_metrics.items():
@@ -749,9 +862,13 @@ def main():
             symbol_regime_selected[key] = plan.names[0]
 
     security_route_summary = {
+        "situation_routes": int(len(situation_selected)),
+        "asset_situation_routes": int(len(asset_situation_selected)),
         "symbol_routes": int(len(symbol_selected)),
         "symbol_regime_routes": int(len(symbol_regime_selected)),
         "total_security_routes": int(len(symbol_selected) + len(symbol_regime_selected)),
+        "situation_route_examples": sorted(situation_selected)[:20],
+        "asset_situation_route_examples": sorted(asset_situation_selected)[:20],
         "symbol_route_examples": sorted(symbol_selected)[:20],
         "symbol_regime_route_examples": sorted(symbol_regime_selected)[:20],
     }

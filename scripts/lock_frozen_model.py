@@ -89,6 +89,12 @@ def main():
     lock["asset_regime_selected_models"]=payload.get(
         "asset_regime_selected_models",{}
     )
+    lock["situation_selected_models"]=payload.get(
+        "situation_selected_models",{}
+    )
+    lock["asset_situation_selected_models"]=payload.get(
+        "asset_situation_selected_models",{}
+    )
     lock["symbol_selected_models"]=payload.get(
         "symbol_selected_models",{}
     )
@@ -101,7 +107,7 @@ def main():
     lock["research_code_fingerprint_sha256"]=current_research_fp
     lock["selection_source"]=(
         "chronological OOS using only observations <= cutoff_date; "
-        "asset/regime routes inherit the same OOS-only policy"
+        "asset/regime/situation routes inherit the same OOS-only policy"
     )
     lock["status"]="FROZEN"
 

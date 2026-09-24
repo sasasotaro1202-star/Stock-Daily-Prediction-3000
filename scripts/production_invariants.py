@@ -31,6 +31,8 @@ def main():
         ("asymmetric_blend_challengers","blend_hgb_lgbm_regularized_recent_25_75" in Path("src/prediction/model_factories.py").read_text() and "blend_hgb_lgbm_regularized_recent_75_25" in Path("src/research/router.py").read_text() and "blend_hgb_lgbm_regularized_recent_25_75" in pipe),
         ("hgb_conservative_challenger","hgb_conservative_recent" in Path("src/prediction/model_factories.py").read_text() and "hgb_conservative_recent" in router),
         ("hierarchical_routing","asset_class_and_regime" in pipe and "route_plan" in router),
+        ("frozen_situation_routing","situation_selected_models" in Path("scripts/run_daily_research.py").read_text() and "situation_selected_models" in Path("scripts/lock_frozen_model.py").read_text() and "locked_situation" in router and "situation = situation_for_row(" in prediction),
+        ("frozen_asset_situation_routing","asset_situation_selected_models" in Path("scripts/run_daily_research.py").read_text() and "asset_situation_selected_models" in Path("scripts/lock_frozen_model.py").read_text() and "locked_asset_situation" in router),
         ("scoped_route_parent_edge","minimum_scoped_oos_improvement_logloss: 0.002" in pipe and "materially_better_than_parent" in router and "minimum_scoped_oos_improvement_logloss" in Path("scripts/run_daily_research.py").read_text()),
         ("stability_penalty","stability_penalty: 0.25" in pipe and "0.25 * std" in router),
         ("pit_snapshot_gate","available_at <= prediction_time" in prediction),

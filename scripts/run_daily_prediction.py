@@ -155,6 +155,14 @@ def main():
             float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
             float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
         ).value
+        situation = situation_for_row(
+            regime,
+            gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+            price_vs_sma60=float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
+        )
         plan = route_plan(
             asset,
             regime,
@@ -165,6 +173,8 @@ def main():
             symbol=str(row["symbol"]),
             locked_symbol_regime=frozen_routes.get("symbol_regime_selected_models") if locked_mode else None,
             locked_symbol=frozen_routes.get("symbol_selected_models") if locked_mode else None,
+            locked_asset_situation=frozen_routes.get("asset_situation_selected_models") if locked_mode else None,
+            locked_situation=frozen_routes.get("situation_selected_models") if locked_mode else None,
             locked_asset_regime=frozen_routes.get("asset_regime_selected_models") if locked_mode else None,
             locked_asset=frozen_routes.get("asset_class_selected_models") if locked_mode else None,
             locked_regime=frozen_routes.get("regime_selected_models") if locked_mode else None,
@@ -185,16 +195,7 @@ def main():
         selected_scopes.append(actual_scope)
         selected_reasons.append(plan.reason)
         regimes.append(regime)
-        situations.append(
-            situation_for_row(
-                regime,
-                gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
-                volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
-                vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
-                breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
-                price_vs_sma60=float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
-            )
-        )
+        situations.append(situation)
 
         g_probs = []
         one = pd.DataFrame([row])[FEATURE_COLUMNS]
