@@ -17,7 +17,7 @@ from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import regime_for_row, route_plan, situation_for_row
 from src.validation.code_fingerprint import fingerprint_sha256
 
-PRICE = Path("data/prices")
+PRICE = Path("data/prices/canonical.parquet")
 GATE = Path("data/research/release_gate.json")
 FROZEN = Path("config/frozen_holdout.json")
 OUT = Path("data/predictions/latest.parquet")
