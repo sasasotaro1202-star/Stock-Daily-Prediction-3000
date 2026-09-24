@@ -1,0 +1,40 @@
+name: SEC filings research
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 8 * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sec-filings-research
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore latest official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_universe_state.py
+      - name: Collect SEC filings
+        run: python scripts/sec_filings_research.py
+      - name: Upload research artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sec-filings-research-${{ github.run_id }}
+          path: |
+            data/research/sec_filings_research.parquet
+            data/research/sec_filings_research.json
+          retention-days: 14
