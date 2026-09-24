@@ -52,11 +52,23 @@ jobs:
             echo "DEFERRED: one or more price-state shards could not be restored"
             exit 1
           fi
+      - name: Determine restored price availability
+        id: price_state
+        shell: bash
+        run: |
+          if compgen -G "data/prices/*.parquet" > /dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Canonicalize restored price store
+        if: steps.price_state.outputs.available == 'true'
         run: python scripts/normalize_price_store.py
       - name: Update free market context
+        if: steps.price_state.outputs.available == 'true'
         run: python scripts/update_market_context.py
       - name: Data quality
+        if: steps.price_state.outputs.available == 'true'
         run: python scripts/data_quality_gate.py
       - name: Monitor realized outcomes
         run: python scripts/monitor_predictions.py
