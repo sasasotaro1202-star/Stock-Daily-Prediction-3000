@@ -678,6 +678,10 @@ def test_actions_watchdog_detects_stale_and_recovery_failures():
     assert 'bounded-production-recovery.yml' in source
     assert "Bounded production recovery" in source
     assert '[ "$status" = "queued" ] || [ "$status" = "pending" ]' in source
+    assert "recover_missing_scheduled_run" in source
+    assert "U.S. close prediction" in source
+    assert "Prediction monitoring" in source
+    assert "Market cycle" in source
 
 
 def test_capafy_inspired_anti_overfit_battery_is_deterministic():
