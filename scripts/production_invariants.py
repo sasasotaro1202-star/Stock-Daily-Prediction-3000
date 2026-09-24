@@ -79,6 +79,10 @@ def main():
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
          and "production_changed" in Path("scripts/run_daily_research.py").read_text()
          and "apply_confidence_shrinkage" not in prediction),
+        ("selective_oos_test_not_tuned",
+         "select_confidence_shrinkage_parameters" in Path("scripts/run_daily_research.py").read_text()
+         and "calibration_slice_selection_then_untouched_chronological_oos_test" in Path("scripts/run_daily_research.py").read_text()
+         and "for threshold in (0.03, 0.05, 0.075, 0.10, 0.15)" not in Path("scripts/run_daily_research.py").read_text()),
         ("cpcv_research_audit",
          Path("scripts/run_cpcv_validation_audit.py").exists()
          and "CPCV leakage-boundary research audit" in Path(".github/workflows/market-cycle.yml").read_text()

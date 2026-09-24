@@ -21,7 +21,10 @@ from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
 from src.research.return_selection import choose_return_estimator
-from src.research.selective import apply_confidence_shrinkage
+from src.research.selective import (
+    apply_confidence_shrinkage,
+    select_confidence_shrinkage_parameters,
+)
 from src.research.router import (
     ASSET_CANDIDATES,
     CANDIDATES,
@@ -372,29 +375,36 @@ def main():
                 model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             )
 
-            # Research-only confidence shrinkage. The shrink target is the
-            # fold-local training base rate, so it is causal by construction.
+            # Research-only confidence shrinkage. Select parameters from
+            # the fold-local calibration slice only; the OOS test slice remains
+            # completely untouched until final evaluation.
             selective_rows_by_model.setdefault(name, [])
             base_rate = float(core_fit.target_up_1d.astype(int).mean())
+            calibrated_cal_p = calibrator.predict(cal_p)
+            selected = select_confidence_shrinkage_parameters(
+                cal.target_up_1d.astype(int),
+                calibrated_cal_p,
+                base_rate=base_rate,
+            )
+            adjusted = apply_confidence_shrinkage(
+                p,
+                base_rate=base_rate,
+                confidence_threshold=selected["confidence_threshold"],
+                retained_weight=selected["retained_weight"],
+            )
             baseline = classification_metrics(test.target_up_1d.astype(int), p)
-            for threshold in (0.03, 0.05, 0.075, 0.10, 0.15):
-                for weight in (0.25, 0.50, 0.75, 1.0):
-                    adjusted = apply_confidence_shrinkage(
-                        p,
-                        base_rate=base_rate,
-                        confidence_threshold=threshold,
-                        retained_weight=weight,
-                    )
-                    metrics = classification_metrics(
-                        test.target_up_1d.astype(int), adjusted
-                    )
-                    metrics["confidence_threshold"] = float(threshold)
-                    metrics["retained_weight"] = float(weight)
-                    metrics["delta_logloss"] = float(
-                        baseline["logloss"] - metrics["logloss"]
-                    )
-                    metrics["n_test"] = float(len(test))
-                    selective_rows_by_model[name].append(metrics)
+            metrics = classification_metrics(
+                test.target_up_1d.astype(int), adjusted
+            )
+            metrics["confidence_threshold"] = float(selected["confidence_threshold"])
+            metrics["retained_weight"] = float(selected["retained_weight"])
+            metrics["validation_logloss"] = float(selected["validation_logloss"])
+            metrics["validation_brier"] = float(selected["validation_brier"])
+            metrics["delta_logloss"] = float(
+                baseline["logloss"] - metrics["logloss"]
+            )
+            metrics["n_test"] = float(len(test))
+            selective_rows_by_model[name].append(metrics)
 
             row = classification_metrics(test.target_up_1d.astype(int), p)
             group_keys=(
@@ -667,14 +677,17 @@ def main():
     )
     global_selected = global_plan.names[0]
 
+    # Each fold selects shrinkage hyperparameters from its calibration slice,
+    # then evaluates once on an untouched chronological OOS test slice.
     selective_candidates = {}
     selective_selected = {
         "status": "NO_PROMOTION",
         "model": global_selected,
-        "confidence_threshold": 0.0,
-        "retained_weight": 1.0,
+        "parameter_mode": "fold_local_calibration_selection",
         "mean_logloss_improvement": 0.0,
         "positive_fold_ratio": 0.0,
+        "mean_logloss": 0.0,
+        "logloss_std": 0.0,
         "folds": 0,
     }
     research_cfg = pipeline_cfg.get("research", {})
@@ -684,60 +697,59 @@ def main():
     min_selective_positive_ratio = float(
         research_cfg.get("minimum_selective_positive_fold_ratio", 2.0 / 3.0)
     )
+
     for model_name, rows in selective_rows_by_model.items():
-        grouped = {}
-        for row in rows:
-            key = (
-                float(row["confidence_threshold"]),
-                float(row["retained_weight"]),
+        if len(rows) < 3:
+            continue
+        finite_rows = [
+            row for row in rows
+            if np.isfinite(float(row.get("delta_logloss", np.nan)))
+            and np.isfinite(float(row.get("logloss", np.nan)))
+        ]
+        if len(finite_rows) < 3:
+            continue
+        deltas = np.asarray(
+            [float(row["delta_logloss"]) for row in finite_rows], dtype=float
+        )
+        lls = np.asarray(
+            [float(row["logloss"]) for row in finite_rows], dtype=float
+        )
+        mean_gain = float(np.mean(deltas))
+        positive_ratio = float(np.mean(deltas > 0.0))
+        ll_std = float(np.std(lls, ddof=1))
+        counts = {}
+        for row in finite_rows:
+            key = f'{float(row["confidence_threshold"]):.3f}::{float(row["retained_weight"]):.2f}'
+            counts[key] = counts.get(key, 0) + 1
+        modal_key = max(counts, key=lambda key: (counts[key], key))
+        modal_threshold, modal_weight = modal_key.split("::")
+        candidate = {
+            "model": model_name,
+            "parameter_mode": "fold_local_calibration_selection",
+            "confidence_threshold_mode": float(modal_threshold),
+            "retained_weight_mode": float(modal_weight),
+            "parameter_selection_frequency": int(counts[modal_key]),
+            "parameter_selection_counts": counts,
+            "mean_logloss_improvement": mean_gain,
+            "positive_fold_ratio": positive_ratio,
+            "mean_logloss": float(np.mean(lls)),
+            "logloss_std": ll_std,
+            "selection_score": float(np.mean(lls) + 0.25 * ll_std),
+            "folds": int(len(finite_rows)),
+            "coverage": 1.0,
+        }
+        selective_candidates[model_name] = candidate
+        if (
+            model_name == global_selected
+            and mean_gain >= min_selective_gain
+            and positive_ratio >= min_selective_positive_ratio
+            and (
+                selective_selected["status"] == "NO_PROMOTION"
+                or candidate["selection_score"]
+                < float(selective_selected["selection_score"])
             )
-            grouped.setdefault(key, []).append(row)
-        for (threshold, weight), group in grouped.items():
-            deltas = np.asarray(
-                [float(row["delta_logloss"]) for row in group],
-                dtype=float,
-            )
-            lls = np.asarray(
-                [float(row["logloss"]) for row in group],
-                dtype=float,
-            )
-            if len(deltas) < 3 or len(lls) < 3:
-                continue
-            deltas = deltas[np.isfinite(deltas)]
-            lls = lls[np.isfinite(lls)]
-            if len(deltas) < 3 or len(lls) < 3:
-                continue
-            mean_gain = float(np.mean(deltas))
-            positive_ratio = float(np.mean(deltas > 0.0))
-            ll_std = float(np.std(lls, ddof=1))
-            candidate = {
-                "model": model_name,
-                "confidence_threshold": threshold,
-                "retained_weight": weight,
-                "mean_logloss_improvement": mean_gain,
-                "positive_fold_ratio": positive_ratio,
-                "mean_logloss": float(np.mean(lls)),
-                "logloss_std": ll_std,
-                "selection_score": float(np.mean(lls) + 0.25 * ll_std),
-                "folds": int(len(lls)),
-                "coverage": 1.0,
-            }
-            key = f"{model_name}::{threshold:.3f}::{weight:.2f}"
-            selective_candidates[key] = candidate
-            if (
-                model_name == global_selected
-                and mean_gain >= min_selective_gain
-                and positive_ratio >= min_selective_positive_ratio
-                and (
-                    selective_selected["status"] == "NO_PROMOTION"
-                    or candidate["selection_score"]
-                    < float(selective_selected["selection_score"])
-                )
-            ):
-                selective_selected = {
-                    **candidate,
-                    "status": "RESEARCH_CANDIDATE",
-                }
+        ):
+            selective_selected = {**candidate, "status": "RESEARCH_CANDIDATE"}
 
     selective_probability_research = {
         "research_only": True,
@@ -747,6 +759,8 @@ def main():
         "minimum_logloss_improvement": min_selective_gain,
         "minimum_positive_fold_ratio": min_selective_positive_ratio,
         "candidates": selective_candidates,
+        "selection_protocol": "calibration_slice_selection_then_untouched_chronological_oos_test",
+        "test_tuning_allowed": False,
         "method": "confidence_shrinkage_toward_fold_local_base_rate",
     }
 
