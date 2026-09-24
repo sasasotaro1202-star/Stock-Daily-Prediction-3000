@@ -26,9 +26,12 @@ def test_feature_shape_and_finiteness():
         [np.nan, 1.2, np.nan, np.nan, 0.02, np.nan, np.nan, 0.0, -0.02, 0.50, 0.50],
     ])
     out = confidence_risk_features(p, experts, ctx)
-    assert out.shape == (4, 16)
+    assert out.shape == (4, 27)
     assert np.all(np.isfinite(out))
     assert out[0, 2] > out[1, 2]
+    # Each context value is paired with an explicit missingness indicator.
+    assert out[3, 6 + 2 * 0 + 1] == 0.0  # volatility_20 is observed on row 4? no: NaN is flagged below
+    assert out[3, 7] == 0.0
 
 
 def test_temporal_risk_model_and_shrinkage():
