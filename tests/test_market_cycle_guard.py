@@ -33,4 +33,5 @@ def test_market_cycle_does_not_start_on_code_push():
     source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
     assert '  push:\n' not in source
     assert "  workflow_dispatch:\n" in source
-    assert '    - cron: "17 18 * * 1-5"' in source
+    assert '    - cron: "37 18 * * 1-5"' in source
+    assert '    - cron: "17 18 * * 1-5"' not in source
