@@ -977,3 +977,13 @@ def test_situation_labels_are_deterministic():
     assert situation_for_row("trend", price_vs_sma60=-0.005, breadth_up=0.20) == "breadth_down"
     assert situation_for_row("normal") == "range"
     assert situation_for_row("data_stressed") == "data_stressed"
+
+def test_live_performance_gate_exports_explicit_allow_output():
+    from pathlib import Path
+
+    source = Path("scripts/live_performance_gate.py").read_text(encoding="utf-8")
+    assert "GITHUB_OUTPUT" in source
+    assert "allowed=true" in source
+    assert "allowed=false" in source
+    assert "DEFERRED: live performance gate blocked production prediction" not in source
+

@@ -9,6 +9,17 @@ MONITOR=Path("data/research/monitor_latest.json")
 OUT=Path("data/research/live_performance_gate.json")
 
 
+def write_github_output(allowed: bool) -> None:
+    """Expose an explicit production permission without failing the workflow."""
+    import os
+
+    path = os.environ.get("GITHUB_OUTPUT")
+    if not path:
+        return
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(f"allowed={'true' if allowed else 'false'}\n")
+
+
 def main():
     if not MONITOR.exists():
         result={
@@ -18,10 +29,9 @@ def main():
         }
         OUT.parent.mkdir(parents=True,exist_ok=True)
         OUT.write_text(json.dumps(result,indent=2),encoding="utf-8")
+        write_github_output(False)
         print(json.dumps(result,indent=2))
-        raise SystemExit(
-            "DEFERRED: monitoring state is missing; production remains fail-closed"
-        )
+        return
 
     payload=json.loads(MONITOR.read_text(encoding="utf-8"))
     status=str(payload.get("status","NO_BASELINE"))
@@ -70,12 +80,9 @@ def main():
 
     OUT.parent.mkdir(parents=True,exist_ok=True)
     OUT.write_text(json.dumps(result,indent=2),encoding="utf-8")
+    allowed = result["production_action"] == "ALLOW"
+    write_github_output(allowed)
     print(json.dumps(result,indent=2))
-
-    if result["production_action"]!="ALLOW":
-        raise SystemExit(
-            "DEFERRED: live performance gate blocked production prediction"
-        )
 
 
 

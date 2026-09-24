@@ -142,6 +142,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/restore_latest_monitor_state.py
       - name: Live performance gate
+        id: live_gate
         if: steps.research_state.outputs.available == 'true'
         run: python scripts/live_performance_gate.py
       - name: Validate immutable production model artifact
@@ -153,15 +154,15 @@ jobs:
           print("production-model-artifact: PASS")
           PY
       - name: Production prediction
-        if: steps.research_state.outputs.available == 'true'
+        if: steps.research_state.outputs.available == 'true' && steps.live_gate.outputs.allowed == 'true'
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/run_daily_prediction.py
       - name: Validate production prediction output
-        if: steps.research_state.outputs.available == 'true'
+        if: steps.research_state.outputs.available == 'true' && steps.live_gate.outputs.allowed == 'true'
         run: python scripts/validate_prediction_output.py
       - name: Record deferred U.S. prediction
-        if: steps.research_state.outputs.available != 'true'
+        if: steps.research_state.outputs.available != 'true' || steps.live_gate.outputs.allowed != 'true'
         run: |
           mkdir -p data/research
           printf '%s\n' '{"status":"DEFERRED","reason":"no_approved_production_research_state","production_action":"DEFERRED"}' > data/research/us_prediction_deferred.json
