@@ -49,6 +49,7 @@ jobs:
             current_run_found=false
             stale_queued_found=false
             stale_queue_recovery_failed=false
+          run_entries="$(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')"
           while IFS= read -r encoded; do
             [ -n "$encoded" ] || continue
             run_json="$(printf '%s' "$encoded" | base64 -d)"
@@ -121,7 +122,7 @@ jobs:
               failures=$((failures + 1))
             fi
             break
-          done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+          done <<< "$run_entries"
 
           if [ "$stale_queued_found" = true ]; then
             if [ "$stale_queue_recovery_failed" = true ]; then
