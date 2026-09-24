@@ -84,14 +84,14 @@ jobs:
           status=''
           if [ -f data/research/data_quality.json ]; then
             status="$(python - <<'PY'
-import json
-from pathlib import Path
-try:
-    print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
-except Exception:
-    print('')
-PY
-)"
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
+          except Exception:
+              print('')
+          PY
+          )"
           fi
           echo "status=$status" >> "$GITHUB_OUTPUT"
           if [ "$status" = "DEFERRED" ]; then
