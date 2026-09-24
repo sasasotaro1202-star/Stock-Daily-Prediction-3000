@@ -853,6 +853,18 @@ def test_bounded_recovery_targets_current_main_for_obsolete_runs():
     assert "current-main-run-already-active=true" in source
 
 
+def test_watchdog_recovers_stale_active_scheduled_runs():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "active_blocking=false" in source
+    assert "active_entries=" in source
+    assert '[ "$status" = "in_progress" ]' in source
+    assert "stale active run" in source
+    assert "stale active recovery failed" in source
+
 def test_watchdog_cleans_stale_bounded_recovery_without_recovery_loop():
     from pathlib import Path
 
