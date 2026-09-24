@@ -1146,7 +1146,7 @@ def main():
             key=lambda method: (
                 calibration_candidates[method]["selection_score"],
                 calibration_candidates[method]["ece"],
-                {"platt": 0, "beta": 1, "isotonic": 2}[method],
+                {"platt": 0, "beta": 1, "isotonic": 2, "temperature": 3}[method],
             ),
         )
     else:
