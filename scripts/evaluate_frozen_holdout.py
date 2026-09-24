@@ -14,7 +14,7 @@ from src.prediction.regression import make_quantile_model, make_return_model
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics, cross_sectional_rank_ic
 from src.ranking.cross_sectional import cross_sectional_rank
-from src.research.router import route_plan, regime_for_row
+from src.research.router import route_plan, regime_for_row, situation_for_row
 from src.validation.calibration import make_calibrator
 from src.validation.code_fingerprint import fingerprint_sha256
 from src.validation.training_sample import cap_training_rows
@@ -184,12 +184,23 @@ def main():
         ).value
         asset_class = str(row["asset_class"]) if "asset_class" in row and pd.notna(row["asset_class"]) else ""
         symbol_value = str(row["symbol"]) if "symbol" in row and pd.notna(row["symbol"]) else None
+        situation = situation_for_row(
+            regime,
+            gap_pct=float(row["gap_pct"]) if pd.notna(row["gap_pct"]) else None,
+            volume_ratio_20=float(row["volume_ratio_20"]) if pd.notna(row["volume_ratio_20"]) else None,
+            vix_level=float(row["vix_level_lag1"]) if pd.notna(row["vix_level_lag1"]) else None,
+            breadth_up=float(row["breadth_up"]) if pd.notna(row["breadth_up"]) else None,
+            price_vs_sma60=float(row["price_vs_sma60"]) if pd.notna(row["price_vs_sma60"]) else None,
+        )
         plan = route_plan(
             asset_class,
             regime,
+            situation=situation,
             symbol=symbol_value,
             locked_symbol_regime=frozen_routes.get("symbol_regime_selected_models"),
             locked_symbol=frozen_routes.get("symbol_selected_models"),
+            locked_asset_situation=frozen_routes.get("asset_situation_selected_models"),
+            locked_situation=frozen_routes.get("situation_selected_models"),
             locked_asset_regime=frozen_routes.get("asset_regime_selected_models"),
             locked_asset=frozen_routes.get("asset_class_selected_models"),
             locked_regime=frozen_routes.get("regime_selected_models"),
