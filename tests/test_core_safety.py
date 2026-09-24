@@ -840,6 +840,13 @@ def test_repository_verification_prioritizes_latest_sha():
     assert "cancel-in-progress: true" in source
 
 
+def test_bounded_recovery_treats_pending_runs_as_active():
+    from pathlib import Path
+
+    source = Path(".github/workflows/bounded-production-recovery.yml").read_text(encoding="utf-8")
+    assert ".status == \"pending\"" in source
+    assert ".status == \"in_progress\"" in source
+
 def test_bounded_recovery_targets_current_main_for_obsolete_runs():
     from pathlib import Path
 
