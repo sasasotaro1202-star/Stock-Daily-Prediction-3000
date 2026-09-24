@@ -3,8 +3,9 @@ name: Market cycle
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 18 * * 1-5"
-      timezone: "Asia/Tokyo"
+    # Canonical daily run. The reliability watchdog recovers a missed run
+    # after the grace window, so a second scheduled run is unnecessary and
+    # would only create avoidable queued/cancelled executions.
     - cron: "37 18 * * 1-5"
       timezone: "Asia/Tokyo"
 
