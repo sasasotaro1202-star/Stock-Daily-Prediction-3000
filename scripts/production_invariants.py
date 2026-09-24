@@ -92,7 +92,7 @@ def main():
          and "apply_confidence_shrinkage" not in prediction),
         ("online_expert_research_isolation",
          "online_expert_average" in Path("scripts/run_daily_research.py").read_text()
-         and "fixed_learning_rate_chronological_online_update_after_each_session" in Path("scripts/run_daily_research.py").read_text()
+         and "fixed_learning_rate_and_share_rate_chronological_online_update_after_each_session" in Path("scripts/run_daily_research.py").read_text()
          and Path("src/research/online_ensemble.py").exists()
          and "online_expert_average" not in prediction),
         ("selective_oos_test_not_tuned",
