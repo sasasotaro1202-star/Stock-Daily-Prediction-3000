@@ -770,6 +770,7 @@ def main():
     }
     risk_history_x = []
     risk_history_y = []
+    risk_history_target_y = []
     risk_adjusted_rows = []
     risk_raw_rows = []
     risk_fold_deltas = []
@@ -798,8 +799,8 @@ def main():
         risk = predicted_error_risk(selector, meta_features)
         y_fold = np.asarray(bank["y"], dtype=int)
         base_rate = (
-            float(np.mean(1 - np.asarray(risk_history_y, dtype=int)))
-            if risk_history_y else 0.5
+            float(np.mean(np.asarray(risk_history_target_y, dtype=int)))
+            if risk_history_target_y else 0.5
         )
         adjusted = apply_confidence_risk_shrinkage(
             p_selected, risk, base_rate=base_rate,
@@ -832,6 +833,7 @@ def main():
         current_correct = ((p_selected >= 0.5).astype(int) == y_fold).astype(int)
         risk_history_x.extend(meta_features.tolist())
         risk_history_y.extend(current_correct.tolist())
+        risk_history_target_y.extend(y_fold.tolist())
         if selector is not None:
             confidence_risk_research["status"] = "EVALUATED"
             confidence_risk_research["training_rows"] = len(risk_history_y)
