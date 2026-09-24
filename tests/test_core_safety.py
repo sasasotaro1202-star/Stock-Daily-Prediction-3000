@@ -860,6 +860,13 @@ def test_bounded_recovery_targets_current_main_for_obsolete_runs():
     assert "current-main-run-already-active=true" in source
 
 
+def test_watchdog_uses_jst_midnight_for_scheduled_run_presence():
+    from pathlib import Path
+
+    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    assert 'TZ=Asia/Tokyo date -d "$current_date 00:00:00" +%s' in source
+    assert 'TZ=Asia/Tokyo date -u -d "$current_date 00:00:00"' not in source
+
 def test_watchdog_recovers_stale_active_scheduled_runs():
     from pathlib import Path
 
