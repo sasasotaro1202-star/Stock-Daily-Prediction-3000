@@ -450,6 +450,13 @@ def test_monitoring_workflow_does_not_silently_ignore_price_restore_failure():
     source = Path(".github/workflows/prediction-monitoring.yml").read_text(encoding="utf-8")
     assert "|| true" not in source
     assert "one or more price-state shards could not be restored" in source
+    assert "restore_ok=" in source
+    assert "monitor_price_restore_deferred" in source
+    restore_block = source[
+        source.index("Restore current price state"):
+        source.index("Determine restored price availability")
+    ]
+    assert "exit 1" not in restore_block
 
 
 
@@ -553,7 +560,7 @@ def test_soft_blend_challenger_reaches_oos_selection_candidates():
         assert name in CANDIDATES[regime]
 
 
-def test_prediction_history_restore_fails_closed_on_partial_restore():
+def test_prediction_history_restore_records_partial_restore_without_failing_action():
     from pathlib import Path
 
     script = Path("scripts/restore_prediction_history.py").read_text(
@@ -561,10 +568,9 @@ def test_prediction_history_restore_fails_closed_on_partial_restore():
     )
     assert "errors=[]" in script
     assert "errors.append({" in script
-    assert (
-        "DEFERRED: one or more prediction-history artifacts could not be restored"
-        in script
-    )
+    assert 'prediction_history_restore.json' in script
+    assert '"status": status' in script
+    assert "prediction-history-restore: DEFERRED" in script
 
 
 def test_regime_volatility_threshold_is_oos_train_derived():

@@ -37,6 +37,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/restore_prediction_history.py
       - name: Restore current price state
+        id: restore_price
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -49,14 +50,18 @@ jobs:
             fi
           done
           if [ "$failed" -ne 0 ]; then
-            echo "DEFERRED: one or more price-state shards could not be restored"
-            exit 1
+            echo "restore_ok=false" >> "$GITHUB_OUTPUT"
+            echo "restore_reason=price_state_shard_restore_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price restore: DEFERRED (one or more price-state shards could not be restored)"
+          else
+            echo "restore_ok=true" >> "$GITHUB_OUTPUT"
+            echo "restore_reason=restored" >> "$GITHUB_OUTPUT"
           fi
       - name: Determine restored price availability
         id: price_state
         shell: bash
         run: |
-          if compgen -G "data/prices/*.parquet" > /dev/null; then
+          if [ "${{ steps.restore_price.outputs.restore_ok }}" = "true" ] && compgen -G "data/prices/*.parquet" > /dev/null; then
             echo "available=true" >> "$GITHUB_OUTPUT"
           else
             echo "available=false" >> "$GITHUB_OUTPUT"
@@ -71,7 +76,28 @@ jobs:
         if: steps.price_state.outputs.available == 'true'
         run: python scripts/data_quality_gate.py
       - name: Monitor realized outcomes
+        if: steps.restore_price.outputs.restore_ok == 'true'
         run: python scripts/monitor_predictions.py
+      - name: Record deferred monitoring state
+        if: steps.restore_price.outputs.restore_ok != 'true'
+        shell: bash
+        run: |
+          mkdir -p data/research
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = {
+              "status": "DEFERRED",
+              "evaluated": 0,
+              "reason": "price_state_restore_failed",
+              "production_action": "DEFERRED",
+          }
+          Path("data/research/monitor_latest.json").write_text(
+              json.dumps(payload, indent=2),
+              encoding="utf-8",
+          )
+          print("monitor_price_restore_deferred", json.dumps(payload))
+          PY
       - uses: actions/upload-artifact@v4
         with:
           name: monitoring-${{ github.run_id }}
