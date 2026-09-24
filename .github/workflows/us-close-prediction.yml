@@ -93,10 +93,27 @@ jobs:
           path: data/prices
           merge-multiple: true
       - name: Restore last approved research state
+        id: research_state
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/restore_latest_research_state.py
+        shell: bash
+        run: |
+          set +e
+          log="$(mktemp)"
+          python scripts/restore_latest_research_state.py 2>&1 | tee "$log"
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif grep -q "DEFERRED:" "$log"; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "approved research state unavailable; production prediction will be DEFERRED"
+          else
+            echo "::error title=Research-state restore failed::unexpected restore failure"
+            exit "$rc"
+          fi
       - name: Restore exact approved production runtime
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/install_production_runtime.py
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
