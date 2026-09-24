@@ -983,7 +983,7 @@ def test_live_performance_gate_exports_explicit_allow_output():
 
     source = Path("scripts/live_performance_gate.py").read_text(encoding="utf-8")
     assert "GITHUB_OUTPUT" in source
-    assert "allowed=true" in source
-    assert "allowed=false" in source
+    assert "allowed={'true' if allowed else 'false'}" in source
+    assert "write_github_output(False)" in source
     assert "DEFERRED: live performance gate blocked production prediction" not in source
 
