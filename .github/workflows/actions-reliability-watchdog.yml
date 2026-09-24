@@ -179,8 +179,10 @@ jobs:
               return 0
             fi
 
-            local current_today
-            current_today="$(printf '%s' "$runs" | jq --arg sha "$current_sha" --arg date "$current_date" '[.workflow_runs[] | select(.head_sha == $sha) | select((.created_at | fromdateiso8601) >= ($date + "T00:00:00+09:00" | fromdateiso8601))] | length')"
+            local today_start_epoch current_today
+            today_start_epoch="$(TZ=Asia/Tokyo date -u -d "$current_date 00:00:00" +%s 2>/dev/null || echo 0)"
+            [ "$today_start_epoch" -gt 0 ] || return 0
+            current_today="$(printf '%s' "$runs" | jq --arg sha "$current_sha" --argjson start "$today_start_epoch" '[.workflow_runs[] | select(.head_sha == $sha) | select((.created_at | fromdateiso8601) >= $start)] | length')"
             if [ "$current_today" -gt 0 ]; then
               echo "${workflow_name}: today's current-SHA scheduled run already exists"
               return 0
