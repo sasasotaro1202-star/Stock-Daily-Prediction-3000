@@ -1022,3 +1022,13 @@ def test_temperature_calibrator_fits_finite_bounded_probabilities():
     assert calibrator.temperature > 0.0
     assert np.isfinite(out).all()
     assert np.all((out >= 0.0) & (out <= 1.0))
+
+
+def test_near_production_reports_real_situation_labels():
+    from pathlib import Path
+
+    source = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
+    assert "regime_for_row(" in source
+    assert "situation_for_row(" in source
+    assert 'out["regime"] = regimes' in source
+    assert 'out["market_situation"] = situations' in source
