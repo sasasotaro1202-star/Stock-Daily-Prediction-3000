@@ -23,6 +23,13 @@ from src.research.metrics import aggregate_metric_rows, classification_metrics, 
 from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
+from src.research.confidence_risk import (
+    apply_confidence_risk_shrinkage,
+    confidence_risk_features,
+    fit_temporal_confidence_risk,
+    predicted_error_risk,
+    risk_bins,
+)
 from src.research.selective import (
     apply_confidence_shrinkage,
     select_confidence_shrinkage_parameters,
@@ -385,9 +392,22 @@ def main():
                     "y": test.target_up_1d.astype(int).to_numpy(copy=True),
                     "predictions": {},
                     "situations": None,
+                    "risk_context": None,
                 },
             )
             online_bank["predictions"][name] = np.asarray(p, dtype=float)
+            if online_bank["risk_context"] is None:
+                risk_columns = [
+                    "volatility_20", "volume_ratio_20", "gap_pct", "breadth_up",
+                    "market_dispersion_1d", "market_dispersion_vs_20d",
+                    "vix_level_lag1", "return_z20", "drawdown_from_high_20",
+                    "cs_ret_1d_rank", "cs_vol_rank",
+                ]
+                online_bank["risk_context"] = np.column_stack([
+                    pd.to_numeric(test[col], errors="coerce").to_numpy(dtype=float)
+                    if col in test.columns else np.full(len(test), np.nan)
+                    for col in risk_columns
+                ])
 
             # Research-only confidence shrinkage. Select parameters from
             # the fold-local calibration slice only; the OOS test slice remains
@@ -735,6 +755,132 @@ def main():
         min_relative_improvement=selection_evidence_min_relative_improvement,
         alpha=selection_evidence_alpha,
     )
+
+    # Research-only temporal confidence-risk layer. It predicts the
+    # probability that the selected model's directional decision will be
+    # wrong, using only prior OOS prediction/context rows. It may shrink
+    # overconfident probabilities, but never flips direction and never affects
+    # the production artifact.
+    confidence_risk_research = {
+        "status": "INSUFFICIENT_OOS",
+        "method": "temporal_correctness_meta_model",
+        "research_only": True,
+        "training_rows": 0,
+        "folds": 0,
+    }
+    risk_history_x = []
+    risk_history_y = []
+    risk_adjusted_rows = []
+    risk_raw_rows = []
+    risk_fold_deltas = []
+    risk_high_rows = []
+    for fold_idx in sorted(online_prediction_by_fold):
+        bank = online_prediction_by_fold[fold_idx]
+        predictions = bank["predictions"]
+        if global_selected not in predictions or bank.get("risk_context") is None:
+            continue
+        p_selected = np.asarray(predictions[global_selected], dtype=float)
+        expert_names = sorted(predictions)
+        expert_matrix = np.column_stack([
+            np.asarray(predictions[n], dtype=float) for n in expert_names
+        ])
+        context = np.asarray(bank["risk_context"], dtype=float)
+        meta_features = confidence_risk_features(
+            p_selected, expert_matrix, context
+        )
+        selector = fit_temporal_confidence_risk(
+            np.asarray(risk_history_x, dtype=float)
+            if risk_history_x else np.empty((0, meta_features.shape[1])),
+            np.asarray(risk_history_y, dtype=int)
+            if risk_history_y else np.empty((0,), dtype=int),
+            min_rows=240,
+        )
+        risk = predicted_error_risk(selector, meta_features)
+        y_fold = np.asarray(bank["y"], dtype=int)
+        base_rate = (
+            float(np.mean(1 - np.asarray(risk_history_y, dtype=int)))
+            if risk_history_y else 0.5
+        )
+        adjusted = apply_confidence_risk_shrinkage(
+            p_selected, risk, base_rate=base_rate,
+            risk_threshold=0.60, max_shrink=0.35,
+        )
+        raw_m = classification_metrics(y_fold, p_selected)
+        adjusted_m = classification_metrics(y_fold, adjusted)
+        risk_raw_rows.append(raw_m)
+        risk_adjusted_rows.append(adjusted_m)
+        risk_fold_deltas.append(float(raw_m["logloss"] - adjusted_m["logloss"]))
+
+        high = risk >= 0.60
+        if high.any() and np.unique(y_fold[high]).size >= 2:
+            raw_high = classification_metrics(y_fold[high], p_selected[high])
+            adj_high = classification_metrics(y_fold[high], adjusted[high])
+            risk_high_rows.append({
+                "fold": float(fold_idx),
+                "n": float(high.sum()),
+                "raw_logloss": float(raw_high["logloss"]),
+                "adjusted_logloss": float(adj_high["logloss"]),
+                "raw_accuracy": float(raw_high["accuracy"]),
+                "adjusted_accuracy": float(adj_high["accuracy"]),
+            })
+        confidence_risk_research["last_fold_bins"] = risk_bins(
+            risk, y_fold, p_selected
+        )
+
+        # Current-fold labels enter the meta-training history only after the
+        # current fold has been scored, preserving chronological OOS order.
+        current_correct = ((p_selected >= 0.5).astype(int) == y_fold).astype(int)
+        risk_history_x.extend(meta_features.tolist())
+        risk_history_y.extend(current_correct.tolist())
+        if selector is not None:
+            confidence_risk_research["status"] = "EVALUATED"
+            confidence_risk_research["training_rows"] = len(risk_history_y)
+            confidence_risk_research["folds"] = int(
+                confidence_risk_research.get("folds", 0) + 1
+            )
+
+    if risk_raw_rows:
+        raw_risk = aggregate_group(risk_raw_rows)
+        adjusted_risk = aggregate_group(risk_adjusted_rows)
+        high_summary = {}
+        if risk_high_rows:
+            weights = np.asarray([r["n"] for r in risk_high_rows], dtype=float)
+            high_summary = {
+                "folds": len(risk_high_rows),
+                "n_total": float(weights.sum()),
+                "raw_logloss": float(np.average(
+                    [r["raw_logloss"] for r in risk_high_rows], weights=weights
+                )),
+                "adjusted_logloss": float(np.average(
+                    [r["adjusted_logloss"] for r in risk_high_rows], weights=weights
+                )),
+                "raw_accuracy": float(np.average(
+                    [r["raw_accuracy"] for r in risk_high_rows], weights=weights
+                )),
+                "adjusted_accuracy": float(np.average(
+                    [r["adjusted_accuracy"] for r in risk_high_rows], weights=weights
+                )),
+            }
+        confidence_risk_research.update({
+            "raw_oos": raw_risk,
+            "risk_adjusted_oos": adjusted_risk,
+            "logloss_improvement": float(
+                raw_risk["logloss"] - adjusted_risk["logloss"]
+            ),
+            "brier_improvement": float(
+                raw_risk["brier"] - adjusted_risk["brier"]
+            ),
+            "ece_change": float(
+                adjusted_risk["ece"] - raw_risk["ece"]
+            ),
+            "high_risk_cases": high_summary,
+            "fold_logloss_improvements": [float(x) for x in risk_fold_deltas],
+            "policy": (
+                "research_only; expanding chronological meta-learning; "
+                "current-fold outcomes enter history only after scoring; "
+                "high-risk predictions shrink toward prior base rate; no contrarian flip"
+            ),
+        })
 
     # Research-only online expert aggregation. Predictions for each session
     # use weights learned strictly before that session. We update weights only
@@ -1649,6 +1795,7 @@ def main():
         "ranking_weight_candidates": ranking_candidates,
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
+        "confidence_risk_research": confidence_risk_research,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
