@@ -16,3 +16,5 @@ Production fitting is hierarchical. A scoped model is trained only when the scop
 Available product-model families are jp_stock, jp_etf, jp_reit, us_stock, and us_etf. Prediction output records the selected model, training scope, and routing reason for every row.
 
 All production snapshots require available_at <= prediction_time. Japan and U.S. latest sessions are resolved independently because their market clocks differ.
+
+Before a new production freeze, the selected global classifier must have paired chronological OOS evidence against the strongest comparator: at least 5 common folds, a Bonferroni-adjusted two-sided 95% confidence bound, and at least 3% relative LogLoss improvement. If the confidence bound does not clear the required effect, model freezing is DEFERRED rather than silently selecting the top point estimate.
