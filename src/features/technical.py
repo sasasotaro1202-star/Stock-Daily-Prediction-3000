@@ -19,6 +19,7 @@ FEATURE_COLUMNS=[
     "cs_volatility_20_robust_z","cs_volume_ratio_20_robust_z",
     "cs_range_pct_robust_z","cs_price_vs_sma20_robust_z",
     "median_vol","median_ret","breadth_up",
+    "market_dispersion_1d","market_ret_iqr_1d","market_dispersion_5d","market_dispersion_20d","market_dispersion_vs_20d",
     "nikkei_ret_1d_lag1","topix_ret_1d_lag1",
     "sp500_ret_1d_lag1","nasdaq_ret_1d_lag1",
     "vix_level_lag1","usd_jpy_ret_1d_lag1",
