@@ -22,6 +22,7 @@ from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
 from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
+from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.selective import (
     apply_confidence_shrinkage,
     select_confidence_shrinkage_parameters,
@@ -433,6 +434,7 @@ def main():
                 group_keys,
             )
             row["n_test"] = float(len(test))
+            row["fold"] = float(fold_idx)
             fold_rows.append(row)
 
             regime = test.apply(
@@ -624,6 +626,7 @@ def main():
         model_results[name] = {
             "folds": len(fold_rows),
             "metrics": aggregate_group(fold_rows) if fold_rows else {},
+            "fold_metrics": fold_rows,
         }
 
     usable = {
@@ -692,6 +695,25 @@ def main():
         rank_ic_tiebreak_tolerance=rank_ic_tolerance,
     )
     global_selected = global_plan.names[0]
+
+    # Conservative selection evidence: compare the selected model with the
+    # strongest OOS comparator on the same chronological folds. This evidence
+    # never sees the frozen holdout and is consumed by lock_frozen_model.py
+    # before a new production configuration can be frozen.
+    global_selection_fold_rows = {
+        name: value.get("fold_metrics", [])
+        for name, value in model_results.items()
+        if name in balanced_candidates
+    }
+    global_selection_evidence = paired_logloss_selection_evidence(
+        global_selected,
+        balanced_candidates,
+        global_selection_fold_rows,
+        trial_count=max(1, len(balanced_candidates)),
+        min_folds=5,
+        min_relative_improvement=0.03,
+        alpha=0.05,
+    )
 
     # Research-only online expert aggregation. Predictions for each session
     # use weights learned strictly before that session. We update weights only
@@ -1595,6 +1617,7 @@ def main():
         "symbol_regime_selected_models": symbol_regime_selected,
         "security_route_summary": security_route_summary,
         "selected_model": global_selected,
+        "global_selection_evidence": global_selection_evidence,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
         "calibration_method": selected_calibration_method,
