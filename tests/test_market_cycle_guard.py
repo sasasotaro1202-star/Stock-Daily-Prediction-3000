@@ -28,3 +28,9 @@ def test_market_cycle_empty_actions_response_fails_closed():
     source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
     assert 'guard_reason=actions_api_empty_response_defer' in source
     assert "Actions API returned empty response" in source
+
+def test_market_cycle_does_not_start_on_code_push():
+    source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
+    assert '  push:\n' not in source
+    assert "  workflow_dispatch:\n" in source
+    assert '    - cron: "17 18 * * 1-5"' in source

@@ -2,14 +2,6 @@ name: Market cycle
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "src/**"
-      - "scripts/**"
-      - "config/pipeline.yml"
-      - "pyproject.toml"
-      - ".github/workflows/market-cycle.yml"
   schedule:
     - cron: "17 18 * * 1-5"
       timezone: "Asia/Tokyo"

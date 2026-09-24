@@ -178,7 +178,10 @@ def rebalance_global_oos_candidates(
             if not metric:
                 continue
             folds = int(metric.get("folds", min_folds))
-            value = metric.get("logloss")
+            value = metric.get(
+                "selection_logloss",
+                metric.get("logloss"),
+            )
             if folds < min_folds or value is None:
                 continue
             value = float(value)
@@ -193,7 +196,9 @@ def rebalance_global_oos_candidates(
                 if len(per_asset) >= 2
                 else 0.0
             )
-            raw_mean = float(raw.get("logloss", float("inf")))
+            raw_mean = float(
+                raw.get("selection_logloss", raw.get("logloss", float("inf")))
+            )
             raw_std = float(raw.get("logloss_std", 0.0))
             candidate["asset_class_macro_logloss"] = macro
             candidate["asset_class_macro_logloss_std"] = macro_std

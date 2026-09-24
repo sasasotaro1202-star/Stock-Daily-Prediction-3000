@@ -65,6 +65,29 @@ def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
     for key in ("logloss", "brier", "ece", "accuracy", "roc_auc", "rank_ic"):
         values = [float(r[key]) for r in rows if key in r and np.isfinite(r[key])]
         payload[f"{key}_std"] = float(np.std(values, ddof=1)) if len(values) >= 2 else 0.0
+
+    # Non-stationary markets can make a long-run fold average lag the
+    # current regime. Keep every chronological fold, but give the newest
+    # folds more influence in the model-family selection objective.
+    logloss_rows = [
+        float(r["logloss"])
+        for r in rows
+        if "logloss" in r and np.isfinite(float(r["logloss"]))
+    ]
+    if len(logloss_rows) >= 3:
+        recent_weights = np.linspace(1.0, 2.0, num=len(logloss_rows), dtype=float)
+        recent_logloss = float(
+            np.average(np.asarray(logloss_rows, dtype=float), weights=recent_weights)
+        )
+        payload["recent_logloss"] = recent_logloss
+        payload["recent_oos_selection_weight"] = 0.50
+        payload["selection_logloss"] = (
+            0.50 * float(payload["logloss"]) + 0.50 * recent_logloss
+        )
+    elif logloss_rows:
+        payload["recent_logloss"] = float(payload["logloss"])
+        payload["recent_oos_selection_weight"] = 0.0
+        payload["selection_logloss"] = float(payload["logloss"])
     return payload
 
 

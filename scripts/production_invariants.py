@@ -19,6 +19,7 @@ def main():
         ("immutable_production_artifact","build_production_artifact.py" in Path(".github/workflows/market-cycle.yml").read_text() and Path("scripts/build_production_artifact.py").exists() and Path("src/prediction/production_artifact.py").exists()),
         ("exact_runtime_restore","install_production_runtime.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and "runtime_dependency_versions" in Path("scripts/build_production_artifact.py").read_text()),
         ("oos_selection","selection_source: chronological_oos_only" in pipe and "rank_ic_tiebreak_tolerance: 0.002" in pipe),
+        ("recent_oos_selection","recent_logloss" in Path("scripts/run_daily_research.py").read_text() and "selection_logloss" in Path("src/research/router.py").read_text()),
         ("label_aware_purge","purge_sessions: 1" in pipe and "purge=int(model_cfg.get" in Path("scripts/run_daily_research.py").read_text() and "purge" in Path("src/validation/walk_forward.py").read_text()),
         ("rank_ic_oos","cross_sectional_rank_ic" in Path("scripts/run_daily_research.py").read_text() and "rank_ic" in Path("src/research/router.py").read_text()),
         ("oos_optimized_ranking_weight","rank_probability_weight" in Path("scripts/run_daily_research.py").read_text() and "rank_probability_weight" in Path("scripts/lock_frozen_model.py").read_text() and "probability_weight=rank_weight" in Path("scripts/run_daily_prediction.py").read_text()),
