@@ -63,6 +63,13 @@ def main():
 
         ("actions_reliability_watchdog",Path(".github/workflows/actions-reliability-watchdog.yml").exists() and 'cron: "7,22,37,52 * * * *"' in Path(".github/workflows/actions-reliability-watchdog.yml").read_text() and "bounded recovery" in Path(".github/workflows/actions-reliability-watchdog.yml").read_text()),        ("failure_only_bounded_recovery","conclusion == 'failure'" in Path(".github/workflows/bounded-production-recovery.yml").read_text() and "conclusion == 'cancelled'" not in Path(".github/workflows/bounded-production-recovery.yml").read_text() and "run_attempt == 1" in Path(".github/workflows/bounded-production-recovery.yml").read_text()),        ("automation_heartbeat",Path(".github/workflows/heartbeat.yml").exists() and 'cron: "17 */6 * * *"' in Path(".github/workflows/heartbeat.yml").read_text()),        ("live_performance_gate","live_performance_gate.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/live_performance_gate.py").exists()),
         ("prediction_output_integrity","validate_prediction_output.py" in Path(".github/workflows/market-cycle.yml").read_text() and "validate_prediction_output.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/validate_prediction_output.py").exists()),
+        ("monitoring_bounded_price_recovery",
+         "Bounded price-state recovery after deferred quality" in Path(".github/workflows/prediction-monitoring.yml").read_text()
+         and "Re-check data quality after bounded recovery" in Path(".github/workflows/prediction-monitoring.yml").read_text()
+         and "PRICE_SHARD_COUNT: 4" in Path(".github/workflows/prediction-monitoring.yml").read_text()
+         and "data_quality_deferred_after_bounded_recovery" in Path(".github/workflows/prediction-monitoring.yml").read_text()
+         and "timeout-minutes: 60" in Path(".github/workflows/prediction-monitoring.yml").read_text()),
+
         ("regime_thresholds","high_vol_vix: 30.0" in pipe and "event_gap_abs: 0.03" in pipe and "trend_breadth_low: 0.25" in pipe and "regime_vol_threshold" in Path("scripts/lock_frozen_model.py").read_text() and "regime_vol_threshold" in Path("scripts/build_production_artifact.py").read_text()),
         ("oos_calibration_selection","method: oos_selected" in pipe and "CALIBRATION_METHODS" in Path("src/validation/calibration.py").read_text() and "calibration_method" in Path("scripts/lock_frozen_model.py").read_text() and "calibration_method" in Path("scripts/build_production_artifact.py").read_text()),
         ("asset_balanced_calibration","asset_calibration_rows" in Path("scripts/run_daily_research.py").read_text() and "asset_macro_logloss" in Path("scripts/run_daily_research.py").read_text()),
