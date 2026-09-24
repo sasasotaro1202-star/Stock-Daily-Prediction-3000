@@ -112,7 +112,7 @@ def main():
     threshold = float(threshold)
 
     calibration_method = str(frozen.get("calibration_method", "platt"))
-    if calibration_method not in {"platt", "beta", "isotonic"}:
+    if calibration_method not in {"platt", "beta", "isotonic", "temperature"}:
         raise SystemExit("DEFERRED: frozen calibration method is invalid")
 
     training_window = int(
