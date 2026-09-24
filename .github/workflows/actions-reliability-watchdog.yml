@@ -3,7 +3,7 @@ name: Actions reliability watchdog
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7 * * * *"
+    # Run every 15 minutes to bound missed-schedule detection latency.\n    - cron: "7,22,37,52 * * * *"
       timezone: "Asia/Tokyo"
 
 permissions:

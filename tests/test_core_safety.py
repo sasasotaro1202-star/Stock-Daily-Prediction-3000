@@ -650,7 +650,7 @@ def test_actions_watchdog_is_hourly_and_fail_visible():
     source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
         encoding="utf-8"
     )
-    assert 'cron: "7 * * * *"' in source
+    assert 'cron: "7,22,37,52 * * * *"' in source
     assert "actions: write" in source
     assert "96 hours ago" in source
     assert "bounded recovery" in source
