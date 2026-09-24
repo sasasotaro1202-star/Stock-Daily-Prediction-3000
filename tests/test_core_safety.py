@@ -1099,3 +1099,13 @@ def test_frozen_holdout_uses_exact_situation_aware_router():
     assert ("locked_asset_situation=frozen_routes.get('asset_situation_selected_models')" in source or "locked_asset_situation=frozen_routes.get(\"asset_situation_selected_models\")" in source)
     assert ("locked_situation=frozen_routes.get('situation_selected_models')" in source or "locked_situation=frozen_routes.get(\"situation_selected_models\")" in source)
 
+
+
+def test_prediction_monitoring_treats_data_quality_deferred_as_safe_deferred_state():
+    from pathlib import Path
+
+    source = Path(".github/workflows/prediction-monitoring.yml").read_text(encoding="utf-8")
+    assert "id: data_quality" in source
+    assert 'steps.data_quality.outputs.status == \'DEFERRED\'' in source
+    assert 'steps.data_quality.outputs.status != \'DEFERRED\'' in source
+    assert "data_quality_deferred" in source
