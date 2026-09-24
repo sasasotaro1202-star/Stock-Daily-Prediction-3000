@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.optimize import minimize_scalar
 from sklearn.isotonic import IsotonicRegression
 from sklearn.linear_model import LogisticRegression
 
@@ -115,12 +116,86 @@ class IsotonicCalibrator:
         )
 
 
+class TemperatureCalibrator:
+    """One-parameter logit-temperature calibration selected by chronological OOS."""
+
+    method = "temperature"
+
+    def __init__(self, min_temperature: float = 0.25, max_temperature: float = 4.0):
+        self.min_temperature = float(min_temperature)
+        self.max_temperature = float(max_temperature)
+        if not 0.0 < self.min_temperature < self.max_temperature:
+            raise ValueError("temperature bounds must satisfy 0 < min < max")
+        self.temperature = 1.0
+        self.fitted = False
+        self.constant = 0.5
+
+    @staticmethod
+    def _logit(p):
+        p = np.clip(np.asarray(p, dtype=float), 1e-6, 1 - 1e-6)
+        return np.log(p / (1 - p))
+
+    @staticmethod
+    def _sigmoid(x):
+        x = np.clip(np.asarray(x, dtype=float), -50.0, 50.0)
+        return 1.0 / (1.0 + np.exp(-x))
+
+    def fit(self, p_calibration, y_calibration):
+        p = np.asarray(p_calibration, dtype=float)
+        y = np.asarray(y_calibration, dtype=int)
+        finite = np.isfinite(p) & np.isfinite(y)
+        p = np.clip(p[finite], 1e-6, 1 - 1e-6)
+        y = y[finite]
+        if len(y) == 0 or len(np.unique(y)) < 2:
+            self.constant = float(y.mean()) if len(y) else 0.5
+            return self
+        logits = self._logit(p)
+
+        def objective(temperature: float) -> float:
+            scaled = np.clip(logits / float(temperature), -50.0, 50.0)
+            probs = self._sigmoid(scaled)
+            loss = -(
+                y * np.log(np.clip(probs, 1e-12, 1.0))
+                + (1 - y) * np.log(np.clip(1.0 - probs, 1e-12, 1.0))
+            )
+            return float(np.mean(loss))
+
+        try:
+            result = minimize_scalar(
+                objective,
+                bounds=(self.min_temperature, self.max_temperature),
+                method="bounded",
+                options={"xatol": 1e-3, "maxiter": 80},
+            )
+            candidate = float(result.x)
+            if not np.isfinite(candidate) or candidate <= 0.0:
+                candidate = 1.0
+            self.temperature = float(
+                np.clip(candidate, self.min_temperature, self.max_temperature)
+            )
+            self.fitted = True
+        except (TypeError, ValueError, FloatingPointError):
+            self.temperature = 1.0
+            self.fitted = True
+        return self
+
+    def predict(self, p):
+        if not self.fitted:
+            return np.full(len(np.asarray(p)), self.constant, dtype=float)
+        return np.clip(
+            self._sigmoid(self._logit(p) / self.temperature),
+            1e-5,
+            1 - 1e-5,
+        )
+
+
 def make_calibrator(method: str):
     normalized = str(method).strip().lower()
     factories = {
         "platt": PlattCalibrator,
         "beta": BetaCalibrator,
         "isotonic": IsotonicCalibrator,
+        "temperature": TemperatureCalibrator,
     }
     try:
         return factories[normalized]()
@@ -130,4 +205,4 @@ def make_calibrator(method: str):
         ) from exc
 
 
-CALIBRATION_METHODS = ("platt", "beta", "isotonic")
+CALIBRATION_METHODS = ("platt", "beta", "isotonic", "temperature")
