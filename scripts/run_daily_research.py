@@ -1310,6 +1310,9 @@ def main():
         "return_oos": return_oos,
         "regime_metrics": regime_metrics,
         "situation_metrics": situation_metrics,
+        "asset_situation_metrics": asset_situation_metrics,
+        "situation_selected_models": situation_selected,
+        "asset_situation_selected_models": asset_situation_selected,
         "regime_selected_models": regime_selected,
         "asset_class_metrics": asset_class_metrics,
         "asset_class_selected_models": asset_selected,
@@ -1337,8 +1340,11 @@ def main():
             "chronological walk-forward OOS only; global selection blends "
             "row-weighted LogLoss with a configurable macro asset-class blend "
             "to reduce universe-size dominance, then applies the 0.25 stability "
-            "penalty; route hierarchy is asset_class+regime -> asset_class -> "
-            "regime -> symbol_regime -> symbol, with security routes requiring " 
+            "penalty; route hierarchy is symbol_regime/symbol -> asset_situation/"
+            "situation -> asset_class+regime -> asset_class -> regime -> global; "
+            "situation routes require >=3 chronological OOS folds and >=30 rows/fold, "
+            "and must clear the same stable parent edge as other scoped routes; "
+            "security routes requiring "
             ">=4 folds and >=10 observations/fold plus a stable parent edge; " 
             "calibration is fit inside each OOS training fold; "
             "frozen holdout remains unused during selection"
