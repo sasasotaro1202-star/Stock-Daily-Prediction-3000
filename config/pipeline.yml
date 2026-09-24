@@ -42,6 +42,9 @@ models:
   recency_weighted_challenger: true
   recency_weight_half_life_sessions: 252
   purge_sessions: 1
+  selection_evidence_min_common_oos_folds: 5
+  selection_evidence_min_relative_improvement: 0.03
+  selection_evidence_alpha: 0.05
   classifier_training_window_candidates: [252, 504, 756, 0]
   return_estimator_mae_guard: 1.10
   return_estimator_rank_ic_tolerance: 0.005
