@@ -43,7 +43,7 @@ def main():
     if selected not in factories():
         raise SystemExit("FAIL: frozen model is unavailable")
 
-    df = pd.read_parquet("data/prices")
+    df = pd.read_parquet("data/prices/canonical.parquet")
     context_path = Path("data/market_context.parquet")
     if not context_path.exists():
         raise SystemExit("DEFERRED: market context is absent")
