@@ -77,8 +77,8 @@ def main():
         ("cpcv_research_audit",
          Path("scripts/run_cpcv_validation_audit.py").exists()
          and "CPCV leakage-boundary research audit" in Path(".github/workflows/market-cycle.yml").read_text()
-         and "production_changed" in Path("scripts/run_cpcv_validation_audit.py").read_text()
-         and "validate_split" in Path("scripts/run_cpcv_validation_audit.py").read_text()),
+         and "production_changed" in Path("src/research/cpcv_validation_audit.py").read_text()
+         and "validate_split" in Path("src/research/cpcv_validation_audit.py").read_text()),
         ("monitoring_bounded_price_recovery",
          "Bounded price-state recovery after deferred quality" in Path(".github/workflows/prediction-monitoring.yml").read_text()
          and "Re-check data quality after bounded recovery" in Path(".github/workflows/prediction-monitoring.yml").read_text()
