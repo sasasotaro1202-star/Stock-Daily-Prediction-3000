@@ -21,6 +21,7 @@ from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
 from src.research.return_selection import choose_return_estimator
+from src.research.selective import apply_confidence_shrinkage
 from src.research.router import (
     ASSET_CANDIDATES,
     CANDIDATES,
@@ -323,6 +324,7 @@ def main():
     asset_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
+    selective_rows_by_model: dict[str, list[dict[str, float]]] = {}
 
     for name, factory in make_models().items():
         fold_rows = []
@@ -369,6 +371,30 @@ def main():
             p = calibrator.predict(
                 model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             )
+
+            # Research-only confidence shrinkage. The shrink target is the
+            # fold-local training base rate, so it is causal by construction.
+            selective_rows_by_model.setdefault(name, [])
+            base_rate = float(core_fit.target_up_1d.astype(int).mean())
+            baseline = classification_metrics(test.target_up_1d.astype(int), p)
+            for threshold in (0.03, 0.05, 0.075, 0.10, 0.15):
+                for weight in (0.25, 0.50, 0.75, 1.0):
+                    adjusted = apply_confidence_shrinkage(
+                        p,
+                        base_rate=base_rate,
+                        confidence_threshold=threshold,
+                        retained_weight=weight,
+                    )
+                    metrics = classification_metrics(
+                        test.target_up_1d.astype(int), adjusted
+                    )
+                    metrics["confidence_threshold"] = float(threshold)
+                    metrics["retained_weight"] = float(weight)
+                    metrics["delta_logloss"] = float(
+                        baseline["logloss"] - metrics["logloss"]
+                    )
+                    metrics["n_test"] = float(len(test))
+                    selective_rows_by_model[name].append(metrics)
 
             row = classification_metrics(test.target_up_1d.astype(int), p)
             group_keys=(
@@ -640,6 +666,89 @@ def main():
         rank_ic_tiebreak_tolerance=rank_ic_tolerance,
     )
     global_selected = global_plan.names[0]
+
+    selective_candidates = {}
+    selective_selected = {
+        "status": "NO_PROMOTION",
+        "model": global_selected,
+        "confidence_threshold": 0.0,
+        "retained_weight": 1.0,
+        "mean_logloss_improvement": 0.0,
+        "positive_fold_ratio": 0.0,
+        "folds": 0,
+    }
+    research_cfg = pipeline_cfg.get("research", {})
+    min_selective_gain = float(
+        research_cfg.get("minimum_selective_logloss_improvement", 0.001)
+    )
+    min_selective_positive_ratio = float(
+        research_cfg.get("minimum_selective_positive_fold_ratio", 2.0 / 3.0)
+    )
+    for model_name, rows in selective_rows_by_model.items():
+        grouped = {}
+        for row in rows:
+            key = (
+                float(row["confidence_threshold"]),
+                float(row["retained_weight"]),
+            )
+            grouped.setdefault(key, []).append(row)
+        for (threshold, weight), group in grouped.items():
+            deltas = np.asarray(
+                [float(row["delta_logloss"]) for row in group],
+                dtype=float,
+            )
+            lls = np.asarray(
+                [float(row["logloss"]) for row in group],
+                dtype=float,
+            )
+            if len(deltas) < 3 or len(lls) < 3:
+                continue
+            deltas = deltas[np.isfinite(deltas)]
+            lls = lls[np.isfinite(lls)]
+            if len(deltas) < 3 or len(lls) < 3:
+                continue
+            mean_gain = float(np.mean(deltas))
+            positive_ratio = float(np.mean(deltas > 0.0))
+            ll_std = float(np.std(lls, ddof=1))
+            candidate = {
+                "model": model_name,
+                "confidence_threshold": threshold,
+                "retained_weight": weight,
+                "mean_logloss_improvement": mean_gain,
+                "positive_fold_ratio": positive_ratio,
+                "mean_logloss": float(np.mean(lls)),
+                "logloss_std": ll_std,
+                "selection_score": float(np.mean(lls) + 0.25 * ll_std),
+                "folds": int(len(lls)),
+                "coverage": 1.0,
+            }
+            key = f"{model_name}::{threshold:.3f}::{weight:.2f}"
+            selective_candidates[key] = candidate
+            if (
+                model_name == global_selected
+                and mean_gain >= min_selective_gain
+                and positive_ratio >= min_selective_positive_ratio
+                and (
+                    selective_selected["status"] == "NO_PROMOTION"
+                    or candidate["selection_score"]
+                    < float(selective_selected["selection_score"])
+                )
+            ):
+                selective_selected = {
+                    **candidate,
+                    "status": "RESEARCH_CANDIDATE",
+                }
+
+    selective_probability_research = {
+        "research_only": True,
+        "production_changed": False,
+        "promotion_allowed": False,
+        "selected": selective_selected,
+        "minimum_logloss_improvement": min_selective_gain,
+        "minimum_positive_fold_ratio": min_selective_positive_ratio,
+        "candidates": selective_candidates,
+        "method": "confidence_shrinkage_toward_fold_local_base_rate",
+    }
 
     regime_selected = {}
     for reg_name, candidates in regime_metrics.items():
@@ -1355,6 +1464,7 @@ def main():
         "rank_uncertainty_penalty": selected_uncertainty_penalty,
         "minimum_scoped_oos_improvement_logloss": scope_improvement,
         "ranking_weight_candidates": ranking_candidates,
+        "selective_probability_research": selective_probability_research,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
