@@ -3,8 +3,7 @@ name: Prediction monitoring
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 9 * * 1-5"
-      timezone: "Asia/Tokyo"
+    # One canonical monitoring run; the reliability watchdog handles misses.
     - cron: "27 9 * * 1-5"
       timezone: "Asia/Tokyo"
 
