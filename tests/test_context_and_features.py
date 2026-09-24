@@ -76,6 +76,8 @@ def test_market_relative_momentum_features_are_causal_and_market_scoped():
 
 
 def test_cross_sectional_dispersion_context_is_available_and_causal():
+    from src.features.context import add_cross_sectional_context
+
     frame = pd.DataFrame({
         "session_date": pd.to_datetime(["2026-01-02"] * 12),
         "market_family": ["jp"] * 12,
