@@ -36,7 +36,7 @@ def test_oos_calibration_methods_fit_and_bound_outputs():
 
     p = np.array([0.05, 0.10, 0.25, 0.35, 0.60, 0.75, 0.90, 0.97] * 8)
     y = np.array([0, 0, 0, 1, 1, 1, 1, 1] * 8)
-    assert set(CALIBRATION_METHODS) == {"platt", "beta", "isotonic"}
+    assert set(CALIBRATION_METHODS) == {"platt", "beta", "isotonic", "temperature"}
     for method in CALIBRATION_METHODS:
         calibrator = make_calibrator(method).fit(p, y)
         out = calibrator.predict(p)
@@ -1009,3 +1009,16 @@ def test_live_performance_gate_exports_explicit_allow_output():
     assert "write_github_output(False)" in source
     assert "DEFERRED: live performance gate blocked production prediction" not in source
 
+
+
+def test_temperature_calibrator_fits_finite_bounded_probabilities():
+    import numpy as np
+    from src.validation.calibration import make_calibrator
+
+    p = np.array([0.01, 0.05, 0.20, 0.35, 0.65, 0.80, 0.95, 0.99] * 10)
+    y = np.array([0, 0, 0, 0, 1, 1, 1, 1] * 10)
+    calibrator = make_calibrator("temperature").fit(p, y)
+    out = calibrator.predict(p)
+    assert calibrator.temperature > 0.0
+    assert np.isfinite(out).all()
+    assert np.all((out >= 0.0) & (out <= 1.0))
