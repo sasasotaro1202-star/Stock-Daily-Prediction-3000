@@ -63,6 +63,17 @@ def main():
 
         ("actions_reliability_watchdog",Path(".github/workflows/actions-reliability-watchdog.yml").exists() and 'cron: "7,22,37,52 * * * *"' in Path(".github/workflows/actions-reliability-watchdog.yml").read_text() and "bounded recovery" in Path(".github/workflows/actions-reliability-watchdog.yml").read_text()),        ("failure_only_bounded_recovery","conclusion == 'failure'" in Path(".github/workflows/bounded-production-recovery.yml").read_text() and "conclusion == 'cancelled'" not in Path(".github/workflows/bounded-production-recovery.yml").read_text() and "run_attempt == 1" in Path(".github/workflows/bounded-production-recovery.yml").read_text()),        ("automation_heartbeat",Path(".github/workflows/heartbeat.yml").exists() and 'cron: "17 */6 * * *"' in Path(".github/workflows/heartbeat.yml").read_text()),        ("live_performance_gate","live_performance_gate.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/live_performance_gate.py").exists()),
         ("prediction_output_integrity","validate_prediction_output.py" in Path(".github/workflows/market-cycle.yml").read_text() and "validate_prediction_output.py" in Path(".github/workflows/us-close-prediction.yml").read_text() and Path("scripts/validate_prediction_output.py").exists()),
+        ("sec_research_isolation",
+         Path("scripts/sec_filings_research.py").exists()
+         and Path("scripts/run_sec_filing_ablation.py").exists()
+         and Path("src/research/sec_features.py").exists()
+         and "research_only" in Path("scripts/sec_filings_research.py").read_text()
+         and "production_changed" in Path("scripts/sec_filings_research.py").read_text()
+         and "research_only" in Path("scripts/run_sec_filing_ablation.py").read_text()
+         and "production_changed" in Path("scripts/run_sec_filing_ablation.py").read_text()
+         and "run_sec_filing_ablation.py" in Path(".github/workflows/market-cycle.yml").read_text()
+         and "src.research.sec_features" not in Path("scripts/run_daily_prediction.py").read_text()
+         and "SEC_FEATURE_COLUMNS" not in Path("scripts/run_daily_prediction.py").read_text()),
         ("monitoring_bounded_price_recovery",
          "Bounded price-state recovery after deferred quality" in Path(".github/workflows/prediction-monitoring.yml").read_text()
          and "Re-check data quality after bounded recovery" in Path(".github/workflows/prediction-monitoring.yml").read_text()
