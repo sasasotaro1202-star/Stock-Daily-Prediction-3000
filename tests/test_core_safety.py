@@ -916,12 +916,13 @@ def test_security_route_requires_per_fold_oos_evidence():
 
 
 
-def test_market_cycle_pushes_cancel_obsolete_queue_entries():
+def test_market_cycle_never_cancels_long_research_cycles():
     from pathlib import Path
 
     source = Path(".github/workflows/market-cycle.yml").read_text(encoding="utf-8")
-    assert "cancel-in-progress: ${{ github.event_name == 'push' }}" in source
-
+    assert "group: market-cycle" in source
+    assert "cancel-in-progress: false" in source
+    assert "superseded_workflow_sha" in source
 
 def test_market_context_persistence_filters_future_available_rows(tmp_path, monkeypatch):
     import json
