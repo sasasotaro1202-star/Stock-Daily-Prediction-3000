@@ -28,7 +28,7 @@ def test_past_outcomes_change_only_future_session_weights():
         "b": np.array([0.1, 0.1, 0.1, 0.1]),
     }
     y_good_a = np.array([1, 1, 1, 1], dtype=int)
-    y_bad_a = np.array([1, 1, 0, 0], dtype=int)
+    y_bad_a = np.array([0, 0, 1, 1], dtype=int)
 
     out1, _, _ = online_expert_average(
         predictions, y_good_a, dates, learning_rate=2.0
