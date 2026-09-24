@@ -43,11 +43,22 @@ def main():
         raise SystemExit(f"FAIL: invalid freeze status {lock.get('status')}")
 
     payload=json.loads(metrics.read_text(encoding="utf-8"))
+    selection_evidence = payload.get("global_selection_evidence", {})
+    if (
+        selection_evidence.get("status") != "SUPPORTED"
+        or selection_evidence.get("eligible_for_freeze") is not True
+        or selection_evidence.get("selected_model") != payload.get("selected_model")
+    ):
+        raise SystemExit(
+            "DEFERRED: global OOS model selection lacks statistically supported "
+            "paired-fold evidence; frozen production selection is not permitted"
+        )
     selected=payload.get("selected_model")
     if not selected:
         raise SystemExit("FAIL: OOS did not select a global model")
 
     lock["selected_model"]=selected
+    lock["global_selection_evidence"]=selection_evidence
     training_window=payload.get("classifier_training_window_sessions", 0)
     if not isinstance(training_window,(int,float)) or int(training_window) < 0:
         raise SystemExit("FAIL: OOS classifier training window is invalid")
