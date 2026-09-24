@@ -66,7 +66,7 @@ jobs:
             updated="$(printf '%s' "$run_json" | jq -r '.updated_at // empty')"
             updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
 
-            if [ "$status" = "queued" ] && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
+            if { [ "$status" = "queued" ] || [ "$status" = "pending" ]; } && [ "$updated_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff" ]; then
               if [ "$self_heal_queued" = "true" ]; then
                 stale_queued_found=true
                 echo "::warning title=$workflow_name queued stall::queued run $run_id has remained queued for over 30 minutes; cancelling stale queue entry"
