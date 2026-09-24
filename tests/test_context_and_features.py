@@ -73,3 +73,21 @@ def test_market_relative_momentum_features_are_causal_and_market_scoped():
     us = out[out["asset_class"].eq("us_stock")].iloc[-1]
     assert float(jp["market_median_ret_20d"]) != float(us["market_median_ret_20d"])
     assert set(out["market_family"].unique()) == {"jp", "us"}
+
+
+def test_cross_sectional_dispersion_context_is_available_and_causal():
+    frame = pd.DataFrame({
+        "session_date": pd.to_datetime(["2026-01-02"] * 12),
+        "market_family": ["jp"] * 12,
+        "asset_class": ["jp_stock"] * 12,
+        "symbol": [f"S{i}" for i in range(12)],
+        "ret_1d": np.linspace(-0.055, 0.055, 12),
+        "volatility_20": np.linspace(0.01, 0.04, 12),
+        "price_vs_sma20": np.zeros(12),
+        "volume_ratio_20": np.ones(12),
+        "range_pct": np.full(12, 0.02),
+        "ret_20d": np.zeros(12),
+    })
+    out = add_cross_sectional_context(frame)
+    assert float(out["market_dispersion_1d"].iloc[0]) > 0.0
+    assert float(out["market_ret_iqr_1d"].iloc[0]) > 0.0
