@@ -1033,4 +1033,35 @@ def test_near_production_reports_real_situation_labels():
     assert 'out["regime"] = regimes' in source
     assert 'out["market_situation"] = situations' in source
 
-\n\ndef test_production_artifact_accepts_oos_temperature_calibration():\n    from pathlib import Path\n\n    source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")\n    assert '"calibration_method") not in {"platt", "beta", "isotonic", "temperature"}' not in source\n    assert '"calibration_method") not in {' in source\n    assert '"temperature"' in source\n\ndef test_production_price_loaders_use_canonical_parquet():\n    from pathlib import Path\n\n    build = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")\n    now = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")\n    assert 'PRICE = Path("data/prices/canonical.parquet")' in build\n    assert 'PRICE_DIR = Path("data/prices/canonical.parquet")' in now\n\ndef test_production_artifact_validates_all_frozen_route_maps():\n    from pathlib import Path\n\n    source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")\n    for key in (\n        "regime_selected_models",\n        "asset_class_selected_models",\n        "asset_regime_selected_models",\n        "situation_selected_models",\n        "asset_situation_selected_models",\n        "symbol_selected_models",\n        "symbol_regime_selected_models",\n    ):\n        assert f'"{key}"' in source\n
+
+
+def test_production_artifact_accepts_oos_temperature_calibration():
+    from pathlib import Path
+
+    source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")
+    assert '"calibration_method") not in {"platt", "beta", "isotonic", "temperature"}' not in source
+    assert '"calibration_method") not in {' in source
+    assert '"temperature"' in source
+
+def test_production_price_loaders_use_canonical_parquet():
+    from pathlib import Path
+
+    build = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
+    now = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
+    assert 'PRICE = Path("data/prices/canonical.parquet")' in build
+    assert 'PRICE_DIR = Path("data/prices/canonical.parquet")' in now
+
+def test_production_artifact_validates_all_frozen_route_maps():
+    from pathlib import Path
+
+    source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")
+    for key in (
+        "regime_selected_models",
+        "asset_class_selected_models",
+        "asset_regime_selected_models",
+        "situation_selected_models",
+        "asset_situation_selected_models",
+        "symbol_selected_models",
+        "symbol_regime_selected_models",
+    ):
+        assert f'"{key}"' in source
