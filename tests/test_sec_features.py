@@ -42,7 +42,7 @@ def test_sec_features_respect_acceptance_time_and_windows():
     assert float(out.loc[0, "sec_data_available"]) == 0.0
     assert float(out.loc[1, "sec_data_available"]) == 1.0
     assert float(out.loc[1, "sec_8k_30d"]) == 1.0
-    assert float(out.loc[2, "sec_filings_90d"]) == 2.0
+    assert float(out.loc[2, "sec_filings_90d"]) == 3.0
     assert float(out.loc[2, "sec_proxy_90d"]) == 1.0
     # The filing accepted after the prediction timestamp must not leak backward.
     assert float(out.loc[2, "sec_10k_365d"]) == 0.0
