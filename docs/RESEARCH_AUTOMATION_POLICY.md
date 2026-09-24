@@ -27,3 +27,6 @@ Model routing:
 - Regime routing is a hypothesis generator, not proof of superiority.
 - Router rules and ensemble weights must be selected using training/OOS data only.
 - Frozen holdout results must never feed model selection.
+
+7. Statistical model-selection evidence.
+A new global production model is not frozen from the lowest point-estimate LogLoss alone. The selector records fold identity and compares the selected model with the strongest comparator on common chronological OOS folds. Freezing requires >=5 common folds, >=3% relative LogLoss improvement, and a Bonferroni-adjusted 95% paired confidence bound whose lower endpoint clears the required effect size. Insufficient evidence causes DEFERRED; frozen holdout remains excluded.
