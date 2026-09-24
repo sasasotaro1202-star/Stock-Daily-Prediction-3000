@@ -761,6 +761,23 @@ def main():
     # wrong, using only prior OOS prediction/context rows. It may shrink
     # overconfident probabilities, but never flips direction and never affects
     # the production artifact.
+    risk_cfg = pipeline_cfg.get("confidence_risk", {})
+    if risk_cfg.get("research_only", True) is not True:
+        raise SystemExit("FAIL: confidence risk layer must remain research-only")
+    risk_min_rows = int(risk_cfg.get("min_training_rows", 240))
+    risk_threshold = float(risk_cfg.get("risk_threshold", 0.60))
+    risk_max_shrink = float(risk_cfg.get("max_shrink", 0.35))
+    risk_min_relative = float(
+        risk_cfg.get("min_relative_oos_logloss_improvement", 0.03)
+    )
+    risk_min_positive_share = float(
+        risk_cfg.get("min_positive_fold_share", 0.70)
+    )
+    risk_min_bootstrap = float(
+        risk_cfg.get("min_bootstrap_probability", 0.90)
+    )
+    if not (0.0 <= risk_threshold < 1.0 and 0.0 <= risk_max_shrink <= 1.0):
+        raise SystemExit("FAIL: invalid confidence risk bounds")
     confidence_risk_research = {
         "status": "INSUFFICIENT_OOS",
         "method": "temporal_correctness_meta_model",
@@ -794,7 +811,7 @@ def main():
             if risk_history_x else np.empty((0, meta_features.shape[1])),
             np.asarray(risk_history_y, dtype=int)
             if risk_history_y else np.empty((0,), dtype=int),
-            min_rows=240,
+            min_rows=risk_min_rows,
         )
         risk = predicted_error_risk(selector, meta_features)
         y_fold = np.asarray(bank["y"], dtype=int)
@@ -804,7 +821,7 @@ def main():
         )
         adjusted = apply_confidence_risk_shrinkage(
             p_selected, risk, base_rate=base_rate,
-            risk_threshold=0.60, max_shrink=0.35,
+            risk_threshold=risk_threshold, max_shrink=risk_max_shrink,
         )
         raw_m = classification_metrics(y_fold, p_selected)
         adjusted_m = classification_metrics(y_fold, adjusted)
@@ -812,7 +829,7 @@ def main():
         risk_adjusted_rows.append(adjusted_m)
         risk_fold_deltas.append(float(raw_m["logloss"] - adjusted_m["logloss"]))
 
-        high = risk >= 0.60
+        high = risk >= risk_threshold
         if high.any() and np.unique(y_fold[high]).size >= 2:
             raw_high = classification_metrics(y_fold[high], p_selected[high])
             adj_high = classification_metrics(y_fold[high], adjusted[high])
@@ -907,9 +924,9 @@ def main():
             "bootstrap_p05_improvement": bootstrap_p05,
             "research_positive": bool(
                 len(fold_array) >= 5
-                and relative_logloss_improvement >= 0.03
-                and positive_fold_share >= 0.70
-                and bootstrap_probability >= 0.90
+                and relative_logloss_improvement >= risk_min_relative
+                and positive_fold_share >= risk_min_positive_share
+                and bootstrap_probability >= risk_min_bootstrap
                 and bootstrap_p05 > 0.0
                 and float(adjusted_risk["brier"] - raw_risk["brier"]) <= 0.001
                 and float(adjusted_risk["ece"] - raw_risk["ece"]) <= 0.0
