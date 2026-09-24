@@ -29,6 +29,7 @@ from src.research.router import (
     choose_from_oos,
     materially_better_than_parent,
     rebalance_global_oos_candidates,
+    situation_for_row,
 )
 from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
 from src.validation.training_sample import cap_training_rows
@@ -292,6 +293,7 @@ def main():
 
     model_results = {}
     regime_rows = {reg.value: [] for reg in Regime if reg is not Regime.DATA_STRESSED}
+    situation_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     asset_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     asset_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
@@ -394,6 +396,33 @@ def main():
                 ),
                 axis=1,
             )
+
+            situations = test.apply(
+                lambda x: situation_for_row(
+                    str(regime.loc[x.name]),
+                    gap_pct=float(x["gap_pct"]) if pd.notna(x["gap_pct"]) else None,
+                    volume_ratio_20=float(x["volume_ratio_20"]) if pd.notna(x["volume_ratio_20"]) else None,
+                    vix_level=float(x["vix_level_lag1"]) if pd.notna(x["vix_level_lag1"]) else None,
+                    breadth_up=float(x["breadth_up"]) if pd.notna(x["breadth_up"]) else None,
+                    price_vs_sma60=float(x["price_vs_sma60"]) if pd.notna(x["price_vs_sma60"]) else None,
+                ),
+                axis=1,
+            )
+            for situation_name in sorted(situations.dropna().unique()):
+                mask = situations.eq(situation_name)
+                subset = test.loc[mask]
+                if len(subset) < 30 or subset.target_up_1d.nunique() < 2:
+                    continue
+                sm = classification_metrics(
+                    subset.target_up_1d.astype(int), p[mask]
+                )
+                sm["rank_ic"] = cross_sectional_rank_ic(
+                    subset["target_ret_1d"].astype(float),
+                    p[mask],
+                    subset["session_date"].astype(str),
+                )
+                sm["n_test"] = float(mask.sum())
+                situation_rows.setdefault(str(situation_name), []).append((name, sm))
 
             for reg_name in regime.unique():
                 mask = regime.eq(reg_name)
@@ -511,6 +540,10 @@ def main():
     regime_metrics = {
         reg: aggregate_model_rows(rows)
         for reg, rows in regime_rows.items()
+    }
+    situation_metrics = {
+        situation: aggregate_model_rows(rows)
+        for situation, rows in situation_rows.items()
     }
     asset_class_metrics = {
         asset: aggregate_model_rows(rows)
@@ -1158,6 +1191,7 @@ def main():
         "results": model_results,
         "return_oos": return_oos,
         "regime_metrics": regime_metrics,
+        "situation_metrics": situation_metrics,
         "regime_selected_models": regime_selected,
         "asset_class_metrics": asset_class_metrics,
         "asset_class_selected_models": asset_selected,
