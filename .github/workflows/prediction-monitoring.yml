@@ -152,6 +152,7 @@ jobs:
           PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
           PRICE_STATE_AVAILABLE: ${{ steps.price_state.outputs.available }}
           DATA_QUALITY_STATUS: ${{ steps.data_quality.outputs.status }}
+          DATA_QUALITY_RETRY_STATUS: ${{ steps.data_quality_retry.outputs.status }}
         run: |
           mkdir -p data/research
           python - <<'PY'
@@ -159,11 +160,14 @@ jobs:
           from pathlib import Path
           import os
           data_quality_deferred = os.environ.get("DATA_QUALITY_STATUS") == "DEFERRED"
+          data_quality_retry_deferred = os.environ.get("DATA_QUALITY_RETRY_STATUS") == "DEFERRED"
           reason = (
               "price_state_restore_failed"
               if os.environ.get("PRICE_RESTORE_OK") != "true"
               else "price_state_unavailable"
               if os.environ.get("PRICE_STATE_AVAILABLE") != "true"
+              else "data_quality_deferred_after_bounded_recovery"
+              if data_quality_deferred and data_quality_retry_deferred
               else "data_quality_deferred"
               if data_quality_deferred
               else "monitoring_deferred"
