@@ -98,8 +98,53 @@ jobs:
             exit 0
           fi
           exit "$rc"
+      - name: Bounded price-state recovery after deferred quality
+        id: price_recovery
+        if: steps.data_quality.outputs.status == 'DEFERRED'
+        env:
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 2
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "monitor: bounded price recovery starting after deferred data quality"
+          for i in 0 1 2 3; do
+            echo "monitor: re-fetching price shard $i/4"
+            PRICE_SHARD_INDEX="$i" PRICE_SHARD_COUNT="$PRICE_SHARD_COUNT" PRICE_MAX_WORKERS="$PRICE_MAX_WORKERS" python scripts/update_prices.py
+          done
+          python scripts/normalize_price_store.py
+          python scripts/update_market_context.py
+
+      - name: Re-check data quality after bounded recovery
+        id: data_quality_retry
+        if: steps.data_quality.outputs.status == 'DEFERRED'
+        shell: bash
+        run: |
+          set +e
+          python scripts/data_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/data_quality.json ]; then
+            status="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
+          except Exception:
+              print('')
+          PY
+          )"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "DEFERRED" ]; then
+            echo "monitor data quality: still DEFERRED after bounded recovery"
+            exit 0
+          fi
+          exit "$rc"
+
       - name: Monitor realized outcomes
-        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality.outputs.status == 'DEFERRED' && steps.data_quality_retry.outputs.status != 'DEFERRED'
+        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED')
         run: python scripts/monitor_predictions.py
       - name: Record deferred monitoring state
         if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status == 'DEFERRED' && steps.data_quality_retry.outputs.status == 'DEFERRED')
