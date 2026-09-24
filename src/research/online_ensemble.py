@@ -30,8 +30,10 @@ def online_expert_average(
         raise ValueError("y_true and session_dates must be aligned 1-D arrays")
     if any(arr.ndim != 1 or len(arr) != len(y) for arr in arrays):
         raise ValueError("all expert predictions must match y_true length")
-    if len(y) == 0 or len(np.unique(y)) < 2:
-        raise ValueError("y_true must be non-empty and contain both classes")
+    if len(y) == 0:
+        raise ValueError("y_true must be non-empty")
+    if not np.isin(y, (0, 1)).all():
+        raise ValueError("y_true must contain only binary labels 0/1")
     if not np.isfinite(y.astype(float)).all():
         raise ValueError("y_true must be finite")
     if any(not np.isfinite(arr).all() for arr in arrays):
