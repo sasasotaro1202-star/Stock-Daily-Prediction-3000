@@ -26,5 +26,6 @@ jobs:
       - run: python -m compileall -q src scripts
       - run: pytest -q
       - run: python scripts/research_smoke.py
+      - run: python scripts/automation_invariants.py
       - name: Verify production invariants
         run: python scripts/production_invariants.py
