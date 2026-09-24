@@ -74,6 +74,12 @@ def main():
          and "run_sec_filing_ablation.py" in Path(".github/workflows/market-cycle.yml").read_text()
          and "src.research.sec_features" not in Path("scripts/run_daily_prediction.py").read_text()
          and "SEC_FEATURE_COLUMNS" not in Path("scripts/run_daily_prediction.py").read_text()),
+        ("confidence_risk_config",
+         "confidence_risk:" in pipe
+         and "research_only: true" in pipe
+         and "risk_threshold: 0.60" in pipe
+         and "max_shrink: 0.35" in pipe
+         and "min_training_rows: 240" in pipe),
         ("confidence_risk_research_isolation",
          Path("src/research/confidence_risk.py").exists()
          and "research-only" in Path("src/research/confidence_risk.py").read_text().lower()
