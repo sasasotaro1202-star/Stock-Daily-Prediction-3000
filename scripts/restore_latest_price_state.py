@@ -30,7 +30,16 @@ def main():
     name = f"price-state-shard-{idx}"
 
     query = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
-    payload = _get_json(query, token)
+    try:
+        payload = _get_json(query, token)
+    except HTTPError as exc:
+        if exc.code in {401, 403}:
+            print(
+                "price-state: GitHub artifact API authentication unavailable "
+                f"(HTTP {exc.code}); falling back to bounded fresh price fetch"
+            )
+            return
+        raise
 
     candidates = [
         a for a in payload.get("artifacts", [])

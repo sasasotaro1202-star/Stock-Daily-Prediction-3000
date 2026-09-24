@@ -33,6 +33,7 @@ def main() -> int:
     watchdog = _read("actions-reliability-watchdog.yml")
     heartbeat = _read("heartbeat.yml")
     recovery = _read("bounded-production-recovery.yml")
+    price_restore = str((WORKFLOWS.parent.parent / "scripts" / "restore_latest_price_state.py").read_text(encoding="utf-8"))
 
     # One canonical schedule per expensive/critical daily workflow. Missed
     # schedules are recovered by the watchdog rather than by duplicate cron
@@ -89,6 +90,8 @@ def main() -> int:
         "github.event.workflow_run.conclusion == 'cancelled'",
         "cancellation_triggered_recovery",
     )
+
+    _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
     # Guard against silently masking automation failures in the critical lane.
     for name, source in {
