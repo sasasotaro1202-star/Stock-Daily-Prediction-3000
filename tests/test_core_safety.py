@@ -1086,8 +1086,8 @@ def test_production_prediction_passes_current_situation_to_frozen_router():
 
     source = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
     assert "situation=situation," in source
-    assert "locked_asset_situation=frozen_routes.get('asset_situation_selected_models')" in source or "locked_asset_situation=frozen_routes.get("asset_situation_selected_models")" in source
-    assert "locked_situation=frozen_routes.get('situation_selected_models')" in source or "locked_situation=frozen_routes.get("situation_selected_models")" in source
+    assert ("locked_asset_situation=frozen_routes.get('asset_situation_selected_models')" in source or "locked_asset_situation=frozen_routes.get(\"asset_situation_selected_models\")" in source)
+    assert ("locked_situation=frozen_routes.get('situation_selected_models')" in source or "locked_situation=frozen_routes.get(\"situation_selected_models\")" in source)
 
 
 def test_frozen_holdout_uses_exact_situation_aware_router():
@@ -1096,6 +1096,6 @@ def test_frozen_holdout_uses_exact_situation_aware_router():
     source = Path("scripts/evaluate_frozen_holdout.py").read_text(encoding="utf-8")
     assert "situation_for_row(" in source
     assert "situation=situation," in source
-    assert "locked_asset_situation=frozen_routes.get('asset_situation_selected_models')" in source or "locked_asset_situation=frozen_routes.get("asset_situation_selected_models")" in source
-    assert "locked_situation=frozen_routes.get('situation_selected_models')" in source or "locked_situation=frozen_routes.get("situation_selected_models")" in source
+    assert ("locked_asset_situation=frozen_routes.get('asset_situation_selected_models')" in source or "locked_asset_situation=frozen_routes.get(\"asset_situation_selected_models\")" in source)
+    assert ("locked_situation=frozen_routes.get('situation_selected_models')" in source or "locked_situation=frozen_routes.get(\"situation_selected_models\")" in source)
 
