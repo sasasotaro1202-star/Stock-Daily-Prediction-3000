@@ -74,6 +74,11 @@ def main():
          and "run_sec_filing_ablation.py" in Path(".github/workflows/market-cycle.yml").read_text()
          and "src.research.sec_features" not in Path("scripts/run_daily_prediction.py").read_text()
          and "SEC_FEATURE_COLUMNS" not in Path("scripts/run_daily_prediction.py").read_text()),
+        ("confidence_risk_research_isolation",
+         Path("src/research/confidence_risk.py").exists()
+         and "research-only" in Path("src/research/confidence_risk.py").read_text().lower()
+         and "confidence_risk_research" in Path("scripts/run_daily_research.py").read_text()
+         and "src.research.confidence_risk" not in prediction),
         ("selective_probability_research_isolation",
          Path("src/research/selective.py").exists()
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
