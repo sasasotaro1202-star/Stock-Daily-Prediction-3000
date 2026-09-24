@@ -21,6 +21,7 @@ from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import aggregate_metric_rows, classification_metrics, cross_sectional_rank_ic
 from src.research.return_selection import choose_return_estimator
+from src.research.online_ensemble import online_expert_average
 from src.research.selective import (
     apply_confidence_shrinkage,
     select_confidence_shrinkage_parameters,
@@ -328,10 +329,11 @@ def main():
     symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     selective_rows_by_model: dict[str, list[dict[str, float]]] = {}
+    online_prediction_by_fold: dict[int, dict[str, object]] = {}
 
     for name, factory in make_models().items():
         fold_rows = []
-        for fold in folds:
+        for fold_idx, fold in enumerate(folds):
             train_dates = dates[: fold.train_end]
             cal_n = max(20, int(len(train_dates) * 0.2))
             core_dates = set(train_dates[:-cal_n])
@@ -374,6 +376,17 @@ def main():
             p = calibrator.predict(
                 model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             )
+
+            online_bank = online_prediction_by_fold.setdefault(
+                fold_idx,
+                {
+                    "session_dates": test["session_date"].to_numpy(copy=True),
+                    "y": test.target_up_1d.astype(int).to_numpy(copy=True),
+                    "predictions": {},
+                    "situations": None,
+                },
+            )
+            online_bank["predictions"][name] = np.asarray(p, dtype=float)
 
             # Research-only confidence shrinkage. Select parameters from
             # the fold-local calibration slice only; the OOS test slice remains
@@ -506,6 +519,9 @@ def main():
                         asm["n_test"] = float(asset_mask.sum())
                         key = f"{asset_class}::{situation_name}"
                         asset_situation_rows.setdefault(key, []).append((name, asm))
+
+            if online_bank["situations"] is None:
+                online_bank["situations"] = situations.to_numpy(dtype=str)
 
             for reg_name in regime.unique():
                 mask = regime.eq(reg_name)
@@ -676,6 +692,105 @@ def main():
         rank_ic_tiebreak_tolerance=rank_ic_tolerance,
     )
     global_selected = global_plan.names[0]
+
+    # Research-only online expert aggregation. Predictions for each session
+    # use weights learned strictly before that session. We update weights only
+    # after the whole session's outcomes are available, avoiding within-session
+    # leakage. Fixed learning rates form an ablation panel; none is selected
+    # from these same OOS test results.
+    online_expert_research = {}
+    for learning_rate in (0.5, 1.0, 2.0, 4.0):
+        fold_rows = []
+        situation_rows_online: dict[str, list[dict[str, float]]] = {}
+        for fold_idx in sorted(online_prediction_by_fold):
+            bank = online_prediction_by_fold[fold_idx]
+            predictions = bank["predictions"]
+            if len(predictions) < 2:
+                continue
+            try:
+                ensemble_p, final_weights, history = online_expert_average(
+                    predictions,
+                    bank["y"],
+                    bank["session_dates"],
+                    learning_rate=learning_rate,
+                )
+            except ValueError:
+                continue
+            y = np.asarray(bank["y"], dtype=int)
+            metrics = classification_metrics(y, ensemble_p)
+            metrics["rank_ic"] = cross_sectional_rank_ic(
+                y.astype(float),
+                ensemble_p,
+                pd.Series(bank["session_dates"]).astype(str).to_numpy(),
+            )
+            baseline = predictions.get(global_selected)
+            if baseline is not None:
+                baseline_ll = classification_metrics(y, baseline)["logloss"]
+                metrics["delta_logloss_vs_global_selected"] = float(
+                    baseline_ll - metrics["logloss"]
+                )
+            else:
+                metrics["delta_logloss_vs_global_selected"] = float("nan")
+            metrics["n_test"] = float(len(y))
+            metrics["fold"] = float(fold_idx)
+            metrics["learning_rate"] = float(learning_rate)
+            metrics["final_weight_max"] = float(np.max(final_weights))
+            metrics["final_weight_entropy"] = float(
+                -np.sum(final_weights * np.log(np.clip(final_weights, 1e-12, 1.0)))
+            )
+            metrics["online_sessions"] = float(len(history))
+            fold_rows.append(metrics)
+
+            situations = bank.get("situations")
+            if situations is not None:
+                situations = np.asarray(situations, dtype=str)
+                for situation_name in sorted(set(situations.tolist())):
+                    mask = situations == situation_name
+                    if mask.sum() < 30 or len(np.unique(y[mask])) < 2:
+                        continue
+                    sm = classification_metrics(y[mask], ensemble_p[mask])
+                    if baseline is not None:
+                        sm["delta_logloss_vs_global_selected"] = float(
+                            classification_metrics(y[mask], baseline[mask])["logloss"]
+                            - sm["logloss"]
+                        )
+                    sm["n_test"] = float(mask.sum())
+                    situation_rows_online.setdefault(situation_name, []).append(sm)
+
+        if fold_rows:
+            gains = np.asarray(
+                [r["delta_logloss_vs_global_selected"] for r in fold_rows],
+                dtype=float,
+            )
+            gains = gains[np.isfinite(gains)]
+            online_expert_research[str(learning_rate)] = {
+                "research_only": True,
+                "production_changed": False,
+                "promotion_allowed": False,
+                "learning_rate": float(learning_rate),
+                "selection_protocol": "fixed_learning_rate_chronological_online_update_after_each_session",
+                "test_tuning_allowed": False,
+                "folds": len(fold_rows),
+                "mean_logloss": float(np.mean([r["logloss"] for r in fold_rows])),
+                "logloss_std": float(np.std([r["logloss"] for r in fold_rows], ddof=1)) if len(fold_rows) >= 2 else 0.0,
+                "mean_logloss_improvement_vs_global_selected": float(np.mean(gains)) if len(gains) else 0.0,
+                "positive_fold_ratio_vs_global_selected": float(np.mean(gains > 0.0)) if len(gains) else 0.0,
+                "metrics_by_fold": fold_rows,
+                "situation_metrics": {
+                    key: {
+                        "folds": len(rows),
+                        "logloss": float(np.mean([r["logloss"] for r in rows])),
+                        "delta_logloss_vs_global_selected": float(
+                            np.nanmean([r.get("delta_logloss_vs_global_selected", np.nan) for r in rows])
+                        ),
+                        "n_test_min": float(min(r["n_test"] for r in rows)),
+                    }
+                    for key, rows in situation_rows_online.items()
+                },
+            }
+
+    # Do not tune or promote an online learning rate from these same OOS folds.
+    # A future promotion requires nested selection or a separate untouched period.
 
     # Each fold selects shrinkage hyperparameters from its calibration slice,
     # then evaluates once on an untouched chronological OOS test slice.
@@ -1479,6 +1594,7 @@ def main():
         "minimum_scoped_oos_improvement_logloss": scope_improvement,
         "ranking_weight_candidates": ranking_candidates,
         "selective_probability_research": selective_probability_research,
+        "online_expert_research": online_expert_research,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
