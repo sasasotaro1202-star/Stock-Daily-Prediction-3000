@@ -81,17 +81,23 @@ jobs:
       - name: Record deferred monitoring state
         if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true'
         env:
-          PRICE_RESTORE_OK: \${{ steps.restore_price.outputs.restore_ok }}
+          PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
         shell: bash
         run: |
           mkdir -p data/research
           python - <<'PY'
           import json
           from pathlib import Path
+          import os
+          reason = (
+              "price_state_restore_failed"
+              if os.environ.get("PRICE_RESTORE_OK") != "true"
+              else "price_state_unavailable"
+          )
           payload = {
               "status": "DEFERRED",
               "evaluated": 0,
-              "reason": "price_state_restore_failed",
+              "reason": reason,
               "production_action": "DEFERRED",
           }
           Path("data/research/monitor_latest.json").write_text(
