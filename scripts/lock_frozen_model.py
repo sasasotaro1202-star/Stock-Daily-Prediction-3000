@@ -53,7 +53,7 @@ def main():
         raise SystemExit("FAIL: OOS classifier training window is invalid")
     lock["classifier_training_window_sessions"]=int(training_window)
     calibration_method=payload.get("calibration_method", "platt")
-    if calibration_method not in {"platt", "beta", "isotonic"}:
+    if calibration_method not in {"platt", "beta", "isotonic", "temperature"}:
         raise SystemExit("FAIL: OOS did not produce a valid calibration method")
     lock["calibration_method"]=calibration_method
     rank_weight=payload.get("rank_probability_weight", 0.50)
