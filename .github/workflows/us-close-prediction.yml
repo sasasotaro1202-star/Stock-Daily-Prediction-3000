@@ -116,27 +116,36 @@ jobs:
         if: steps.research_state.outputs.available == 'true'
         run: python scripts/install_production_runtime.py
       - name: PayPay master catalog integrity
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/catalog_integrity.py
       - name: Canonicalize restored price store
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/normalize_price_store.py
       - name: Update free market context
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/update_market_context.py
       - name: Price data quality gate
+        if: steps.research_state.outputs.available == 'true'
         env:
           QUALITY_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/data_quality_gate.py
       - name: Production invariants
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/production_invariants.py
       - name: Approved research state compatibility
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/production_state_compatibility.py
       - name: Restore latest live monitoring state
+        if: steps.research_state.outputs.available == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/restore_latest_monitor_state.py
       - name: Live performance gate
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/live_performance_gate.py
       - name: Validate immutable production model artifact
+        if: steps.research_state.outputs.available == 'true'
         run: |
           python - <<'PY'
           from src.prediction.production_artifact import load_production_artifact
@@ -144,10 +153,12 @@ jobs:
           print("production-model-artifact: PASS")
           PY
       - name: Production prediction
+        if: steps.research_state.outputs.available == 'true'
         env:
           PREDICT_ASSET_CLASSES: us_stock,us_etf
         run: python scripts/run_daily_prediction.py
       - name: Validate production prediction output
+        if: steps.research_state.outputs.available == 'true'
         run: python scripts/validate_prediction_output.py
       - uses: actions/upload-artifact@v4
         with:
