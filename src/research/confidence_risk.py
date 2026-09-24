@@ -63,11 +63,18 @@ def confidence_risk_features(
     cols = [confidence, entropy, disagreement, expert_range, vote_conflict]
     if ctx.shape[1]:
         for j in range(min(ctx.shape[1], 11)):
-            cols.append(np.nan_to_num(ctx[:, j], nan=0.0, posinf=0.0, neginf=0.0))
+            raw = ctx[:, j]
+            finite = np.isfinite(raw)
+            # Missing context is not a directional zero. Use a bounded
+            # deterministic median fallback for numeric stability and expose
+            # the missingness state as a separate meta feature.
+            finite_values = raw[finite]
+            fill = float(np.median(finite_values)) if len(finite_values) else 0.0
+            value = np.where(finite, raw, fill)
+            cols.append(value)
+            cols.append((~finite).astype(float))
 
     out = np.column_stack(cols)
-    # Robustly clip only for the meta model; missing context was already made
-    # explicit to the caller and is not interpreted as directional information.
     out = np.where(np.isfinite(out), out, 0.0)
     return np.clip(out, -10.0, 10.0)
 
