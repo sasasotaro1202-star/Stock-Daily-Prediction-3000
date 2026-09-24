@@ -207,6 +207,12 @@ jobs:
         run: python scripts/bootstrap_frozen_holdout.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
+      - name: Collect free SEC filing research inputs
+        run: python scripts/sec_filings_research.py
+
+      - name: Run SEC filing OOS challenger ablation
+        run: python scripts/run_sec_filing_ablation.py
+
       - name: Lock model routing
         run: python scripts/lock_frozen_model.py
       - name: One-time frozen holdout evaluation
