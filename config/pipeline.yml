@@ -66,6 +66,15 @@ routing:
   min_training_rows_scoped: 500
   minimum_scoped_oos_improvement_logloss: 0.002
   fail_closed_on_data_stressed: true
+confidence_risk:
+  research_only: true
+  min_training_rows: 240
+  risk_threshold: 0.60
+  max_shrink: 0.35
+  min_relative_oos_logloss_improvement: 0.03
+  min_positive_fold_share: 0.70
+  min_bootstrap_probability: 0.90
+
 calibration:
   method: oos_selected
   candidates: [platt, beta, isotonic, temperature]
