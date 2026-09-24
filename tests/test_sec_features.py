@@ -73,3 +73,40 @@ def test_sec_feature_recency_is_monotone_until_next_filing():
     assert float(out.loc[1, "sec_days_since_filing"]) > float(
         out.loc[0, "sec_days_since_filing"]
     )
+
+
+def test_sec_features_preserve_original_row_alignment_when_prices_are_unsorted():
+    prices = pd.DataFrame(
+        {
+            "symbol": ["ABC", "ABC", "XYZ", "ABC"],
+            "asset_class": ["us_stock"] * 4,
+            "available_at": pd.to_datetime(
+                [
+                    "2026-03-15T20:00:00Z",
+                    "2026-01-10T20:00:00Z",
+                    "2026-03-15T20:00:00Z",
+                    "2026-01-01T20:00:00Z",
+                ],
+                utc=True,
+            ),
+        }
+    )
+    filings = pd.DataFrame(
+        {
+            "symbol": ["ABC", "XYZ"],
+            "asset_class": ["us_stock", "us_stock"],
+            "available_at": pd.to_datetime(
+                ["2026-01-05T15:00:00Z", "2026-03-14T15:00:00Z"],
+                utc=True,
+            ),
+            "form": ["8-K", "10-Q"],
+        }
+    )
+    out = add_sec_filing_features(prices, filings)
+    # Original row 0 is the late ABC observation and must see the filing;
+    # original row 3 predates it and must remain unavailable.
+    assert float(out.loc[0, "sec_data_available"]) == 1.0
+    assert float(out.loc[0, "sec_8k_30d"]) == 1.0
+    assert float(out.loc[1, "sec_data_available"]) == 1.0
+    assert float(out.loc[2, "sec_data_available"]) == 1.0
+    assert float(out.loc[3, "sec_data_available"]) == 0.0
