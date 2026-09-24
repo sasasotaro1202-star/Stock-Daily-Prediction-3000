@@ -11,7 +11,7 @@ def main():
     ap.add_argument("--predictions",default="data/predictions/latest.parquet")
     args=ap.parse_args()
     pred=Path(args.predictions)
-    bars=Path("data/prices")
+    bars=Path("data/prices/canonical.parquet")
     if not pred.exists() or not bars.exists():
         raise SystemExit("DEFERRED: predictions and price data required")
     result=evaluate_predictions(

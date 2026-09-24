@@ -1039,17 +1039,21 @@ def test_production_artifact_accepts_oos_temperature_calibration():
     from pathlib import Path
 
     source = Path("src/prediction/production_artifact.py").read_text(encoding="utf-8")
-    assert '"calibration_method") not in {"platt", "beta", "isotonic", "temperature"}' not in source
-    assert '"calibration_method") not in {' in source
-    assert '"temperature"' in source
+    assert 'meta.get("calibration_method") not in {"platt", "beta", "isotonic", "temperature"}' in source
+
 
 def test_production_price_loaders_use_canonical_parquet():
     from pathlib import Path
 
     build = Path("scripts/build_production_artifact.py").read_text(encoding="utf-8")
     now = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
+    prediction = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
+    backtest = Path("scripts/run_backtest.py").read_text(encoding="utf-8")
     assert 'PRICE = Path("data/prices/canonical.parquet")' in build
     assert 'PRICE_DIR = Path("data/prices/canonical.parquet")' in now
+    assert 'PRICE = Path("data/prices/canonical.parquet")' in prediction
+    assert 'bars=Path("data/prices/canonical.parquet")' in backtest
+
 
 def test_production_artifact_validates_all_frozen_route_maps():
     from pathlib import Path
@@ -1065,3 +1069,13 @@ def test_production_artifact_validates_all_frozen_route_maps():
         "symbol_regime_selected_models",
     ):
         assert f'"{key}"' in source
+
+
+def test_prediction_monitoring_is_deferred_when_price_state_is_unavailable():
+    from pathlib import Path
+
+    source = Path(".github/workflows/prediction-monitoring.yml").read_text(encoding="utf-8")
+    assert "steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true'" in source
+    assert "steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true'" in source
+    assert '"price_state_unavailable"' in source
+    assert 'data/research/monitor_latest.json' in source

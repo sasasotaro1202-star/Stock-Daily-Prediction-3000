@@ -76,10 +76,12 @@ jobs:
         if: steps.price_state.outputs.available == 'true'
         run: python scripts/data_quality_gate.py
       - name: Monitor realized outcomes
-        if: steps.restore_price.outputs.restore_ok == 'true'
+        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true'
         run: python scripts/monitor_predictions.py
       - name: Record deferred monitoring state
-        if: steps.restore_price.outputs.restore_ok != 'true'
+        if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true'
+        env:
+          PRICE_RESTORE_OK: \${{ steps.restore_price.outputs.restore_ok }}
         shell: bash
         run: |
           mkdir -p data/research
