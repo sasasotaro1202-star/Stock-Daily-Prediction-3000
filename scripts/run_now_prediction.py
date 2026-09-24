@@ -21,7 +21,7 @@ from src.validation.calibration import make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 
-PRICE_DIR = Path("data/prices")
+PRICE_DIR = Path("data/prices/canonical.parquet")
 OUT = Path("data/predictions/latest.parquet")
 FROZEN = Path("config/frozen_holdout.json")
 METRICS = Path("data/research/latest_metrics.json")

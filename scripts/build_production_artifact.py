@@ -29,7 +29,7 @@ from src.validation.code_fingerprint import fingerprint_sha256, research_fingerp
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 
-PRICE = Path("data/prices")
+PRICE = Path("data/prices/canonical.parquet")
 METRICS = Path("data/research/latest_metrics.json")
 GATE = Path("data/research/release_gate.json")
 FROZEN = Path("config/frozen_holdout.json")

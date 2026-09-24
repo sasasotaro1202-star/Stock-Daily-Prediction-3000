@@ -52,7 +52,7 @@ def _validate_artifact_structure(
     selected = meta.get("selected_model")
     if selected not in classifiers:
         raise RuntimeError("production model artifact selected model is missing")
-    for route_key in ("symbol_selected_models", "symbol_regime_selected_models"):
+    for route_key in (\n        "regime_selected_models",\n        "asset_class_selected_models",\n        "asset_regime_selected_models",\n        "situation_selected_models",\n        "asset_situation_selected_models",\n        "symbol_selected_models",\n        "symbol_regime_selected_models",\n    ):
         route_map = meta.get(route_key)
         if route_map is None:
             continue
@@ -78,7 +78,7 @@ def _validate_artifact_structure(
         raise RuntimeError("production return estimator artifacts are incomplete")
     if meta.get("return_selected_estimator") != return_section.get("selected"):
         raise RuntimeError("production return estimator metadata mismatch")
-    if meta.get("calibration_method") not in {"platt", "beta", "isotonic"}:
+    if meta.get("calibration_method") not in {"platt", "beta", "isotonic", "temperature"}:
         raise RuntimeError("production calibration method is invalid")
 
 
