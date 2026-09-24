@@ -667,6 +667,27 @@ def main():
     rank_ic_tolerance = float(
         model_cfg.get("rank_ic_tiebreak_tolerance", 0.002)
     )
+    selection_evidence_min_folds = int(
+        model_cfg.get("selection_evidence_min_common_oos_folds", 5)
+    )
+    selection_evidence_min_relative_improvement = float(
+        model_cfg.get("selection_evidence_min_relative_improvement", 0.03)
+    )
+    selection_evidence_alpha = float(
+        model_cfg.get("selection_evidence_alpha", 0.05)
+    )
+    if selection_evidence_min_folds < 5:
+        raise SystemExit(
+            "FAIL: selection evidence requires at least 5 common OOS folds"
+        )
+    if selection_evidence_min_relative_improvement < 0.03:
+        raise SystemExit(
+            "FAIL: selection evidence relative improvement floor cannot be below 3%"
+        )
+    if not 0.0 < selection_evidence_alpha <= 0.05:
+        raise SystemExit(
+            "FAIL: selection evidence alpha must be in (0, 0.05]"
+        )
 
     routing_cfg = pipeline_cfg.get("routing", {})
     scope_improvement = float(
@@ -710,9 +731,9 @@ def main():
         balanced_candidates,
         global_selection_fold_rows,
         trial_count=max(1, len(balanced_candidates)),
-        min_folds=5,
-        min_relative_improvement=0.03,
-        alpha=0.05,
+        min_folds=selection_evidence_min_folds,
+        min_relative_improvement=selection_evidence_min_relative_improvement,
+        alpha=selection_evidence_alpha,
     )
 
     # Research-only online expert aggregation. Predictions for each session
