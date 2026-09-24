@@ -41,6 +41,16 @@ jobs:
           conclusion="$(jq -r '.workflow_run.conclusion' "$GITHUB_EVENT_PATH")"
           current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
 
+          # Never create a second execution when the current SHA already has
+          # a queued/in-progress run. GitHub keeps only one pending run per
+          # concurrency group, so dispatching here can replace useful work.
+          existing="$(gh run list             --repo "$GITHUB_REPOSITORY"             --workflow "$workflow_name"             --branch main             --limit 20             --json headSha,status             --jq '.[] | select(.headSha == "'$current_sha'" and (.status == "queued" or .status == "in_progress"))')"
+
+          if [ -n "$existing" ]; then
+            echo "current-main-run-already-active=true"
+            exit 0
+          fi
+
           if [ "$failed_sha" = "$current_sha" ]; then
             echo "recovery-mode=rerun-current-sha workflow=$workflow_name conclusion=$conclusion"
             gh run rerun "$workflow_id" --repo "$GITHUB_REPOSITORY"
