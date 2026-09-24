@@ -24,7 +24,8 @@ def main():
     root=Path("data/prices")
     if not root.exists():
         raise SystemExit("DEFERRED: price directory missing")
-    files=sorted(root.glob("*.parquet"))
+    canonical=root / "canonical.parquet"
+    files=[canonical] if canonical.exists() else sorted(root.glob("*.parquet"))
     if not files:
         raise SystemExit("DEFERRED: no price partitions")
     if not UNIVERSE.exists():
