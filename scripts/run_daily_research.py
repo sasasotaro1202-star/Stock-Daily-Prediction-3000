@@ -863,12 +863,37 @@ def main():
                     [r["adjusted_accuracy"] for r in risk_high_rows], weights=weights
                 )),
             }
+        fold_array = np.asarray(risk_fold_deltas, dtype=float)
+        bootstrap_probability = 0.0
+        bootstrap_p05 = float("-inf")
+        if len(fold_array) >= 5 and np.isfinite(fold_array).all():
+            rng = np.random.default_rng(20260925)
+            idx = rng.integers(0, len(fold_array), size=(2000, len(fold_array)))
+            boot = fold_array[idx].mean(axis=1)
+            bootstrap_probability = float(np.mean(boot > 0.0))
+            bootstrap_p05 = float(np.quantile(boot, 0.05))
+        positive_fold_share = (
+            float(np.mean(fold_array > 0.0)) if len(fold_array) else 0.0
+        )
+        relative_logloss_improvement = (
+            float(
+                (raw_risk["logloss"] - adjusted_risk["logloss"])
+                / max(abs(raw_risk["logloss"]), 1e-9)
+            )
+        )
+        high_risk_improvement = (
+            bool(
+                high_summary
+                and high_summary["adjusted_logloss"] <= high_summary["raw_logloss"]
+            )
+        )
         confidence_risk_research.update({
             "raw_oos": raw_risk,
             "risk_adjusted_oos": adjusted_risk,
             "logloss_improvement": float(
                 raw_risk["logloss"] - adjusted_risk["logloss"]
             ),
+            "relative_logloss_improvement": relative_logloss_improvement,
             "brier_improvement": float(
                 raw_risk["brier"] - adjusted_risk["brier"]
             ),
@@ -877,10 +902,25 @@ def main():
             ),
             "high_risk_cases": high_summary,
             "fold_logloss_improvements": [float(x) for x in risk_fold_deltas],
+            "positive_fold_share": positive_fold_share,
+            "bootstrap_probability_improvement": bootstrap_probability,
+            "bootstrap_p05_improvement": bootstrap_p05,
+            "research_positive": bool(
+                len(fold_array) >= 5
+                and relative_logloss_improvement >= 0.03
+                and positive_fold_share >= 0.70
+                and bootstrap_probability >= 0.90
+                and bootstrap_p05 > 0.0
+                and float(adjusted_risk["brier"] - raw_risk["brier"]) <= 0.001
+                and float(adjusted_risk["ece"] - raw_risk["ece"]) <= 0.0
+                and high_risk_improvement
+            ),
             "policy": (
                 "research_only; expanding chronological meta-learning; "
                 "current-fold outcomes enter history only after scoring; "
-                "high-risk predictions shrink toward prior base rate; no contrarian flip"
+                "high-risk predictions shrink toward prior base rate; no contrarian flip; "
+                "positive status requires >=3% relative OOS LogLoss improvement, "
+                ">=70% positive folds, stable bootstrap evidence, and no material calibration harm"
             ),
         })
 
