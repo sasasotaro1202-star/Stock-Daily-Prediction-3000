@@ -230,6 +230,7 @@ jobs:
             fi
 
             local recovered_queue=false
+            local current_sha_queued=false
             local idx
             for idx in "${!queued_ids[@]}"; do
               local run_id="${queued_ids[$idx]}"
@@ -240,7 +241,10 @@ jobs:
               if [[ "$head_sha" != "$current_sha" ]]; then
                 should_cancel=true
                 echo "::warning title=${workflow_name} stale queued SHA::queued run $run_id targets superseded SHA $head_sha; current=$current_sha"
-              elif [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff_epoch" ]; then
+              else
+                current_sha_queued=true
+              fi
+              if [ "$should_cancel" = false ] && [ "$head_sha" = "$current_sha" ] && [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff_epoch" ]; then
                 should_cancel=true
                 echo "::warning title=${workflow_name} stale queued run::current-SHA run $run_id has remained queued for over 30 minutes"
               fi
@@ -257,7 +261,9 @@ jobs:
             done
 
             if [ "$recovered_queue" = true ]; then
-              if gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+              if [ "$current_sha_queued" = true ]; then
+                echo "${workflow_name}: current-SHA queued run already exists after stale queue cleanup; suppressing duplicate dispatch"
+              elif gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
                 echo "${workflow_name}: fresh main-branch run dispatched after stale queue cleanup"
               else
                 echo "::error title=${workflow_name} queued recovery dispatch failed::unable to dispatch fresh main-branch run"
