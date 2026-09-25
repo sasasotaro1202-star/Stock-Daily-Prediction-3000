@@ -242,7 +242,8 @@ def main() -> int:
         watchdog,
         'active_run_started_epoch="$(date -d "$run_started" +%s 2>/dev/null || echo 0)"',
         "watchdog_research_hard_age_source",
-    )    _assert_once(
+    )
+    _assert_once(
         watchdog,
         "Only the newest watchdog should execute",
         "watchdog_latest_run_wins_comment",
