@@ -167,7 +167,9 @@ jobs:
             local now_epoch
             now_epoch="$(date -u +%s)"
             local research_stale_epoch
-            research_stale_epoch="$((now_epoch - 170 * 60))"
+            # Research OOS has a 180-minute hard timeout; cancel runs after 150 minutes
+            # without progress so a stalled/superseded run cannot block the current-head queue.
+            research_stale_epoch="$((now_epoch - 150 * 60))"
             local queued_cutoff_epoch
             queued_cutoff_epoch="$((now_epoch - 30 * 60))"
             local active_run_id=""
