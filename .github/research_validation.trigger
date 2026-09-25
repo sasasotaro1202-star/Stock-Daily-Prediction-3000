@@ -1,2 +1,2 @@
-commit=a4ce6df470e1a642b502e59d0971e328ce80a0de
-purpose=run chronological OOS comparison after adaptive conformal audit and regression-test corrections
+commit=05162cca2bf21cf7791aa5e089683a19747195ba
+purpose=run chronological OOS comparison after fail-fast conformal validation and research snapshot persistence
