@@ -99,12 +99,14 @@ jobs:
             echo "universe_ready=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Restore prediction history
+        if: steps.universe_state.outputs.universe_ready == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: python scripts/restore_prediction_history.py
       - name: Restore current price state
         id: restore_price
+        if: steps.universe_state.outputs.universe_ready == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -126,6 +128,7 @@ jobs:
           fi
       - name: Determine restored price availability
         id: price_state
+        if: steps.universe_state.outputs.universe_ready == 'true'
         shell: bash
         run: |
           if [ "${{ steps.restore_price.outputs.restore_ok }}" = "true" ] && compgen -G "data/prices/*.parquet" > /dev/null; then
@@ -174,18 +177,46 @@ jobs:
           PRICE_MAX_WORKERS: 2
         shell: bash
         run: |
-          set -euo pipefail
-          echo "monitor: bounded price recovery starting after deferred data quality"
+          set +e
+          recovery_failed=0
           for i in 0 1 2 3; do
             echo "monitor: re-fetching price shard $i/4"
             PRICE_SHARD_INDEX="$i" PRICE_SHARD_COUNT="$PRICE_SHARD_COUNT" PRICE_MAX_WORKERS="$PRICE_MAX_WORKERS" python scripts/update_prices.py
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+              recovery_failed=1
+              echo "monitor: price shard $i failed rc=$rc"
+            fi
           done
+          if [ "$recovery_failed" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=price_shard_update_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED"
+            exit 0
+          fi
           python scripts/normalize_price_store.py
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=price_normalization_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED (normalization failed)"
+            exit 0
+          fi
           python scripts/update_market_context.py
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=market_context_update_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED (market context update failed)"
+            exit 0
+          fi
+          set -e
+          echo "recovery_ok=true" >> "$GITHUB_OUTPUT"
+          echo "recovery_reason=bounded_recovery_passed" >> "$GITHUB_OUTPUT"
 
       - name: Re-check data quality after bounded recovery
         id: data_quality_retry
-        if: steps.data_quality.outputs.status == 'DEFERRED'
+        if: steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok == 'true'
         shell: bash
         run: |
           set +e
@@ -212,6 +243,7 @@ jobs:
           exit "$rc"
 
       - name: Accumulate prediction experience
+        if: steps.universe_state.outputs.universe_ready == 'true' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status == 'PASS' || steps.data_quality_retry.outputs.status == 'PASS')
         run: python scripts/monitor_predictions.py
 
       - name: Record deferred monitoring state
