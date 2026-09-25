@@ -98,6 +98,8 @@ jobs:
           path: data/universe
       - name: Update free market context
         run: python scripts/update_market_context.py
+      - name: Automation invariant preflight
+        run: python scripts/automation_invariants.py
       - name: PayPay master catalog integrity
         run: python scripts/catalog_integrity.py
       - name: Canonicalize price store
@@ -132,6 +134,7 @@ jobs:
             data/research/sec_filings_research.json
             data/research/sec_filing_ablation.json
             data/research/cpcv_validation_audit.json
+            data/research/universe_quality.json
           retention-days: 14
       - name: Persist lightweight research snapshot
         env:
@@ -152,4 +155,30 @@ jobs:
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
+
+      - name: Persist research validation status
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          RESEARCH_STEP_OUTCOME: ${{ steps.research.outputs.outcome }}
+          SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outputs.outcome }}
+          SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outputs.outcome }}
+          CPCV_STEP_OUTCOME: ${{ steps.cpcv.outputs.outcome }}
+        run: python scripts/persist_research_validation_status.py
+
+      - name: Commit research status evidence
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/research_validation_status.json
+          git diff --cached --quiet && exit 0
+          git commit -m "Persist research validation status"
+          if ! git push origin HEAD:main; then
+            git fetch origin main
+            git rebase origin/main
+            git push origin HEAD:main
+          fi
           fi
