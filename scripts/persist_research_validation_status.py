@@ -71,7 +71,14 @@ def _step_conclusion(job: dict, needle: str) -> str:
 def main() -> int:
     job, lookup_error = _lookup_research_job()
     artifacts, artifact_error = _lookup_run_artifacts()
-    conclusion = str(job.get("conclusion") or job.get("status") or "unknown")
+    workflow_conclusion = str(os.environ.get("RESEARCH_WORKFLOW_CONCLUSION", "")).strip()
+    conclusion = str(job.get("conclusion") or job.get("status") or workflow_conclusion or "unknown")
+    # A workflow can be cancelled before the research job is created. That is
+    # a valid terminal state, not an API failure. For every other conclusion,
+    # a missing research job remains fail-closed.
+    effective_lookup_error = lookup_error
+    if lookup_error == "research_job_not_found" and workflow_conclusion in {"cancelled", "skipped"}:
+        effective_lookup_error = None
     evidence_name = f"research-validation-evidence-{os.environ.get('RESEARCH_WORKFLOW_RUN_ID') or os.environ.get('GITHUB_RUN_ID', '')}"
     status = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -86,15 +93,15 @@ def main() -> int:
             str(item.get("name", "")) == evidence_name and not item.get("expired", False)
             for item in artifacts
         ),
-        "status_lookup_ok": lookup_error is None and artifact_error is None,
-        "status_lookup_error": lookup_error,
+        "status_lookup_ok": effective_lookup_error is None and artifact_error is None,
+        "status_lookup_error": effective_lookup_error or lookup_error,
         "artifact_lookup_error": artifact_error,
     }
     out = Path("artifacts/research_validation_status.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(status, indent=2, sort_keys=True), encoding="utf-8")
-    if lookup_error is not None or artifact_error is not None:
-        raise SystemExit(f"FAIL: research status lookup: {lookup_error or artifact_error}")
+    if effective_lookup_error is not None or artifact_error is not None:
+        raise SystemExit(f"FAIL: research status lookup: {effective_lookup_error or artifact_error}")
     return 0
 
 
