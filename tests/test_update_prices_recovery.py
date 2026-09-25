@@ -82,3 +82,40 @@ def test_deep_split_recovery_reaches_bounded_leaf_depth_three():
     assert len(result) == 35
     assert "S0" not in set(result["symbol"])
     assert any(len(batch) == 5 and "S0" in batch for batch in calls)
+
+
+def test_partial_download_recovers_missing_keys_by_split():
+    calls = []
+
+    def fake_download(records, period="5y"):
+        calls.append([r["symbol"] for r in records])
+        if len(records) == 20:
+            return _frame(records[:10])
+        return _frame(records)
+
+    result = update_prices.fetch_resilient(
+        _records(20),
+        "5y",
+        downloader=fake_download,
+        sleep_fn=lambda _: None,
+    )
+
+    assert len(result) == 20
+    assert set(result["symbol"]) == {f"S{i}" for i in range(20)}
+    assert calls[0] == [f"S{i}" for i in range(20)]
+    assert any(len(batch) == 10 and batch == [f"S{i}" for i in range(10, 20)] for batch in calls)
+
+
+def test_small_partial_download_remains_deferred_at_bounded_leaf():
+    def fake_download(records, period="5y"):
+        return _frame(records[:-5])
+
+    result = update_prices.fetch_resilient(
+        _records(10),
+        "5y",
+        downloader=fake_download,
+        sleep_fn=lambda _: None,
+    )
+
+    assert len(result) == 5
+    assert set(result["symbol"]) == {f"S{i}" for i in range(5)}

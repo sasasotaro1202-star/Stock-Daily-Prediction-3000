@@ -82,6 +82,37 @@ def fetch_resilient(
             )
             data = pd.DataFrame()
         if not data.empty:
+            if {"asset_class", "symbol"}.issubset(data.columns):
+                observed_keys = {
+                    (str(asset_class), str(symbol))
+                    for asset_class, symbol in zip(
+                        data["asset_class"].astype(str),
+                        data["symbol"].astype(str),
+                    )
+                }
+                missing_records = [
+                    rec
+                    for rec in records
+                    if (str(rec["asset_class"]), str(rec["symbol"])) not in observed_keys
+                ]
+                if missing_records and depth < 3 and len(missing_records) > 5:
+                    recovered = fetch_resilient(
+                        missing_records,
+                        period,
+                        depth=depth + 1,
+                        downloader=fetcher,
+                        sleep_fn=sleep_fn,
+                    )
+                    if not recovered.empty:
+                        print(
+                            f"price-download-partial-recovery period={period} "
+                            f"requested={len(records)} "
+                            f"returned={len(observed_keys)} "
+                            f"missing={len(missing_records)} "
+                            f"recovered_rows={len(recovered)} "
+                            f"depth={depth}"
+                        )
+                        data = pd.concat([data, recovered], ignore_index=True)
             return data
         if attempt < attempts - 1:
             sleep_fn(2 ** attempt)
