@@ -30,6 +30,9 @@ from src.research.blend_prediction_cache import (
     CACHEABLE_BLEND_COMPONENTS,
     resolve_cached_blend_predictions,
 )
+from src.research.online_baseline_cache import (
+    build_baseline_logloss_cache,
+)
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
@@ -1248,6 +1251,11 @@ def main():
     # leakage. Learning-rate/share-rate panels are ablations only; none is
     # selected from these same OOS test results.
     online_expert_research = {}
+    baseline_fold_logloss, baseline_situation_logloss = build_baseline_logloss_cache(
+        online_prediction_by_fold,
+        global_selected,
+        classification_metrics,
+    )
     for learning_rate in (0.5, 1.0, 2.0, 4.0):
         for share_rate in (0.0, 0.02, 0.05, 0.10):
             fold_rows = []
@@ -1278,7 +1286,7 @@ def main():
                 )
                 baseline = predictions.get(global_selected)
                 if baseline is not None:
-                    baseline_ll = classification_metrics(y, baseline)["logloss"]
+                    baseline_ll = baseline_fold_logloss.get(fold_idx)
                     metrics["delta_logloss_vs_global_selected"] = float(
                         baseline_ll - metrics["logloss"]
                     )
@@ -1304,9 +1312,11 @@ def main():
                             continue
                         sm = classification_metrics(y[mask], ensemble_p[mask])
                         if baseline is not None:
+                            baseline_situation_ll = baseline_situation_logloss.get(
+                                (fold_idx, situation_name)
+                            )
                             sm["delta_logloss_vs_global_selected"] = float(
-                                classification_metrics(y[mask], baseline[mask])["logloss"]
-                                - sm["logloss"]
+                                baseline_situation_ll - sm["logloss"]
                             )
                         sm["n_test"] = float(mask.sum())
                         situation_rows_online.setdefault(situation_name, []).append(sm)
@@ -1375,15 +1385,16 @@ def main():
                 ) from exc
             y = np.asarray(bank["y"], dtype=int)
             baseline = predictions.get(global_selected)
+            ensemble_metrics = classification_metrics(y, ensemble_p)
             gain = (
-                classification_metrics(y, baseline)["logloss"]
-                - classification_metrics(y, ensemble_p)["logloss"]
+                baseline_fold_logloss.get(fold_idx, float("nan"))
+                - ensemble_metrics["logloss"]
                 if baseline is not None else float("nan")
             )
             fold_rows.append({
                 "fold": float(fold_idx),
                 "n_test": float(len(y)),
-                "logloss": float(classification_metrics(y, ensemble_p)["logloss"]),
+                "logloss": float(ensemble_metrics["logloss"]),
                 "delta_logloss_vs_global_selected": float(gain),
                 "learning_rate": float(learning_rate),
                 "share_rate": 0.05,
