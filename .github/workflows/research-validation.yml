@@ -104,6 +104,9 @@ jobs:
         run: python scripts/data_quality_gate.py
       - name: Independent raw-input PIT leakage audit
         run: python scripts/run_independent_leakage_audit.py
+      - name: Fail-fast conformal unit tests
+        run: pytest -q tests/test_conformal_classification.py
+
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
       - name: Collect free SEC filing research inputs
