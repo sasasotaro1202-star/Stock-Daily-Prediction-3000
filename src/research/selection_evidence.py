@@ -4,6 +4,8 @@ from math import isfinite, sqrt
 from statistics import NormalDist
 from typing import Iterable, Mapping
 
+from .statistics import moving_block_bootstrap_mean
+
 
 def _selection_score(metric: Mapping[str, object]) -> float:
     mean = float(
@@ -119,18 +121,26 @@ def paired_logloss_selection_evidence(
         abs(comparator_mean) * float(min_relative_improvement),
     )
 
+    block_bootstrap_probability, block_bootstrap_p05 = moving_block_bootstrap_mean(
+        differences,
+        n_bootstrap=4000,
+        seed=20260925,
+    )
+
     eligible = bool(
         isfinite(mean_gain)
         and isfinite(relative_improvement)
         and relative_improvement >= float(min_relative_improvement)
         and ci_lower >= required_gain
+        and block_bootstrap_probability >= 0.90
+        and block_bootstrap_p05 >= required_gain
     )
     status = "SUPPORTED" if eligible else "NOT_SIGNIFICANT"
 
     return {
         "status": status,
         "eligible_for_freeze": eligible,
-        "method": "paired_oos_fold_logloss_ci_bonferroni",
+        "method": "paired_oos_fold_logloss_ci_bonferroni_plus_moving_block_bootstrap",
         "selected_model": str(selected_model),
         "comparator_model": str(comparator_model),
         "common_folds": int(n),
@@ -147,11 +157,16 @@ def paired_logloss_selection_evidence(
         "paired_logloss_se": float(se),
         "ci_lower": float(ci_lower),
         "ci_upper": float(ci_upper),
+        "block_bootstrap_probability_improvement": float(block_bootstrap_probability),
+        "block_bootstrap_p05_improvement": float(block_bootstrap_p05),
+        "block_bootstrap_block_length": int(max(1, min(len(differences), int(__import__("math").ceil(len(differences) ** (1.0 / 3.0)))))),
         "required_relative_improvement": float(min_relative_improvement),
         "required_absolute_improvement": float(required_gain),
         "evidence_note": (
             "Paired differences use only common chronological OOS folds. "
             "The frozen/blind holdout is excluded. This is a conservative "
-            "selection-evidence gate, not a guarantee of future performance."
+            "selection-evidence gate, not a guarantee of future performance. "
+            "The moving-block bootstrap preserves local chronological dependence "
+            "when assessing uncertainty across OOS folds."
         ),
     }
