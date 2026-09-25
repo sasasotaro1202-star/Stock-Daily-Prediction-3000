@@ -50,6 +50,15 @@ def test_unknown_or_future_acceptance_is_excluded():
     assert rows[0]["accession_number"] == "c"
 
 
+def test_sec_date_only_sources_exclude_collection_day_for_pit():
+    mod = importlib.import_module("scripts.sec_filings_research")
+    start_date, end_date = mod._conservative_filing_window(
+        pd.Timestamp("2026-09-25T12:00:00Z")
+    )
+    assert str(start_date) == "2025-09-24"
+    assert str(end_date) == "2026-09-24"
+
+
 def test_sec_collector_is_research_only():
     source = Path("scripts/sec_filings_research.py").read_text(encoding="utf-8")
     assert "research_only" in source
@@ -304,9 +313,6 @@ def test_sec_efts_uses_curl_on_direct_403(monkeypatch):
 
 def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
     mod = importlib.import_module("scripts.sec_filings_research")
-    import io
-    import zipfile
-
     raw = (
         "Description: Master Index of EDGAR Dissemination Feed\n"
         "Last Data Received: 2026-09-24\n"
@@ -316,10 +322,6 @@ def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
         "320193|APPLE INC|10-Q|2026-09-25|edgar/data/320193/000032019326000002/aapl10q.htm\n"
         "320193|APPLE INC|4|2026-09-24|edgar/data/320193/000032019326000003/form4.xml\n"
     ).encode("latin-1")
-    buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
-        zf.writestr("master.idx", raw)
-
     monkeypatch.setattr(mod, "_quarter_keys", lambda start_date, end_date: [(2026, 3)])
     monkeypatch.setattr(mod, "_get_master_index_text", lambda url: (raw.decode("latin-1"), "test_fixture"))
 
@@ -336,8 +338,8 @@ def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
         collected,
     )
 
-    assert diagnostics == {"2026Q3": 2}
-    assert [row["form"] for row in rows] == ["8-K", "10-Q"]
+    assert diagnostics == {"2026Q3": 1}
+    assert [row["form"] for row in rows] == ["8-K"]
     assert rows[0]["available_at_method"] == "filing_date_eod_conservative"
     assert rows[0]["acceptance_datetime"] == ""
     assert rows[0]["available_at"] == "2026-09-25T03:59:59.999999+00:00"
