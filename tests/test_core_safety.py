@@ -679,13 +679,13 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
     )
     assert _has_approved_production_state(research) is True
 
-def test_actions_watchdog_is_hourly_and_fail_visible():
+def test_actions_watchdog_is_frequent_and_fail_visible():
     from pathlib import Path
 
     source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
         encoding="utf-8"
     )
-    assert 'cron: "7,22,37,52 * * * *"' in source
+    assert 'cron: "*/5 * * * *"' in source
     assert "actions: write" in source
     assert "96 hours ago" in source
     assert "bounded recovery" in source
