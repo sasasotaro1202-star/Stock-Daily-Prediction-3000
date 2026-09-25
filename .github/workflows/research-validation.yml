@@ -1,0 +1,128 @@
+name: Research validation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/research_validation.trigger"
+      - ".github/workflows/research-validation.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: research-validation
+  cancel-in-progress: false
+
+jobs:
+  restore-universe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore latest official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_universe_state.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: research-validation-universe-${{ github.run_id }}
+          path: data/universe/latest.json
+          retention-days: 3
+
+  price-shards:
+    needs: restore-universe
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - uses: actions/download-artifact@v7
+        with:
+          name: research-validation-universe-${{ github.run_id }}
+          path: data/universe
+      - name: Restore previous price state
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_price_state.py
+      - name: Update assigned price shard
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 2
+        run: python scripts/update_prices.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: research-validation-price-${{ matrix.shard }}-${{ github.run_id }}
+          path: data/prices/
+          retention-days: 3
+
+  research:
+    needs: price-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[research]"
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: research-validation-price-*-${{ github.run_id }}
+          path: data/prices
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          name: research-validation-universe-${{ github.run_id }}
+          path: data/universe
+      - name: Update free market context
+        run: python scripts/update_market_context.py
+      - name: PayPay master catalog integrity
+        run: python scripts/catalog_integrity.py
+      - name: Canonicalize price store
+        run: python scripts/normalize_price_store.py
+      - name: Universe quality gate
+        run: python scripts/universe_quality_gate.py
+      - name: Price data quality gate
+        run: python scripts/data_quality_gate.py
+      - name: Independent raw-input PIT leakage audit
+        run: python scripts/run_independent_leakage_audit.py
+      - name: Chronological OOS research
+        run: python scripts/run_daily_research.py
+      - name: Collect free SEC filing research inputs
+        env:
+          SEC_USER_AGENT: "Stock-Daily-Prediction-3000/0.1 (GitHub Actions; contact: 262083466+sasasotaro1202-star@users.noreply.github.com)"
+        run: python scripts/sec_filings_research.py
+      - name: Run SEC filing OOS challenger ablation
+        run: python scripts/run_sec_filing_ablation.py
+      - name: CPCV leakage-boundary research audit
+        run: python scripts/run_cpcv_validation_audit.py
+      - name: Upload research evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: research-validation-evidence-${{ github.run_id }}
+          path: |
+            data/research/latest_metrics.json
+            data/research/leakage_audit.json
+            data/research/data_quality.json
+            data/research/sec_filings_research.json
+            data/research/sec_filing_ablation.json
+            data/research/cpcv_validation_audit.json
+          retention-days: 14

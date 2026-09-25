@@ -1,0 +1,2 @@
+commit=6be9e882fcc6830101acf71bd806a1aa4c75b587
+purpose=run research validation after SEC/restore hardening
