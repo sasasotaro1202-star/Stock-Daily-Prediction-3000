@@ -23,6 +23,7 @@ from src.research.metrics import aggregate_metric_rows, classification_metrics, 
 from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
+from src.research.sequential_selection import chronological_policy_oos
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
     confidence_risk_features,
@@ -759,6 +760,32 @@ def main():
         min_folds=selection_evidence_min_folds,
         min_relative_improvement=selection_evidence_min_relative_improvement,
         alpha=selection_evidence_alpha,
+    )
+
+    sequential_cfg = pipeline_cfg.get("sequential_selection_research", {})
+    if sequential_cfg.get("research_only", True) is not True:
+        raise SystemExit("FAIL: sequential model selection audit must remain research-only")
+    sequential_min_history = int(sequential_cfg.get("min_history_folds", 3))
+    sequential_half_life = float(sequential_cfg.get("half_life_folds", 4.0))
+    sequential_stability = float(sequential_cfg.get("stability_penalty", 0.25))
+    sequential_baseline = sequential_cfg.get("baseline_model", "logistic")
+    sequential_model_names = {
+        name: value.get("fold_metrics", [])
+        for name, value in model_results.items()
+        if name in balanced_candidates
+    }
+    sequential_selection_research = chronological_policy_oos(
+        sequential_model_names,
+        min_history_folds=sequential_min_history,
+        half_life_folds=sequential_half_life,
+        stability_penalty=sequential_stability,
+        baseline_model=str(sequential_baseline),
+    )
+    sequential_selection_research["selection_note"] = (
+        "Each fold is evaluated only after the candidate model is selected "
+        "from prior chronological OOS outcomes. Current-fold outcomes are "
+        "never used by the selector. This research audit is not a production "
+        "change and does not use the frozen holdout."
     )
 
     # Research-only temporal confidence-risk layer. It predicts the
@@ -2133,6 +2160,7 @@ def main():
         "security_route_summary": security_route_summary,
         "selected_model": global_selected,
         "global_selection_evidence": global_selection_evidence,
+        "sequential_selection_research": sequential_selection_research,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
         "calibration_method": selected_calibration_method,
