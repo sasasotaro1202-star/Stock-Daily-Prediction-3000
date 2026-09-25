@@ -1,16 +1,16 @@
 {
   "artifact_lookup_error": null,
   "cpcv_step": "skipped",
-  "evidence_artifact_present": false,
-  "generated_at_utc": "2026-09-25T20:54:54.682629+00:00",
-  "job_status": "failure",
-  "research_step": "skipped",
+  "evidence_artifact_present": true,
+  "generated_at_utc": "2026-09-25T22:35:19.036268+00:00",
+  "job_status": "cancelled",
+  "research_step": "cancelled",
   "sec_ablation_step": "skipped",
   "sec_research_step": "skipped",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": "failure",
-  "workflow_run_id": "36187918469",
-  "workflow_sha": "431b1e5b9d835028c20238f6a357e93b8f77f973",
+  "workflow_conclusion": "cancelled",
+  "workflow_run_id": "36191015194",
+  "workflow_sha": "23784775f3e49fed2a88cccc40d14f93fb38b04e",
   "workflow_status": "completed"
 }
