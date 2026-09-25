@@ -17,7 +17,9 @@ permissions:
 
 concurrency:
   group: actions-reliability-watchdog
-  cancel-in-progress: false
+  # Only the newest watchdog should execute; an older queued watchdog carries
+  # an obsolete GITHUB_SHA and must never cancel a newer research run.
+  cancel-in-progress: true
 
 jobs:
   watch:
