@@ -185,7 +185,6 @@ jobs:
           print("monitor_price_restore_deferred", json.dumps(payload))
           PY
       - name: Validate accumulated experience output
-      - name: Validate accumulated experience output
         run: |
           python - <<'PY'
           import json
