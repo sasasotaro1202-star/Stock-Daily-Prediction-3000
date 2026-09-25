@@ -69,3 +69,34 @@ def test_changed_processed_file_fails_closed(tmp_path: Path):
     )
 
 
+
+def test_incomplete_file_is_deferred_until_next_monitor_cycle(tmp_path: Path):
+    pred_dir = tmp_path / "predictions"
+    pred_dir.mkdir()
+    path = pred_dir / "prediction_20260920T100000Z.parquet"
+    _write_prediction(path, 0.8, 0.03, 0.01)
+
+    observed = pd.read_parquet(path)
+    observed["_prediction_file"] = path.name
+    memory_path = tmp_path / "experience_memory.json"
+
+    deferred = update_experience_memory(
+        observed,
+        pred_dir,
+        memory_path,
+        file_complete={path.name: False},
+    )
+    assert deferred["total_resolved"] == 0
+    assert deferred["total_files_processed"] == 0
+    assert deferred["anomalies"][-1]["message"].endswith(
+        "prediction_20260920T100000Z.parquet"
+    )
+
+    completed = update_experience_memory(
+        observed,
+        pred_dir,
+        memory_path,
+        file_complete={path.name: True},
+    )
+    assert completed["total_resolved"] == 2
+    assert completed["total_files_processed"] == 1
