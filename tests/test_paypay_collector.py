@@ -151,3 +151,66 @@ def test_non_ticker_us_labels_are_not_treated_as_symbols():
     """.encode()
     rows = paypay_collector.parse_visible_text(raw, "us", "https://example.test")
     assert all(row["symbol"] != "NYRS" for row in rows)
+
+
+def test_us_visible_parser_rejects_tokens_embedded_in_product_names(monkeypatch):
+    monkeypatch.setattr(
+        paypay_collector,
+        "_official_us_symbol_resource_exists",
+        lambda _symbol: True,
+    )
+    raw = """
+    <div>米国ETF</div>
+    <div>* SPYD [State Street SPDR ポートフォリオ S&amp;P500 高配当株式 ETF]</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(
+        raw.encode(), "us", "https://example.test"
+    )
+    assert all(row["symbol"] not in {"SPDR", "P500"} for row in rows)
+
+
+def test_us_visible_parser_rejects_section_headings_as_security_names():
+    raw = """
+    <div>米国ETF</div>
+    <div>YUM</div>
+    <div>## 米国ETF（アルファベット順）</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(
+        raw.encode(), "us", "https://example.test"
+    )
+    assert rows == []
+
+
+def test_us_reader_parser_rejects_section_headings_as_security_names():
+    markdown = """
+# 米国株（アルファベット順）
+YUM
+## 米国ETF（アルファベット順）
+trade_on
+"""
+    rows = paypay_collector.parse_reader_text(
+        markdown.encode(), "us", "https://example.test"
+    )
+    assert rows == []
+
+
+def test_us_visible_parser_keeps_standalone_four_letter_ticker(monkeypatch):
+    monkeypatch.setattr(
+        paypay_collector,
+        "_official_us_symbol_resource_exists",
+        lambda _symbol: True,
+    )
+    raw = """
+    <div>米国株</div>
+    <div>BRKB</div>
+    <div>Berkshire Hathaway</div>
+    <div>trade_on</div>
+    """
+    rows = paypay_collector.parse_visible_text(
+        raw.encode(), "us", "https://example.test"
+    )
+    assert [(row["symbol"], row["asset_class"]) for row in rows] == [
+        ("BRKB", "us_stock")
+    ]
