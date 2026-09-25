@@ -1,2 +1,2 @@
-commit=6be9e882fcc6830101acf71bd806a1aa4c75b587
-purpose=run research validation after SEC/restore hardening
+commit=a6cf18553531bce9edb8decafd7d680bd5fb31a0
+purpose=run fresh chronological OOS validation including conformal case-reliability
