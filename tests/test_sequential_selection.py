@@ -17,8 +17,8 @@ def _rows(values):
 
 def test_selector_uses_only_prior_folds():
     rows = {
-        "slow": _rows([0.50, 0.51, 0.70]),
-        "fast": _rows([0.60, 0.61, 0.55]),
+        "slow": _rows([0.50, 0.51]),
+        "fast": _rows([0.60, 0.61]),
     }
     selected, diagnostics = select_prior_oos_model(
         rows,
@@ -27,6 +27,14 @@ def test_selector_uses_only_prior_folds():
     )
     assert selected == "slow"
     assert diagnostics["slow"]["history_folds"] == 2
+
+
+def test_selector_rejects_current_fold_when_directly_supplied():
+    rows = {
+        "model": _rows([0.60, 0.59, 0.50]),
+    }
+    with pytest.raises(ValueError):
+        select_prior_oos_model(rows, current_fold=2, min_history_folds=2)
 
 
 def test_selector_rejects_current_or_future_history():
