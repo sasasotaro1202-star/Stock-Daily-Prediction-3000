@@ -202,10 +202,41 @@ def main() -> int:
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
-    _assert_once(
+    status_workflow = _read("research-validation-status.yml")
+    _assert_absent(
         validation_workflow,
         "research-status:",
-        "research_validation_dedicated_status_job",
+        "research_validation_no_inline_status_job",
+    )
+    _assert_once(
+        status_workflow,
+        'workflows: ["Research validation"]',
+        "research_validation_status_workflow_trigger",
+    )
+    _assert_once(
+        status_workflow,
+        "types: [completed]",
+        "research_validation_status_workflow_completed_only",
+    )
+    _assert_once(
+        status_workflow,
+        "group: research-validation-status",
+        "research_validation_status_serialized_commits",
+    )
+    _assert_once(
+        status_workflow,
+        "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}",
+        "research_validation_status_targets_research_run",
+    )
+    _assert_once(
+        status_workflow,
+        "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}",
+        "research_validation_status_targets_research_sha",
+    )
+    _assert_once(
+        status_workflow,
+        "python scripts/persist_research_validation_status.py",
+        "research_validation_status_script",
     )
     _assert_once(
         validation_workflow,
@@ -216,16 +247,6 @@ def main() -> int:
         validation_workflow,
         "if-no-files-found: warn",
         "research_validation_partial_evidence_warning",
-    )
-    _assert_once(
-        validation_workflow,
-        "research-status:\n    needs: research\n    if: always()",
-        "research_validation_dedicated_status_job_always",
-    )
-    _assert_once(
-        validation_workflow,
-        "python scripts/persist_research_validation_status.py",
-        "research_validation_status_script",
     )
     _assert_once(
         validation_workflow,

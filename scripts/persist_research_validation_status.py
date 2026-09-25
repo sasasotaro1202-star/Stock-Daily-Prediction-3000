@@ -11,7 +11,7 @@ from pathlib import Path
 def _lookup_research_job() -> tuple[dict, str | None]:
     token = os.environ.get("GITHUB_TOKEN", "")
     repository = os.environ.get("GITHUB_REPOSITORY", "")
-    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    run_id = os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", "")
     api_base = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     if not token or not repository or not run_id:
         return {}, "missing_github_api_context"
@@ -39,7 +39,7 @@ def _lookup_research_job() -> tuple[dict, str | None]:
 def _lookup_run_artifacts() -> tuple[list[dict], str | None]:
     token = os.environ.get("GITHUB_TOKEN", "")
     repository = os.environ.get("GITHUB_REPOSITORY", "")
-    run_id = os.environ.get("GITHUB_RUN_ID", "")
+    run_id = os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", "")
     api_base = os.environ.get("GITHUB_API_URL", "https://api.github.com")
     if not token or not repository or not run_id:
         return [], "missing_github_api_context"
@@ -72,11 +72,11 @@ def main() -> int:
     job, lookup_error = _lookup_research_job()
     artifacts, artifact_error = _lookup_run_artifacts()
     conclusion = str(job.get("conclusion") or job.get("status") or "unknown")
-    evidence_name = f"research-validation-evidence-{os.environ.get('GITHUB_RUN_ID', '')}"
+    evidence_name = f"research-validation-evidence-{os.environ.get('RESEARCH_WORKFLOW_RUN_ID') or os.environ.get('GITHUB_RUN_ID', '')}"
     status = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "workflow_run_id": os.environ.get("GITHUB_RUN_ID", ""),
-        "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+        "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", ""),
+        "workflow_sha": os.environ.get("RESEARCH_WORKFLOW_SHA") or os.environ.get("GITHUB_SHA", ""),
         "job_status": conclusion,
         "research_step": _step_conclusion(job, "Chronological OOS research"),
         "sec_research_step": _step_conclusion(job, "Collect free SEC filing research inputs"),
