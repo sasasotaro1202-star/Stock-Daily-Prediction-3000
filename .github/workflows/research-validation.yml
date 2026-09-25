@@ -114,14 +114,18 @@ jobs:
         run: pytest -q tests/test_conformal_classification.py
 
       - name: Chronological OOS research
+        id: research_oos
         run: python scripts/run_daily_research.py
       - name: Collect free SEC filing research inputs
+        id: sec_research
         env:
           SEC_USER_AGENT: "Stock-Daily-Prediction-3000/0.1 (GitHub Actions; contact: 262083466+sasasotaro1202-star@users.noreply.github.com)"
         run: python scripts/sec_filings_research.py
       - name: Run SEC filing OOS challenger ablation
+        id: sec_ablation
         run: python scripts/run_sec_filing_ablation.py
       - name: CPCV leakage-boundary research audit
+        id: cpcv
         run: python scripts/run_cpcv_validation_audit.py
       - name: Upload research evidence
         uses: actions/upload-artifact@v7
@@ -160,7 +164,7 @@ jobs:
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
-          RESEARCH_STEP_OUTCOME: ${{ steps.research.outputs.outcome }}
+          RESEARCH_STEP_OUTCOME: ${{ steps.research_oos.outcome }}
           SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outputs.outcome }}
           SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outputs.outcome }}
           CPCV_STEP_OUTCOME: ${{ steps.cpcv.outputs.outcome }}
