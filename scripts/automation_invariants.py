@@ -219,13 +219,8 @@ def main() -> int:
     )
     _assert_once(
         validation_workflow,
-        "needs: research",
-        "research_validation_status_needs_research",
-    )
-    _assert_once(
-        validation_workflow,
-        "if: always()",
-        "research_validation_status_runs_always",
+        "research-status:\n    needs: research\n    if: always()",
+        "research_validation_dedicated_status_job_always",
     )
     _assert_once(
         validation_workflow,
