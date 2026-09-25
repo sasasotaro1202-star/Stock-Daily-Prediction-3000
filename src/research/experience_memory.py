@@ -337,12 +337,28 @@ def update_experience_memory(
         processed[str(filename)] = fingerprint
 
     if not new_frames:
-        memory["updated_at"] = _now()
+        previous_serialized = json.dumps(
+            memory,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
         memory["processed_prediction_files"] = processed
         memory["total_files_processed"] = len(processed)
         _rebuild_priority(memory)
-        memory_path.parent.mkdir(parents=True, exist_ok=True)
-        memory_path.write_text(json.dumps(memory, indent=2, default=str), encoding="utf-8")
+        current_serialized = json.dumps(
+            memory,
+            sort_keys=True,
+            separators=(",", ":"),
+            default=str,
+        )
+        if current_serialized != previous_serialized:
+            memory["updated_at"] = _now()
+            memory_path.parent.mkdir(parents=True, exist_ok=True)
+            memory_path.write_text(
+                json.dumps(memory, indent=2, default=str),
+                encoding="utf-8",
+            )
         return memory
 
     new_data = pd.concat(new_frames, ignore_index=True)
