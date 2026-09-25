@@ -214,3 +214,21 @@ def test_us_visible_parser_keeps_standalone_four_letter_ticker(monkeypatch):
     assert [(row["symbol"], row["asset_class"]) for row in rows] == [
         ("BRKB", "us_stock")
     ]
+
+
+def test_paypay_row_parser_rejects_section_headings_as_security_names():
+    html = """
+    <h2>米国ETF（アルファベット順）</h2>
+    <table>
+      <tr><td>YUM</td><td>## 米国ETF（アルファベット順）</td><td>trade_on</td></tr>
+      <tr><td>SPY</td><td>SPDR S&amp;P 500 ETF</td><td>trade_on</td></tr>
+    </table>
+    """.encode("utf-8")
+    rows = parse_rows(
+        html,
+        "us",
+        "https://www.paypay-sec.co.jp/us-stock/list/",
+    )
+    assert [(r["symbol"], r["name"]) for r in rows] == [
+        ("SPY", "SPDR S&P 500 ETF")
+    ]
