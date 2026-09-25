@@ -186,4 +186,3 @@ jobs:
             git rebase origin/main
             git push origin HEAD:main
           fi
-          fi
