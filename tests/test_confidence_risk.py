@@ -31,7 +31,8 @@ def test_feature_shape_and_finiteness():
     assert out[0, 2] > out[1, 2]
     # Each context value is paired with an explicit missingness indicator.
     assert out[3, 6] == 1.0
-    assert out[3, 8] > 0.0 and out[3, 9] == 0.0
+    assert out[3, 7] > 0.0 and out[3, 8] == 0.0
+    assert out[3, 9] > 0.0 and out[3, 10] == 1.0
 
 
 def test_temporal_risk_model_and_shrinkage():
