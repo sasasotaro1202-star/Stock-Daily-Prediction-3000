@@ -57,6 +57,27 @@ def test_sec_collector_is_research_only():
     assert "load_production_artifact" not in source
 
 
+def test_sec_official_mapping_can_use_jina_reader_fallback(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    calls = []
+
+    class DummyResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return b'{"0": {"cik_str": 123, "ticker": "ABC", "title": "ABC Corp"}}'
+
+    def fake_urlopen(req, timeout):
+        calls.append(req.full_url)
+        return DummyResponse()
+
+    monkeypatch.setattr(mod, "urlopen", fake_urlopen)
+    payload = mod._jina_get_json(mod.TICKERS_URL)
+    assert payload["0"]["ticker"] == "ABC"
+    assert calls[0].startswith("https://r.jina.ai/https://www.sec.gov/")
+
 def test_sec_request_headers_are_identified_and_rate_limit_friendly():
     mod = importlib.import_module("scripts.sec_filings_research")
     captured = {}
