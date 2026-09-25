@@ -2,7 +2,7 @@
   "artifact_lookup_error": null,
   "cpcv_step": "skipped",
   "evidence_artifact_present": true,
-  "generated_at_utc": "2026-09-25T22:35:19.036268+00:00",
+  "generated_at_utc": "2026-09-25T22:42:20.370556+00:00",
   "job_status": "cancelled",
   "research_step": "cancelled",
   "sec_ablation_step": "skipped",
@@ -10,7 +10,7 @@
   "status_lookup_error": null,
   "status_lookup_ok": true,
   "workflow_conclusion": "cancelled",
-  "workflow_run_id": "36191015194",
-  "workflow_sha": "23784775f3e49fed2a88cccc40d14f93fb38b04e",
+  "workflow_run_id": "36197353005",
+  "workflow_sha": "83e4fd0df10b06fd4042d2dd35b52d9ecfc61021",
   "workflow_status": "completed"
 }
