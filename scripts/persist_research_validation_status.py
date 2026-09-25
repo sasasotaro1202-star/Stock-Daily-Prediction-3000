@@ -71,8 +71,9 @@ def _step_conclusion(job: dict, needle: str) -> str:
 def main() -> int:
     job, lookup_error = _lookup_research_job()
     artifacts, artifact_error = _lookup_run_artifacts()
+    workflow_status = str(os.environ.get("RESEARCH_WORKFLOW_STATUS", "")).strip()
     workflow_conclusion = str(os.environ.get("RESEARCH_WORKFLOW_CONCLUSION", "")).strip()
-    conclusion = str(job.get("conclusion") or job.get("status") or workflow_conclusion or "unknown")
+    conclusion = str(job.get("conclusion") or job.get("status") or workflow_status or workflow_conclusion or "unknown")
     # A workflow can be cancelled before the research job is created. That is
     # a valid terminal state, not an API failure. For every other conclusion,
     # a missing research job remains fail-closed.
@@ -84,6 +85,8 @@ def main() -> int:
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", ""),
         "workflow_sha": os.environ.get("RESEARCH_WORKFLOW_SHA") or os.environ.get("GITHUB_SHA", ""),
+        "workflow_status": workflow_status or "unknown",
+        "workflow_conclusion": workflow_conclusion or None,
         "job_status": conclusion,
         "research_step": _step_conclusion(job, "Chronological OOS research"),
         "sec_research_step": _step_conclusion(job, "Collect free SEC filing research inputs"),
