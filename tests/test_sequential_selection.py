@@ -72,8 +72,8 @@ def test_chronological_policy_scores_after_each_selection():
 
 def test_nested_policy_reserves_later_outer_block_and_adapts_prequentially():
     rows = {
-        "slow": _rows([0.40, 0.41, 0.42, 0.70, 0.70, 0.70, 0.70, 0.70, 0.70]),
-        "fast": _rows([0.60, 0.61, 0.62, 0.40, 0.39, 0.38, 0.37, 0.36, 0.35]),
+        "slow": _rows([0.30, 0.31, 0.32, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90]),
+        "fast": _rows([0.60, 0.61, 0.62, 0.20, 0.20, 0.20, 0.20, 0.20, 0.20]),
     }
     result = nested_sequential_policy_oos(
         rows,
@@ -110,8 +110,8 @@ def test_nested_policy_requires_enough_outer_folds():
 
 def test_nested_policy_auto_baseline_is_selected_from_inner_block_only():
     rows = {
-        "slow": _rows([0.50, 0.51, 0.70, 0.70, 0.70, 0.70, 0.70, 0.70]),
-        "fast": _rows([0.60, 0.59, 0.40, 0.39, 0.38, 0.37, 0.36, 0.35]),
+        "slow": _rows([0.30, 0.31, 0.32, 0.90, 0.90, 0.90, 0.90, 0.90]),
+        "fast": _rows([0.60, 0.61, 0.62, 0.20, 0.20, 0.20, 0.20, 0.20]),
     }
     result = nested_sequential_policy_oos(
         rows,
