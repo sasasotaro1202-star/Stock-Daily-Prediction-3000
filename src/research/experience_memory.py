@@ -481,6 +481,13 @@ def update_experience_memory(
     return memory
 
 
+
+
+def load_experience_memory(path: Path) -> dict[str, Any]:
+    """Load cumulative experience without mutating it."""
+    return _load(path)
+
+
 def compact_view(memory: dict[str, Any]) -> dict[str, Any]:
     return {
         "version": memory.get("version"),
@@ -489,6 +496,20 @@ def compact_view(memory: dict[str, Any]) -> dict[str, Any]:
         "total_files_processed": memory.get("total_files_processed", 0),
         "research_priority": memory.get("research_priority", []),
         "rolling": memory.get("rolling", {}),
+        "latest_session": (
+            {
+                "session_date": latest,
+                "metrics": _finalize_group(memory["daily"][latest]),
+                "by_model": {
+                    name: _finalize_group(group)
+                    for name, group in memory.get("daily_by_model", {}).get(
+                        latest, {}
+                    ).items()
+                },
+            }
+            if (latest := (sorted(memory.get("daily", {}).keys())[-1] if memory.get("daily") else None))
+            else None
+        ),
         "error_types": {
             k: _finalize_group(v) for k, v in memory.get("error_types", {}).items()
         },
