@@ -152,7 +152,10 @@ def test_sec_master_index_uses_curl_fallback_after_sec_400(monkeypatch):
     monkeypatch.setattr(
         mod,
         "_curl_cffi_get_master_index_text",
-        lambda url: ("CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200, "curl_fixture"),
+        lambda url: (
+            "CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200,
+            "curl_fixture",
+        ),
     )
 
     text_value, transport = mod._get_master_index_text(
@@ -164,36 +167,39 @@ def test_sec_master_index_uses_curl_fallback_after_sec_400(monkeypatch):
     assert len(calls) == 1
 
 
-
+def test_sec_master_index_uses_free_jina_fallback_after_curl_failure(monkeypatch):
     mod = importlib.import_module("scripts.sec_filings_research")
-
-    class DummyResponse:
-        def __init__(self, body):
-            self._body = body
-        def __enter__(self):
-            return self
-        def __exit__(self, *args):
-            return False
-        def read(self):
-            return self._body
-
     calls = []
 
     def fake_urlopen(req, timeout):
         calls.append(req.full_url)
         if len(calls) == 1:
             raise mod.HTTPError(req.full_url, 403, "Forbidden", {}, None)
-        return DummyResponse(("CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200).encode())
+        class DummyResponse:
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self):
+                return ("CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200).encode()
+        return DummyResponse()
 
     monkeypatch.setattr(mod, "urlopen", fake_urlopen)
+    monkeypatch.setattr(
+        mod,
+        "_curl_cffi_get_master_index_text",
+        lambda url: (_ for _ in ()).throw(mod.HTTPError(url, 403, "Forbidden", {}, None)),
+    )
+
     text_value, transport = mod._get_master_index_text(
         "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/master.idx"
     )
 
-    assert transport == "curl_fixture"
+    assert transport == "jina_reader_sec_official_url"
     assert len(text_value) >= 1000
     assert calls[0].startswith("https://www.sec.gov/")
     assert calls[1].startswith("https://r.jina.ai/https://www.sec.gov/")
+
 
 
 def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
