@@ -1,0 +1,35 @@
+name: Experience review
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "7 18 * * 0"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: experience-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - name: Generate experience review
+        run: python scripts/experience_review.py
+      - name: Validate review artifact
+        run: python -c "import json; from pathlib import Path; d=json.loads(Path('data/research/experience_review.json').read_text(encoding='utf-8')); assert d.get('status') in {'READY','WARMUP'}; assert int(d.get('total_resolved',0)) >= 0; print('experience_review_valid', d.get('total_resolved',0))"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: experience-review-${{ github.run_id }}
+          path: data/research/experience_review.json
+          retention-days: 90

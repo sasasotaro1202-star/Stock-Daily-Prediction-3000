@@ -30,6 +30,8 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev,research]"
       - run: python -m compileall -q src scripts
+      - name: Validate workflow YAML
+        run: python -c 'from pathlib import Path; import yaml; docs=[yaml.safe_load(p.read_text(encoding="utf-8")) for p in Path(".github/workflows").glob("*.yml")]; assert all(isinstance(d, dict) and "jobs" in d for d in docs); print("workflow_yaml_valid", len(docs))'
       - run: pytest -q
       - run: python scripts/research_smoke.py
       - run: python scripts/automation_invariants.py

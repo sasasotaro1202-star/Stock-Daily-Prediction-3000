@@ -8,12 +8,17 @@ import numpy as np
 import pandas as pd
 
 from src.research.metrics import classification_metrics
-from src.research.experience_memory import compact_view, update_experience_memory
+from src.research.experience_memory import (
+    compact_view,
+    load_experience_memory,
+    update_experience_memory,
+)
 
 PRED_DIR=Path("data/predictions")
 BARS=Path("data/prices")
 OUT=Path("data/research/monitor_latest.json")
 EXPERIENCE=Path("data/research/experience_memory.json")
+EXPERIENCE_REPORT=Path("data/research/experience_report.json")
 
 
 def load_predictions() -> pd.DataFrame:
@@ -42,6 +47,7 @@ def load_predictions() -> pd.DataFrame:
 
 
 def main():
+    experience = load_experience_memory(EXPERIENCE)
     pred=load_predictions()
     if pred.empty or not BARS.exists():
         payload={
@@ -204,7 +210,14 @@ def main():
                 "experience":compact_view(experience),
             }
 
+    experience_view = compact_view(experience)
+    payload["experience"] = experience_view
+
     OUT.parent.mkdir(parents=True,exist_ok=True)
+    EXPERIENCE_REPORT.write_text(
+        json.dumps(experience_view, indent=2, default=str),
+        encoding="utf-8",
+    )
     OUT.write_text(
         json.dumps(payload,indent=2,default=str),
         encoding="utf-8",

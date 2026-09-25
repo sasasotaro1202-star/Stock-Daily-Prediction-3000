@@ -149,6 +149,22 @@ def fetch_resilient(
     )
     return pd.DataFrame()
 
+def validate_unique_universe_records(records: list[dict]) -> list[dict]:
+    """Reject conflicting duplicate asset/symbol keys before batching."""
+    unique: dict[tuple[str, str], dict] = {}
+    for record in records:
+        key = (str(record.get("asset_class", "")), str(record.get("symbol", "")))
+        if not key[0] or not key[1]:
+            raise SystemExit(f"FAIL: universe record missing price key: {record}")
+        previous = unique.get(key)
+        if previous is not None:
+            for field in ("name", "asset_class", "symbol"):
+                if str(previous.get(field, "")) != str(record.get(field, "")):
+                    raise SystemExit(f"FAIL: conflicting duplicate universe key: {key}")
+            continue
+        unique[key] = record
+    return list(unique.values())
+
 def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
     path=ROOT/f"batch_{i:03d}.parquet"
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -228,6 +244,8 @@ if __name__=="__main__":
     records=json.loads(
         U.read_text(encoding="utf-8")
     )["records"]
+    records=validate_unique_universe_records(records)
+    records=validate_unique_universe_records(records)
     if ASSET_SCOPE:
         records=[
             row for row in records
