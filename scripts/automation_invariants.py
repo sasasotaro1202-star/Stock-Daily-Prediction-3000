@@ -203,6 +203,11 @@ def main() -> int:
         "research_validation_installs_test_dependencies",
     )
     status_workflow = _read("research-validation-status.yml")
+    _assert_absent(
+        validation_workflow,
+        "research-status:",
+        "research_validation_no_inline_status_job",
+    )
     _assert_once(
         status_workflow,
         'workflows: ["Research validation"]',
