@@ -137,15 +137,27 @@ jobs:
             echo "available=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Canonicalize restored price store
+        id: price_normalize
         if: steps.price_state.outputs.available == 'true'
-        run: python scripts/normalize_price_store.py
+        shell: bash
+        run: |
+          set +e
+          python scripts/normalize_price_store.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "normalization_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "normalization_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "normalization_rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
       - name: Update free market context
-        if: steps.price_state.outputs.available == 'true'
+        if: steps.price_normalize.outputs.normalization_ok == 'true'
         run: python scripts/update_market_context.py
       - name: Data quality
         id: data_quality
-        if: steps.price_state.outputs.available == 'true'
-        shell: bash
+        if: steps.price_normalize.outputs.normalization_ok == 'true'        shell: bash
         run: |
           set +e
           python scripts/data_quality_gate.py
@@ -243,16 +255,17 @@ jobs:
           exit "$rc"
 
       - name: Accumulate prediction experience
-        if: steps.universe_state.outputs.universe_ready == 'true' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status == 'PASS' || steps.data_quality_retry.outputs.status == 'PASS')
+        if: steps.universe_state.outputs.universe_ready == 'true' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && steps.price_normalize.outputs.normalization_ok == 'true' && (steps.data_quality.outputs.status == 'PASS' || steps.data_quality_retry.outputs.status == 'PASS')
         run: python scripts/monitor_predictions.py
 
       - name: Record deferred monitoring state
-        if: steps.universe_state.outputs.universe_ready != 'true' || steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status != 'PASS' && steps.data_quality_retry.outputs.status != 'PASS') || (steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok != 'true')
+        if: steps.universe_state.outputs.universe_ready != 'true' || steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || steps.price_normalize.outputs.normalization_ok != 'true' || (steps.data_quality.outputs.status != 'PASS' && steps.data_quality_retry.outputs.status != 'PASS') || (steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok != 'true')
         env:
           UNIVERSE_READY: ${{ steps.universe_state.outputs.universe_ready }}
           UNIVERSE_REFRESH_OK: ${{ steps.universe_refresh.outputs.refresh_ok }}
           PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
           PRICE_STATE_AVAILABLE: ${{ steps.price_state.outputs.available }}
+          PRICE_NORMALIZATION_OK: ${{ steps.price_normalize.outputs.normalization_ok }}
           DATA_QUALITY_STATUS: ${{ steps.data_quality.outputs.status }}
           DATA_QUALITY_RETRY_STATUS: ${{ steps.data_quality_retry.outputs.status }}
           PRICE_RECOVERY_OK: ${{ steps.price_recovery.outputs.recovery_ok }}
@@ -270,6 +283,343 @@ jobs:
               reason = "price_state_restore_failed"
           elif os.environ.get("PRICE_STATE_AVAILABLE") != "true":
               reason = "price_state_unavailable"
+          elif os.environ.get("PRICE_NORMALIZATION_OK") != "true":
+              reason = "price_normalization_failed"
+          elif os.environ.get("DATA_QUALITY_STATUS") != "PASS" and os.environ.get("DATA_QUALITY_RETRY_STATUS") != "PASS":
+              reason = os.environ.get("PRICE_RECOVERY_REASON") or "data_quality_deferred"
+          elif os.environ.get("PRICE_RECOVERY_OK") != "true":
+              reason = os.environ.get("PRICE_RECOVERY_REASON") or "price_recovery_deferred"
+          else:
+              reason = "monitoring_deferred"
+
+          payload = {
+              "status": "DEFERRED",
+              "evaluated": 0,
+              "reason": reason,
+              "production_action": "DEFERRED",
+              "universe_ready": os.environ.get("UNIVERSE_READY") == "true",
+              "universe_refresh_ok": os.environ.get("UNIVERSE_REFRESH_OK") == "true",
+              "price_recovery_ok": os.environ.get("PRICE_RECOVERY_OK") == "true",
+          }
+          Path("data/research/monitor_latest.json").write_text(
+              json.dumps(payload, indent=2),
+              encoding="utf-8",
+          )
+          print("monitor_deferred", json.dumps(payload))
+          PY
+      - name: Validate accumulated experience output
+        run: python -c "import json; from pathlib import Path; p=Path('data/research/experience_memory.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'version': 2, 'total_resolved': 0}; assert d.get('version') == 2; assert int(d.get('total_resolved', 0)) >= 0; print('experience_memory_valid', d.get('total_resolved', 0))"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: monitoring-${{ github.run_id }}
+          path: |
+            data/research/monitor_latest.json
+            data/research/experience_memory.json
+            data/research/experience_report.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Persist accumulated experience
+        if: github.ref == 'refs/heads/main' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED') && hashFiles('data/research/experience_memory.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research/experience_memory.json
+          if git diff --cached --quiet; then
+            echo "experience-memory: no change"
+            exit 0
+          fi
+          git commit -m "chore: accumulate resolved prediction experience"
+          git push origin HEAD:main
+
+name: Prediction monitoring
+
+on:
+  workflow_dispatch:
+  schedule:
+    # One canonical monitoring run; the reliability watchdog handles misses.
+    - cron: "27 9 * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: prediction-monitoring
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore bounded recent official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_universe_state.py
+
+      - name: Validate restored universe
+        id: universe_quality
+        shell: bash
+        run: |
+          set +e
+          python scripts/universe_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/universe_quality.json ]; then
+            status="$(python -c "import json; from pathlib import Path; print(json.loads(Path('data/research/universe_quality.json').read_text(encoding='utf-8')).get('status',''))")"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Refresh official universe after failed restore validation
+        id: universe_refresh
+        if: steps.universe_quality.outputs.status != 'PASS'
+        shell: bash
+        run: |
+          set +e
+          python scripts/refresh_universe.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "refresh_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "refresh_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "refresh_rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Re-check refreshed universe
+        id: universe_quality_retry
+        if: steps.universe_quality.outputs.status != 'PASS' && steps.universe_refresh.outputs.refresh_ok == 'true'
+        shell: bash
+        run: |
+          set +e
+          python scripts/universe_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/universe_quality.json ]; then
+            status="$(python -c "import json; from pathlib import Path; print(json.loads(Path('data/research/universe_quality.json').read_text(encoding='utf-8')).get('status',''))")"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Determine universe readiness
+        id: universe_state
+        shell: bash
+        run: |
+          status="${{ steps.universe_quality.outputs.status }}"
+          if [ "$status" != "PASS" ] && [ "${{ steps.universe_quality_retry.outputs.status }}" = "PASS" ]; then
+            status="PASS"
+          fi
+          if [ -z "$status" ]; then
+            status="FAIL"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "PASS" ]; then
+            echo "universe_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "universe_ready=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Restore prediction history
+        if: steps.universe_state.outputs.universe_ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_prediction_history.py
+      - name: Restore current price state
+        id: restore_price
+        if: steps.universe_state.outputs.universe_ready == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          mkdir -p data/prices
+          failed=0
+          for i in 0 1 2 3; do
+            if ! PRICE_SHARD_INDEX="$i" python scripts/restore_latest_price_state.py; then
+              failed=1
+            fi
+          done
+          if [ "$failed" -ne 0 ]; then
+            echo "restore_ok=false" >> "$GITHUB_OUTPUT"
+            echo "restore_reason=price_state_shard_restore_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price restore: DEFERRED (one or more price-state shards could not be restored)"
+          else
+            echo "restore_ok=true" >> "$GITHUB_OUTPUT"
+            echo "restore_reason=restored" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Determine restored price availability
+        id: price_state
+        if: steps.universe_state.outputs.universe_ready == 'true'
+        shell: bash
+        run: |
+          if [ "${{ steps.restore_price.outputs.restore_ok }}" = "true" ] && compgen -G "data/prices/*.parquet" > /dev/null; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Canonicalize restored price store
+        id: price_normalize
+        if: steps.price_state.outputs.available == 'true'
+        shell: bash
+        run: |
+          set +e
+          python scripts/normalize_price_store.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "normalization_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "normalization_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "normalization_rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Update free market context
+        if: steps.price_normalize.outputs.normalization_ok == 'true'
+        run: python scripts/update_market_context.py
+      - name: Data quality
+        id: data_quality
+        if: steps.price_normalize.outputs.normalization_ok == 'true'        shell: bash
+        run: |
+          set +e
+          python scripts/data_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/data_quality.json ]; then
+            status="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
+          except Exception:
+              print('')
+          PY
+          )"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "DEFERRED" ]; then
+            echo "monitor data quality: DEFERRED (recording safe deferred state)"
+            exit 0
+          fi
+          exit "$rc"
+      - name: Bounded price-state recovery after deferred quality
+        id: price_recovery
+        if: steps.data_quality.outputs.status == 'DEFERRED'
+        env:
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 2
+        shell: bash
+        run: |
+          set +e
+          recovery_failed=0
+          for i in 0 1 2 3; do
+            echo "monitor: re-fetching price shard $i/4"
+            PRICE_SHARD_INDEX="$i" PRICE_SHARD_COUNT="$PRICE_SHARD_COUNT" PRICE_MAX_WORKERS="$PRICE_MAX_WORKERS" python scripts/update_prices.py
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+              recovery_failed=1
+              echo "monitor: price shard $i failed rc=$rc"
+            fi
+          done
+          if [ "$recovery_failed" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=price_shard_update_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED"
+            exit 0
+          fi
+          python scripts/normalize_price_store.py
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=price_normalization_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED (normalization failed)"
+            exit 0
+          fi
+          python scripts/update_market_context.py
+          rc=$?
+          if [ "$rc" -ne 0 ]; then
+            echo "recovery_ok=false" >> "$GITHUB_OUTPUT"
+            echo "recovery_reason=market_context_update_failed" >> "$GITHUB_OUTPUT"
+            echo "monitor price recovery: DEFERRED (market context update failed)"
+            exit 0
+          fi
+          set -e
+          echo "recovery_ok=true" >> "$GITHUB_OUTPUT"
+          echo "recovery_reason=bounded_recovery_passed" >> "$GITHUB_OUTPUT"
+
+      - name: Re-check data quality after bounded recovery
+        id: data_quality_retry
+        if: steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok == 'true'
+        shell: bash
+        run: |
+          set +e
+          python scripts/data_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/data_quality.json ]; then
+            status="$(python - <<'PY'
+          import json
+          from pathlib import Path
+          try:
+              print(json.loads(Path('data/research/data_quality.json').read_text(encoding='utf-8')).get('status',''))
+          except Exception:
+              print('')
+          PY
+          )"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "DEFERRED" ]; then
+            echo "monitor data quality: still DEFERRED after bounded recovery"
+            exit 0
+          fi
+          exit "$rc"
+
+      - name: Accumulate prediction experience
+        if: steps.universe_state.outputs.universe_ready == 'true' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && steps.price_normalize.outputs.normalization_ok == 'true' && (steps.data_quality.outputs.status == 'PASS' || steps.data_quality_retry.outputs.status == 'PASS')
+        run: python scripts/monitor_predictions.py
+
+      - name: Record deferred monitoring state
+        if: steps.universe_state.outputs.universe_ready != 'true' || steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || steps.price_normalize.outputs.normalization_ok != 'true' || (steps.data_quality.outputs.status != 'PASS' && steps.data_quality_retry.outputs.status != 'PASS') || (steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok != 'true')
+        env:
+          UNIVERSE_READY: ${{ steps.universe_state.outputs.universe_ready }}
+          UNIVERSE_REFRESH_OK: ${{ steps.universe_refresh.outputs.refresh_ok }}
+          PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
+          PRICE_STATE_AVAILABLE: ${{ steps.price_state.outputs.available }}
+          PRICE_NORMALIZATION_OK: ${{ steps.price_normalize.outputs.normalization_ok }}
+          DATA_QUALITY_STATUS: ${{ steps.data_quality.outputs.status }}
+          DATA_QUALITY_RETRY_STATUS: ${{ steps.data_quality_retry.outputs.status }}
+          PRICE_RECOVERY_OK: ${{ steps.price_recovery.outputs.recovery_ok }}
+          PRICE_RECOVERY_REASON: ${{ steps.price_recovery.outputs.recovery_reason }}
+        run: |
+          mkdir -p data/research
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          if os.environ.get("UNIVERSE_READY") != "true":
+              reason = "universe_validation_failed"
+          elif os.environ.get("PRICE_RESTORE_OK") != "true":
+              reason = "price_state_restore_failed"
+          elif os.environ.get("PRICE_STATE_AVAILABLE") != "true":
+              reason = "price_state_unavailable"
+          elif os.environ.get("PRICE_NORMALIZATION_OK") != "true":
+              reason = "price_normalization_failed"
           elif os.environ.get("DATA_QUALITY_STATUS") != "PASS" and os.environ.get("DATA_QUALITY_RETRY_STATUS") != "PASS":
               reason = os.environ.get("PRICE_RECOVERY_REASON") or "data_quality_deferred"
           elif os.environ.get("PRICE_RECOVERY_OK") != "true":
