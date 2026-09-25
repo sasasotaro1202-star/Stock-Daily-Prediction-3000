@@ -1,2 +1,2 @@
-commit=2963f31fcb580cd76e89bffd095b1a92f4282c8c
-purpose=rerun current-head research after validated OOS computation reuse, interrupted-cycle universe recovery hardening, and exact baseline metric caching for online ablations; retain fail-closed status, PIT/OOS, calibration, conformal, SEC, CPCV, holdout, and artifact integrity
+commit=aa22a56bfb534b7577b5aeb9bf199796a2085f5b
+purpose=rerun current-head research after automation verification repair; validate chronological OOS, PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
