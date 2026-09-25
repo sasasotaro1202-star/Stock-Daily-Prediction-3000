@@ -115,6 +115,16 @@ def main() -> int:
     )
     _assert_once(
         research,
+        "candidate_models = make_models()",
+        "oos_model_candidates_frozen_per_run",
+    )
+    _assert_once(
+        research,
+        '"model_candidate_manifest":',
+        "oos_model_candidate_manifest_recorded",
+    )
+    _assert_once(
+        research,
         'row["fold"] = float(fold_idx)',
         "oos_fold_identity_recorded",
     )
