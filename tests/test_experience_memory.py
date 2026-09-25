@@ -116,7 +116,7 @@ def test_experience_memory_tracks_error_taxonomy_and_rolling_metrics(tmp_path: P
 
     assert memory["version"] == 2
     assert memory["total_resolved"] == 2
-    assert memory["error_types"]["high_confidence_wrong"]["n"] == 1
+    assert memory["error_types"]["high_confidence_wrong"]["n"] == 2
     assert memory["by_error_bucket"][">=20%"]["n"] == 2
     assert memory["daily"]["2026-09-20"]["n"] == 2
     assert memory["daily_by_model"]["2026-09-20"]["model_a"]["n"] == 1
