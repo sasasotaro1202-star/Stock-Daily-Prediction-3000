@@ -155,6 +155,22 @@ def main() -> int:
         "temporal_calibration_min_history",
     )
 
+    _assert_once(
+        research,
+        "select_drift_aware_window(",
+        "drift_aware_window_router_used",
+    )
+    _assert_once(
+        pipeline,
+        "drift_aware_window:",
+        "drift_aware_window_config",
+    )
+    _assert_once(
+        pipeline,
+        "drift_scale: 0.50",
+        "drift_aware_window_scale",
+    )
+
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
     # Guard against silently masking automation failures in the critical lane.
