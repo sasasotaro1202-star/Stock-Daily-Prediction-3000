@@ -249,6 +249,22 @@ def _quarter_keys(start_date: date, end_date: date) -> list[tuple[int, int]]:
     return out
 
 
+def _conservative_filing_window(collected_at: pd.Timestamp) -> tuple[date, date]:
+    """Return a PIT-safe [start, end] filing-date window.
+
+    Because EFTS/master.idx expose only filing dates, a filing is treated as
+    available no earlier than the end of its filing day in New York. Therefore
+    the collection calendar day itself is excluded from this date-only path.
+    """
+    local = pd.Timestamp(collected_at)
+    if local.tzinfo is None:
+        local = local.tz_localize("UTC")
+    local = local.tz_convert("America/New_York")
+    end_date = local.date() - timedelta(days=1)
+    start_date = end_date - timedelta(days=365)
+    return start_date, end_date
+
+
 def _accession_from_filename(filename: str) -> str:
     parts = [part for part in str(filename).split("/") if part]
     candidate = parts[-2] if len(parts) >= 2 else ""
@@ -300,8 +316,7 @@ def _rows_from_master_indexes(
 ) -> tuple[list[dict[str, object]], dict[str, int]]:
     """Collect one year of official SEC filing metadata via quarterly master.idx."""
     ticker_alias_map = ticker_alias_map or {}
-    start_date = collected_at.to_pydatetime().date() - timedelta(days=365)
-    end_date = collected_at.to_pydatetime().date()
+    start_date, end_date = _conservative_filing_window(collected_at)
 
     by_cik: dict[str, list[dict[str, object]]] = {}
     by_name_candidates: dict[str, list[dict[str, object]]] = {}
@@ -738,7 +753,8 @@ def main() -> None:
 
     collected_at = pd.Timestamp(datetime.now(timezone.utc))
     rows = []
-    matched = 0
+    mapped_symbol_count = 0
+    submission_attempted_symbols = 0
     deferred = 0
     submission_failures: dict[str, int] = {}
     ticker_mismatches = 0
@@ -749,7 +765,8 @@ def main() -> None:
         if not info:
             deferred += 1
             continue
-        matched += 1
+        mapped_symbol_count += 1
+        submission_attempted_symbols += 1
         try:
             payload = _get_json(f"https://data.sec.gov/submissions/CIK{info['cik']}.json")
             payload_tickers = {
@@ -823,7 +840,8 @@ def main() -> None:
         "status": "OOS_READY" if not out.empty else "DEFERRED",
         "rows": int(len(out)),
         "symbols": int(len(records)),
-        "matched_cik_symbols": int(matched),
+        "mapped_cik_symbols": int(mapped_symbol_count),
+        "submission_attempted_symbols": int(submission_attempted_symbols),
         "ticker_alias_matches": int(
             sum(
                 1
