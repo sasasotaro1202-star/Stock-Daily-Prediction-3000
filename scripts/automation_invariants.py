@@ -205,9 +205,7 @@ def main() -> int:
 
     _assert_once(
         watchdog,
-        '  push:
-    paths:
-      - ".github/research_validation.trigger"',
+        '  push:\n    paths:\n      - ".github/research_validation.trigger"',
         "watchdog_wakes_on_research_trigger",
     )
     _assert_once(
