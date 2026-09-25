@@ -12,7 +12,17 @@ def expected_calibration_error(y_true,p,bins:int=10)->float:
     return float(ece)
 
 def classification_metrics(y_true,p)->dict[str,float]:
-    y=np.asarray(y_true,dtype=int); prob=np.clip(np.asarray(p,dtype=float),1e-6,1-1e-6)
+    y=np.asarray(y_true,dtype=int)
+    raw_prob=np.asarray(p,dtype=float)
+    if raw_prob.ndim != 1 or raw_prob.shape[0] != y.shape[0]:
+        raise ValueError("probability vector shape mismatch")
+    if not np.isfinite(raw_prob).all():
+        raise ValueError("probabilities must be finite")
+    if np.any(raw_prob < -1e-8) or np.any(raw_prob > 1.0 + 1e-8):
+        raise ValueError("probabilities must be within [0,1]")
+    # Allow only numerical noise at the bounds; never silently repair a
+    # materially invalid upstream probability.
+    prob=np.clip(raw_prob,1e-6,1-1e-6)
     pred=(prob>=0.5).astype(int)
     out={"logloss":float(log_loss(y,np.column_stack([1-prob,prob]),labels=[0,1])),
          "brier":float(brier_score_loss(y,prob)),
