@@ -95,6 +95,12 @@ def main():
          and "drift_aware_window_research" in Path("scripts/run_daily_research.py").read_text()
          and "research_only: true" in pipe
          and "src.research.drift_window" not in prediction),
+        ("sequential_selection_research_isolation",
+         Path("src/research/sequential_selection.py").exists()
+         and "sequential_selection_research" in Path("scripts/run_daily_research.py").read_text()
+         and "sequential_selection_research:" in pipe
+         and "research_only: true" in pipe
+         and "src.research.sequential_selection" not in prediction),
         ("selective_probability_research_isolation",
          Path("src/research/selective.py").exists()
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
