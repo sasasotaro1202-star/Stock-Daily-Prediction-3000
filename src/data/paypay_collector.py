@@ -128,15 +128,41 @@ def _visible_name_noise(value: str) -> bool:
     normalized = value.strip().lower()
     if not normalized or len(normalized) < 2:
         return True
+    if normalized.startswith("#"):
+        return True
+    if "アルファベット順" in normalized:
+        return True
     if normalized in {
         "code", "ticker", "銘柄", "コード", "nisa", "nisa対象",
         "アプリ", "取扱いアプリ", "paypay証券アプリ",
         "paypay証券ミニアプリ", "日本株cfd", "すべて",
         "usd", "jpy", "成長投資",
         "a-", "d-", "g-", "j-", "m-", "p-", "s-", "v-",
+        "日本株", "日本株 個別銘柄", "国内etf", "reit",
+        "米国株", "米国etf",
     }:
         return True
     return normalized.startswith(("trade_", "mini_", "cfd_"))
+
+
+def _us_code_has_strong_context(line: str, code: str) -> bool:
+    """Accept a US ticker only when the source presents it as a code field."""
+    value = line.strip()
+    if value == code:
+        return True
+    fields = [
+        field.strip(" |")
+        for field in re.split(r"\s*\|\s*", value)
+        if field.strip(" |")
+    ]
+    if code in fields:
+        return True
+    return bool(
+        re.search(
+            rf"(?i)\b(?:ticker|symbol|code|コード|銘柄コード)\s*[:=|]\s*{re.escape(code)}\b",
+            value,
+        )
+    )
 
 
 def _section_from_line(line: str, market: str) -> str | None:
@@ -182,8 +208,14 @@ def parse_visible_text(raw: bytes, market: str, url: str) -> list[dict]:
             )
 
         for code in codes:
-            if market == "us" and code in known_us_noise:
-                continue
+            if market == "us":
+                if code in known_us_noise:
+                    continue
+                # Do not harvest ordinary words/numbers from security names
+                # (e.g. S&P500 -> P500, or SPDR in an ETF title). A real
+                # ticker must appear as a standalone code field/label.
+                if not _us_code_has_strong_context(line, code):
+                    continue
 
             window = lines[i : min(len(lines), i + 8)]
             window_text = " ".join(window)
@@ -510,11 +542,18 @@ def parse_reader_text(raw: bytes, market: str, url: str) -> list[dict]:
                 if market == "japan" and re.fullmatch(r"[0-9]{4}[A-Z]?", field):
                     code = field
                 elif market == "us" and re.fullmatch(r"[A-Z][A-Z0-9.\-]{0,7}", field):
-                    if field not in {"ETF", "NISA", "CFD", "ADR", "ADS", "NYRS", "US", "USD", "JPY"}:
+                    if (
+                        field not in {"ETF", "NISA", "CFD", "ADR", "ADS", "NYRS", "US", "USD", "JPY"}
+                        and _us_code_has_strong_context(candidate, field)
+                    ):
                         code = field
                 elif name is None and len(field) >= 2:
                     low = field.lower()
-                    if not low.startswith(("trade_", "mini_", "cfd_")) and field not in {"コード", "銘柄", "ticker"}:
+                    if (
+                        not low.startswith(("trade_", "mini_", "cfd_"))
+                        and field not in {"コード", "銘柄", "ticker"}
+                        and not _visible_name_noise(field)
+                    ):
                         name = field
         if not code or not name:
             continue
