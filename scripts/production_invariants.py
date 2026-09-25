@@ -101,6 +101,12 @@ def main():
          and "sequential_selection_research:" in pipe
          and "research_only: true" in pipe
          and "src.research.sequential_selection" not in prediction),
+        ("nested_policy_oos_research_isolation",
+         Path("src/research/nested_policy.py").exists()
+         and "nested_sequential_selection_research" in Path("scripts/run_daily_research.py").read_text()
+         and "nested_policy_oos_research:" in pipe
+         and "research_only: true" in pipe
+         and "src.research.nested_policy" not in prediction),
         ("selective_probability_research_isolation",
          Path("src/research/selective.py").exists()
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()

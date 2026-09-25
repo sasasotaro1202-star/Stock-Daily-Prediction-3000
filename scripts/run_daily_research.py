@@ -24,6 +24,7 @@ from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.sequential_selection import chronological_policy_oos
+from src.research.nested_policy import nested_sequential_policy_oos
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
     confidence_risk_features,
@@ -786,6 +787,29 @@ def main():
         "from prior chronological OOS outcomes. Current-fold outcomes are "
         "never used by the selector. This research audit is not a production "
         "change and does not use the frozen holdout."
+    )
+
+    nested_cfg = pipeline_cfg.get("nested_policy_oos_research", {})
+    if nested_cfg.get("research_only", True) is not True:
+        raise SystemExit("FAIL: nested policy OOS audit must remain research-only")
+    nested_min_outer = int(nested_cfg.get("min_outer_folds", 5))
+    nested_outer_start = nested_cfg.get("outer_start_fold")
+    if nested_outer_start is not None:
+        nested_outer_start = int(nested_outer_start)
+    nested_selection_research = nested_sequential_policy_oos(
+        sequential_model_names,
+        outer_start_fold=nested_outer_start,
+        min_history_folds=sequential_min_history,
+        half_life_folds=sequential_half_life,
+        stability_penalty=sequential_stability,
+        baseline_model=str(sequential_baseline),
+        min_outer_folds=nested_min_outer,
+    )
+    nested_selection_research["selection_note"] = (
+        "Outer-period performance is reserved for evaluating a fixed policy. "
+        "Policy hyperparameters are fixed before the outer block; each outer "
+        "fold sees only prior inner/outer outcomes, and the current outer "
+        "outcome is added only after scoring. Research-only; no production change."
     )
 
     # Research-only temporal confidence-risk layer. It predicts the
@@ -2161,6 +2185,7 @@ def main():
         "selected_model": global_selected,
         "global_selection_evidence": global_selection_evidence,
         "sequential_selection_research": sequential_selection_research,
+        "nested_sequential_selection_research": nested_selection_research,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
         "calibration_method": selected_calibration_method,
