@@ -191,7 +191,7 @@ def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
         zf.writestr("master.idx", raw)
 
     monkeypatch.setattr(mod, "_quarter_keys", lambda start_date, end_date: [(2026, 3)])
-    monkeypatch.setattr(mod, "_get_bytes", lambda url: buf.getvalue())
+    monkeypatch.setattr(mod, "_get_master_index_text", lambda url: (raw.decode("latin-1"), "test_fixture"))
 
     collected = pd.Timestamp("2026-09-25T12:00:00Z")
     records = [
