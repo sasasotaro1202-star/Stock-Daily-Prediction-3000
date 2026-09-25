@@ -108,6 +108,30 @@ def test_price_update_has_bounded_retry_and_split_fallback():
     assert "if depth < 3 and len(records) > 5" in source
 
 
+def test_price_update_deep_split_recovers_small_poisoned_batch():
+    from scripts.update_prices import fetch_resilient
+
+    records = [{"symbol": str(i), "asset_class": "us_stock"} for i in range(8)]
+    calls = []
+
+    def flaky(records, *, period):
+        calls.append(len(records))
+        if len(records) <= 4:
+            return pd.DataFrame(
+                [{
+                    "symbol": records[0]["symbol"],
+                    "asset_class": records[0]["asset_class"],
+                    "close": 100.0,
+                }]
+            )
+        raise RuntimeError("poisoned batch")
+
+    out = fetch_resilient(records, "5y", downloader=flaky, sleep_fn=lambda _: None)
+    assert not out.empty
+    assert max(calls) == 8
+    assert 4 in calls
+
+
 def test_paypay_visible_text_parser_handles_non_table_layout():
     from src.data.paypay_collector import parse_visible_text
 
