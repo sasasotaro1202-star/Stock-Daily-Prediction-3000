@@ -2,6 +2,9 @@ name: Actions reliability watchdog
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/research_validation.trigger"
   schedule:
     # Run every 15 minutes to bound missed-schedule detection latency.
     - cron: "7,22,37,52 * * * *"
