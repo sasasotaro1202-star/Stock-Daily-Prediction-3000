@@ -218,6 +218,7 @@ def adaptive_conformal_prediction_sets(
     gamma=0.02,
     alpha_min=0.01,
     alpha_max=0.50,
+    observed_y_test=None,
 ):
     """ACI-style online conformal sets with session-batch updates only.
 
@@ -267,13 +268,8 @@ def adaptive_conformal_prediction_sets(
         include_0[idx] = p0 > alpha_t
         set_size[idx] = include_0[idx].astype(int) + include_1[idx].astype(int)
 
-        y_group = getattr(adaptive_conformal_prediction_sets, "_y_test", None)
-        if y_group is None:
-            # No outcome feedback means the procedure can still emit sets,
-            # but cannot adapt alpha; production remains unaffected.
-            misses = np.empty(0, dtype=int)
-        else:
-            yy = np.asarray(y_group, dtype=int)[idx]
+        if observed_y_test is not None:
+            yy = np.asarray(observed_y_test, dtype=int)[idx]
             contains = np.where(yy == 1, include_1[idx], include_0[idx])
             miss = float(np.mean(~contains))
             alpha_t = float(np.clip(
@@ -318,25 +314,17 @@ def adaptive_conformal_prediction_set_metrics(
         raise ValueError("test labels must align with test probabilities")
     if not np.isin(y_out, (0, 1)).all():
         raise ValueError("test labels must be binary")
-    # The lightweight helper uses a transient function attribute solely to
-    # pass already-observed session outcomes into the sequential updater.
-    setattr(adaptive_conformal_prediction_sets, "_y_test", y_out)
-    try:
-        result = adaptive_conformal_prediction_sets(
-            y_calibration,
-            p_calibration,
-            p_test,
-            session_dates,
-            alpha=alpha,
-            gamma=gamma,
-            alpha_min=alpha_min,
-            alpha_max=alpha_max,
-        )
-    finally:
-        try:
-            delattr(adaptive_conformal_prediction_sets, "_y_test")
-        except AttributeError:
-            pass
+    result = adaptive_conformal_prediction_sets(
+        y_calibration,
+        p_calibration,
+        p_test,
+        session_dates,
+        alpha=alpha,
+        gamma=gamma,
+        alpha_min=alpha_min,
+        alpha_max=alpha_max,
+        observed_y_test=y_out,
+    )
     set_size = result["set_size"]
     singleton = set_size == 1
     contains = np.where(y_out == 1, result["include_1"], result["include_0"])
