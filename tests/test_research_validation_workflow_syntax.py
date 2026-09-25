@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import subprocess
 from pathlib import Path
 
@@ -13,11 +12,11 @@ def _extract_run_blocks(text: str) -> list[str]:
     blocks: list[str] = []
     i = 0
     while i < len(lines):
-        match = re.match(r"^(?P<indent> *)run: *\\|\\s*$", lines[i])
-        if not match:
+        if lines[i].strip() != "run: |":
             i += 1
             continue
-        block_indent = len(match.group("indent")) + 2
+        parent_indent = len(lines[i]) - len(lines[i].lstrip(" "))
+        block_indent = parent_indent + 2
         i += 1
         block: list[str] = []
         while i < len(lines):
@@ -44,17 +43,30 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
             check=False,
         )
         assert result.returncode == 0, (
-            f"research-validation.yml run block {index} has invalid bash syntax:\\n"
-            f"{result.stderr}\\nSCRIPT:\\n{script}"
+            f"research-validation.yml run block {index} has invalid bash syntax:\n"
+            f"{result.stderr}\nSCRIPT:\n{script}"
         )
 
 
 def test_research_validation_status_uses_step_outcome_not_outputs() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    for name in ("RESEARCH_STEP_OUTCOME", "SEC_RESEARCH_STEP_OUTCOME",
-                 "SEC_ABLATION_STEP_OUTCOME", "CPCV_STEP_OUTCOME"):
-        prefix = r"^\\s*" + re.escape(name) + r":\\s*\\$\\{\\{steps\\."
-        match = re.search(prefix + r"([^}]+)\\}\\}", text, re.MULTILINE)
-        assert match, f"missing {name} binding"
-        assert ".outputs.outcome" not in match.group(1), f"{name} must bind steps.<id>.outcome"
-        assert match.group(1).endswith(".outcome"), f"{name} must bind steps.<id>.outcome"
+    names = (
+        "RESEARCH_STEP_OUTCOME",
+        "SEC_RESEARCH_STEP_OUTCOME",
+        "SEC_ABLATION_STEP_OUTCOME",
+        "CPCV_STEP_OUTCOME",
+    )
+    bindings = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        for name in names:
+            prefix = f"{name}: "
+            if stripped.startswith(prefix):
+                bindings[name] = stripped[len(prefix):]
+    for name in names:
+        binding = bindings.get(name)
+        assert binding is not None, f"missing {name} binding"
+        assert ".outputs.outcome" not in binding, f"{name} must bind steps.<id>.outcome"
+        assert binding.startswith("${{ steps.") and binding.endswith(".outcome }}"), (
+            f"{name} must bind steps.<id>.outcome; got: {binding}"
+        )
