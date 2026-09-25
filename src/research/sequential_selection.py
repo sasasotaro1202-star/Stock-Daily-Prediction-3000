@@ -130,8 +130,8 @@ def chronological_policy_oos(
             all_folds.add(fold)
         row_maps[str(model_name)] = mapped
 
-    selected_rows: list[dict[str, float]] = []
-    baseline_rows: list[dict[str, float]] = []
+    selected_rows: list[Mapping[str, object]] = []
+    baseline_rows: list[Mapping[str, object]] = []
     decisions: list[dict[str, object]] = []
     for fold in sorted(all_folds):
         if fold < min_history_folds:
@@ -154,10 +154,7 @@ def chronological_policy_oos(
         if selected is None or fold not in row_maps[selected]:
             continue
         selected_row = row_maps[selected][fold]
-        selected_rows.append({
-            "fold": float(fold),
-            "logloss": float(selected_row["logloss"]),
-        })
+        selected_rows.append(selected_row)
         decision: dict[str, object] = {
             "fold": int(fold),
             "selected_model": str(selected),
@@ -167,21 +164,27 @@ def chronological_policy_oos(
         if baseline_model is not None and baseline_model in row_maps:
             baseline_row = row_maps[baseline_model].get(fold)
             if baseline_row is not None:
-                baseline_rows.append({
-                    "fold": float(fold),
-                    "logloss": float(baseline_row["logloss"]),
-                })
+                baseline_rows.append(baseline_row)
                 decision["baseline_model"] = str(baseline_model)
                 decision["baseline_logloss"] = float(baseline_row["logloss"])
         decisions.append(decision)
 
-    def _mean(rows: Sequence[Mapping[str, float]]) -> float:
-        if not rows:
-            return float("nan")
-        return float(np.mean([float(row["logloss"]) for row in rows]))
+    def _mean_metric(
+        rows: Sequence[Mapping[str, object]],
+        metric: str,
+    ) -> float:
+        values = []
+        for row in rows:
+            try:
+                value = float(row[metric])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if np.isfinite(value):
+                values.append(value)
+        return float(np.mean(values)) if values else float("nan")
 
-    selected_mean = _mean(selected_rows)
-    baseline_mean = _mean(baseline_rows)
+    selected_mean = _mean_metric(selected_rows, "logloss")
+    baseline_mean = _mean_metric(baseline_rows, "logloss")
     delta = (
         baseline_mean - selected_mean
         if np.isfinite(selected_mean) and np.isfinite(baseline_mean)
@@ -192,6 +195,68 @@ def chronological_policy_oos(
         if np.isfinite(delta) and baseline_mean != 0.0
         else float("nan")
     )
+
+    selected_brier = _mean_metric(selected_rows, "brier")
+    baseline_brier = _mean_metric(baseline_rows, "brier")
+    selected_ece = _mean_metric(selected_rows, "ece")
+    baseline_ece = _mean_metric(baseline_rows, "ece")
+
+    fold_delta_rows = []
+    for decision in decisions:
+        try:
+            fold = int(decision["fold"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        chosen_name = str(decision["selected_model"])
+        chosen = row_maps.get(chosen_name, {}).get(fold)
+        baseline = (
+            row_maps.get(str(baseline_model), {}).get(fold)
+            if baseline_model is not None
+            else None
+        )
+        if chosen is None or baseline is None:
+            continue
+        try:
+            gain = float(baseline["logloss"]) - float(chosen["logloss"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if np.isfinite(gain):
+            fold_delta_rows.append(gain)
+
+    bootstrap_probability = 0.0
+    bootstrap_p05 = float("-inf")
+    if len(fold_delta_rows) >= 5:
+        deltas = np.asarray(fold_delta_rows, dtype=float)
+        if np.isfinite(deltas).all():
+            rng = np.random.default_rng(20260925)
+            idx = rng.integers(0, len(deltas), size=(2000, len(deltas)))
+            boot = deltas[idx].mean(axis=1)
+            bootstrap_probability = float(np.mean(boot > 0.0))
+            bootstrap_p05 = float(np.quantile(boot, 0.05))
+
+    positive_fold_share = (
+        float(np.mean(np.asarray(fold_delta_rows) > 0.0))
+        if fold_delta_rows
+        else 0.0
+    )
+    research_positive = bool(
+        len(fold_delta_rows) >= 5
+        and np.isfinite(relative)
+        and relative >= 0.03
+        and positive_fold_share >= 0.70
+        and bootstrap_probability >= 0.90
+        and bootstrap_p05 > 0.0
+        and (
+            not np.isfinite(selected_brier)
+            or not np.isfinite(baseline_brier)
+            or selected_brier - baseline_brier <= 0.001
+        )
+        and (
+            not np.isfinite(selected_ece)
+            or not np.isfinite(baseline_ece)
+            or selected_ece <= baseline_ece
+        )
+    )
     return {
         "status": "EVALUATED" if selected_rows else "INSUFFICIENT_OOS",
         "method": "prior_oos_sequential_model_selection",
@@ -200,10 +265,18 @@ def chronological_policy_oos(
         "stability_penalty": float(stability_penalty),
         "folds": int(len(selected_rows)),
         "selected_oos_logloss": selected_mean,
+        "selected_oos_brier": selected_brier,
+        "selected_oos_ece": selected_ece,
         "baseline_model": baseline_model,
         "baseline_oos_logloss": baseline_mean,
+        "baseline_oos_brier": baseline_brier,
+        "baseline_oos_ece": baseline_ece,
         "logloss_improvement": delta,
         "relative_logloss_improvement": relative,
+        "positive_fold_share": positive_fold_share,
+        "bootstrap_probability_improvement": bootstrap_probability,
+        "bootstrap_p05_improvement": bootstrap_p05,
+        "research_positive": research_positive,
         "selected_model_by_fold": decisions,
         "research_only": True,
     }
