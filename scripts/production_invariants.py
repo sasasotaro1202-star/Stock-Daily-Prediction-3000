@@ -112,6 +112,10 @@ def main():
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
          and "production_changed" in Path("scripts/run_daily_research.py").read_text()
          and "apply_confidence_shrinkage" not in prediction),
+        ("online_expert_balanced_research_isolation",
+         "online_expert_balanced_research" in Path("scripts/run_daily_research.py").read_text()
+         and "update_group_keys=groups" in Path("scripts/run_daily_research.py").read_text()
+         and "online_expert_average" not in prediction),
         ("online_expert_research_isolation",
          "online_expert_average" in Path("scripts/run_daily_research.py").read_text()
          and "fixed_learning_rate_and_share_rate_chronological_online_update_after_each_session" in Path("scripts/run_daily_research.py").read_text()

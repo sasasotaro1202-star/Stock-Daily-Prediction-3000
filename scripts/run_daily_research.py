@@ -401,9 +401,12 @@ def main():
                     "predictions": {},
                     "situations": None,
                     "risk_context": None,
+                    "asset_classes": None,
                 },
             )
             online_bank["predictions"][name] = np.asarray(p, dtype=float)
+            if online_bank["asset_classes"] is None:
+                online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
             if online_bank["risk_context"] is None:
                 risk_columns = [
                     "volatility_20", "volume_ratio_20", "gap_pct", "breadth_up",
@@ -1105,6 +1108,66 @@ def main():
                         for key, rows in situation_rows_online.items()
                     },
                 }
+    # Research-only asset-balanced online updates. This ablation equalizes
+    # asset-class influence within each session so large groups cannot dominate
+    # expert adaptation. Current-session outcomes are used only after prediction.
+    online_expert_balanced_research = {}
+    for learning_rate in (1.0, 2.0, 4.0):
+        fold_rows = []
+        for fold_idx in sorted(online_prediction_by_fold):
+            bank = online_prediction_by_fold[fold_idx]
+            predictions = bank["predictions"]
+            groups = bank.get("asset_classes")
+            if len(predictions) < 2 or groups is None:
+                continue
+            try:
+                ensemble_p, _, _ = online_expert_average(
+                    predictions,
+                    bank["y"],
+                    bank["session_dates"],
+                    learning_rate=learning_rate,
+                    share_rate=0.05,
+                    update_group_keys=groups,
+                )
+            except ValueError as exc:
+                raise SystemExit(
+                    f"FAIL: balanced online expert input validation failed in fold {fold_idx}: {exc}"
+                ) from exc
+            y = np.asarray(bank["y"], dtype=int)
+            baseline = predictions.get(global_selected)
+            gain = (
+                classification_metrics(y, baseline)["logloss"]
+                - classification_metrics(y, ensemble_p)["logloss"]
+                if baseline is not None else float("nan")
+            )
+            fold_rows.append({
+                "fold": float(fold_idx),
+                "n_test": float(len(y)),
+                "logloss": float(classification_metrics(y, ensemble_p)["logloss"]),
+                "delta_logloss_vs_global_selected": float(gain),
+                "learning_rate": float(learning_rate),
+                "share_rate": 0.05,
+            })
+        if fold_rows:
+            gains = np.asarray([r["delta_logloss_vs_global_selected"] for r in fold_rows], dtype=float)
+            gains = gains[np.isfinite(gains)]
+            online_expert_balanced_research[str(learning_rate)] = {
+                "research_only": True,
+                "production_changed": False,
+                "promotion_allowed": False,
+                "learning_rate": float(learning_rate),
+                "share_rate": 0.05,
+                "update_group": "asset_class",
+                "selection_protocol": "fixed_parameters_prequential_asset_balanced_update_after_each_session",
+                "test_tuning_allowed": False,
+                "folds": len(fold_rows),
+                "mean_logloss": float(np.mean([r["logloss"] for r in fold_rows])),
+                "logloss_std": float(np.std([r["logloss"] for r in fold_rows], ddof=1)) if len(fold_rows) >= 2 else 0.0,
+                "mean_logloss_improvement_vs_global_selected": float(np.mean(gains)) if len(gains) else 0.0,
+                "positive_fold_ratio_vs_global_selected": float(np.mean(gains > 0.0)) if len(gains) else 0.0,
+                "metrics_by_fold": fold_rows,
+            }
+
     # Do not tune or promote an online learning rate from these same OOS folds.
     # A future promotion requires nested selection or a separate untouched period.
 
@@ -2198,6 +2261,7 @@ def main():
         "ranking_weight_candidates": ranking_candidates,
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
+        "online_expert_balanced_research": online_expert_balanced_research,
         "confidence_risk_research": confidence_risk_research,
         "temporal_calibration_research": temporal_calibration_research,
         "drift_aware_window_research": drift_aware_window_research,

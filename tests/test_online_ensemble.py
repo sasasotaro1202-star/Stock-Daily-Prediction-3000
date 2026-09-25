@@ -100,3 +100,19 @@ def test_nonnegative_learning_rate():
     predictions = {"a": [0.5, 0.5], "b": [0.5, 0.5]}
     with pytest.raises(ValueError):
         online_expert_average(predictions, y, dates, learning_rate=-1.0)
+
+
+def test_group_balanced_updates_do_not_follow_large_group_size():
+    dates = np.array(["2026-01-02"] * 4 + ["2026-01-05"] * 4)
+    groups = np.array(["large", "large", "large", "small", "large", "large", "large", "small"])
+    predictions = {
+        "a": np.array([0.9, 0.9, 0.9, 0.1, 0.9, 0.9, 0.9, 0.1]),
+        "b": np.array([0.1, 0.1, 0.1, 0.9, 0.1, 0.1, 0.1, 0.9]),
+    }
+    y = np.ones(8, dtype=int)
+    _, _, plain_history = online_expert_average(predictions, y, dates, learning_rate=2.0)
+    _, _, balanced_history = online_expert_average(
+        predictions, y, dates, learning_rate=2.0, update_group_keys=groups
+    )
+    assert balanced_history[0]["update_grouped"] is True
+    assert balanced_history[0]["weights_after"][1] > plain_history[0]["weights_after"][1]

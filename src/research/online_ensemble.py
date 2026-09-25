@@ -10,6 +10,7 @@ def online_expert_average(
     *,
     learning_rate: float,
     share_rate: float = 0.0,
+    update_group_keys=None,
 ):
     """Chronological online expert mixture with optional fixed-share recovery.
 
@@ -31,9 +32,12 @@ def online_expert_average(
     arrays = [np.asarray(predictions_by_model[name], dtype=float) for name in names]
     raw_y = np.asarray(y_true)
     dates = np.asarray(session_dates)
+    groups = None if update_group_keys is None else np.asarray(update_group_keys)
 
     if raw_y.ndim != 1 or dates.ndim != 1 or len(raw_y) != len(dates):
         raise ValueError("y_true and session_dates must be aligned 1-D arrays")
+    if groups is not None and (groups.ndim != 1 or len(groups) != len(raw_y)):
+        raise ValueError("update_group_keys must align with y_true 1-D")
     if any(arr.ndim != 1 or len(arr) != len(raw_y) for arr in arrays):
         raise ValueError("all expert predictions must match y_true length")
     if len(raw_y) == 0:
@@ -65,6 +69,12 @@ def online_expert_average(
         ensemble[mask] = matrix[mask] @ current_weights
 
         row_losses = []
+        session_groups = groups[mask] if groups is not None else None
+        unique_groups = (
+            sorted(set(session_groups.tolist()))
+            if session_groups is not None
+            else None
+        )
         for j in range(len(names)):
             p = matrix[mask, j]
             target = y[mask]
@@ -72,7 +82,15 @@ def online_expert_average(
                 target * np.log(p)
                 + (1 - target) * np.log(1.0 - p)
             )
-            row_losses.append(float(np.mean(loss)))
+            if unique_groups is None:
+                row_losses.append(float(np.mean(loss)))
+            else:
+                group_losses = []
+                for group_value in unique_groups:
+                    group_mask = session_groups == group_value
+                    if group_mask.any():
+                        group_losses.append(float(np.mean(loss[group_mask])))
+                row_losses.append(float(np.mean(group_losses)))
         row_losses_arr = np.asarray(row_losses, dtype=float)
         log_weights -= eta * row_losses_arr
 
@@ -84,6 +102,7 @@ def online_expert_average(
         history.append({
             "session_date": str(date),
             "share_rate": share,
+            "update_grouped": groups is not None,
             "weights_before": current_weights.tolist(),
             "weights_after": next_weights.tolist(),
             "expert_logloss": {
