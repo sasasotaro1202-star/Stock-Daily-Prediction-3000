@@ -139,6 +139,22 @@ def main() -> int:
         "selection_evidence_alpha_floor",
     )
 
+    _assert_once(
+        research,
+        "select_temporal_calibration_method(",
+        "temporal_calibration_router_used",
+    )
+    _assert_once(
+        pipeline,
+        "temporal_router_research_only: true",
+        "temporal_calibration_is_research_only",
+    )
+    _assert_once(
+        pipeline,
+        "temporal_min_history_folds: 2",
+        "temporal_calibration_min_history",
+    )
+
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
     # Guard against silently masking automation failures in the critical lane.
