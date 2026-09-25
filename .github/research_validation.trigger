@@ -1,2 +1,2 @@
-commit=931045dfda82c52df1c8aea2a560438c59720a05
-purpose=current-head OOS with bounded yfinance timeouts, deep price recovery regression, fail-closed provider quality, PIT/OOS validation, conformal diagnostics, SEC ablation, CPCV audit, and safe run supersession
+commit=8e2b304ed91a5d6df792e271231ed74dc4cbbdd7
+purpose=current-head research after deep split recovery test alignment and bounded yfinance timeout; fail-closed quality; PIT/OOS; conformal; SEC; CPCV; holdout
