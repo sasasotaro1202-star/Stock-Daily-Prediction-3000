@@ -779,11 +779,10 @@ def main():
                         subset.target_up_1d.astype(int),
                         p[subset_positions],
                     )
-                    sr["rank_ic"] = cross_sectional_rank_ic(
-                        subset["target_ret_1d"].astype(float),
-                        p[subset_positions],
-                        subset["session_date"].astype(str),
-                    )
+                    # Symbol-level predictions contain at most one observation
+                    # per session_date, so cross-sectional rank IC is undefined
+                    # (singleton groups) and adds no usable selection signal.
+                    sr["rank_ic"] = float("nan")
                     sr["n_test"] = float(len(subset))
                     symbol_key = f"{asset_class}::{symbol_value}"
                     symbol_rows.setdefault(symbol_key, []).append((name, sr))
@@ -800,11 +799,9 @@ def main():
                             route_subset.target_up_1d.astype(int),
                             p[route_positions],
                         )
-                        rr_symbol["rank_ic"] = cross_sectional_rank_ic(
-                            route_subset["target_ret_1d"].astype(float),
-                            p[route_positions],
-                            route_subset["session_date"].astype(str),
-                        )
+                        # Symbol-regime slices are also singleton within
+                        # each session_date, so cross-sectional rank IC is undefined.
+                        rr_symbol["rank_ic"] = float("nan")
                         rr_symbol["n_test"] = float(len(route_subset))
                         symbol_regime_key = f"{symbol_key}::{reg_name}"
                         symbol_regime_rows.setdefault(symbol_regime_key, []).append(
