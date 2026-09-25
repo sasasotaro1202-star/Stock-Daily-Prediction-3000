@@ -242,9 +242,11 @@ jobs:
             failures=$((failures + 1))
           else
             heartbeat_epoch="$(date -d "$latest_heartbeat" +%s 2>/dev/null || echo 0)"
-            heartbeat_cutoff="$(date -u -d '10 hours ago' +%s)"
+            # Heartbeat runs every 6h. Allow one missed schedule plus runner/API delay;
+            # alert only after 13h so a healthy 6h cadence does not create false stale failures.
+            heartbeat_cutoff="$(date -u -d '13 hours ago' +%s)"
             if [ "$heartbeat_epoch" -le 0 ] || [ "$heartbeat_epoch" -lt "$heartbeat_cutoff" ]; then
-              echo "::error title=Automation heartbeat stale::latest successful heartbeat is older than 10 hours: $latest_heartbeat"
+              echo "::error title=Automation heartbeat stale::latest successful heartbeat is older than 13 hours: $latest_heartbeat"
               failures=$((failures + 1))
             else
               echo "Automation heartbeat: fresh ($latest_heartbeat)"
