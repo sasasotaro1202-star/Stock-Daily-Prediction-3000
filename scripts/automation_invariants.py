@@ -249,6 +249,11 @@ def main() -> int:
         "watchdog_research_queue_compares_current_sha",
     )
     _assert_once(
+        watchdog,
+        'active_head_sha" != "$current_sha"',
+        "watchdog_research_cancels_superseded_active_run",
+    )
+    _assert_once(
         validation_workflow,
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
