@@ -5,6 +5,13 @@ on:
   schedule:
     - cron: "47 8 * * 1-5"
       timezone: "Asia/Tokyo"
+  push:
+    paths:
+      - "scripts/sec_filings_research.py"
+      - "scripts/run_sec_filing_ablation.py"
+      - "src/research/sec_features.py"
+      - "tests/test_sec_filing_research.py"
+      - ".github/workflows/sec-filings-research.yml"
 
 permissions:
   contents: read
@@ -29,6 +36,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_universe_state.py
       - name: Collect SEC filings
+        env:
+          SEC_USER_AGENT: "Stock-Daily-Prediction-3000/0.1 (GitHub Actions; contact: 262083466+sasasotaro1202-star@users.noreply.github.com)"
         run: python scripts/sec_filings_research.py
       - name: Upload research artifact
         uses: actions/upload-artifact@v7

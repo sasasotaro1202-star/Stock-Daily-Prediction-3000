@@ -87,3 +87,9 @@ def test_sec_request_headers_are_identified_and_rate_limit_friendly():
     assert req.get_header("Accept") == "application/json"
     assert req.get_header("Accept-encoding") == "gzip, deflate"
     assert captured["timeout"] == mod.REQUEST_TIMEOUT
+
+
+def test_sec_ablation_uses_research_feature_module():
+    source = Path("scripts/run_sec_filing_ablation.py").read_text(encoding="utf-8")
+    assert "from src.research.sec_features import" in source
+    assert "from src.features.sec_features import" not in source

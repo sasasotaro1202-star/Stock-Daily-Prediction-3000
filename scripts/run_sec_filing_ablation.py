@@ -8,7 +8,7 @@ import pandas as pd
 import yaml
 
 from src.features.context import add_cross_sectional_context, add_market_context
-from src.features.sec_features import SEC_FEATURE_COLUMNS, add_sec_filing_features
+from src.research.sec_features import SEC_FEATURE_COLUMNS, add_sec_filing_features
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.fit import fit_classifier
 from src.prediction.model_factories import models

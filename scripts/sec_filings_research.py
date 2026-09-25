@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,7 +18,7 @@ ALLOWED_FORMS = {
     "8-K", "10-K", "10-Q", "20-F", "6-K", "40-F",
     "S-1", "S-3", "S-4", "424B2", "DEF 14A", "SC 13D", "SC 13G",
 }
-USER_AGENT = "Stock-Daily-Prediction-3000/0.1 (+https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000)"
+USER_AGENT = os.getenv("SEC_USER_AGENT", "Stock-Daily-Prediction-3000/0.1 (+https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000)")
 REQUEST_TIMEOUT = 25
 RATE_SLEEP_SECONDS = 0.15
 RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
