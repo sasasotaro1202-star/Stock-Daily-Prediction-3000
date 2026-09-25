@@ -198,6 +198,21 @@ def main() -> int:
         "research_validation_preserves_active_oos_runs",
     )
     _assert_once(
+        watchdog,
+        'inspect_research_validation()',
+        "watchdog_monitors_research_validation",
+    )
+    _assert_once(
+        watchdog,
+        'research_stale_epoch="$((now_epoch - 170 * 60))"',
+        "watchdog_research_stale_timeout",
+    )
+    _assert_once(
+        watchdog,
+        'head_sha="$current_sha"',
+        "watchdog_research_queue_compares_current_sha",
+    )
+    _assert_once(
         validation_workflow,
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
