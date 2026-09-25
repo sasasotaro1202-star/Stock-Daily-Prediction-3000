@@ -29,7 +29,8 @@ jobs:
       - name: Restore bounded recent official universe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-/        run: python scripts\/restore_latest_universe_state\.py/
+          ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"
+        run: python scripts/restore_latest_universe_state.py
       - name: Restore prediction history
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
