@@ -9,9 +9,11 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-MEMORY_VERSION = 1
-MAX_HARD_CASES = 500
-MAX_ANOMALIES = 50
+MEMORY_VERSION = 2
+MAX_HARD_CASES = 1000
+MAX_RECENT_CASES = 500
+MAX_ANOMALIES = 100
+MAX_DAILY_DAYS = 730
 
 _BUCKETS = (
     "p<=0.25",
@@ -26,6 +28,14 @@ _UNCERTAINTY_BUCKETS = (
     "0.01<=disagreement<0.03",
     "0.03<=disagreement<0.06",
     "disagreement>=0.06",
+)
+
+_RETURN_ERROR_BUCKETS = (
+    "<2%",
+    "2%<=error<5%",
+    "5%<=error<10%",
+    "10%<=error<20%",
+    ">=20%",
 )
 
 
@@ -72,6 +82,45 @@ def _uncertainty_bucket(value: float | None) -> str:
     return "disagreement>=0.06"
 
 
+
+
+def _return_error_bucket(abs_error: float) -> str:
+    pct = abs(float(abs_error))
+    if pct < 0.02:
+        return "<2%"
+    if pct < 0.05:
+        return "2%<=error<5%"
+    if pct < 0.10:
+        return "5%<=error<10%"
+    if pct < 0.20:
+        return "10%<=error<20%"
+    return ">=20%"
+
+
+def _error_tags(
+    p: float, y: int, ret_error: float, disagreement: float | None
+) -> list[str]:
+    tags: list[str] = []
+    wrong = (p >= 0.5) != bool(y)
+    if wrong:
+        tags.append("direction_wrong")
+        if p >= 0.75 or p <= 0.25:
+            tags.append("high_confidence_wrong")
+        elif p >= 0.60 or p <= 0.40:
+            tags.append("moderate_confidence_wrong")
+        else:
+            tags.append("near_boundary_wrong")
+    if abs(ret_error) >= 0.05:
+        tags.append("return_error_ge_5pct")
+    if abs(ret_error) >= 0.10:
+        tags.append("return_error_ge_10pct")
+    if abs(ret_error) >= 0.20:
+        tags.append("return_error_ge_20pct")
+    if disagreement is not None and np.isfinite(disagreement) and disagreement >= 0.06:
+        tags.append("high_model_disagreement")
+    return tags
+
+
 def _group_update(group: dict[str, Any], *, p: float, y: int, ret_error: float) -> None:
     eps = 1e-6
     pp = float(np.clip(p, eps, 1.0 - eps))
@@ -103,9 +152,18 @@ def _new_memory() -> dict[str, Any]:
         "by_model_disagreement": {
             bucket: _blank_group() for bucket in _UNCERTAINTY_BUCKETS
         },
+        "by_error_bucket": {
+            bucket: _blank_group() for bucket in _RETURN_ERROR_BUCKETS
+        },
+        "error_types": {},
+        "daily": {},
+        "daily_by_model": {},
         "hard_cases": [],
+        "recent_hard_cases": [],
         "processed_prediction_files": {},
         "anomalies": [],
+        "total_deferred_files": 0,
+        "total_anomalies": 0,
         "research_priority": [],
     }
 
@@ -117,15 +175,33 @@ def _load(path: Path) -> dict[str, Any]:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except Exception as exc:
         raise RuntimeError(f"experience memory is unreadable: {exc}") from exc
-    if payload.get("version") != MEMORY_VERSION:
+    version = int(payload.get("version", 0))
+    if version == 1:
+        payload["version"] = MEMORY_VERSION
+        payload.setdefault("daily", {})
+        payload.setdefault(
+            "by_error_bucket",
+            {bucket: _blank_group() for bucket in _RETURN_ERROR_BUCKETS},
+        )
+        payload.setdefault("error_types", {})
+        payload.setdefault("recent_hard_cases", [])
+        payload.setdefault("daily_by_model", {})
+        payload.setdefault("total_deferred_files", 0)
+        payload.setdefault("total_anomalies", len(payload.get("anomalies", [])))
+        payload.setdefault("research_priority", [])
+        return payload
+    if version != MEMORY_VERSION:
         raise RuntimeError("experience memory version mismatch")
     return payload
 
 
 def _append_anomaly(memory: dict[str, Any], message: str) -> None:
     rows = list(memory.get("anomalies", []))
+    if rows and rows[-1].get("message") == message:
+        return
     rows.append({"at": _now(), "message": message})
     memory["anomalies"] = rows[-MAX_ANOMALIES:]
+    memory["total_anomalies"] = int(memory.get("total_anomalies", 0)) + 1
 
 
 def _file_sha256(path: Path) -> str:
@@ -156,6 +232,23 @@ def _finalize_group(group: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def _rolling_group(memory: dict[str, Any], sessions: int) -> dict[str, Any]:
+    keys = sorted(memory.get("daily", {}).keys())[-sessions:]
+    merged = _blank_group()
+    for key in keys:
+        group = memory["daily"][key]
+        for field in (
+            "n",
+            "correct",
+            "logloss_sum",
+            "brier_sum",
+            "abs_return_error_sum",
+            "squared_return_error_sum",
+        ):
+            merged[field] += float(group.get(field, 0.0))
+    return _finalize_group(merged)
+
+
 def _rebuild_priority(memory: dict[str, Any]) -> None:
     total = max(int(memory.get("total_resolved", 0)), 1)
     overall_ll = (
@@ -168,10 +261,17 @@ def _rebuild_priority(memory: dict[str, Any]) -> None:
         else 0.0
     )
     priorities: list[dict[str, Any]] = []
-    for dimension in ("by_asset_class", "by_model_id", "by_regime", "by_market_situation"):
+    for dimension in (
+        "by_asset_class",
+        "by_model_id",
+        "by_regime",
+        "by_market_situation",
+        "error_types",
+        "by_error_bucket",
+    ):
         for name, group in memory.get(dimension, {}).items():
             n = int(group.get("n", 0))
-            if n < 50:
+            if n < 30:
                 continue
             ll = float(group.get("logloss_sum", 0.0)) / max(n, 1)
             impact = (ll - overall_ll) * n
@@ -181,11 +281,23 @@ def _rebuild_priority(memory: dict[str, Any]) -> None:
                     "segment": name,
                     "n": n,
                     "logloss": ll,
+                    "accuracy": float(group.get("correct", 0.0)) / max(n, 1),
+                    "return_mae": float(
+                        group.get("abs_return_error_sum", 0.0)
+                    ) / max(n, 1),
                     "impact_vs_global_logloss": float(impact),
                 }
             )
-    priorities.sort(key=lambda row: (row["impact_vs_global_logloss"], row["n"]), reverse=True)
-    memory["research_priority"] = priorities[:20]
+    priorities.sort(
+        key=lambda row: (row["impact_vs_global_logloss"], row["n"]),
+        reverse=True,
+    )
+    memory["research_priority"] = priorities[:30]
+    memory["rolling"] = {
+        "5_sessions": _rolling_group(memory, 5),
+        "20_sessions": _rolling_group(memory, 20),
+        "60_sessions": _rolling_group(memory, 60),
+    }
 
 
 def update_experience_memory(
@@ -267,6 +379,38 @@ def update_experience_memory(
             y=y,
             ret_error=ret_error,
         )
+        disagreement_value = (
+            float(disagreement) if pd.notna(disagreement) else None
+        )
+        _group_update(
+            memory["by_error_bucket"][_return_error_bucket(ret_error)],
+            p=p,
+            y=y,
+            ret_error=ret_error,
+        )
+        tags = _error_tags(p, y, ret_error, disagreement_value)
+        for tag in tags:
+            tag_group = memory.setdefault("error_types", {}).setdefault(
+                tag, _blank_group()
+            )
+            _group_update(tag_group, p=p, y=y, ret_error=ret_error)
+
+        session = _safe_name(getattr(row, "session_date", None))
+        daily_group = memory.setdefault("daily", {}).setdefault(
+            session, _blank_group()
+        )
+        _group_update(daily_group, p=p, y=y, ret_error=ret_error)
+
+        model_name = _safe_name(getattr(row, "model_id", None))
+        daily_models = memory.setdefault("daily_by_model", {}).setdefault(
+            session, {}
+        )
+        _group_update(
+            daily_models.setdefault(model_name, _blank_group()),
+            p=p,
+            y=y,
+            ret_error=ret_error,
+        )
 
     memory["processed_prediction_files"] = processed
     memory["total_files_processed"] = len(processed)
@@ -302,11 +446,34 @@ def update_experience_memory(
                     else None
                 ),
                 "model_version": _safe_name(getattr(row, "model_version", None)),
+                "error_tags": _error_tags(
+                    p,
+                    y,
+                    ret_error,
+                    (
+                        float(row.model_disagreement)
+                        if pd.notna(getattr(row, "model_disagreement", np.nan))
+                        else None
+                    ),
+                ),
             }
         )
 
     hard_rows.sort(key=lambda x: float(x.get("hardness", 0.0)), reverse=True)
     memory["hard_cases"] = hard_rows[:MAX_HARD_CASES]
+    memory["recent_hard_cases"] = hard_rows[:MAX_RECENT_CASES]
+
+    daily = memory.get("daily", {})
+    if len(daily) > MAX_DAILY_DAYS:
+        keep_dates = sorted(daily)[-MAX_DAILY_DAYS:]
+        memory["daily"] = {key: daily[key] for key in keep_dates}
+    daily_by_model = memory.get("daily_by_model", {})
+    if len(daily_by_model) > MAX_DAILY_DAYS:
+        keep_dates = sorted(daily_by_model)[-MAX_DAILY_DAYS:]
+        memory["daily_by_model"] = {
+            key: daily_by_model[key] for key in keep_dates
+        }
+
     memory["updated_at"] = _now()
     _rebuild_priority(memory)
     memory_path.parent.mkdir(parents=True, exist_ok=True)
@@ -321,8 +488,19 @@ def compact_view(memory: dict[str, Any]) -> dict[str, Any]:
         "total_resolved": memory.get("total_resolved", 0),
         "total_files_processed": memory.get("total_files_processed", 0),
         "research_priority": memory.get("research_priority", []),
+        "rolling": memory.get("rolling", {}),
+        "error_types": {
+            k: _finalize_group(v) for k, v in memory.get("error_types", {}).items()
+        },
+        "by_error_bucket": {
+            k: _finalize_group(v)
+            for k, v in memory.get("by_error_bucket", {}).items()
+        },
         "top_hard_cases": memory.get("hard_cases", [])[:20],
+        "recent_hard_cases": memory.get("recent_hard_cases", [])[:20],
         "anomalies": memory.get("anomalies", [])[-10:],
+        "total_deferred_files": memory.get("total_deferred_files", 0),
+        "total_anomalies": memory.get("total_anomalies", 0),
         "by_model_id": {
             k: _finalize_group(v) for k, v in memory.get("by_model_id", {}).items()
         },
