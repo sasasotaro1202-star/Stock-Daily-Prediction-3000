@@ -48,6 +48,23 @@ def test_oos_calibration_methods_fit_and_bound_outputs():
 def test_ece_bounds():
     v=expected_calibration_error([0,1,0,1],[0.1,0.9,0.2,0.8])
     assert 0<=v<=1
+\ndef test_classification_metrics_fail_closed_on_invalid_probabilities():
+    import numpy as np
+    from src.research.metrics import classification_metrics
+
+    good = classification_metrics([0, 1], np.array([0.2, 0.8]))
+    assert set(("logloss", "brier", "ece", "accuracy")).issubset(good)
+
+    with pytest.raises(ValueError, match="finite"):
+        classification_metrics([0, 1], np.array([0.2, np.nan]))
+
+    with pytest.raises(ValueError, match=r"\[0,1\]"):
+        classification_metrics([0, 1], np.array([0.2, 1.2]))
+
+    with pytest.raises(ValueError, match="shape"):
+        classification_metrics([0, 1], np.array([[0.2], [0.8]]))
+
+
 
 
 def test_model_factory_matches_production_hgb_contract():
