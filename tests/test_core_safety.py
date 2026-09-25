@@ -108,6 +108,15 @@ def test_price_update_has_bounded_retry_and_split_fallback():
     assert "if depth < 3 and len(records) > 5" in source
 
 
+def test_yfinance_price_paths_have_bounded_timeout():
+    from pathlib import Path
+
+    source = Path("src/data/yahoo_price.py").read_text(encoding="utf-8")
+    assert "YF_TIMEOUT_SECONDS = 30" in source
+    assert "timeout=YF_TIMEOUT_SECONDS" in source
+    assert source.count("timeout=YF_TIMEOUT_SECONDS") >= 2
+
+
 def test_price_update_deep_split_recovers_small_poisoned_batch():
     from scripts.update_prices import fetch_resilient
 
