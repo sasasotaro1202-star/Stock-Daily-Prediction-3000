@@ -75,6 +75,12 @@ def main() -> int:
     )
 
     _assert_once(
+        watchdog,
+        "heartbeat_cutoff=\"$(date -u -d '13 hours ago' +%s)\"",
+        "heartbeat_stale_threshold_matches_6h_cadence",
+    )
+
+    _assert_once(
         market,
         'if [ "$run_id" -gt "$GITHUB_RUN_ID" ]; then',
         "market_cycle_ignores_future_runs",
