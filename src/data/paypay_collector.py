@@ -492,6 +492,7 @@ def parse_rows(raw:bytes,market:str,url:str)->list[dict]:
                 and not c.startswith("trade_")
                 and not c.startswith("mini_")
                 and not c.startswith("cfd_")
+                and not _visible_name_noise(c)
             ),
             "",
         )
