@@ -5,6 +5,7 @@ from typing import Iterable, Mapping
 import numpy as np
 
 from src.research.sequential_selection import select_prior_oos_model
+from src.research.statistics import moving_block_bootstrap_mean
 
 
 def nested_sequential_policy_oos(
@@ -54,7 +55,7 @@ def nested_sequential_policy_oos(
     if len(sorted_folds) < min_history_folds + min_outer_folds:
         return {
             "status": "INSUFFICIENT_OOS",
-            "method": "nested_outer_prior_oos_sequential_model_selection",
+            "method": "nested_outer_prior_oos_sequential_model_selection_block_bootstrap",
             "reason": "insufficient_total_folds",
             "total_folds": len(sorted_folds),
             "outer_folds": 0,
@@ -179,11 +180,11 @@ def nested_sequential_policy_oos(
     bootstrap_probability = 0.0
     bootstrap_p05 = float("-inf")
     if len(deltas) >= 5 and np.isfinite(deltas).all():
-        rng = np.random.default_rng(20260925)
-        idx = rng.integers(0, len(deltas), size=(2000, len(deltas)))
-        boot = deltas[idx].mean(axis=1)
-        bootstrap_probability = float(np.mean(boot > 0.0))
-        bootstrap_p05 = float(np.quantile(boot, 0.05))
+        bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+            deltas,
+            n_bootstrap=4000,
+            seed=20260925,
+        )
 
     positive_share = (
         float(np.mean(deltas > 0.0)) if len(deltas) else 0.0
@@ -217,6 +218,8 @@ def nested_sequential_policy_oos(
         "positive_fold_share": positive_share,
         "bootstrap_probability_improvement": bootstrap_probability,
         "bootstrap_p05_improvement": bootstrap_p05,
+        "bootstrap_method": "moving_block",
+
         "research_positive": research_positive,
         "selected_model_by_outer_fold": decisions,
         "selection_hyperparameters_frozen_before_outer": True,
