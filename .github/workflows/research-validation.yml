@@ -121,6 +121,29 @@ jobs:
       - name: Chronological OOS research
         id: research_oos
         run: python scripts/run_daily_research.py
+      - name: Publish compact OOS score summary
+        if: always() && steps.research_oos.outcome == 'success'
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          p = Path("data/research/latest_metrics.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          selected = str(d.get("selected_model") or "unknown")
+          m = (d.get("results") or {}).get(selected, {}).get("metrics") or {}
+          r = d.get("return_oos") or {}
+          rm = r.get("metrics") or {}
+          print("## Chronological OOS score")
+          print(f"- Selected model: `{selected}`")
+          print(f"- LogLoss: `{m.get('logloss', 'n/a')}`")
+          print(f"- Brier: `{m.get('brier', 'n/a')}`")
+          print(f"- ECE: `{m.get('ece', 'n/a')}`")
+          print(f"- Accuracy: `{m.get('accuracy', 'n/a')}`")
+          print(f"- Rank IC: `{m.get('rank_ic', 'n/a')}`")
+          print(f"- Return MAE: `{rm.get('mae', 'n/a')}`")
+          print(f"- Return sign accuracy: `{rm.get('sign_accuracy', 'n/a')}`")
+          PY
       - name: Collect free SEC filing research inputs
         id: sec_research
         env:
