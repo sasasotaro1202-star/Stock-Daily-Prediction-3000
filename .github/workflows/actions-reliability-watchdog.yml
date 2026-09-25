@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/research_validation.trigger"
       - ".github/workflows/actions-reliability-watchdog.yml"
+      - ".github/workflows/research-validation.yml"
   schedule:
     # Run every 5 minutes so stale queued research is recovered promptly.
     - cron: "*/5 * * * *"
