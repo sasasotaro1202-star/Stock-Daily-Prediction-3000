@@ -88,8 +88,10 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GITHUB_TOKEN", "token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
-    monkeypatch.setenv("GITHUB_RUN_ID", "123")
-    monkeypatch.setenv("GITHUB_SHA", "abc")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("GITHUB_SHA", "default-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "123")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "abc")
     monkeypatch.setattr(
         status.urllib.request,
         "urlopen",
@@ -119,6 +121,8 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
         )
     )
     assert payload["status_lookup_ok"] is True
+    assert payload["workflow_run_id"] == "123"
+    assert payload["workflow_sha"] == "abc"
     assert payload["job_status"] == "failure"
     assert payload["research_step"] == "success"
     assert payload["evidence_artifact_present"] is False
