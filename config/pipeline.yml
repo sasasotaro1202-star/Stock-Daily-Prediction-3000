@@ -103,3 +103,10 @@ automation:
   initial_period: 5y
   asia_prediction_time_jst: "18:17"
   us_prediction_time_jst: "07:17"
+
+sequential_selection_research:
+  research_only: true
+  min_history_folds: 3
+  half_life_folds: 4.0
+  stability_penalty: 0.25
+  baseline_model: logistic
