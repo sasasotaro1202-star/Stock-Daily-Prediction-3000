@@ -162,9 +162,11 @@ jobs:
           git add artifacts/research_validation_latest.json
           git diff --cached --quiet && exit 0
           git commit -m "Persist research validation snapshot"
-          if ! git push origin HEAD:main; then
-            git fetch origin main
-            git rebase origin/main
-            git push origin HEAD:main
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch origin research-status
+            git rebase origin/research-status
+          else
+            git branch --force research-status
           fi
+          git push origin HEAD:research-status
 
