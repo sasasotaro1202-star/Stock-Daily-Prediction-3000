@@ -220,17 +220,34 @@ jobs:
             done <<< "$run_entries"
 
             if [ -n "$active_run_id" ]; then
-              # updated_at can continue moving while a job is stuck inside one long
-              # step, so the research lane also has a hard active-age cutoff.
-              if [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
-                echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 150 minutes; cancelling before Actions timeout"
+              # Never let an active run from a superseded SHA block current-head research.
+              # Only same-SHA active runs are protected from replacement until their
+              # hard age guard is reached.
+              if [[ "$active_head_sha" != "$current_sha" ]]; then
+                echo "::warning title=${workflow_name} superseded active run::run $active_run_id targets superseded SHA $active_head_sha; current=$current_sha; cancelling to unblock current-head research"
                 if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
-                  echo "${workflow_name}: stale active run $active_run_id cancelled"
+                  echo "${workflow_name}: superseded active run $active_run_id cancelled"
+                else
+                  echo "::error title=${workflow_name} superseded active recovery failed::unable to cancel run $active_run_id"
+                  failures=$((failures + 1))
+                  return 0
+                fi
+                active_run_id=""
+              elif [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
+                echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 150 minutes of active age; cancelling before Actions timeout"
+                if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "${workflow_name}: stale active run $active_run_id cancelled by hard-age guard"
                 else
                   echo "::error title=${workflow_name} stale active recovery failed::unable to cancel stale run $active_run_id"
                   failures=$((failures + 1))
                   return 0
                 fi
+                active_run_id=""
+              else
+                echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha started_epoch=$active_run_started_epoch"
+                return 0
+              fi
+            fi
                 active_run_id=""
               else
                 echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha"
