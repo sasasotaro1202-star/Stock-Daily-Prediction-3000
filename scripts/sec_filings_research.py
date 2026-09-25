@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import gzip
+import io
 import json
 import os
 import time
-from datetime import datetime, timezone
+import zipfile
+from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -69,6 +72,169 @@ def _get_json(url: str) -> object:
     if last_error is not None:
         raise last_error
     raise RuntimeError("SEC request failed without an exception")
+
+
+
+def _get_bytes(url: str) -> bytes:
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
+        req = Request(
+            url,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/zip, application/octet-stream, */*",
+                "Accept-Encoding": "gzip, deflate",
+                "From": os.getenv(
+                    "SEC_CONTACT_EMAIL",
+                    "262083466+sasasotaro1202-star@users.noreply.github.com",
+                ),
+            },
+        )
+        try:
+            with urlopen(req, timeout=REQUEST_TIMEOUT) as response:
+                body = response.read()
+                if str(response.headers.get("Content-Encoding", "")).lower() == "gzip":
+                    body = gzip.decompress(body)
+                return body
+        except HTTPError as exc:
+            last_error = exc
+            if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
+                raise
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            try:
+                delay = min(15.0, max(1.0, float(retry_after))) if retry_after else float(2 ** (attempt - 1))
+            except (TypeError, ValueError):
+                delay = float(2 ** (attempt - 1))
+            time.sleep(delay)
+        except (URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            if attempt >= MAX_REQUEST_ATTEMPTS:
+                raise
+            time.sleep(float(2 ** (attempt - 1)))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("SEC binary request failed without an exception")
+
+
+def _quarter_keys(start_date: date, end_date: date) -> list[tuple[int, int]]:
+    year = start_date.year
+    quarter = ((start_date.month - 1) // 3) + 1
+    end_key = (end_date.year, ((end_date.month - 1) // 3) + 1)
+    out = []
+    while (year, quarter) <= end_key:
+        out.append((year, quarter))
+        if quarter == 4:
+            year += 1
+            quarter = 1
+        else:
+            quarter += 1
+    return out
+
+
+def _accession_from_filename(filename: str) -> str:
+    parts = [part for part in str(filename).split("/") if part]
+    candidate = parts[-2] if len(parts) >= 2 else ""
+    if len(candidate) == 18 and candidate.isdigit():
+        return f"{candidate[:10]}-{candidate[10:12]}-{candidate[12:]}"
+    return candidate
+
+
+def _rows_from_master_indexes(
+    universe_records: list[dict[str, object]],
+    ticker_map: dict[str, dict[str, object]],
+    collected_at: pd.Timestamp,
+) -> tuple[list[dict[str, object]], dict[str, int]]:
+    # The official master index exposes filing date, but not acceptance time.
+    # Use end-of-filing-day Eastern Time as a conservative PIT boundary.
+    start_date = collected_at.to_pydatetime().date() - timedelta(days=365)
+    end_date = collected_at.to_pydatetime().date()
+    by_cik: dict[str, list[dict[str, object]]] = {}
+    for record in universe_records:
+        info = ticker_map.get(_norm_ticker(record.get("symbol")))
+        if not info:
+            continue
+        cik = str(info.get("cik", "")).zfill(10)
+        if cik:
+            by_cik.setdefault(cik, []).append(record)
+
+    rows = []
+    diagnostics: dict[str, int] = {}
+    tz = ZoneInfo("America/New_York")
+    for year, quarter in _quarter_keys(start_date, end_date):
+        url = f"https://www.sec.gov/Archives/edgar/full-index/{year}/QTR{quarter}/master.zip"
+        body = _get_bytes(url)
+        quarter_count = 0
+        with zipfile.ZipFile(io.BytesIO(body)) as archive:
+            master_name = next(
+                (name for name in archive.namelist() if name.lower().endswith("master.idx")),
+                None,
+            )
+            if master_name is None:
+                raise ValueError(f"SEC master index missing in {url}")
+            with archive.open(master_name, "r") as raw:
+                text = io.TextIOWrapper(raw, encoding="latin-1", errors="replace")
+                for line in text:
+                    line = line.rstrip("\r\n")
+                    if (
+                        not line
+                        or line.startswith("Description:")
+                        or line.startswith("Last Data Received:")
+                        or line.startswith("Comments:")
+                        or line.startswith("CIK|")
+                    ):
+                        continue
+                    parts = line.split("|", 4)
+                    if len(parts) != 5:
+                        continue
+                    _, company_name, form, filed, filename = parts
+                    form = form.strip()
+                    if form not in ALLOWED_FORMS:
+                        continue
+                    filed_ts = pd.to_datetime(filed.strip(), errors="coerce")
+                    if pd.isna(filed_ts):
+                        continue
+                    filed_date = filed_ts.date()
+                    if filed_date < start_date or filed_date > end_date:
+                        continue
+                    filename = filename.strip()
+                    path_parts = [part for part in filename.split("/") if part]
+                    cik_from_path = ""
+                    for i, part in enumerate(path_parts):
+                        if part == "data" and i + 1 < len(path_parts) and path_parts[i + 1].isdigit():
+                            cik_from_path = str(int(path_parts[i + 1])).zfill(10)
+                            break
+                    if not cik_from_path:
+                        continue
+                    for record in by_cik.get(cik_from_path, []):
+                        available_at = pd.Timestamp(
+                            datetime.combine(
+                                filed_date,
+                                dt_time(23, 59, 59, 999999),
+                                tzinfo=tz,
+                            )
+                        ).tz_convert("UTC")
+                        ticker = _norm_ticker(record.get("symbol"))
+                        rows.append({
+                            "symbol": str(record.get("symbol", "")),
+                            "asset_class": "us_stock",
+                            "issuer_name": str(record.get("name", "")),
+                            "sec_title": str(ticker_map[ticker].get("title", "")),
+                            "cik": cik_from_path,
+                            "form": form,
+                            "filing_date": filed_date.isoformat(),
+                            "acceptance_datetime": "",
+                            "available_at": available_at.isoformat(),
+                            "accession_number": _accession_from_filename(filename),
+                            "primary_document": Path(filename).name,
+                            "source": "sec_edgar_master_index",
+                            "available_at_method": "filing_date_eod_conservative",
+                            "research_only": True,
+                            "production_changed": False,
+                            "collected_at": collected_at.isoformat(),
+                        })
+                        quarter_count += 1
+        diagnostics[f"{year}Q{quarter}"] = quarter_count
+    return rows, diagnostics
 
 
 def _norm_ticker(value: object) -> str:
