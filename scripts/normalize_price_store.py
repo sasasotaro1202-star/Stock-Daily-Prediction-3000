@@ -15,8 +15,21 @@ NUMERIC = ["open", "high", "low", "close", "volume"]
 REQUIRED = set(KEYS + ["available_at", "retrieved_at", *NUMERIC])
 
 
+def input_price_partitions(price_dir: Path = PRICE_DIR) -> list[Path]:
+    """Return raw partition inputs; canonical is fallback only when no batches exist."""
+    canonical = price_dir / OUT.name
+    partitions = sorted(
+        path for path in price_dir.glob("*.parquet") if path != canonical
+    )
+    if partitions:
+        return partitions
+    if canonical.exists():
+        return [canonical]
+    return []
+
+
 def main() -> None:
-    files = sorted(PRICE_DIR.glob("*.parquet"))
+    files = input_price_partitions(PRICE_DIR)
     if not files:
         raise SystemExit("DEFERRED: no raw price partitions to normalize")
 
