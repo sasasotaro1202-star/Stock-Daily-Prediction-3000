@@ -192,7 +192,7 @@ jobs:
           path: |
             data/research/monitor_latest.json
             data/research/experience_memory.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
       - name: Persist accumulated experience
         if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED') && hashFiles('data/research/experience_memory.json') != ''
