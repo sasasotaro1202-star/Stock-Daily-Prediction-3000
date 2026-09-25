@@ -30,6 +30,74 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_universe_state.py
+
+      - name: Validate restored universe
+        id: universe_quality
+        shell: bash
+        run: |
+          set +e
+          python scripts/universe_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/universe_quality.json ]; then
+            status="$(python -c "import json; from pathlib import Path; print(json.loads(Path('data/research/universe_quality.json').read_text(encoding='utf-8')).get('status',''))")"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Refresh official universe after failed restore validation
+        id: universe_refresh
+        if: steps.universe_quality.outputs.status != 'PASS'
+        shell: bash
+        run: |
+          set +e
+          python scripts/refresh_universe.py
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "refresh_ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "refresh_ok=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "refresh_rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Re-check refreshed universe
+        id: universe_quality_retry
+        if: steps.universe_quality.outputs.status != 'PASS' && steps.universe_refresh.outputs.refresh_ok == 'true'
+        shell: bash
+        run: |
+          set +e
+          python scripts/universe_quality_gate.py
+          rc=$?
+          set -e
+          status=''
+          if [ -f data/research/universe_quality.json ]; then
+            status="$(python -c "import json; from pathlib import Path; print(json.loads(Path('data/research/universe_quality.json').read_text(encoding='utf-8')).get('status',''))")"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Determine universe readiness
+        id: universe_state
+        shell: bash
+        run: |
+          status="${{ steps.universe_quality.outputs.status }}"
+          if [ "$status" != "PASS" ] && [ "${{ steps.universe_quality_retry.outputs.status }}" = "PASS" ]; then
+            status="PASS"
+          fi
+          if [ -z "$status" ]; then
+            status="FAIL"
+          fi
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          if [ "$status" = "PASS" ]; then
+            echo "universe_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "universe_ready=false" >> "$GITHUB_OUTPUT"
+          fi
       - name: Restore prediction history
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
