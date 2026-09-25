@@ -263,7 +263,7 @@ def main() -> int:
         "watchdog_research_cancels_superseded_active_run",
     )    _assert_once(
         watchdog,
-        "recovery_needed=true",
+        'active_run_id=""\n                recovery_needed=true\n              else',
         "watchdog_research_redispatches_after_active_recovery",
     )
     _assert_absent(
