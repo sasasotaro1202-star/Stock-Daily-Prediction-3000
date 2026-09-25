@@ -8,6 +8,7 @@ from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 import pandas as pd
@@ -17,6 +18,9 @@ OUT = Path("data/research/sec_filings_research.parquet")
 META = Path("data/research/sec_filings_research.json")
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FALLBACK_TICKERS_URL = "https://raw.githubusercontent.com/jadchaar/sec-cik-mapper/7883b83389836f9bba9bdfe53031467235746334/mappings/stocks/ticker_to_cik.json"
+EFTS_SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
+EFTS_PAGE_SIZE = 100
+EFTS_MAX_PAGES = 20
 ALLOWED_FORMS = {
     "8-K", "10-K", "10-Q", "20-F", "6-K", "40-F",
     "S-1", "S-3", "S-4", "424B2", "DEF 14A", "SC 13D", "SC 13G",
@@ -92,6 +96,37 @@ def _jina_get_json(url: str) -> object:
     if not isinstance(payload, (dict, list)):
         raise ValueError("Jina SEC JSON payload has unexpected type")
     return payload
+
+def _curl_cffi_get_json(url: str) -> object:
+    """Free browser-like JSON fallback for an official SEC endpoint."""
+    from curl_cffi import requests as curl_requests
+
+    response = curl_requests.get(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+            "From": os.getenv(
+                "SEC_CONTACT_EMAIL",
+                "262083466+sasasotaro1202-star@users.noreply.github.com",
+            ),
+        },
+        timeout=REQUEST_TIMEOUT,
+        impersonate="chrome",
+        allow_redirects=True,
+    )
+    if int(response.status_code) >= 400:
+        raise HTTPError(
+            url,
+            int(response.status_code),
+            getattr(response, "reason", None),
+            getattr(response, "headers", None),
+            None,
+        )
+    return response.json()
+
+
 
 def _curl_cffi_get_master_index_text(url: str) -> tuple[str, str]:
     """Retry an official SEC index through curl_cffi's browser-like client."""
@@ -220,104 +255,6 @@ def _accession_from_filename(filename: str) -> str:
     if len(candidate) == 18 and candidate.isdigit():
         return f"{candidate[:10]}-{candidate[10:12]}-{candidate[12:]}"
     return candidate
-
-
-def _rows_from_master_indexes(
-    universe_records: list[dict[str, object]],
-    ticker_map: dict[str, dict[str, object]],
-    collected_at: pd.Timestamp,
-) -> tuple[list[dict[str, object]], dict[str, int]]:
-    # The official master index exposes filing date, but not acceptance time.
-    # Use end-of-filing-day Eastern Time as a conservative PIT boundary.
-    start_date = collected_at.to_pydatetime().date() - timedelta(days=365)
-    end_date = collected_at.to_pydatetime().date()
-    by_cik: dict[str, list[dict[str, object]]] = {}
-    for record in universe_records:
-        info = ticker_map.get(_norm_ticker(record.get("symbol")))
-        if not info:
-            continue
-        cik = str(info.get("cik", "")).zfill(10)
-        if cik:
-            by_cik.setdefault(cik, []).append(record)
-
-    rows = []
-    diagnostics: dict[str, int] = {}
-    tz = ZoneInfo("America/New_York")
-    for year, quarter in _quarter_keys(start_date, end_date):
-        url = f"https://www.sec.gov/Archives/edgar/full-index/{year}/QTR{quarter}/master.zip"
-        body = _get_bytes(url)
-        quarter_count = 0
-        with zipfile.ZipFile(io.BytesIO(body)) as archive:
-            master_name = next(
-                (name for name in archive.namelist() if name.lower().endswith("master.idx")),
-                None,
-            )
-            if master_name is None:
-                raise ValueError(f"SEC master index missing in {url}")
-            with archive.open(master_name, "r") as raw:
-                text = io.TextIOWrapper(raw, encoding="latin-1", errors="replace")
-                for line in text:
-                    line = line.rstrip("\r\n")
-                    if (
-                        not line
-                        or line.startswith("Description:")
-                        or line.startswith("Last Data Received:")
-                        or line.startswith("Comments:")
-                        or line.startswith("CIK|")
-                    ):
-                        continue
-                    parts = line.split("|", 4)
-                    if len(parts) != 5:
-                        continue
-                    _, company_name, form, filed, filename = parts
-                    form = form.strip()
-                    if form not in ALLOWED_FORMS:
-                        continue
-                    filed_ts = pd.to_datetime(filed.strip(), errors="coerce")
-                    if pd.isna(filed_ts):
-                        continue
-                    filed_date = filed_ts.date()
-                    if filed_date < start_date or filed_date > end_date:
-                        continue
-                    filename = filename.strip()
-                    path_parts = [part for part in filename.split("/") if part]
-                    cik_from_path = ""
-                    for i, part in enumerate(path_parts):
-                        if part == "data" and i + 1 < len(path_parts) and path_parts[i + 1].isdigit():
-                            cik_from_path = str(int(path_parts[i + 1])).zfill(10)
-                            break
-                    if not cik_from_path:
-                        continue
-                    for record in by_cik.get(cik_from_path, []):
-                        available_at = pd.Timestamp(
-                            datetime.combine(
-                                filed_date,
-                                dt_time(23, 59, 59, 999999),
-                                tzinfo=tz,
-                            )
-                        ).tz_convert("UTC")
-                        ticker = _norm_ticker(record.get("symbol"))
-                        rows.append({
-                            "symbol": str(record.get("symbol", "")),
-                            "asset_class": "us_stock",
-                            "issuer_name": str(record.get("name", "")),
-                            "sec_title": str(ticker_map[ticker].get("title", "")),
-                            "cik": cik_from_path,
-                            "form": form,
-                            "filing_date": filed_date.isoformat(),
-                            "acceptance_datetime": "",
-                            "available_at": available_at.isoformat(),
-                            "accession_number": _accession_from_filename(filename),
-                            "primary_document": Path(filename).name,
-                            "source": "sec_edgar_master_index",
-                            "available_at_method": "filing_date_eod_conservative",
-                            "research_only": True,
-                            "production_changed": False,
-                            "collected_at": collected_at.isoformat(),
-                        })
-                        quarter_count += 1
-        diagnostics[f"{year}Q{quarter}"] = quarter_count
-    return rows, diagnostics
 
 
 def _norm_ticker(value: object) -> str:
@@ -477,6 +414,181 @@ def _rows_from_master_indexes(
                 })
                 quarter_count += 1
         diagnostics[f"{year}Q{quarter}"] = quarter_count
+
+    return rows, diagnostics
+
+
+
+def _rows_from_efts(
+    universe_records: list[dict[str, object]],
+    ticker_map: dict[str, dict[str, object]],
+    ticker_alias_map: dict[str, dict[str, object]],
+    collected_at: pd.Timestamp,
+) -> tuple[list[dict[str, object]], dict[str, object]]:
+    """Collect filing metadata through the official SEC EFTS JSON endpoint.
+
+    EFTS provides filing date, CIK, form, accession, and document metadata.
+    It does not expose acceptanceDateTime, so availability is conservatively
+    set to filing-day 23:59:59.999999 ET. CIK filtering is used to avoid
+    ambiguous company-name/ticker matches.
+    """
+    start_date = collected_at.to_pydatetime().date() - timedelta(days=365)
+    end_date = collected_at.to_pydatetime().date()
+    forms = ",".join(sorted(ALLOWED_FORMS))
+    tz = ZoneInfo("America/New_York")
+    rows: list[dict[str, object]] = []
+    diagnostics: dict[str, object] = {
+        "transport_counts": {},
+        "empty_symbols": [],
+        "failed_symbols": {},
+        "pages": 0,
+        "symbols_attempted": 0,
+    }
+
+    for record in sorted(universe_records, key=lambda x: str(x.get("symbol", ""))):
+        info = _resolve_ticker_info(
+            record.get("symbol"),
+            ticker_map,
+            ticker_alias_map,
+        )
+        if not info:
+            continue
+        cik = str(info.get("cik", "")).zfill(10)
+        if not cik:
+            continue
+
+        diagnostics["symbols_attempted"] = int(diagnostics["symbols_attempted"]) + 1
+        symbol_rows: list[dict[str, object]] = []
+        offset = 0
+        transport_used = ""
+
+        try:
+            for _ in range(EFTS_MAX_PAGES):
+                params = {
+                    "q": "",
+                    "dateRange": "custom",
+                    "startdt": start_date.isoformat(),
+                    "enddt": end_date.isoformat(),
+                    "forms": forms,
+                    "ciks": cik,
+                    "from": offset,
+                    "size": EFTS_PAGE_SIZE,
+                }
+                url = f"{EFTS_SEARCH_URL}?{urlencode(params)}"
+                try:
+                    payload = _get_json(url)
+                    transport_used = "efts_direct"
+                except HTTPError as exc:
+                    if exc.code != 403:
+                        raise
+                    payload = _curl_cffi_get_json(url)
+                    transport_used = "efts_curl_cffi_chrome"
+
+                if not isinstance(payload, dict):
+                    raise ValueError("EFTS response is not a JSON object")
+                hit_block = payload.get("hits")
+                if not isinstance(hit_block, dict):
+                    raise ValueError("EFTS response.hits is not an object")
+                hits = hit_block.get("hits", [])
+                if not isinstance(hits, list):
+                    raise ValueError("EFTS response.hits.hits is not a list")
+
+                diagnostics["pages"] = int(diagnostics["pages"]) + 1
+                if not hits:
+                    break
+
+                for hit in hits:
+                    if not isinstance(hit, dict):
+                        continue
+                    source = hit.get("_source", {})
+                    if not isinstance(source, dict):
+                        continue
+
+                    hit_ciks = {
+                        str(value).zfill(10)
+                        for value in (source.get("ciks") or [])
+                        if str(value).strip()
+                    }
+                    if hit_ciks and cik not in hit_ciks:
+                        continue
+
+                    form = str(source.get("form", "")).strip()
+                    if form not in ALLOWED_FORMS:
+                        continue
+                    filed = pd.to_datetime(
+                        str(source.get("file_date", "")),
+                        errors="coerce",
+                    )
+                    if pd.isna(filed):
+                        continue
+                    filed_date = filed.date()
+                    if filed_date < start_date or filed_date > end_date:
+                        continue
+
+                    accession = str(source.get("adsh", "")).strip()
+                    hit_id = str(hit.get("_id", ""))
+                    if not accession:
+                        accession = hit_id.split(":", 1)[0]
+                    if not accession:
+                        continue
+
+                    filename = hit_id.split(":", 1)[1] if ":" in hit_id else ""
+                    available_at = pd.Timestamp(
+                        datetime.combine(
+                            filed_date,
+                            dt_time(23, 59, 59, 999999),
+                            tzinfo=tz,
+                        )
+                    ).tz_convert("UTC")
+
+                    symbol_rows.append({
+                        "symbol": str(record.get("symbol", "")),
+                        "asset_class": "us_stock",
+                        "issuer_name": str(record.get("name", "")),
+                        "sec_title": str(info.get("title", "")),
+                        "cik": cik,
+                        "form": form,
+                        "filing_date": filed_date.isoformat(),
+                        "acceptance_datetime": "",
+                        "available_at": available_at.isoformat(),
+                        "accession_number": accession,
+                        "primary_document": filename or accession,
+                        "source": "sec_edgar_efts",
+                        "source_url": (
+                            f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+                            f"{accession.replace('-', '')}/{filename}"
+                            if filename
+                            else f"https://www.sec.gov/Archives/edgar/data/{int(cik)}/"
+                            f"{accession.replace('-', '')}/"
+                        ),
+                        "available_at_method": "filing_date_eod_conservative",
+                        "retrieval_transport": transport_used,
+                        "research_only": True,
+                        "production_changed": False,
+                        "collected_at": collected_at.isoformat(),
+                    })
+
+                if len(hits) < EFTS_PAGE_SIZE:
+                    break
+                offset += EFTS_PAGE_SIZE
+
+            if symbol_rows:
+                rows.extend(symbol_rows)
+            else:
+                diagnostics["empty_symbols"].append(str(record.get("symbol", "")))
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            failures = diagnostics["failed_symbols"]
+            assert isinstance(failures, dict)
+            failures[str(record.get("symbol", ""))] = (
+                f"{getattr(exc, 'code', '')}:{type(exc).__name__}"
+            )
+
+        if transport_used:
+            counts = diagnostics["transport_counts"]
+            assert isinstance(counts, dict)
+            counts[transport_used] = int(counts.get(transport_used, 0)) + 1
+
+        time.sleep(RATE_SLEEP_SECONDS)
 
     return rows, diagnostics
 
@@ -652,20 +764,47 @@ def main() -> None:
             deferred += 1
         time.sleep(RATE_SLEEP_SECONDS)
 
+    efts_used = False
+    efts_diagnostics: dict[str, object] = {}
     if bulk_index_used:
         try:
-            bulk_rows, bulk_index_diagnostics = _rows_from_master_indexes(
+            efts_rows, efts_diagnostics = _rows_from_efts(
                 records,
                 ticker_map,
                 ticker_alias_map,
                 collected_at,
             )
-            rows.extend(bulk_rows)
-            mapped_symbols = {str(row["symbol"]) for row in bulk_rows}
-            deferred = len(records) - len(mapped_symbols)
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
-            key = f"bulk_index:{getattr(exc, 'code', '')}:{type(exc).__name__}"
+            if efts_rows:
+                efts_used = True
+                rows.extend(efts_rows)
+                mapped_symbols = {str(row["symbol"]) for row in efts_rows}
+                deferred = len(records) - len(mapped_symbols)
+            else:
+                bulk_rows, bulk_index_diagnostics = _rows_from_master_indexes(
+                    records,
+                    ticker_map,
+                    ticker_alias_map,
+                    collected_at,
+                )
+                rows.extend(bulk_rows)
+                mapped_symbols = {str(row["symbol"]) for row in bulk_rows}
+                deferred = len(records) - len(mapped_symbols)
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            key = f"efts:{getattr(exc, 'code', '')}:{type(exc).__name__}"
             submission_failures[key] = submission_failures.get(key, 0) + 1
+            try:
+                bulk_rows, bulk_index_diagnostics = _rows_from_master_indexes(
+                    records,
+                    ticker_map,
+                    ticker_alias_map,
+                    collected_at,
+                )
+                rows.extend(bulk_rows)
+                mapped_symbols = {str(row["symbol"]) for row in bulk_rows}
+                deferred = len(records) - len(mapped_symbols)
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as archive_exc:
+                key = f"bulk_index:{getattr(archive_exc, 'code', '')}:{type(archive_exc).__name__}"
+                submission_failures[key] = submission_failures.get(key, 0) + 1
 
 
     out = pd.DataFrame(rows)
@@ -698,6 +837,8 @@ def main() -> None:
         "submission_failure_counts": submission_failures,
         "ticker_mismatch_count": int(ticker_mismatches),
         "bulk_index_used": bool(bulk_index_used),
+        "efts_used": bool(efts_used),
+        "efts_diagnostics": efts_diagnostics,
         "bulk_index_quarters": bulk_index_diagnostics,
         "bulk_index_retrieval_transports": sorted(
             {
