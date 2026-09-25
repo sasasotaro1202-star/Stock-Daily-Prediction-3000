@@ -225,6 +225,16 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
+        'active_run_started_epoch="$(date -d "$run_started" +%s 2>/dev/null || echo 0)"',
+        "watchdog_research_hard_age_source",
+    )
+    _assert_once(
+        watchdog,
+        'active_run_started_epoch" -gt 0',
+        "watchdog_research_hard_age_guard",
+    )
+    _assert_once(
+        watchdog,
         'if [[ "$head_sha" != "$current_sha" ]]; then',
         "watchdog_research_queue_compares_current_sha",
     )
