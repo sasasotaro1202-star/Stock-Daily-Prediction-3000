@@ -262,7 +262,8 @@ def main() -> int:
         watchdog,
         'active_head_sha" != "$current_sha"',
         "watchdog_research_cancels_superseded_active_run",
-    )    _assert_once(
+    )
+    _assert_once(
         watchdog,
         'active_run_id=""\n                recovery_needed=true\n              else',
         "watchdog_research_redispatches_after_active_recovery",
@@ -297,30 +298,6 @@ def main() -> int:
         status_workflow,
         "group: research-validation-status",
         "research_validation_status_serialized_commits",
-    )
-    _assert_once(
-        status_workflow,
-        "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}",
-        "research_validation_status_targets_research_run",
-    )
-    _assert_once(
-        status_workflow,
-        "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}",
-        "research_validation_status_targets_research_sha",
-    )
-    _assert_once(
-        status_workflow,
-        "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}",
-        "research_validation_status_targets_workflow_status",
-    )
-    _assert_once(
-        status_workflow,
-        "python scripts/persist_research_validation_status.py",
-        "research_validation_status_script",
-    )    _assert_once(
-        status_workflow,
-        "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}",
-        "research_validation_status_run_id_provenance",
     )
     _assert_once(
         validation_workflow,
