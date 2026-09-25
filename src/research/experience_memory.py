@@ -192,6 +192,7 @@ def update_experience_memory(
     predictions: pd.DataFrame,
     prediction_dir: Path,
     memory_path: Path,
+    file_complete: dict[str, bool] | None = None,
 ) -> dict[str, Any]:
     memory = _load(memory_path)
     if predictions.empty or "_prediction_file" not in predictions.columns:
@@ -199,6 +200,7 @@ def update_experience_memory(
 
     processed = dict(memory.get("processed_prediction_files", {}))
     new_frames: list[pd.DataFrame] = []
+    completeness = file_complete or {}
 
     for filename in sorted(predictions["_prediction_file"].dropna().unique()):
         source = prediction_dir / str(filename)
@@ -211,6 +213,9 @@ def update_experience_memory(
             continue
         if old is not None and old != fingerprint:
             _append_anomaly(memory, f"prediction file changed after processing; skipped: {filename}")
+            continue
+        if not bool(completeness.get(str(filename), False)):
+            _append_anomaly(memory, f"prediction file outcome incomplete; deferred: {filename}")
             continue
         frame = predictions[predictions["_prediction_file"] == filename].copy()
         if frame.empty:
