@@ -17,12 +17,12 @@ def test_shift_score_detects_distribution_change():
 def test_window_router_uses_only_prior_folds():
     history = {
         252: [
-            {"fold": 0, "logloss": 0.60, "drift": 0.20},
-            {"fold": 1, "logloss": 0.59, "drift": 0.25},
+            {"fold": 0, "logloss": 0.50, "drift": 0.20},
+            {"fold": 1, "logloss": 0.51, "drift": 0.25},
         ],
         756: [
-            {"fold": 0, "logloss": 0.58, "drift": 1.10},
-            {"fold": 1, "logloss": 0.57, "drift": 1.00},
+            {"fold": 0, "logloss": 0.62, "drift": 1.10},
+            {"fold": 1, "logloss": 0.61, "drift": 1.00},
         ],
     }
     selected, diagnostics = select_drift_aware_window(
