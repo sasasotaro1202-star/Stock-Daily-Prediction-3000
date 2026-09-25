@@ -75,7 +75,10 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/research_validation_status.json artifacts/research_validation_latest.json
+          git add artifacts/research_validation_status.json
+          if [ -f artifacts/research_validation_latest.json ]; then
+            git add artifacts/research_validation_latest.json
+          fi
           git diff --cached --quiet && exit 0
           git commit -m "Persist research validation status"
           git push origin HEAD:research-status
