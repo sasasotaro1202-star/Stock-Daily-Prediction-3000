@@ -158,3 +158,20 @@ def test_v1_memory_is_migrated_without_losing_core_history(tmp_path: Path):
     )
     assert memory["version"] == 2
     assert memory["total_resolved"] == 7
+
+
+def test_compact_view_includes_latest_session_breakdown(tmp_path: Path):
+    pred_dir = tmp_path / "predictions"
+    pred_dir.mkdir()
+    path = pred_dir / "prediction_20260921T100000Z.parquet"
+    _write_prediction(path, 0.8, 0.03, 0.01)
+
+    observed = pd.read_parquet(path)
+    observed["_prediction_file"] = path.name
+    memory_path = tmp_path / "experience_memory.json"
+    memory = update_experience_memory(observed, pred_dir, memory_path)
+
+    latest = compact_view(memory)["latest_session"]
+    assert latest["session_date"] == "2026-09-20"
+    assert latest["metrics"]["n"] == 2
+    assert "model_a" in latest["by_model"]
