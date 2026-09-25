@@ -247,45 +247,53 @@ jobs:
         run: python scripts/monitor_predictions.py
 
       - name: Record deferred monitoring state
-        if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status == 'DEFERRED' && steps.data_quality_retry.outputs.status == 'DEFERRED')
+        if: steps.universe_state.outputs.universe_ready != 'true' || steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status != 'PASS' && steps.data_quality_retry.outputs.status != 'PASS') || (steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok != 'true')
         env:
+          UNIVERSE_READY: ${{ steps.universe_state.outputs.universe_ready }}
+          UNIVERSE_REFRESH_OK: ${{ steps.universe_refresh.outputs.refresh_ok }}
           PRICE_RESTORE_OK: ${{ steps.restore_price.outputs.restore_ok }}
           PRICE_STATE_AVAILABLE: ${{ steps.price_state.outputs.available }}
           DATA_QUALITY_STATUS: ${{ steps.data_quality.outputs.status }}
           DATA_QUALITY_RETRY_STATUS: ${{ steps.data_quality_retry.outputs.status }}
+          PRICE_RECOVERY_OK: ${{ steps.price_recovery.outputs.recovery_ok }}
+          PRICE_RECOVERY_REASON: ${{ steps.price_recovery.outputs.recovery_reason }}
         run: |
           mkdir -p data/research
           python - <<'PY'
           import json
-          from pathlib import Path
           import os
-          data_quality_deferred = os.environ.get("DATA_QUALITY_STATUS") == "DEFERRED"
-          data_quality_retry_deferred = os.environ.get("DATA_QUALITY_RETRY_STATUS") == "DEFERRED"
-          reason = (
-              "price_state_restore_failed"
-              if os.environ.get("PRICE_RESTORE_OK") != "true"
-              else "price_state_unavailable"
-              if os.environ.get("PRICE_STATE_AVAILABLE") != "true"
-              else "data_quality_deferred_after_bounded_recovery"
-              if data_quality_deferred and data_quality_retry_deferred
-              else "data_quality_deferred"
-              if data_quality_deferred
-              else "monitoring_deferred"
-          )
+          from pathlib import Path
+
+          if os.environ.get("UNIVERSE_READY") != "true":
+              reason = "universe_validation_failed"
+          elif os.environ.get("PRICE_RESTORE_OK") != "true":
+              reason = "price_state_restore_failed"
+          elif os.environ.get("PRICE_STATE_AVAILABLE") != "true":
+              reason = "price_state_unavailable"
+          elif os.environ.get("DATA_QUALITY_STATUS") != "PASS" and os.environ.get("DATA_QUALITY_RETRY_STATUS") != "PASS":
+              reason = os.environ.get("PRICE_RECOVERY_REASON") or "data_quality_deferred"
+          elif os.environ.get("PRICE_RECOVERY_OK") != "true":
+              reason = os.environ.get("PRICE_RECOVERY_REASON") or "price_recovery_deferred"
+          else:
+              reason = "monitoring_deferred"
+
           payload = {
               "status": "DEFERRED",
               "evaluated": 0,
               "reason": reason,
               "production_action": "DEFERRED",
+              "universe_ready": os.environ.get("UNIVERSE_READY") == "true",
+              "universe_refresh_ok": os.environ.get("UNIVERSE_REFRESH_OK") == "true",
+              "price_recovery_ok": os.environ.get("PRICE_RECOVERY_OK") == "true",
           }
           Path("data/research/monitor_latest.json").write_text(
               json.dumps(payload, indent=2),
               encoding="utf-8",
           )
-          print("monitor_price_restore_deferred", json.dumps(payload))
+          print("monitor_deferred", json.dumps(payload))
           PY
       - name: Validate accumulated experience output
-        run: python -c "import json; from pathlib import Path; p=Path('data/research/experience_memory.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'version': 1, 'total_resolved': 0}; assert d.get('version') == 2; assert int(d.get('total_resolved', 0)) >= 0; print('experience_memory_valid', d.get('total_resolved', 0))"
+        run: python -c "import json; from pathlib import Path; p=Path('data/research/experience_memory.json'); d=json.loads(p.read_text(encoding='utf-8')) if p.exists() else {'version': 2, 'total_resolved': 0}; assert d.get('version') == 2; assert int(d.get('total_resolved', 0)) >= 0; print('experience_memory_valid', d.get('total_resolved', 0))"
       - uses: actions/upload-artifact@v7
         with:
           name: monitoring-${{ github.run_id }}
@@ -309,3 +317,9 @@ jobs:
           fi
           git commit -m "chore: accumulate resolved prediction experience"
           git push origin HEAD:main
+
+      - name: Fail closed after deferred monitoring
+        if: steps.universe_state.outputs.universe_ready != 'true' || steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status != 'PASS' && steps.data_quality_retry.outputs.status != 'PASS') || (steps.data_quality.outputs.status == 'DEFERRED' && steps.price_recovery.outputs.recovery_ok != 'true')
+        run: |
+          echo "monitoring did not reach verified prediction state; deferred state was recorded and artifacts preserved"
+          exit 1
