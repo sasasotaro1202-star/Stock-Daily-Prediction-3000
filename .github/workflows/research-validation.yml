@@ -165,39 +165,3 @@ jobs:
             git push origin HEAD:main
           fi
 
-
-  research-status:
-    needs: research
-    if: always()
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-      - name: Persist research validation status
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_API_URL: ${{ github.api_url }}
-        run: python scripts/persist_research_validation_status.py
-      - name: Commit research status evidence
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/research_validation_status.json
-          git diff --cached --quiet && exit 0
-          git commit -m "Persist research validation status"
-          if ! git push origin HEAD:main; then
-            git fetch origin main
-            git rebase origin/main
-            git push origin HEAD:main
-          fi
