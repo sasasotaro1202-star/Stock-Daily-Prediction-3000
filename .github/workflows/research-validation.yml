@@ -163,16 +163,27 @@ jobs:
             git push origin HEAD:main
           fi
 
-      - name: Persist research validation status
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-          RESEARCH_STEP_OUTCOME: ${{ steps.research_oos.outcome }}
-          SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outcome }}
-          SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outcome }}
-          CPCV_STEP_OUTCOME: ${{ steps.cpcv.outcome }}
-        run: python scripts/persist_research_validation_status.py
 
+  research-status:
+    needs: research
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Persist research validation status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: python scripts/persist_research_validation_status.py
       - name: Commit research status evidence
         if: always()
         shell: bash
