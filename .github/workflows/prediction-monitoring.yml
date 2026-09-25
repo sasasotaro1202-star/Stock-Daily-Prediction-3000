@@ -192,6 +192,7 @@ jobs:
           path: |
             data/research/monitor_latest.json
             data/research/experience_memory.json
+            data/research/experience_report.json
           if-no-files-found: warn
           retention-days: 14
       - name: Persist accumulated experience
