@@ -228,6 +228,7 @@ if __name__=="__main__":
     records=json.loads(
         U.read_text(encoding="utf-8")
     )["records"]
+    records=validate_unique_universe_records(records)
     if ASSET_SCOPE:
         records=[
             row for row in records
