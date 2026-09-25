@@ -138,3 +138,40 @@ def test_sec_request_json_handles_gzip_encoded_response():
         assert mod._get_json(mod.TICKERS_URL) == {"ok": True}
     finally:
         mod.urlopen = original
+
+
+def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    import io
+    import zipfile
+
+    raw = (
+        "Description: Master Index of EDGAR Dissemination Feed\n"
+        "Last Data Received: 2026-09-24\n"
+        "Comments: test\n"
+        "CIK|Company Name|Form Type|Date Filed|Filename\n"
+        "320193|APPLE INC|8-K|2026-09-24|edgar/data/320193/000032019326000001/aapl.htm\n"
+        "320193|APPLE INC|10-Q|2026-09-25|edgar/data/320193/000032019326000002/aapl10q.htm\n"
+        "320193|APPLE INC|4|2026-09-24|edgar/data/320193/000032019326000003/form4.xml\n"
+    ).encode("latin-1")
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("master.idx", raw)
+
+    monkeypatch.setattr(mod, "_quarter_keys", lambda start_date, end_date: [(2026, 3)])
+    monkeypatch.setattr(mod, "_get_bytes", lambda url: buf.getvalue())
+
+    collected = pd.Timestamp("2026-09-25T12:00:00Z")
+    records = [
+        {"symbol": "AAPL", "asset_class": "us_stock", "name": "Apple Inc.", "tradeable": True}
+    ]
+    ticker_map = {"AAPL": {"cik": "0000320193", "title": "Apple Inc."}}
+
+    rows, diagnostics = mod._rows_from_master_indexes(records, ticker_map, collected)
+
+    assert diagnostics == {"2026Q3": 2}
+    assert [row["form"] for row in rows] == ["8-K", "10-Q"]
+    assert rows[0]["available_at_method"] == "filing_date_eod_conservative"
+    assert rows[0]["acceptance_datetime"] == ""
+    assert rows[0]["available_at"] == "2026-09-25T03:59:59.999999+00:00"
+    assert rows[0]["accession_number"] == "0000320193-26-000001"
