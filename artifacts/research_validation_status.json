@@ -1,16 +1,14 @@
 {
-  "cpcv_step": "unknown",
-  "generated_at_utc": "2026-09-25T10:45:27.644572+00:00",
+  "artifact_lookup_error": null,
+  "cpcv_step": "skipped",
+  "evidence_artifact_present": true,
+  "generated_at_utc": "2026-09-25T12:19:17.175051+00:00",
   "job_status": "cancelled",
-  "leakage_audit_present": false,
-  "metrics_present": false,
-  "research_snapshot_present": false,
-  "research_step": "unknown",
-  "sec_ablation_step": "unknown",
-  "sec_research_step": "unknown",
+  "research_step": "cancelled",
+  "sec_ablation_step": "skipped",
+  "sec_research_step": "skipped",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "universe_quality_present": false,
-  "workflow_run_id": "36125106007",
-  "workflow_sha": "a0e386361481e1b439d3cd0ae2c033a5533fb245"
+  "workflow_run_id": "36127916083",
+  "workflow_sha": "d68f2c75641ea575b8602aabb87144b45a63b25e"
 }
