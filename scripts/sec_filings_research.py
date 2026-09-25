@@ -97,7 +97,7 @@ def _get_master_index_text(url: str) -> tuple[str, str]:
                 return body.decode("latin-1", errors="replace"), "sec_direct"
         except HTTPError as exc:
             last_error = exc
-            if exc.code == 403:
+            if exc.code in {400, 403}:
                 break
             if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
                 raise
@@ -603,7 +603,7 @@ def main() -> None:
             rows.extend(bulk_rows)
             mapped_symbols = {str(row["symbol"]) for row in bulk_rows}
             deferred = len(records) - len(mapped_symbols)
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError, zipfile.BadZipFile) as exc:
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError) as exc:
             key = f"bulk_index:{getattr(exc, 'code', '')}:{type(exc).__name__}"
             submission_failures[key] = submission_failures.get(key, 0) + 1
 
