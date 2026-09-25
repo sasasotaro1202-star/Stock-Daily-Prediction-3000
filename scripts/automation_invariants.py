@@ -220,7 +220,7 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        'research_stale_epoch="$((now_epoch - 170 * 60))"',
+        'research_stale_epoch="$((now_epoch - 150 * 60))"',
         "watchdog_research_stale_timeout",
     )
     _assert_once(
