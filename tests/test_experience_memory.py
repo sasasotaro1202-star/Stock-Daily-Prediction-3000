@@ -100,3 +100,61 @@ def test_incomplete_file_is_deferred_until_next_monitor_cycle(tmp_path: Path):
     )
     assert completed["total_resolved"] == 2
     assert completed["total_files_processed"] == 1
+
+
+def test_experience_memory_tracks_error_taxonomy_and_rolling_metrics(tmp_path: Path):
+    pred_dir = tmp_path / "predictions"
+    pred_dir.mkdir()
+    path = pred_dir / "prediction_20260920T100000Z.parquet"
+    _write_prediction(path, 0.99, 0.20, -0.20)
+
+    observed = pd.read_parquet(path)
+    observed["_prediction_file"] = path.name
+    memory_path = tmp_path / "experience_memory.json"
+
+    memory = update_experience_memory(observed, pred_dir, memory_path)
+
+    assert memory["version"] == 2
+    assert memory["total_resolved"] == 2
+    assert memory["error_types"]["high_confidence_wrong"]["n"] == 1
+    assert memory["by_error_bucket"][">=20%"]["n"] == 2
+    assert memory["daily"]["2026-09-20"]["n"] == 2
+    assert memory["daily_by_model"]["2026-09-20"]["model_a"]["n"] == 1
+    assert memory["rolling"]["5_sessions"]["n"] == 2
+    assert compact_view(memory)["by_direction_confidence"]["p>=0.75"]["n"] == 1
+
+
+def test_v1_memory_is_migrated_without_losing_core_history(tmp_path: Path):
+    memory_path = tmp_path / "experience_memory.json"
+    legacy = {
+        "version": 1,
+        "updated_at": "2026-09-20T00:00:00Z",
+        "total_resolved": 7,
+        "total_files_processed": 3,
+        "by_asset_class": {},
+        "by_model_id": {},
+        "by_regime": {},
+        "by_market_situation": {},
+        "by_direction_confidence": {},
+        "by_model_disagreement": {},
+        "hard_cases": [],
+        "processed_prediction_files": {},
+        "anomalies": [],
+        "research_priority": [],
+    }
+    memory_path.write_text(__import__("json").dumps(legacy), encoding="utf-8")
+    observed = pd.DataFrame(
+        columns=[
+            "_prediction_file",
+            "forward_return_1d",
+            "p_up_1d",
+            "expected_return_1d",
+        ]
+    )
+    memory = update_experience_memory(
+        observed,
+        tmp_path / "predictions",
+        memory_path,
+    )
+    assert memory["version"] == 2
+    assert memory["total_resolved"] == 7
