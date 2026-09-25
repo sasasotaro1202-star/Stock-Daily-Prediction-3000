@@ -48,25 +48,10 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
         )
 
 
-def test_research_validation_status_uses_step_outcome_not_outputs() -> None:
+def test_research_validation_has_dedicated_status_job() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    names = (
-        "RESEARCH_STEP_OUTCOME",
-        "SEC_RESEARCH_STEP_OUTCOME",
-        "SEC_ABLATION_STEP_OUTCOME",
-        "CPCV_STEP_OUTCOME",
-    )
-    bindings = {}
-    for line in text.splitlines():
-        stripped = line.strip()
-        for name in names:
-            prefix = f"{name}: "
-            if stripped.startswith(prefix):
-                bindings[name] = stripped[len(prefix):]
-    for name in names:
-        binding = bindings.get(name)
-        assert binding is not None, f"missing {name} binding"
-        assert ".outputs.outcome" not in binding, f"{name} must bind steps.<id>.outcome"
-        assert binding.startswith("${{ steps.") and binding.endswith(".outcome }}"), (
-            f"{name} must bind steps.<id>.outcome; got: {binding}"
-        )
+    assert "  research-status:" in text
+    assert "    needs: research" in text
+    assert "    if: always()" in text
+    assert "python scripts/persist_research_validation_status.py" in text
+    assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in text
