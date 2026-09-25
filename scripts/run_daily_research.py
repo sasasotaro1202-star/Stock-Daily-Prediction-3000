@@ -31,6 +31,8 @@ from src.research.conformal_classification import (
     conformal_prediction_set_metrics,
     group_conformal_prediction_sets,
     group_conformal_prediction_set_metrics,
+    adaptive_conformal_prediction_sets,
+    adaptive_conformal_prediction_set_metrics,
 )
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
@@ -377,6 +379,7 @@ def main():
     selective_rows_by_model: dict[str, list[dict[str, float]]] = {}
     conformal_rows_by_model_alpha: dict[str, dict[float, list[dict[str, float]]]] = {}
     group_conformal_rows_by_model: dict[str, list[dict[str, object]]] = {}
+    adaptive_conformal_rows_by_model: dict[str, list[dict[str, float]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
 
     for name, factory in make_models().items():
@@ -461,6 +464,20 @@ def main():
                 test["asset_class"].astype(str).to_numpy(),
                 alpha=0.10,
                 min_group_size=50,
+            )
+            adaptive_conformal_diag = adaptive_conformal_prediction_set_metrics(
+                cal.target_up_1d.astype(int),
+                cal_p,
+                raw_test_p,
+                test["session_date"].astype(str).to_numpy(),
+                test.target_up_1d.astype(int),
+                alpha=0.10,
+                gamma=0.02,
+                alpha_min=0.01,
+                alpha_max=0.50,
+            )
+            adaptive_conformal_rows_by_model.setdefault(name, []).append(
+                adaptive_conformal_diag
             )
 
             online_bank = online_prediction_by_fold.setdefault(
@@ -2399,6 +2416,33 @@ def main():
             "promotion_allowed": False,
         }
 
+    adaptive_conformal_prediction_research = {
+        "research_only": True,
+        "production_changed": False,
+        "promotion_allowed": False,
+        "method": "session_batched_aci_style_adaptive_conformal_classification",
+        "alpha": 0.10,
+        "gamma": 0.02,
+        "alpha_min": 0.01,
+        "alpha_max": 0.50,
+        "same_session_outcome_update": False,
+        "models": {},
+    }
+    for model_name, rows in adaptive_conformal_rows_by_model.items():
+        if not rows:
+            continue
+        adaptive_conformal_prediction_research["models"][model_name] = {
+            "folds": len(rows),
+            "mean_set_coverage": float(np.mean([r["set_coverage"] for r in rows])),
+            "mean_set_size": float(np.mean([r["mean_set_size"] for r in rows])),
+            "mean_singleton_rate": float(np.mean([r["singleton_rate"] for r in rows])),
+            "mean_singleton_accuracy": float(np.nanmean([r["singleton_accuracy"] for r in rows])),
+            "mean_empty_rate": float(np.mean([r["empty_rate"] for r in rows])),
+            "mean_alpha_used": float(np.mean([r["mean_alpha_used"] for r in rows])),
+            "mean_final_alpha": float(np.mean([r["final_alpha"] for r in rows])),
+            "fold_metrics": rows,
+        }
+
     group_conformal_prediction_research = {
         "research_only": True,
         "production_changed": False,
@@ -2425,6 +2469,7 @@ def main():
     payload = {
         "results": model_results,
         "return_oos": return_oos,
+        "adaptive_conformal_prediction_research": adaptive_conformal_prediction_research,
         "group_conformal_prediction_research": group_conformal_prediction_research,
         "conformal_prediction_research": conformal_prediction_research,
         "regime_metrics": regime_metrics,
