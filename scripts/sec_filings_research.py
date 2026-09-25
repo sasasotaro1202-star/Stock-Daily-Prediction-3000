@@ -73,8 +73,40 @@ def _get_json(url: str) -> object:
 
 
 
+def _curl_cffi_get_master_index_text(url: str) -> tuple[str, str]:
+    """Retry an official SEC index through curl_cffi's browser-like client."""
+    from curl_cffi import requests as curl_requests
+
+    response = curl_requests.get(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "text/plain,text/*;q=0.9,*/*;q=0.8",
+            "From": os.getenv(
+                "SEC_CONTACT_EMAIL",
+                "262083466+sasasotaro1202-star@users.noreply.github.com",
+            ),
+        },
+        timeout=REQUEST_TIMEOUT,
+        impersonate="chrome",
+        allow_redirects=True,
+    )
+    if int(response.status_code) >= 400:
+        raise HTTPError(
+            url,
+            int(response.status_code),
+            getattr(response, "reason", None),
+            getattr(response, "headers", None),
+            None,
+        )
+    body = bytes(response.content)
+    if len(body) < 1000:
+        raise RuntimeError("SEC master index response unexpectedly small")
+    return body.decode("latin-1", errors="replace"), "curl_cffi_chrome"
+
+
 def _get_master_index_text(url: str) -> tuple[str, str]:
-    """Fetch the official SEC master.idx with a bounded free fallback."""
+    """Fetch the official SEC master.idx with bounded free fallbacks."""
     last_error: Exception | None = None
     for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
         req = Request(
@@ -117,23 +149,29 @@ def _get_master_index_text(url: str) -> tuple[str, str]:
                 raise
             time.sleep(float(2 ** (attempt - 1)))
 
-    if isinstance(last_error, HTTPError) and last_error.code == 403:
+    if isinstance(last_error, HTTPError) and last_error.code in {400, 403}:
+        try:
+            return _curl_cffi_get_master_index_text(url)
+        except Exception as curl_exc:
+            last_error = curl_exc
+
         reader_url = "https://r.jina.ai/" + url
         req = Request(
             reader_url,
             headers={
                 "User-Agent": "Stock-Daily-Prediction-3000/0.1 (SEC research reader)",
                 "Accept": "text/plain,text/*;q=0.9,*/*;q=0.8",
-                "X-Engine": "direct",
-                "X-Respond-With": "body",
             },
         )
-        with urlopen(req, timeout=45) as response:
-            body = response.read()
-        text_value = body.decode("utf-8", errors="replace")
-        if len(text_value) < 1000:
-            raise RuntimeError("Jina SEC master index response unexpectedly small")
-        return text_value, "jina_reader_sec_official_url"
+        try:
+            with urlopen(req, timeout=45) as response:
+                body = response.read()
+            text_value = body.decode("utf-8", errors="replace")
+            if len(text_value) < 1000:
+                raise RuntimeError("Jina SEC master index response unexpectedly small")
+            return text_value, "jina_reader_sec_official_url"
+        except Exception:
+            pass
 
     if last_error is not None:
         raise last_error
