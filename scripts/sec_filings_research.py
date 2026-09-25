@@ -184,6 +184,8 @@ def main() -> None:
     rows = []
     matched = 0
     deferred = 0
+    submission_failures: dict[str, int] = {}
+    ticker_mismatches = 0
     for row in sorted(records, key=lambda x: str(x.get("symbol", ""))):
         info = ticker_map.get(_norm_ticker(row.get("symbol")))
         if not info:
@@ -197,11 +199,14 @@ def main() -> None:
                 for value in (payload.get("tickers", []) if isinstance(payload, dict) else [])
             }
             if payload_tickers and _norm_ticker(row.get("symbol")) not in payload_tickers:
+                ticker_mismatches += 1
                 deferred += 1
                 continue
             rows.extend(_rows_from_submissions(row, info, payload, collected_at))
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
             deferred += 1
+            key = f"{getattr(exc, 'code', '')}:{type(exc).__name__}"
+            submission_failures[key] = submission_failures.get(key, 0) + 1
         time.sleep(RATE_SLEEP_SECONDS)
 
     out = pd.DataFrame(rows)
@@ -223,6 +228,8 @@ def main() -> None:
         "started_at": started.isoformat(),
         "mapping_source": mapping_source,
         "mapping_note": mapping_note,
+        "submission_failure_counts": submission_failures,
+        "ticker_mismatch_count": int(ticker_mismatches),
     }
     META.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
