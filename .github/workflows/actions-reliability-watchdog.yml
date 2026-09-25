@@ -176,8 +176,8 @@ jobs:
             local queued_cutoff_epoch
             queued_cutoff_epoch="$((now_epoch - 30 * 60))"
             local active_run_id=""
-            local active_head_sha=""
-            local active_updated_epoch=0
+            local active_run_started_epoch=0
+            local recovery_needed=false
             local active_run_started_epoch=0
             local queued_ids=()
             local queued_shas=()
@@ -235,6 +235,7 @@ jobs:
                   return 0
                 fi
                 active_run_id=""
+                recovery_needed=true
               elif [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
                 echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 150 minutes of active age; cancelling before Actions timeout"
                 if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
@@ -250,7 +251,7 @@ jobs:
                 return 0
               fi
             fi
-            local recovered_queue=false
+            local recovery_needed=false
             local current_sha_queued=false
             local idx
             for idx in "${!queued_ids[@]}"; do
@@ -272,7 +273,7 @@ jobs:
 
               if [ "$should_cancel" = true ]; then
                 if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
-                  recovered_queue=true
+                  recovery_needed=true
                   echo "${workflow_name}: stale queued run $run_id cancelled"
                 else
                   echo "::error title=${workflow_name} queued recovery cancel failed::unable to cancel stale queued run $run_id"
@@ -281,7 +282,7 @@ jobs:
               fi
             done
 
-            if [ "$recovered_queue" = true ]; then
+            if [ "$recovery_needed" = true ]; then
               if [ "$current_sha_queued" = true ]; then
                 echo "${workflow_name}: current-SHA queued run already exists after stale queue cleanup; suppressing duplicate dispatch"
               elif gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
