@@ -234,7 +234,7 @@ jobs:
               local created_epoch="${queued_created_epochs[$idx]}"
               local should_cancel=false
 
-              if [ "$head_sha" != "$current_sha" ]; then
+              if [[ "$head_sha" != "$current_sha" ]]; then
                 should_cancel=true
                 echo "::warning title=${workflow_name} stale queued SHA::queued run $run_id targets superseded SHA $head_sha; current=$current_sha"
               elif [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff_epoch" ]; then
