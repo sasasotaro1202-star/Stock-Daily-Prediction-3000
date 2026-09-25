@@ -3,7 +3,7 @@ name: Research validation status
 on:
   workflow_run:
     workflows: ["Research validation"]
-    types: [completed]
+    types: [in_progress, completed]
 
 permissions:
   actions: read
