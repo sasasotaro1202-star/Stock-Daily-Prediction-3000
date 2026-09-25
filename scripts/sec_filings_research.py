@@ -515,6 +515,12 @@ def _rows_from_efts(
                     form = str(source.get("form", "")).strip()
                     if form not in ALLOWED_FORMS:
                         continue
+                    file_type = str(source.get("file_type", "")).strip()
+                    # EFTS indexes every document/exhibit inside a filing.
+                    # Keep only the root filing document so one accession is
+                    # counted once rather than once per exhibit.
+                    if file_type and file_type not in {form, str(source.get("root_form", "")).strip()}:
+                        continue
                     filed = pd.to_datetime(
                         str(source.get("file_date", "")),
                         errors="coerce",
