@@ -86,7 +86,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e ".[research]"
+      - run: pip install -e ".[dev,research]"
       - uses: actions/download-artifact@v7
         with:
           pattern: research-validation-price-*-${{ github.run_id }}
@@ -168,7 +168,7 @@ jobs:
           RESEARCH_STEP_OUTCOME: ${{ steps.research_oos.outcome }}
           SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outcome }}
           SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outcome }}
-          CPCV_STEP_OUTCOME: ${{ steps.cpcv.outputs.outcome }}
+          CPCV_STEP_OUTCOME: ${{ steps.cpcv.outcome }}
         run: python scripts/persist_research_validation_status.py
 
       - name: Commit research status evidence
