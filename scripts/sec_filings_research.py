@@ -689,7 +689,9 @@ def main() -> None:
             try:
                 # Same official SEC mapping via the free Jina Reader fallback.
                 ticker_payload = _jina_get_json(TICKERS_URL)
-                mapping_source = TICKERS_URL
+                # Preserve the official company_tickers schema so the parser
+                # below uses ticker/cik_str fields rather than third-party map keys.
+                mapping_source = "sec_official_company_tickers"
                 mapping_note = "official_via_jina_reader"
             except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
                 # Third-party pinned CIK map is used only as the final discovery fallback.
