@@ -10,7 +10,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: research-validation-status-${{ github.event.workflow_run.id }}
+  # Serialize status commits with each other, but never share the Research validation concurrency lane.
+  group: research-validation-status
+
   cancel-in-progress: false
 
 jobs:
