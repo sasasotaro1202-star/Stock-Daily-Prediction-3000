@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
+YF_TIMEOUT_SECONDS = 30
+
 
 def yahoo_symbol(symbol: str, asset_class: str) -> str:
     if asset_class.startswith("jp_"):
@@ -59,6 +61,7 @@ def download_batch(
         group_by="ticker",
         threads=False,
         actions=True,
+        timeout=YF_TIMEOUT_SECONDS,
     )
     retrieved_at = pd.Timestamp.now(tz="UTC")
     retrieval_run_id = os.getenv("GITHUB_RUN_ID")
@@ -166,6 +169,7 @@ def download_batch(
                     period=period,
                     auto_adjust=False,
                     actions=True,
+                    timeout=YF_TIMEOUT_SECONDS,
                 )
             except Exception as exc:
                 print(
