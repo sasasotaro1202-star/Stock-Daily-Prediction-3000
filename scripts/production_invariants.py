@@ -85,6 +85,11 @@ def main():
          and "research-only" in Path("src/research/confidence_risk.py").read_text().lower()
          and "confidence_risk_research" in Path("scripts/run_daily_research.py").read_text()
          and "src.research.confidence_risk" not in prediction),
+        ("temporal_calibration_research_isolation",
+         Path("src/research/calibration_routing.py").exists()
+         and "temporal_calibration_research" in Path("scripts/run_daily_research.py").read_text()
+         and "temporal_router_research_only: true" in pipe
+         and "src.research.calibration_routing" not in prediction),
         ("selective_probability_research_isolation",
          Path("src/research/selective.py").exists()
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
