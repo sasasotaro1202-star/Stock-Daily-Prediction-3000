@@ -248,13 +248,6 @@ jobs:
                 return 0
               fi
             fi
-                active_run_id=""
-              else
-                echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha"
-                return 0
-              fi
-            fi
-
             local recovered_queue=false
             local current_sha_queued=false
             local idx
