@@ -14,6 +14,7 @@ UNIVERSE = Path("data/universe/latest.json")
 OUT = Path("data/research/sec_filings_research.parquet")
 META = Path("data/research/sec_filings_research.json")
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
+FALLBACK_TICKERS_URL = "https://raw.githubusercontent.com/jadchaar/sec-cik-mapper/7883b83389836f9bba9bdfe53031467235746334/mappings/stocks/ticker_to_cik.json"
 ALLOWED_FORMS = {
     "8-K", "10-K", "10-Q", "20-F", "6-K", "40-F",
     "S-1", "S-3", "S-4", "424B2", "DEF 14A", "SC 13D", "SC 13G",
@@ -129,22 +130,44 @@ def main() -> None:
             and bool(x.get("tradeable"))
             and str(x.get("symbol", "")).strip()
         ]
-        ticker_payload = _get_json(TICKERS_URL)
+        mapping_source = "sec_official_company_tickers"
+        mapping_note = "official"
+        try:
+            ticker_payload = _get_json(TICKERS_URL)
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+            # SEC's public ticker mapping can be blocked independently from
+            # data.sec.gov submissions. Fall back to a pinned public mapping
+            # only for CIK discovery; filing history remains authoritative SEC
+            # data and each mapped CIK is validated against the submission
+            # payload's ticker list before admission.
+            ticker_payload = _get_json(FALLBACK_TICKERS_URL)
+            mapping_source = FALLBACK_TICKERS_URL
+            mapping_note = "pinned_third_party_fallback"
         ticker_map = {}
-        for value in ticker_payload.values() if isinstance(ticker_payload, dict) else []:
-            if not isinstance(value, dict):
-                continue
-            ticker = _norm_ticker(value.get("ticker"))
-            if ticker and value.get("cik_str") is not None:
-                ticker_map[ticker] = {
-                    "cik": str(value["cik_str"]).zfill(10),
-                    "title": str(value.get("title", "")),
-                }
+        if mapping_source == "sec_official_company_tickers":
+            for value in ticker_payload.values() if isinstance(ticker_payload, dict) else []:
+                if not isinstance(value, dict):
+                    continue
+                ticker = _norm_ticker(value.get("ticker"))
+                if ticker and value.get("cik_str") is not None:
+                    ticker_map[ticker] = {
+                        "cik": str(value["cik_str"]).zfill(10),
+                        "title": str(value.get("title", "")),
+                    }
+        else:
+            for ticker, cik in ticker_payload.items() if isinstance(ticker_payload, dict) else []:
+                ticker = _norm_ticker(ticker)
+                if ticker and cik:
+                    ticker_map[ticker] = {
+                        "cik": str(cik).zfill(10),
+                        "title": "",
+                    }
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
         payload = {
             "status": "DEFERRED",
             "reason": f"sec_metadata_fetch_failed:{getattr(exc, 'code', '')}:{type(exc).__name__}",
             "rows": 0,
+            "mapping_source": "unavailable",
             "research_only": True,
             "production_changed": False,
         }
@@ -165,6 +188,13 @@ def main() -> None:
         matched += 1
         try:
             payload = _get_json(f"https://data.sec.gov/submissions/CIK{info['cik']}.json")
+            payload_tickers = {
+                _norm_ticker(value)
+                for value in (payload.get("tickers", []) if isinstance(payload, dict) else [])
+            }
+            if payload_tickers and _norm_ticker(row.get("symbol")) not in payload_tickers:
+                deferred += 1
+                continue
             rows.extend(_rows_from_submissions(row, info, payload, collected_at))
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
             deferred += 1
@@ -187,6 +217,8 @@ def main() -> None:
         "production_changed": False,
         "collected_at": collected_at.isoformat(),
         "started_at": started.isoformat(),
+        "mapping_source": mapping_source,
+        "mapping_note": mapping_note,
     }
     META.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))

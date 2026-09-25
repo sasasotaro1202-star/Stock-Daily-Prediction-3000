@@ -93,3 +93,11 @@ def test_sec_ablation_uses_research_feature_module():
     source = Path("scripts/run_sec_filing_ablation.py").read_text(encoding="utf-8")
     assert "from src.research.sec_features import" in source
     assert "from src.features.sec_features import" not in source
+
+
+def test_sec_mapping_fallback_is_pinned_and_submission_history_remains_official():
+    source = Path("scripts/sec_filings_research.py").read_text(encoding="utf-8")
+    assert "FALLBACK_TICKERS_URL = " in source
+    assert "raw.githubusercontent.com/jadchaar/sec-cik-mapper/7883b83389836f9bba9bdfe53031467235746334" in source
+    assert "https://data.sec.gov/submissions/CIK" in source
+    assert "pinned_third_party_fallback" in source
