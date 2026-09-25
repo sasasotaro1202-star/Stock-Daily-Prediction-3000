@@ -5,6 +5,7 @@ import os
 import shutil
 import tempfile
 import urllib.request
+from urllib.error import HTTPError
 from pathlib import Path
 
 from src.data.github_artifact import download_workflow_artifact, validate_extracted_tree

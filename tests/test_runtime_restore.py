@@ -65,3 +65,10 @@ def test_restore_accepts_exact_approved_research_state(tmp_path):
         expected_research_fingerprint="new",
         expected_full_fingerprint="new-full",
     )
+
+
+def test_price_state_restore_http_403_falls_back_without_name_error():
+    source = Path("scripts/restore_latest_price_state.py").read_text(encoding="utf-8")
+    assert "from urllib.error import HTTPError" in source
+    assert "except HTTPError as exc:" in source
+    assert "falling back to bounded fresh price fetch" in source
