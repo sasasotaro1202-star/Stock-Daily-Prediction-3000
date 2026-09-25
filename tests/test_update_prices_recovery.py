@@ -57,3 +57,28 @@ def test_split_recovery_defers_only_poisoned_leaf():
     assert "S0" not in set(result["symbol"])
     assert max(len(batch) for batch in calls) == 20
     assert any(len(batch) == 5 for batch in calls)
+
+
+def test_deep_split_recovery_reaches_bounded_leaf_depth_three():
+    calls = []
+
+    def fake_download(records, period="5y"):
+        calls.append([r["symbol"] for r in records])
+        if len(records) > 10:
+            raise RuntimeError("bulk failure")
+        if any(r["symbol"] == "S0" for r in records) and len(records) > 5:
+            raise RuntimeError("poisoned intermediate batch")
+        if any(r["symbol"] == "S0" for r in records):
+            raise RuntimeError("poisoned leaf")
+        return _frame(records)
+
+    result = update_prices.fetch_resilient(
+        _records(40),
+        "5y",
+        downloader=fake_download,
+        sleep_fn=lambda _: None,
+    )
+
+    assert len(result) == 35
+    assert "S0" not in set(result["symbol"])
+    assert any(len(batch) == 5 and "S0" in batch for batch in calls)
