@@ -168,7 +168,7 @@ def main():
         ("price_shards","price_shards: 4" in pipe), 
         ("bounded_price_split_recovery",
          "Bounded retry + split fallback for poisoned bulk downloads" in Path("scripts/update_prices.py").read_text()
-         and "depth < 2" in Path("scripts/update_prices.py").read_text()),
+         and "depth < 3" in Path("scripts/update_prices.py").read_text()),
         ("price_retrieval_provenance","retrieved_at" in Path("src/data/yahoo_price.py").read_text() and "available_at_after_retrieved_at" in Path("scripts/data_quality_gate.py").read_text() and "audit_retrieval_provenance" in Path("src/validation/leakage.py").read_text()),
         ("price_store_canonicalization",Path("scripts/normalize_price_store.py").exists() and "conflicting_duplicate_groups" in Path("scripts/normalize_price_store.py").read_text()),
         ("market_context_retrieval_provenance","retrieved_at" in Path("src/data/market_context.py").read_text() and "retrieval_run_id" in Path("src/data/market_context.py").read_text() and "\"source\"" in Path("src/data/market_context.py").read_text()),
