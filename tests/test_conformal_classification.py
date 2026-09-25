@@ -4,10 +4,13 @@ import pytest
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
+    conformal_prediction_set_metrics_from_result,
     group_conformal_prediction_sets,
     group_conformal_prediction_set_metrics,
+    group_conformal_prediction_set_metrics_from_result,
     adaptive_conformal_prediction_sets,
     adaptive_conformal_prediction_set_metrics,
+    adaptive_conformal_prediction_set_metrics_from_result,
 )
 
 def test_prediction_sets_flag_ambiguous_and_confident_cases():
@@ -118,3 +121,59 @@ def test_adaptive_conformal_is_deterministic_and_bounded():
     assert r1["alpha_after_update"] == pytest.approx(0.084)
     assert np.isfinite(r1["predicted_class_pvalue"]).all()
     assert np.all((r1["alpha_used"] >= 0.01) & (r1["alpha_used"] <= 0.50))
+
+
+def test_fixed_conformal_metric_helper_matches_public_wrapper_at_multiple_alphas():
+    y_cal = np.asarray([0, 1] * 30, dtype=int)
+    p_cal = np.asarray([0.2, 0.8] * 30, dtype=float)
+    y_test = np.asarray([0, 1, 0, 1, 1], dtype=int)
+    p_test = np.asarray([0.1, 0.9, 0.4, 0.6, 0.95], dtype=float)
+    result = conformal_prediction_sets(y_cal, p_cal, p_test, alpha=0.10)
+    for alpha in (0.05, 0.10, 0.20):
+        direct = conformal_prediction_set_metrics(
+            y_cal, p_cal, p_test, y_test, alpha=alpha
+        )
+        reused = conformal_prediction_set_metrics_from_result(
+            result, y_test, alpha=alpha
+        )
+        assert direct == reused
+
+
+def test_group_conformal_metric_helper_matches_public_wrapper():
+    y_cal = np.asarray([0, 1] * 30 + [0, 1] * 30, dtype=int)
+    p_cal = np.asarray([0.2, 0.8] * 30 + [0.4, 0.6] * 30, dtype=float)
+    g_cal = np.asarray(["stable"] * 60 + ["volatile"] * 60)
+    p_test = np.asarray([0.95, 0.05, 0.50], dtype=float)
+    g_test = np.asarray(["stable", "stable", "missing"], dtype=str)
+    y_test = np.asarray([1, 0, 1], dtype=int)
+    result = group_conformal_prediction_sets(
+        y_cal, p_cal, g_cal, p_test, g_test, alpha=0.10, min_group_size=50
+    )
+    direct = group_conformal_prediction_set_metrics(
+        y_cal, p_cal, g_cal, p_test, g_test, y_test,
+        alpha=0.10, min_group_size=50,
+    )
+    reused = group_conformal_prediction_set_metrics_from_result(
+        result, y_test, g_test, alpha=0.10
+    )
+    assert direct == reused
+
+
+def test_adaptive_conformal_metric_helper_matches_public_wrapper():
+    y_cal = np.asarray([0, 1] * 30, dtype=int)
+    p_cal = np.asarray([0.25, 0.75] * 30, dtype=float)
+    p_test = np.asarray([0.10, 0.90, 0.50, 0.60], dtype=float)
+    dates = np.asarray(["a", "a", "b", "b"])
+    y_test = np.asarray([0, 1, 0, 1], dtype=int)
+    result = adaptive_conformal_prediction_sets(
+        y_cal, p_cal, p_test, dates,
+        alpha=0.10, gamma=0.02, observed_y_test=y_test
+    )
+    direct = adaptive_conformal_prediction_set_metrics(
+        y_cal, p_cal, p_test, dates, y_test,
+        alpha=0.10, gamma=0.02, alpha_min=0.01, alpha_max=0.50
+    )
+    reused = adaptive_conformal_prediction_set_metrics_from_result(
+        result, y_test, alpha=0.10, gamma=0.02
+    )
+    assert direct == reused

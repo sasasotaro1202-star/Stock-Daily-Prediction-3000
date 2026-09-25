@@ -26,13 +26,20 @@ from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.blend_prediction_cache import (
+    CACHEABLE_BLEND_COMPONENTS,
+    resolve_cached_blend_predictions,
+)
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
+    conformal_prediction_set_metrics_from_result,
     group_conformal_prediction_sets,
     group_conformal_prediction_set_metrics,
+    group_conformal_prediction_set_metrics_from_result,
     adaptive_conformal_prediction_sets,
     adaptive_conformal_prediction_set_metrics,
+    adaptive_conformal_prediction_set_metrics_from_result,
 )
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
@@ -382,6 +389,73 @@ def main():
     adaptive_conformal_rows_by_model: dict[str, list[dict[str, float]]] = {}
     adaptive_conformal_situation_rows_by_model: dict[str, dict[str, list[dict[str, float]]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
+    blend_prediction_cache: dict[int, dict[str, tuple[np.ndarray, np.ndarray]]] = {}
+
+    # Fold-level context is identical across model candidates. Compute it once
+    # per chronological fold instead of repeating two DataFrame.apply(axis=1)
+    # passes for every model.
+    fold_contexts: dict[int, dict[str, object]] = {}
+    for fold_idx, fold in enumerate(folds):
+        train_dates = dates[: fold.train_end]
+        cal_n = max(20, int(len(train_dates) * 0.2))
+        core_dates = set(train_dates[:-cal_n])
+        test_dates = set(dates[fold.test_start : fold.test_end])
+        core_context = df[df.session_date.isin(core_dates)]
+        test_context = df[df.session_date.isin(test_dates)].reset_index(drop=True)
+        threshold = volatility_threshold_from_training(
+            core_context["volatility_20"]
+        )
+        regime = test_context.apply(
+            lambda x: (
+                "event"
+                if (
+                    abs(x["gap_pct"]) >= 0.03
+                    or x["volume_ratio_20"] >= 3.0
+                )
+                else "data_stressed"
+                if (
+                    pd.isna(x["volatility_20"])
+                    or pd.isna(x["price_vs_sma60"])
+                )
+                else "high_vol"
+                if (
+                    x["volatility_20"] >= threshold
+                    or (
+                        pd.notna(x["vix_level_lag1"])
+                        and x["vix_level_lag1"] >= 30.0
+                    )
+                )
+                else "trend"
+                if (
+                    abs(x["price_vs_sma60"]) >= 0.02
+                    or (
+                        pd.notna(x["breadth_up"])
+                        and (
+                            x["breadth_up"] <= 0.25
+                            or x["breadth_up"] >= 0.75
+                        )
+                    )
+                )
+                else "normal"
+            ),
+            axis=1,
+        )
+        situations = test_context.apply(
+            lambda x: situation_for_row(
+                str(regime.loc[x.name]),
+                gap_pct=float(x["gap_pct"]) if pd.notna(x["gap_pct"]) else None,
+                volume_ratio_20=float(x["volume_ratio_20"]) if pd.notna(x["volume_ratio_20"]) else None,
+                vix_level=float(x["vix_level_lag1"]) if pd.notna(x["vix_level_lag1"]) else None,
+                breadth_up=float(x["breadth_up"]) if pd.notna(x["breadth_up"]) else None,
+                price_vs_sma60=float(x["price_vs_sma60"]) if pd.notna(x["price_vs_sma60"]) else None,
+            ),
+            axis=1,
+        )
+        fold_contexts[fold_idx] = {
+            "threshold": threshold,
+            "regime": regime.astype(str).to_numpy(copy=True),
+            "situations": situations.astype(str).to_numpy(copy=True),
+        }
 
     for name, factory in make_models().items():
         fold_rows = []
@@ -405,58 +479,58 @@ def main():
             ):
                 continue
 
-            threshold = volatility_threshold_from_training(core["volatility_20"])
+            threshold = float(fold_contexts[fold_idx]["threshold"])
 
             core_fit = cap_training_rows(
                 core,
                 max_rows=300_000,
                 recent_sessions=252,
             )
-            model = factory()
-            fit_classifier(
-                model,
-                name,
-                core_fit[FEATURE_COLUMNS],
-                core_fit.target_up_1d.astype(int),
-                core_fit["session_date"],
-                half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
-            )
-            cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+            component_cache = blend_prediction_cache.setdefault(fold_idx, {})
+            cached_blend = resolve_cached_blend_predictions(name, component_cache)
+            if cached_blend is not None:
+                cal_p, raw_test_p = cached_blend
+            else:
+                model = factory()
+                fit_classifier(
+                    model,
+                    name,
+                    core_fit[FEATURE_COLUMNS],
+                    core_fit.target_up_1d.astype(int),
+                    core_fit["session_date"],
+                    half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
+                )
+                cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+                raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+                if name in CACHEABLE_BLEND_COMPONENTS:
+                    component_cache[name] = (
+                        np.asarray(cal_p, dtype=float),
+                        np.asarray(raw_test_p, dtype=float),
+                    )
             calibrator = make_calibrator("platt").fit(
                 cal_p, cal.target_up_1d.astype(int)
             )
-            raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             p = calibrator.predict(raw_test_p)
 
-            conformal_rows_by_model_alpha.setdefault(name, {})
-            for alpha in (0.05, 0.10, 0.20):
-                conformal_diag = conformal_prediction_set_metrics(
-                    cal.target_up_1d.astype(int),
-                    cal_p,
-                    raw_test_p,
-                    test.target_up_1d.astype(int),
-                    alpha=alpha,
-                )
-                conformal_rows_by_model_alpha[name].setdefault(
-                    float(alpha), []
-                ).append(conformal_diag)
+            # All fixed-alpha split-conformal p-values are identical across
+            # alpha candidates. Compute them once, then derive each set metric.
             conformal_case = conformal_prediction_sets(
                 cal.target_up_1d.astype(int),
                 cal_p,
                 raw_test_p,
                 alpha=0.10,
             )
-            group_conformal_diag = group_conformal_prediction_set_metrics(
-                cal.target_up_1d.astype(int),
-                cal_p,
-                cal["asset_class"].astype(str).to_numpy(),
-                raw_test_p,
-                test["asset_class"].astype(str).to_numpy(),
-                test.target_up_1d.astype(int),
-                alpha=0.10,
-                min_group_size=50,
-            )
-            group_conformal_rows_by_model.setdefault(name, []).append(group_conformal_diag)
+            conformal_rows_by_model_alpha.setdefault(name, {})
+            for alpha in (0.05, 0.10, 0.20):
+                conformal_diag = conformal_prediction_set_metrics_from_result(
+                    conformal_case,
+                    test.target_up_1d.astype(int),
+                    alpha=alpha,
+                )
+                conformal_rows_by_model_alpha[name].setdefault(
+                    float(alpha), []
+                ).append(conformal_diag)
+
             group_conformal_case = group_conformal_prediction_sets(
                 cal.target_up_1d.astype(int),
                 cal_p,
@@ -466,20 +540,16 @@ def main():
                 alpha=0.10,
                 min_group_size=50,
             )
-            adaptive_conformal_diag = adaptive_conformal_prediction_set_metrics(
-                cal.target_up_1d.astype(int),
-                cal_p,
-                raw_test_p,
-                test["session_date"].astype(str).to_numpy(),
+            group_conformal_diag = group_conformal_prediction_set_metrics_from_result(
+                group_conformal_case,
                 test.target_up_1d.astype(int),
+                test["asset_class"].astype(str).to_numpy(),
                 alpha=0.10,
-                gamma=0.02,
-                alpha_min=0.01,
-                alpha_max=0.50,
             )
-            adaptive_conformal_rows_by_model.setdefault(name, []).append(
-                adaptive_conformal_diag
+            group_conformal_rows_by_model.setdefault(name, []).append(
+                group_conformal_diag
             )
+
             adaptive_conformal_case = adaptive_conformal_prediction_sets(
                 cal.target_up_1d.astype(int),
                 cal_p,
@@ -490,6 +560,15 @@ def main():
                 alpha_min=0.01,
                 alpha_max=0.50,
                 observed_y_test=test.target_up_1d.astype(int).to_numpy(),
+            )
+            adaptive_conformal_diag = adaptive_conformal_prediction_set_metrics_from_result(
+                adaptive_conformal_case,
+                test.target_up_1d.astype(int),
+                alpha=0.10,
+                gamma=0.02,
+            )
+            adaptive_conformal_rows_by_model.setdefault(name, []).append(
+                adaptive_conformal_diag
             )
 
             online_bank = online_prediction_by_fold.setdefault(
@@ -591,52 +670,13 @@ def main():
             row["fold"] = float(fold_idx)
             fold_rows.append(row)
 
-            regime = test.apply(
-                lambda x: (
-                    "event"
-                    if (
-                        abs(x["gap_pct"]) >= 0.03
-                        or x["volume_ratio_20"] >= 3.0
-                    )
-                    else "data_stressed"
-                    if (
-                        pd.isna(x["volatility_20"])
-                        or pd.isna(x["price_vs_sma60"])
-                    )
-                    else "high_vol"
-                    if (
-                        x["volatility_20"] >= threshold
-                        or (
-                            pd.notna(x["vix_level_lag1"])
-                            and x["vix_level_lag1"] >= 30.0
-                        )
-                    )
-                    else "trend"
-                    if (
-                        abs(x["price_vs_sma60"]) >= 0.02
-                        or (
-                            pd.notna(x["breadth_up"])
-                            and (
-                                x["breadth_up"] <= 0.25
-                                or x["breadth_up"] >= 0.75
-                            )
-                        )
-                    )
-                    else "normal"
-                ),
-                axis=1,
+            regime = pd.Series(
+                np.asarray(fold_contexts[fold_idx]["regime"], dtype=str),
+                index=test.index,
             )
-
-            situations = test.apply(
-                lambda x: situation_for_row(
-                    str(regime.loc[x.name]),
-                    gap_pct=float(x["gap_pct"]) if pd.notna(x["gap_pct"]) else None,
-                    volume_ratio_20=float(x["volume_ratio_20"]) if pd.notna(x["volume_ratio_20"]) else None,
-                    vix_level=float(x["vix_level_lag1"]) if pd.notna(x["vix_level_lag1"]) else None,
-                    breadth_up=float(x["breadth_up"]) if pd.notna(x["breadth_up"]) else None,
-                    price_vs_sma60=float(x["price_vs_sma60"]) if pd.notna(x["price_vs_sma60"]) else None,
-                ),
-                axis=1,
+            situations = pd.Series(
+                np.asarray(fold_contexts[fold_idx]["situations"], dtype=str),
+                index=test.index,
             )
             online_bank["situations"] = situations.astype(str).to_numpy(copy=True)
             adaptive_conformal_situation_rows_by_model.setdefault(name, {})
