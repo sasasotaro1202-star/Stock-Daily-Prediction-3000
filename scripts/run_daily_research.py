@@ -250,7 +250,20 @@ def main():
     pipeline_cfg = yaml.safe_load(
         Path("config/pipeline.yml").read_text(encoding="utf-8")
     )
-    model_cfg = pipeline_cfg.get("models", {})
+    model_cfg = pipeline_cfg.get("models", {}) or {}
+    configured_candidate_names: list[str] = []
+    for key in ("primary_candidates", "optional_challengers"):
+        for candidate in model_cfg.get(key, []) or []:
+            candidate = str(candidate)
+            if candidate not in configured_candidate_names:
+                configured_candidate_names.append(candidate)
+    candidate_models = make_models()
+    unavailable_optional_candidates = [
+        name
+        for name in configured_candidate_names
+        if name not in candidate_models
+        and name not in {str(x) for x in model_cfg.get("primary_candidates", []) or []}
+    ]
     folds = make_date_folds(
         dates,
         min_train=252,
@@ -503,9 +516,9 @@ def main():
             "situations": situations.astype(str).to_numpy(copy=True),
         }
 
-    for model_index, (name, factory) in enumerate(make_models().items(), start=1):
+    for model_index, (name, factory) in enumerate(candidate_models.items(), start=1):
         print(
-            f"RESEARCH_PROGRESS model={model_index} name={name} total_models={len(make_models())} total_folds={len(folds)}",
+            f"RESEARCH_PROGRESS model={model_index} name={name} total_models={len(candidate_models)} total_folds={len(folds)}",
             flush=True,
         )
         fold_rows = []
@@ -1850,7 +1863,7 @@ def main():
                 or test.target_up_1d.nunique() < 2
             ):
                 continue
-            factory = make_models().get(global_selected)
+            factory = candidate_models.get(global_selected)
             if factory is None:
                 continue
             fit_rows = restrict_to_lookback(
@@ -2119,7 +2132,7 @@ def main():
             or test.target_up_1d.nunique() < 2
         ):
             continue
-        factory = make_models().get(global_selected)
+        factory = candidate_models.get(global_selected)
         if factory is None:
             continue
         fit_rows = cap_training_rows(
@@ -2389,7 +2402,7 @@ def main():
         ):
             continue
 
-        classifier = make_models().get(global_selected)
+        classifier = candidate_models.get(global_selected)
         if classifier is None:
             continue
         model = classifier()
@@ -2680,6 +2693,11 @@ def main():
         "temporal_calibration_research": temporal_calibration_research,
         "drift_aware_window_research": drift_aware_window_research,
         "global_selection_candidates": balanced_candidates,
+        "model_candidate_manifest": {
+            "configured_candidates": configured_candidate_names,
+            "evaluated_candidates": sorted(candidate_models),
+            "unavailable_optional_candidates": sorted(unavailable_optional_candidates),
+        },
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
         "regime_vol_threshold_folds": len(oos_regime_thresholds),
