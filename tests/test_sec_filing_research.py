@@ -223,6 +223,85 @@ def test_sec_master_index_uses_free_jina_fallback_after_curl_failure(monkeypatch
 
 
 
+def test_sec_efts_collects_root_document_only_and_preserves_pit(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+
+    payload = {
+        "hits": {
+            "hits": [
+                {
+                    "_id": "0000320193-26-000001:aapl-8k.htm",
+                    "_source": {
+                        "adsh": "0000320193-26-000001",
+                        "ciks": ["0000320193"],
+                        "display_names": ["APPLE INC (AAPL) (CIK 0000320193)"],
+                        "form": "8-K",
+                        "file_type": "8-K",
+                        "file_date": "2026-09-24",
+                    },
+                },
+                {
+                    "_id": "0000320193-26-000001:ex99.htm",
+                    "_source": {
+                        "adsh": "0000320193-26-000001",
+                        "ciks": ["0000320193"],
+                        "display_names": ["APPLE INC (AAPL) (CIK 0000320193)"],
+                        "form": "8-K",
+                        "file_type": "EX-99.1",
+                        "file_date": "2026-09-24",
+                    },
+                },
+            ]
+        }
+    }
+
+    monkeypatch.setattr(mod, "_get_json", lambda url: payload)
+
+    rows, diagnostics = mod._rows_from_efts(
+        [{"symbol": "AAPL", "asset_class": "us_stock", "name": "Apple Inc.", "tradeable": True}],
+        {"AAPL": {"cik": "0000320193", "title": "Apple Inc."}},
+        {},
+        pd.Timestamp("2026-09-25T12:00:00Z"),
+    )
+
+    assert len(rows) == 1
+    assert rows[0]["accession_number"] == "0000320193-26-000001"
+    assert rows[0]["primary_document"] == "aapl-8k.htm"
+    assert rows[0]["available_at"] == "2026-09-25T03:59:59.999999+00:00"
+    assert rows[0]["available_at_method"] == "filing_date_eod_conservative"
+    assert rows[0]["source"] == "sec_edgar_efts"
+    assert diagnostics["pages"] == 1
+
+
+def test_sec_efts_uses_curl_on_direct_403(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    calls = []
+
+    def fake_direct(url):
+        calls.append(url)
+        raise mod.HTTPError(url, 403, "Forbidden", {}, None)
+
+    monkeypatch.setattr(mod, "_get_json", fake_direct)
+    monkeypatch.setattr(
+        mod,
+        "_curl_cffi_get_json",
+        lambda url: {
+            "hits": {"hits": []},
+        },
+    )
+
+    rows, diagnostics = mod._rows_from_efts(
+        [{"symbol": "AAPL", "asset_class": "us_stock", "name": "Apple Inc.", "tradeable": True}],
+        {"AAPL": {"cik": "0000320193", "title": "Apple Inc."}},
+        {},
+        pd.Timestamp("2026-09-25T12:00:00Z"),
+    )
+
+    assert rows == []
+    assert diagnostics["empty_symbols"] == ["AAPL"]
+    assert calls
+
+
 def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
     mod = importlib.import_module("scripts.sec_filings_research")
     import io
