@@ -359,6 +359,8 @@ def main() -> None:
     deferred = 0
     submission_failures: dict[str, int] = {}
     ticker_mismatches = 0
+    bulk_index_diagnostics: dict[str, int] = {}
+    bulk_index_used = False
     for row in sorted(records, key=lambda x: str(x.get("symbol", ""))):
         info = ticker_map.get(_norm_ticker(row.get("symbol")))
         if not info:
@@ -377,10 +379,28 @@ def main() -> None:
                 continue
             rows.extend(_rows_from_submissions(row, info, payload, collected_at))
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
-            deferred += 1
             key = f"{getattr(exc, 'code', '')}:{type(exc).__name__}"
             submission_failures[key] = submission_failures.get(key, 0) + 1
+            if getattr(exc, "code", None) == 403:
+                bulk_index_used = True
+                break
+            deferred += 1
         time.sleep(RATE_SLEEP_SECONDS)
+
+    if bulk_index_used:
+        try:
+            bulk_rows, bulk_index_diagnostics = _rows_from_master_indexes(
+                records,
+                ticker_map,
+                collected_at,
+            )
+            rows.extend(bulk_rows)
+            mapped_symbols = {str(row["symbol"]) for row in bulk_rows}
+            deferred = len(records) - len(mapped_symbols)
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, zipfile.BadZipFile) as exc:
+            key = f"bulk_index:{getattr(exc, 'code', '')}:{type(exc).__name__}"
+            submission_failures[key] = submission_failures.get(key, 0) + 1
+
 
     out = pd.DataFrame(rows)
     if not out.empty:
@@ -403,6 +423,13 @@ def main() -> None:
         "mapping_note": mapping_note,
         "submission_failure_counts": submission_failures,
         "ticker_mismatch_count": int(ticker_mismatches),
+        "bulk_index_used": bool(bulk_index_used),
+        "bulk_index_quarters": bulk_index_diagnostics,
+        "available_at_method": (
+            "acceptance_datetime"
+            if not bulk_index_used
+            else "filing_date_eod_conservative"
+        ),
     }
     META.write_text(json.dumps(summary, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
