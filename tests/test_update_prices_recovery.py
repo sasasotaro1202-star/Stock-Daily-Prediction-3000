@@ -53,6 +53,7 @@ def test_split_recovery_defers_only_poisoned_leaf():
         sleep_fn=lambda _: None,
     )
 
-    assert len(result) == 10
+    assert len(result) == 15
     assert "S0" not in set(result["symbol"])
     assert max(len(batch) for batch in calls) == 20
+    assert any(len(batch) == 5 for batch in calls)
