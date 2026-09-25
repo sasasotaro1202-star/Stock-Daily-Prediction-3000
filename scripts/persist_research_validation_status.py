@@ -101,6 +101,24 @@ def main() -> int:
         "artifact_lookup_error": artifact_error,
     }
     out = Path("artifacts/research_validation_status.json")
+    # Workflow-run completion events may arrive out of order. Never allow an
+    # older run to overwrite the status of a newer research run.
+    incoming_run_id = str(
+        os.environ.get("RESEARCH_WORKFLOW_RUN_ID")
+        or os.environ.get("GITHUB_RUN_ID", "")
+    ).strip()
+    if out.exists() and incoming_run_id.isdigit():
+        try:
+            existing = json.loads(out.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+        existing_run_id = str(existing.get("workflow_run_id", "")).strip()
+        if existing_run_id.isdigit() and int(existing_run_id) > int(incoming_run_id):
+            print(
+                f"RESEARCH_STATUS_STALE_EVENT ignored_run={incoming_run_id} current_run={existing_run_id}",
+                flush=True,
+            )
+            return 0
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(status, indent=2, sort_keys=True), encoding="utf-8")
     if effective_lookup_error is not None or artifact_error is not None:
