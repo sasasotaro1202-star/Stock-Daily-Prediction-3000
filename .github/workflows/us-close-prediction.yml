@@ -28,6 +28,7 @@ jobs:
       - name: Restore bounded recent official universe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"
         run: python scripts/restore_latest_universe_state.py
       - uses: actions/upload-artifact@v7
         with:

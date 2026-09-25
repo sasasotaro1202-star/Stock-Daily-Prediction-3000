@@ -8,6 +8,7 @@ import requests
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.data.paypay_collector import build_snapshot
 from src.data.github_artifact import (
     download_workflow_artifact,
     validate_extracted_tree,
@@ -119,11 +120,35 @@ def _find_universe_snapshot(root: Path) -> Path:
     return snapshot
 
 
+def _fresh_official_fallback() -> bool:
+    if os.environ.get("ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK", "").lower() != "true":
+        return False
+
+    try:
+        dst = Path("data/universe/latest.json")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        snapshot = build_snapshot(str(dst))
+        _validate_snapshot(dst, str(snapshot["retrieved_at"]))
+        print(
+            "universe-state: fresh official fallback restored "
+            f"retrieved_at={snapshot['retrieved_at']} "
+            f"record_count={snapshot['record_count']}"
+        )
+        return True
+    except Exception as exc:
+        raise SystemExit(
+            "DEFERRED: fresh official universe fallback failed; "
+            f"{type(exc).__name__}:{exc}"
+        ) from exc
+
+
 def main():
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
     candidates = _recent_market_cycle_universe_artifacts(repo, token)
     if not candidates:
+        if _fresh_official_fallback():
+            return
         raise SystemExit(
             "DEFERRED: no retained market-cycle universe artifact in bounded 7-day window"
         )
