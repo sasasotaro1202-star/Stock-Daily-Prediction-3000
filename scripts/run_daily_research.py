@@ -1405,7 +1405,7 @@ def main():
     window_fold_rows = {lookback: [] for lookback in window_candidates}
     for lookback in window_candidates:
         fold_rows = []
-        for fold in folds:
+        for fold_idx, fold in enumerate(folds):
             train_dates = dates[: fold.train_end]
             usable_train_dates = (
                 train_dates if lookback == 0 else train_dates[-lookback:]
@@ -1459,7 +1459,7 @@ def main():
             metrics = classification_metrics(
                 test.target_up_1d.astype(int), p
             )
-            metrics["fold"] = float(list(folds).index(fold))
+            metrics["fold"] = float(fold_idx)
             metrics["drift"] = robust_distribution_shift_score(
                 fit_rows[FEATURE_COLUMNS].to_numpy(dtype=float),
                 test[FEATURE_COLUMNS].to_numpy(dtype=float),
