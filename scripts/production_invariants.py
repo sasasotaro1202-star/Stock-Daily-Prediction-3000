@@ -7,6 +7,10 @@ def main():
     router=Path("src/research/router.py").read_text()
     prediction=Path("scripts/run_daily_prediction.py").read_text()
     checks=[
+        ("universe_false_positive_defense",
+         "def _us_code_has_strong_context" in Path("src/data/paypay_collector.py").read_text()
+         and 'normalized.startswith("#")' in Path("src/data/paypay_collector.py").read_text()
+         and "suspicious_us_security_names" in Path("scripts/universe_quality_gate.py").read_text()),
         ("dynamic_universe","target_count: dynamic" in cfg),
         ("unlimited_universe","count_limit: none" in cfg),
         ("all_paypay_scope","scope: all_currently_tradeable_paypay_securities" in cfg),
