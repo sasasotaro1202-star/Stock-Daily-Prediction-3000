@@ -13,7 +13,9 @@ permissions:
 
 concurrency:
   group: research-validation
-  cancel-in-progress: false
+  # A newer code push supersedes obsolete research runs; manual/scheduled
+  # long-running executions remain non-cancellable.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   restore-universe:
