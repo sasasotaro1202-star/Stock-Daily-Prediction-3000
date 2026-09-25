@@ -28,7 +28,7 @@ jobs:
       - name: Restore bounded recent official universe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python scripts/restore_latest_universe_state.py
+/        run: python scripts\/restore_latest_universe_state\.py/
       - uses: actions/upload-artifact@v7
         with:
           name: morning-universe-restored-${{ github.run_id }}
