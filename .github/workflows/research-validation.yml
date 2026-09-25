@@ -159,14 +159,15 @@ jobs:
             git fetch origin main
             git rebase origin/main
             git push origin HEAD:main
+          fi
 
       - name: Persist research validation status
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
           RESEARCH_STEP_OUTCOME: ${{ steps.research_oos.outcome }}
-          SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outputs.outcome }}
-          SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outputs.outcome }}
+          SEC_RESEARCH_STEP_OUTCOME: ${{ steps.sec_research.outcome }}
+          SEC_ABLATION_STEP_OUTCOME: ${{ steps.sec_ablation.outcome }}
           CPCV_STEP_OUTCOME: ${{ steps.cpcv.outputs.outcome }}
         run: python scripts/persist_research_validation_status.py
 
