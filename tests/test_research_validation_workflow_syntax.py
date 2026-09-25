@@ -112,7 +112,36 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
     assert payload["status_lookup_ok"] is True
     assert payload["job_status"] == "failure"
     assert payload["research_step"] == "success"
-    assert payload["sec_research_step"] == "failure"
+    assert payload["evidence_artifact_present"] is False
+
+
+def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "123")
+    monkeypatch.setenv("GITHUB_SHA", "abc")
+    monkeypatch.setattr(
+        status.urllib.request,
+        "urlopen",
+        lambda request, timeout: _Response(
+            {
+                "artifacts": [
+                    {"name": "research-validation-evidence-123", "expired": False}
+                ]
+            }
+            if "/artifacts?" in request.full_url
+            else {"jobs": [{"name": "research", "status": "completed", "conclusion": "success", "steps": []}]}
+        ),
+    )
+
+    assert status.main() == 0
+    payload = json.loads(
+        (Path("artifacts") / "research_validation_status.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["evidence_artifact_present"] is True
 
 
 def test_status_script_fails_closed_on_api_lookup_error(monkeypatch, tmp_path) -> None:
