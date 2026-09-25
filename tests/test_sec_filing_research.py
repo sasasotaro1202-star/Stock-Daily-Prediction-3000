@@ -66,6 +66,8 @@ def test_sec_request_headers_are_identified_and_rate_limit_friendly():
             return self
         def __exit__(self, *args):
             return False
+        def read(self):
+            return b"{}"
 
     def fake_urlopen(req, timeout):
         captured["request"] = req
