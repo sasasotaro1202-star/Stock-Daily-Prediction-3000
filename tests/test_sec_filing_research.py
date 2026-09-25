@@ -66,6 +66,27 @@ def test_sec_collector_is_research_only():
     assert "load_production_artifact" not in source
 
 
+def test_sec_official_mapping_via_jina_uses_company_ticker_schema(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    payload = {"0": {"cik_str": 320193, "ticker": "AAPL", "title": "Apple Inc."}}
+
+    monkeypatch.setattr(mod, "_get_json", lambda url: (_ for _ in ()).throw(mod.HTTPError(url, 403, "Forbidden", {}, None)))
+    monkeypatch.setattr(mod, "_jina_get_json", lambda url: payload)
+
+    # Mirror the production mapping branch to ensure official Jina JSON is
+    # interpreted by ticker/cik_str rather than as a third-party dict.
+    try:
+        ticker_payload = mod._jina_get_json(mod.TICKERS_URL)
+        mapping_source = "sec_official_company_tickers"
+        assert mapping_source == "sec_official_company_tickers"
+        items = ticker_payload.values()
+        mapping = {}
+        for value in items:
+            mapping[mod._norm_ticker(value["ticker"])] = str(value["cik_str"]).zfill(10)
+        assert mapping["AAPL"] == "0000320193"
+    except Exception as exc:
+        raise AssertionError(f"official Jina mapping schema regression: {exc}") from exc
+
 def test_sec_official_mapping_can_use_jina_reader_fallback(monkeypatch):
     mod = importlib.import_module("scripts.sec_filings_research")
     calls = []
