@@ -61,7 +61,12 @@ def test_sec_request_headers_are_identified_and_rate_limit_friendly():
     mod = importlib.import_module("scripts.sec_filings_research")
     captured = {}
 
+    class DummyHeaders:
+        def get(self, key, default=None):
+            return None if key != "Content-Encoding" else ""
+    
     class DummyResponse:
+        headers = DummyHeaders()
         def __enter__(self):
             return self
         def __exit__(self, *args):
