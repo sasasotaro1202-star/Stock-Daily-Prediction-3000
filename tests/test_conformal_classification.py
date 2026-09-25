@@ -82,6 +82,22 @@ def test_adaptive_conformal_updates_only_after_session():
     assert 0.01 <= metrics["alpha_min_used"] <= 0.50
     assert 0.01 <= metrics["alpha_max_used"] <= 0.50
     assert metrics["alpha_min_used"] <= metrics["alpha_max_used"]
+    assert abs(metrics["final_alpha"] - metrics["alpha_max_used"]) <= 0.10
+
+def test_adaptive_conformal_rejects_misaligned_or_nonbinary_feedback():
+    y_cal = np.asarray([0, 1] * 20, dtype=int)
+    p_cal = np.asarray([0.2, 0.8] * 20, dtype=float)
+    p_test = np.asarray([0.8, 0.2], dtype=float)
+    dates = np.asarray(["a", "b"])
+    with pytest.raises(ValueError):
+        adaptive_conformal_prediction_sets(
+            y_cal, p_cal, p_test, dates, observed_y_test=np.asarray([1])
+        )
+    with pytest.raises(ValueError):
+        adaptive_conformal_prediction_sets(
+            y_cal, p_cal, p_test, dates, observed_y_test=np.asarray([1, 2])
+        )
+
 
 def test_adaptive_conformal_is_deterministic_and_bounded():
     y_cal = np.asarray([0, 1] * 25, dtype=int)
