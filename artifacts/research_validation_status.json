@@ -2,13 +2,13 @@
   "artifact_lookup_error": null,
   "cpcv_step": "unknown",
   "evidence_artifact_present": false,
-  "generated_at_utc": "2026-09-25T17:43:14.370655+00:00",
+  "generated_at_utc": "2026-09-25T17:51:01.037983+00:00",
   "job_status": "unknown",
   "research_step": "unknown",
   "sec_ablation_step": "unknown",
   "sec_research_step": "unknown",
   "status_lookup_error": "research_job_not_found",
   "status_lookup_ok": false,
-  "workflow_run_id": "36166246596",
-  "workflow_sha": "b4b6478dc36136ff075b2d7c92357f3d04242f1f"
+  "workflow_run_id": "36168815415",
+  "workflow_sha": "28be4241122842d6cb37625ee1bd40016c7ce6dd"
 }
