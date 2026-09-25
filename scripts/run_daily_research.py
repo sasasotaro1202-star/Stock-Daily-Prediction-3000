@@ -33,9 +33,6 @@ from src.research.blend_prediction_cache import (
 from src.research.online_baseline_cache import (
     build_baseline_logloss_cache,
 )
-    CACHEABLE_BLEND_COMPONENTS,
-    resolve_cached_blend_predictions,
-)
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
