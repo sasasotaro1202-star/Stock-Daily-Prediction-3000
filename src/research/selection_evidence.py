@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from math import isfinite, sqrt
+from math import ceil, isfinite, sqrt
 from statistics import NormalDist
 from typing import Iterable, Mapping
 
@@ -159,7 +159,7 @@ def paired_logloss_selection_evidence(
         "ci_upper": float(ci_upper),
         "block_bootstrap_probability_improvement": float(block_bootstrap_probability),
         "block_bootstrap_p05_improvement": float(block_bootstrap_p05),
-        "block_bootstrap_block_length": int(max(1, min(len(differences), int(__import__("math").ceil(len(differences) ** (1.0 / 3.0)))))),
+        "block_bootstrap_block_length": int(max(1, min(len(differences), int(ceil(len(differences) ** (1.0 / 3.0)))))),
         "required_relative_improvement": float(min_relative_improvement),
         "required_absolute_improvement": float(required_gain),
         "evidence_note": (
