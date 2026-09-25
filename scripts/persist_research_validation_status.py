@@ -94,7 +94,7 @@ def main() -> int:
             for item in artifacts
         ),
         "status_lookup_ok": effective_lookup_error is None and artifact_error is None,
-        "status_lookup_error": effective_lookup_error or lookup_error,
+        "status_lookup_error": effective_lookup_error,
         "artifact_lookup_error": artifact_error,
     }
     out = Path("artifacts/research_validation_status.json")
