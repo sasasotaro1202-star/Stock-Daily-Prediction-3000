@@ -36,6 +36,28 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+      - name: Download completed OOS evidence
+        if: github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@v7
+        continue-on-error: true
+        with:
+          name: research-validation-evidence-${{ github.event.workflow_run.id }}
+          path: research-evidence
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+      - name: Restore OOS metrics for longitudinal snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file="$(find research-evidence -type f -name latest_metrics.json -print -quit 2>/dev/null || true)"
+          if [ -n "${source_file}" ]; then
+            mkdir -p data/research
+            cp "${source_file}" data/research/latest_metrics.json
+            python scripts/persist_research_validation_snapshot.py
+          else
+            echo "No successful OOS metrics artifact available; snapshot remains absent."
+          fi
       - name: Persist research validation status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -53,7 +75,7 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/research_validation_status.json
+          git add artifacts/research_validation_status.json artifacts/research_validation_latest.json
           git diff --cached --quiet && exit 0
           git commit -m "Persist research validation status"
           git push origin HEAD:research-status
