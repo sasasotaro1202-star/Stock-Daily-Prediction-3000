@@ -679,6 +679,33 @@ def test_restore_research_state_approval_predicate_is_fail_closed(tmp_path):
     )
     assert _has_approved_production_state(research) is True
 
+def test_oos_model_candidates_follow_pipeline_config():
+    from scripts.run_daily_research import make_models
+
+    configured = {
+        "logistic",
+        "extra_trees",
+        "hgb",
+        "lightgbm",
+        "hgb_conservative_recent",
+        "blend_hgb_lgbm_regularized_recent",
+        "blend_hgb_lgbm_regularized_recent_25_75",
+        "blend_hgb_lgbm_regularized_recent_75_25",
+        "lightgbm_conservative",
+        "xgboost",
+        "catboost",
+        "patchtst",
+    }
+    selected = set(make_models())
+
+    assert {"logistic", "extra_trees", "hgb"} <= selected
+    assert selected <= configured
+    assert "hgb_conservative" not in selected
+    assert "lightgbm_recent" not in selected
+    assert "lightgbm_regularized" not in selected
+    assert "lightgbm_conservative_recent" not in selected
+
+
 def test_actions_watchdog_is_frequent_and_fail_visible():
     from pathlib import Path
 
