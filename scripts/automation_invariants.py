@@ -220,8 +220,8 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
-        "research-validation-status-${{ github.event.workflow_run.id }}",
-        "research_validation_status_per_run_concurrency",
+        "group: research-validation-status",
+        "research_validation_status_serialized_commits",
     )
     _assert_once(
         status_workflow,
