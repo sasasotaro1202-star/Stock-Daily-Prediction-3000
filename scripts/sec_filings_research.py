@@ -27,37 +27,6 @@ RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
 MAX_REQUEST_ATTEMPTS = 3
 
 
-def _curl_cffi_get_json(url: str) -> object:
-    # SEC can reject the standard-library TLS/client fingerprint from shared
-    # CI egress even when the User-Agent is compliant. curl_cffi is already a
-    # free project dependency and can impersonate a normal Chrome client.
-    from curl_cffi import get as curl_get
-
-    response = curl_get(
-        url,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept": "application/json",
-            "Accept-Encoding": "gzip, deflate",
-            "From": os.getenv(
-                "SEC_CONTACT_EMAIL",
-                "262083466+sasasotaro1202-star@users.noreply.github.com",
-            ),
-        },
-        impersonate="chrome",
-        timeout=REQUEST_TIMEOUT,
-    )
-    if int(response.status_code) >= 400:
-        raise HTTPError(
-            url,
-            int(response.status_code),
-            getattr(response, "reason", None),
-            getattr(response, "headers", None),
-            None,
-        )
-    return response.json()
-
-
 def _get_json(url: str) -> object:
     last_error: Exception | None = None
     for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
@@ -81,21 +50,14 @@ def _get_json(url: str) -> object:
                 return json.loads(body.decode("utf-8"))
         except HTTPError as exc:
             last_error = exc
-            # A persistent 403 from the GitHub Actions egress can be caused by
-            # the HTTP/TLS client fingerprint rather than the declared UA.
-            # Switch once to curl_cffi browser impersonation before entering
-            # the ordinary bounded retry path. Other 4xx responses remain
-            # fail-closed and are not retried.
-            if exc.code == 403:
-                try:
-                    return _curl_cffi_get_json(url)
-                except Exception:
-                    raise
             if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
                 raise
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
             try:
-                delay = min(15.0, max(1.0, float(retry_after))) if retry_after else float(2 ** (attempt - 1))
+                delay = min(
+                    15.0,
+                    max(1.0, float(retry_after)),
+                ) if retry_after else float(2 ** (attempt - 1))
             except (TypeError, ValueError):
                 delay = float(2 ** (attempt - 1))
             time.sleep(delay)
