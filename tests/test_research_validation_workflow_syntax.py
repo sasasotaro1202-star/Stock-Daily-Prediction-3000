@@ -9,7 +9,9 @@ import pytest
 from scripts import persist_research_validation_status as status
 
 
-WORKFLOW = Path(__file__).parents[1] / ".github" / "workflows" / "research-validation.yml"
+ROOT = Path(__file__).parents[1]
+WORKFLOW = ROOT / ".github" / "workflows" / "research-validation.yml"
+STATUS_WORKFLOW = ROOT / ".github" / "workflows" / "research-validation-status.yml"
 
 
 def _extract_run_blocks(text: str) -> list[str]:
@@ -36,10 +38,13 @@ def _extract_run_blocks(text: str) -> list[str]:
 
 def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
+    status_text = STATUS_WORKFLOW.read_text(encoding="utf-8")
     blocks = _extract_run_blocks(text)
+    status_blocks = _extract_run_blocks(status_text)
     assert blocks, "No run: | blocks found in research-validation workflow"
+    assert status_blocks, "No run: | blocks found in research-validation-status workflow"
 
-    for index, script in enumerate(blocks):
+    for index, script in enumerate(blocks + status_blocks):
         result = subprocess.run(
             ["bash", "-n"],
             input=script,
@@ -48,18 +53,22 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
             check=False,
         )
         assert result.returncode == 0, (
-            f"research-validation.yml run block {index} has invalid bash syntax:\n"
+            f"research workflow run block {index} has invalid bash syntax:\n"
             f"{result.stderr}\nSCRIPT:\n{script}"
         )
 
 
-def test_research_validation_has_dedicated_status_job() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    assert "  research-status:" in text
-    assert "    needs: research" in text
-    assert "    if: always()" in text
+def test_research_validation_has_external_status_workflow() -> None:
+    text = STATUS_WORKFLOW.read_text(encoding="utf-8")
+    assert 'workflows: ["Research validation"]' in text
+    assert "types: [completed]" in text
     assert "python scripts/persist_research_validation_status.py" in text
+    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" in text
+    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" in text
     assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in text
+    main_text = WORKFLOW.read_text(encoding="utf-8")
+    assert "  research-status:" not in main_text
+    assert "research-validation-status-" not in main_text
 
 class _Response:
     def __init__(self, payload):
