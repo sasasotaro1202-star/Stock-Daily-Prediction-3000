@@ -176,6 +176,7 @@ jobs:
             local active_run_id=""
             local active_head_sha=""
             local active_updated_epoch=0
+            local active_run_started_epoch=0
             local queued_ids=()
             local queued_shas=()
             local queued_created_epochs=()
@@ -207,6 +208,9 @@ jobs:
                   active_run_id="$run_id"
                   active_head_sha="$head_sha"
                   active_updated_epoch="$updated_epoch"
+                  local run_started
+                  run_started="$(printf '%s' "$run_json" | jq -r '.run_started_at // .created_at // empty')"
+                  active_run_started_epoch="$(date -d "$run_started" +%s 2>/dev/null || echo 0)"
                 fi
               elif [ "$status" = "queued" ] || [ "$status" = "pending" ]; then
                 queued_ids+=( "$run_id" )
@@ -216,7 +220,9 @@ jobs:
             done <<< "$run_entries"
 
             if [ -n "$active_run_id" ]; then
-              if [ "$active_updated_epoch" -gt 0 ] && [ "$active_updated_epoch" -lt "$research_stale_epoch" ]; then
+              # updated_at can continue moving while a job is stuck inside one long
+              # step, so the research lane also has a hard active-age cutoff.
+              if [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
                 echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 150 minutes; cancelling before Actions timeout"
                 if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
                   echo "${workflow_name}: stale active run $active_run_id cancelled"
