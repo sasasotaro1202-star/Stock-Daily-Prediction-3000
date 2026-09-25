@@ -242,6 +242,10 @@ def main() -> int:
         watchdog,
         'active_run_started_epoch="$(date -d "$run_started" +%s 2>/dev/null || echo 0)"',
         "watchdog_research_hard_age_source",
+    )    _assert_once(
+        watchdog,
+        "Only the newest watchdog should execute",
+        "watchdog_latest_run_wins_comment",
     )
     _assert_once(
         watchdog,
@@ -308,6 +312,10 @@ def main() -> int:
         status_workflow,
         "python scripts/persist_research_validation_status.py",
         "research_validation_status_script",
+    )    _assert_once(
+        status_workflow,
+        "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}",
+        "research_validation_status_run_id_provenance",
     )
     _assert_once(
         validation_workflow,
