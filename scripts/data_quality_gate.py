@@ -201,6 +201,7 @@ def main():
         "universe_symbols_without_current_pit_row",
         "universe_symbols_stale_over_10d",
         "negative_volume",
+        "provider_deferred_ratio_over_5pct",
     )
     hard_reasons=[
         reason for reason in reasons
