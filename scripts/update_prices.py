@@ -55,6 +55,69 @@ def prune_price_batch_to_current_universe(
     return removed
 
 
+
+
+def fetch_resilient(
+    records: list[dict],
+    period: str,
+    *,
+    depth: int = 0,
+    downloader=None,
+    sleep_fn=time.sleep,
+) -> pd.DataFrame:
+    """Bounded retry + split fallback for poisoned bulk downloads."""
+    if not records:
+        return pd.DataFrame()
+
+    fetcher = downloader or download_batch
+    attempts = 3 if depth == 0 else 1
+    for attempt in range(attempts):
+        try:
+            data = fetcher(records, period=period)
+        except Exception as exc:
+            print(
+                f"price-download-retry attempt={attempt + 1}/{attempts} "
+                f"period={period} rows={len(records)} depth={depth} "
+                f"error={type(exc).__name__}"
+            )
+            data = pd.DataFrame()
+        if not data.empty:
+            return data
+        if attempt < attempts - 1:
+            sleep_fn(2 ** attempt)
+
+    if depth < 2 and len(records) > 10:
+        midpoint = len(records) // 2
+        left = fetch_resilient(
+            records[:midpoint],
+            period,
+            depth=depth + 1,
+            downloader=fetcher,
+            sleep_fn=sleep_fn,
+        )
+        right = fetch_resilient(
+            records[midpoint:],
+            period,
+            depth=depth + 1,
+            downloader=fetcher,
+            sleep_fn=sleep_fn,
+        )
+        pieces = [frame for frame in (left, right) if not frame.empty]
+        if pieces:
+            recovered_rows = sum(len(frame) for frame in pieces)
+            print(
+                f"price-download-split-recovery period={period} "
+                f"rows={len(records)} depth={depth} "
+                f"recovered_rows={recovered_rows}"
+            )
+            return pd.concat(pieces, ignore_index=True)
+
+    print(
+        f"price-download-deferred period={period} rows={len(records)} "
+        f"depth={depth}"
+    )
+    return pd.DataFrame()
+
 def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
     path=ROOT/f"batch_{i:03d}.parquet"
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -80,29 +143,6 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
         if (str(r["asset_class"]),str(r["symbol"])) not in old_keys
     ]
 
-    def fetch_resilient(records: list[dict], period: str) -> pd.DataFrame:
-        if not records:
-            return pd.DataFrame()
-        last_empty = False
-        for attempt in range(3):
-            try:
-                data = download_batch(records, period=period)
-            except Exception as exc:
-                print(
-                    f"price-download-retry attempt={attempt + 1}/3 "
-                    f"period={period} rows={len(records)} error={type(exc).__name__}"
-                )
-                data = pd.DataFrame()
-            if not data.empty:
-                return data
-            last_empty = True
-            if attempt < 2:
-                time.sleep(2 ** attempt)
-        if last_empty:
-            print(
-                f"price-download-deferred period={period} rows={len(records)}"
-            )
-        return pd.DataFrame()
 
     frames=[]
     if existing:
