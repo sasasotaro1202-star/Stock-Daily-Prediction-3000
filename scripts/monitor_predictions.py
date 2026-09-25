@@ -8,7 +8,11 @@ import numpy as np
 import pandas as pd
 
 from src.research.metrics import classification_metrics
-from src.research.experience_memory import compact_view, update_experience_memory
+from src.research.experience_memory import (
+    compact_view,
+    load_experience_memory,
+    update_experience_memory,
+)
 
 PRED_DIR=Path("data/predictions")
 BARS=Path("data/prices")
@@ -43,6 +47,7 @@ def load_predictions() -> pd.DataFrame:
 
 
 def main():
+    experience = load_experience_memory(EXPERIENCE)
     pred=load_predictions()
     if pred.empty or not BARS.exists():
         payload={
@@ -205,30 +210,7 @@ def main():
                 "experience":compact_view(experience),
             }
 
-    experience_view = compact_view(
-        experience
-        if "experience" in locals()
-        else {
-            "version": 2,
-            "updated_at": None,
-            "total_resolved": 0,
-            "total_files_processed": 0,
-            "research_priority": [],
-            "rolling": {},
-            "error_types": {},
-            "by_error_bucket": {},
-            "top_hard_cases": [],
-            "recent_hard_cases": [],
-            "anomalies": [],
-            "total_deferred_files": 0,
-            "total_anomalies": 0,
-            "by_model_id": {},
-            "by_regime": {},
-            "by_market_situation": {},
-            "by_direction_confidence": {},
-            "by_model_disagreement": {},
-        }
-    )
+    experience_view = compact_view(experience)
     payload["experience"] = experience_view
 
     OUT.parent.mkdir(parents=True,exist_ok=True)
