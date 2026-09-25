@@ -1,6 +1,6 @@
 {
   "cpcv_step": "unknown",
-  "generated_at_utc": "2026-09-25T10:38:32.286661+00:00",
+  "generated_at_utc": "2026-09-25T10:45:27.644572+00:00",
   "job_status": "cancelled",
   "leakage_audit_present": false,
   "metrics_present": false,
@@ -11,6 +11,6 @@
   "status_lookup_error": null,
   "status_lookup_ok": true,
   "universe_quality_present": false,
-  "workflow_run_id": "36124931502",
-  "workflow_sha": "adb7c0b79513be89262aa349d04a8873fec2046b"
+  "workflow_run_id": "36125106007",
+  "workflow_sha": "a0e386361481e1b439d3cd0ae2c033a5533fb245"
 }
