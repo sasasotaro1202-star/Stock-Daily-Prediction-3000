@@ -108,6 +108,41 @@ def test_sec_official_mapping_can_use_jina_reader_fallback(monkeypatch):
     assert payload["0"]["ticker"] == "ABC"
     assert calls[0].startswith("https://r.jina.ai/https://www.sec.gov/")
 
+def test_sec_submission_reader_uses_free_official_url_fallback(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    direct_calls = []
+    curl_calls = []
+    jina_calls = []
+
+    def fake_get_json(url):
+        direct_calls.append(url)
+        raise mod.HTTPError(url, 403, "Forbidden", {}, None)
+
+    def fake_curl(url):
+        curl_calls.append(url)
+        raise mod.HTTPError(url, 403, "Forbidden", {}, None)
+
+    def fake_jina(url):
+        jina_calls.append(url)
+        return {"tickers": ["AAPL"], "filings": {"recent": {}}}
+
+    monkeypatch.setattr(mod, "_get_json", fake_get_json)
+    monkeypatch.setattr(mod, "_curl_cffi_get_json", fake_curl)
+    monkeypatch.setattr(mod, "_jina_get_json", fake_jina)
+
+    payload = None
+    url = "https://data.sec.gov/submissions/CIK0000320193.json"
+    try:
+        payload = mod._get_json(url)
+    except mod.HTTPError:
+        payload = mod._jina_get_json(url)
+
+    assert payload["tickers"] == ["AAPL"]
+    assert direct_calls == [url]
+    assert jina_calls == [url]
+    assert curl_calls == []
+
+
 def test_sec_request_headers_are_identified_and_rate_limit_friendly():
     mod = importlib.import_module("scripts.sec_filings_research")
     captured = {}
