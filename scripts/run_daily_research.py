@@ -29,6 +29,8 @@ from src.research.nested_policy import nested_sequential_policy_oos
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
+    group_conformal_prediction_sets,
+    group_conformal_prediction_set_metrics,
 )
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
@@ -350,6 +352,7 @@ def main():
     symbol_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     selective_rows_by_model: dict[str, list[dict[str, float]]] = {}
     conformal_rows_by_model_alpha: dict[str, dict[float, list[dict[str, float]]]] = {}
+    group_conformal_rows_by_model: dict[str, list[dict[str, object]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
 
     for name, factory in make_models().items():
@@ -415,6 +418,26 @@ def main():
                 raw_test_p,
                 alpha=0.10,
             )
+            group_conformal_diag = group_conformal_prediction_set_metrics(
+                cal.target_up_1d.astype(int),
+                cal_p,
+                cal["asset_class"].astype(str).to_numpy(),
+                raw_test_p,
+                test["asset_class"].astype(str).to_numpy(),
+                test.target_up_1d.astype(int),
+                alpha=0.10,
+                min_group_size=50,
+            )
+            group_conformal_rows_by_model.setdefault(name, []).append(group_conformal_diag)
+            group_conformal_case = group_conformal_prediction_sets(
+                cal.target_up_1d.astype(int),
+                cal_p,
+                cal["asset_class"].astype(str).to_numpy(),
+                raw_test_p,
+                test["asset_class"].astype(str).to_numpy(),
+                alpha=0.10,
+                min_group_size=50,
+            )
 
             online_bank = online_prediction_by_fold.setdefault(
                 fold_idx,
@@ -426,11 +449,19 @@ def main():
                     "risk_context": None,
                     "asset_classes": None,
                     "conformal_pred_pvalues": {},
+                    "group_conformal_pred_pvalues": {},
+                    "group_conformal_set_size": {},
                 },
             )
             online_bank["predictions"][name] = np.asarray(p, dtype=float)
             online_bank["conformal_pred_pvalues"][name] = np.asarray(
                 conformal_case["predicted_class_pvalue"], dtype=float
+            )
+            online_bank["group_conformal_pred_pvalues"][name] = np.asarray(
+                group_conformal_case["predicted_class_pvalue"], dtype=float
+            )
+            online_bank["group_conformal_set_size"][name] = np.asarray(
+                group_conformal_case["set_size"], dtype=int
             )
             if online_bank["asset_classes"] is None:
                 online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
@@ -2344,9 +2375,33 @@ def main():
             "promotion_allowed": False,
         }
 
+    group_conformal_prediction_research = {
+        "research_only": True,
+        "production_changed": False,
+        "promotion_allowed": False,
+        "method": "asset_class_conditional_split_conformal_classification",
+        "min_group_size": 50,
+        "alpha": 0.10,
+        "models": {},
+    }
+    for model_name, rows in group_conformal_rows_by_model.items():
+        if not rows:
+            continue
+        group_conformal_prediction_research["models"][model_name] = {
+            "folds": len(rows),
+            "mean_set_coverage": float(np.mean([r["set_coverage"] for r in rows])),
+            "mean_set_size": float(np.mean([r["mean_set_size"] for r in rows])),
+            "mean_singleton_rate": float(np.mean([r["singleton_rate"] for r in rows])),
+            "mean_singleton_accuracy": float(np.nanmean([r["singleton_accuracy"] for r in rows])),
+            "mean_empty_rate": float(np.mean([r["empty_rate"] for r in rows])),
+            "mean_fallback_rate": float(np.mean([r["fallback_rate"] for r in rows])),
+            "fold_metrics": rows,
+        }
+
     payload = {
         "results": model_results,
         "return_oos": return_oos,
+        "group_conformal_prediction_research": group_conformal_prediction_research,
         "conformal_prediction_research": conformal_prediction_research,
         "regime_metrics": regime_metrics,
         "situation_metrics": situation_metrics,
