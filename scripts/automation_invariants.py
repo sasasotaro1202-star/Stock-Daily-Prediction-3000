@@ -253,6 +253,11 @@ def main() -> int:
         'active_head_sha" != "$current_sha"',
         "watchdog_research_cancels_superseded_active_run",
     )
+    _assert_absent(
+        watchdog,
+        'WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha"\n                return 0\n              fi\n            fi\n\n            local recovered_queue=false',
+        "watchdog_research_no_duplicate_active_tail",
+    )
     _assert_once(
         validation_workflow,
         'pip install -e ".[dev,research]"',
