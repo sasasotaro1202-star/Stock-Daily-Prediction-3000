@@ -22,6 +22,39 @@ ASSET_SCOPE={
 }
 
 
+def prune_price_batch_to_current_universe(
+    path: Path,
+    current_keys: set[tuple[str,str]],
+) -> int:
+    """Remove stale symbols left behind by dynamic-universe reordering.
+
+    Batch ids are positional. When the universe reorders, a symbol can move to
+    a different batch while its historical rows remain in the old batch. Keep
+    only symbols that belong to the current batch before canonicalization.
+    """
+    if not path.exists():
+        return 0
+    stored=pd.read_parquet(path)
+    required={"asset_class","symbol"}
+    if stored.empty:
+        return 0
+    if not required.issubset(stored.columns):
+        raise ValueError(
+            f"stored price batch missing columns: {sorted(required-set(stored.columns))}"
+        )
+    keep=pd.Series(
+        list(zip(
+            stored["asset_class"].astype(str),
+            stored["symbol"].astype(str),
+        )),
+        index=stored.index,
+    ).isin(current_keys)
+    removed=int((~keep).sum())
+    if removed:
+        stored.loc[keep].to_parquet(path,index=False)
+    return removed
+
+
 def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
     path=ROOT/f"batch_{i:03d}.parquet"
     ROOT.mkdir(parents=True,exist_ok=True)
@@ -82,11 +115,30 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
             frames.append(data)
 
     if not frames:
+        try:
+            removed=prune_price_batch_to_current_universe(path,current_keys)
+        except ValueError as exc:
+            raise SystemExit(f"FAIL: invalid stored price batch {path}: {exc}") from exc
+        if removed:
+            print(
+                f"price-batch-pruned={i:03d} stale_symbol_rows={removed} "
+                f"reason=dynamic_universe_reorder"
+            )
         return i,0,"DEFERRED",sorted(current_keys)
 
     data=pd.concat(frames,ignore_index=True)
-    rows=upsert_batch_parquet(data,str(path))
+    upsert_batch_parquet(data,str(path))
+    try:
+        removed=prune_price_batch_to_current_universe(path,current_keys)
+    except ValueError as exc:
+        raise SystemExit(f"FAIL: invalid stored price batch {path}: {exc}") from exc
+    if removed:
+        print(
+            f"price-batch-pruned={i:03d} stale_symbol_rows={removed} "
+            f"reason=dynamic_universe_reorder"
+        )
     stored=pd.read_parquet(path)
+    rows=len(stored)
     stored_keys=set(
         zip(
             stored["asset_class"].astype(str),
