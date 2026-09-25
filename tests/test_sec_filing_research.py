@@ -55,3 +55,33 @@ def test_sec_collector_is_research_only():
     assert "research_only" in source
     assert "production_changed" in source
     assert "load_production_artifact" not in source
+
+
+def test_sec_request_headers_are_identified_and_rate_limit_friendly():
+    mod = importlib.import_module("scripts.sec_filings_research")
+    captured = {}
+
+    class DummyResponse:
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+
+    def fake_urlopen(req, timeout):
+        captured["request"] = req
+        captured["timeout"] = timeout
+        return DummyResponse()
+
+    original = mod.urlopen
+    mod.urlopen = fake_urlopen
+    try:
+        assert mod._get_json(mod.TICKERS_URL) is not None
+    finally:
+        mod.urlopen = original
+
+    req = captured["request"]
+    assert req.get_header("User-agent") == mod.USER_AGENT
+    assert "github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000" in mod.USER_AGENT
+    assert req.get_header("Accept") == "application/json"
+    assert req.get_header("Accept-encoding") == "gzip, deflate"
+    assert captured["timeout"] == mod.REQUEST_TIMEOUT

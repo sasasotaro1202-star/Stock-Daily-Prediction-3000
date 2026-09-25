@@ -17,18 +17,45 @@ ALLOWED_FORMS = {
     "8-K", "10-K", "10-Q", "20-F", "6-K", "40-F",
     "S-1", "S-3", "S-4", "424B2", "DEF 14A", "SC 13D", "SC 13G",
 }
-USER_AGENT = "Stock-Daily-Prediction-3000 research collector"
+USER_AGENT = "Stock-Daily-Prediction-3000/0.1 (+https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000)"
 REQUEST_TIMEOUT = 25
 RATE_SLEEP_SECONDS = 0.15
+RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
+MAX_REQUEST_ATTEMPTS = 3
 
 
 def _get_json(url: str) -> object:
-    req = Request(
-        url,
-        headers={"User-Agent": USER_AGENT, "Accept": "application/json"},
-    )
-    with urlopen(req, timeout=REQUEST_TIMEOUT) as response:
-        return json.load(response)
+    last_error: Exception | None = None
+    for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
+        req = Request(
+            url,
+            headers={
+                "User-Agent": USER_AGENT,
+                "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
+            },
+        )
+        try:
+            with urlopen(req, timeout=REQUEST_TIMEOUT) as response:
+                return json.load(response)
+        except HTTPError as exc:
+            last_error = exc
+            if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
+                raise
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            try:
+                delay = min(15.0, max(1.0, float(retry_after))) if retry_after else float(2 ** (attempt - 1))
+            except (TypeError, ValueError):
+                delay = float(2 ** (attempt - 1))
+            time.sleep(delay)
+        except (URLError, TimeoutError, OSError) as exc:
+            last_error = exc
+            if attempt >= MAX_REQUEST_ATTEMPTS:
+                raise
+            time.sleep(float(2 ** (attempt - 1)))
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("SEC request failed without an exception")
 
 
 def _norm_ticker(value: object) -> str:
@@ -115,7 +142,7 @@ def main() -> None:
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
         payload = {
             "status": "DEFERRED",
-            "reason": f"sec_metadata_fetch_failed:{type(exc).__name__}",
+            "reason": f"sec_metadata_fetch_failed:{getattr(exc, 'code', '')}:{type(exc).__name__}",
             "rows": 0,
             "research_only": True,
             "production_changed": False,
