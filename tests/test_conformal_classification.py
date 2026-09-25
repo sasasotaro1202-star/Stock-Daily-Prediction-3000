@@ -6,6 +6,8 @@ from src.research.conformal_classification import (
     conformal_prediction_set_metrics,
     group_conformal_prediction_sets,
     group_conformal_prediction_set_metrics,
+    adaptive_conformal_prediction_sets,
+    adaptive_conformal_prediction_set_metrics,
 )
 
 def test_prediction_sets_flag_ambiguous_and_confident_cases():
@@ -64,3 +66,37 @@ def test_group_conformal_uses_group_specific_calibration_and_reports_fallback():
     )
     assert 0.0 <= metrics["fallback_rate"] <= 1.0
     assert set(metrics["by_group"]) == {"stable", "missing"}
+
+
+def test_adaptive_conformal_updates_only_after_session():
+    y_cal = np.asarray([0, 1] * 30, dtype=int)
+    p_cal = np.asarray([0.2, 0.8] * 30, dtype=float)
+    p_test = np.asarray([0.95, 0.05, 0.50, 0.95], dtype=float)
+    dates = np.asarray(["2026-01-02", "2026-01-02", "2026-01-03", "2026-01-03"])
+    y_test = np.asarray([1, 0, 1, 0], dtype=int)
+    metrics = adaptive_conformal_prediction_set_metrics(
+        y_cal, p_cal, p_test, dates, y_test,
+        alpha=0.10, gamma=0.10, alpha_min=0.01, alpha_max=0.50
+    )
+    assert 0.01 <= metrics["final_alpha"] <= 0.50
+    assert 0.01 <= metrics["alpha_min_used"] <= 0.50
+    assert 0.01 <= metrics["alpha_max_used"] <= 0.50
+    assert metrics["alpha_min_used"] <= metrics["alpha_max_used"]
+
+def test_adaptive_conformal_is_deterministic_and_bounded():
+    y_cal = np.asarray([0, 1] * 25, dtype=int)
+    p_cal = np.asarray([0.25, 0.75] * 25, dtype=float)
+    p_test = np.asarray([0.10, 0.90, 0.50, 0.60], dtype=float)
+    dates = np.asarray(["a", "a", "b", "b"])
+    y_test = np.asarray([0, 1, 0, 1], dtype=int)
+    r1 = adaptive_conformal_prediction_sets(
+        y_cal, p_cal, p_test, dates,
+        alpha=0.10, gamma=0.02, observed_y_test=y_test
+    )
+    r2 = adaptive_conformal_prediction_sets(
+        y_cal, p_cal, p_test, dates,
+        alpha=0.10, gamma=0.02, observed_y_test=y_test
+    )
+    np.testing.assert_allclose(r1["alpha_used"], r2["alpha_used"])
+    assert np.isfinite(r1["predicted_class_pvalue"]).all()
+    assert np.all((r1["alpha_used"] >= 0.01) & (r1["alpha_used"] <= 0.50))
