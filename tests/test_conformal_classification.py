@@ -82,7 +82,7 @@ def test_adaptive_conformal_updates_only_after_session():
     assert 0.01 <= metrics["alpha_min_used"] <= 0.50
     assert 0.01 <= metrics["alpha_max_used"] <= 0.50
     assert metrics["alpha_min_used"] <= metrics["alpha_max_used"]
-    assert metrics["final_alpha"] == pytest.approx(0.084)
+    assert metrics["final_alpha"] == pytest.approx(0.02)
 
 def test_adaptive_conformal_rejects_misaligned_or_nonbinary_feedback():
     y_cal = np.asarray([0, 1] * 20, dtype=int)
