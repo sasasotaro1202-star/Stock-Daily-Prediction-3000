@@ -178,7 +178,6 @@ jobs:
             local active_run_id=""
             local active_run_started_epoch=0
             local recovery_needed=false
-            local active_run_started_epoch=0
             local queued_ids=()
             local queued_shas=()
             local queued_created_epochs=()
@@ -246,12 +245,12 @@ jobs:
                   return 0
                 fi
                 active_run_id=""
+                recovery_needed=true
               else
                 echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha started_epoch=$active_run_started_epoch"
                 return 0
               fi
             fi
-            local recovery_needed=false
             local current_sha_queued=false
             local idx
             for idx in "${!queued_ids[@]}"; do
