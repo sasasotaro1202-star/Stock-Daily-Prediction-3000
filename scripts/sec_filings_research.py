@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import gzip
-import io
 import json
 import os
 import time
-import zipfile
 from datetime import date, datetime, time as dt_time, timedelta, timezone
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -75,14 +73,15 @@ def _get_json(url: str) -> object:
 
 
 
-def _get_bytes(url: str) -> bytes:
+def _get_master_index_text(url: str) -> tuple[str, str]:
+    """Fetch the official SEC master.idx with a bounded free fallback."""
     last_error: Exception | None = None
     for attempt in range(1, MAX_REQUEST_ATTEMPTS + 1):
         req = Request(
             url,
             headers={
                 "User-Agent": USER_AGENT,
-                "Accept": "application/zip, application/octet-stream, */*",
+                "Accept": "text/plain,text/*;q=0.9,*/*;q=0.8",
                 "Accept-Encoding": "gzip, deflate",
                 "From": os.getenv(
                     "SEC_CONTACT_EMAIL",
@@ -95,14 +94,20 @@ def _get_bytes(url: str) -> bytes:
                 body = response.read()
                 if str(response.headers.get("Content-Encoding", "")).lower() == "gzip":
                     body = gzip.decompress(body)
-                return body
+                return body.decode("latin-1", errors="replace"), "sec_direct"
         except HTTPError as exc:
             last_error = exc
+            if exc.code == 403:
+                break
             if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
                 raise
             retry_after = exc.headers.get("Retry-After") if exc.headers else None
             try:
-                delay = min(15.0, max(1.0, float(retry_after))) if retry_after else float(2 ** (attempt - 1))
+                delay = (
+                    min(15.0, max(1.0, float(retry_after)))
+                    if retry_after
+                    else float(2 ** (attempt - 1))
+                )
             except (TypeError, ValueError):
                 delay = float(2 ** (attempt - 1))
             time.sleep(delay)
@@ -111,9 +116,29 @@ def _get_bytes(url: str) -> bytes:
             if attempt >= MAX_REQUEST_ATTEMPTS:
                 raise
             time.sleep(float(2 ** (attempt - 1)))
+
+    if isinstance(last_error, HTTPError) and last_error.code == 403:
+        reader_url = "https://r.jina.ai/" + url
+        req = Request(
+            reader_url,
+            headers={
+                "User-Agent": "Stock-Daily-Prediction-3000/0.1 (SEC research reader)",
+                "Accept": "text/plain,text/*;q=0.9,*/*;q=0.8",
+                "X-Engine": "direct",
+                "X-Respond-With": "body",
+            },
+        )
+        with urlopen(req, timeout=45) as response:
+            body = response.read()
+        text_value = body.decode("utf-8", errors="replace")
+        if len(text_value) < 1000:
+            raise RuntimeError("Jina SEC master index response unexpectedly small")
+        return text_value, "jina_reader_sec_official_url"
+
     if last_error is not None:
         raise last_error
-    raise RuntimeError("SEC binary request failed without an exception")
+    raise RuntimeError("SEC master index request failed without an exception")
+
 
 
 def _quarter_keys(start_date: date, end_date: date) -> list[tuple[int, int]]:
@@ -241,6 +266,164 @@ def _norm_ticker(value: object) -> str:
     return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
 
 
+def _ticker_aliases(value: object) -> set[str]:
+    raw = str(value or "").strip().upper()
+    aliases = {_norm_ticker(raw)}
+    for marker in (".US", "-US", ":US", "/US", "_US"):
+        if raw.endswith(marker):
+            aliases.add(_norm_ticker(raw[: -len(marker)]))
+    for marker in ("NASDAQ:", "NYSE:", "AMEX:", "ARCA:"):
+        if raw.startswith(marker):
+            aliases.add(_norm_ticker(raw[len(marker):]))
+    return {alias for alias in aliases if alias}
+
+
+def _norm_company_name(value: object) -> str:
+    return "".join(ch for ch in str(value or "").upper() if ch.isalnum())
+
+
+def _resolve_ticker_info(
+    ticker: object,
+    exact_map: dict[str, dict[str, object]],
+    alias_map: dict[str, dict[str, object]],
+) -> dict[str, object] | None:
+    exact = _norm_ticker(ticker)
+    if exact in exact_map:
+        return exact_map[exact]
+    for alias in _ticker_aliases(ticker):
+        info = alias_map.get(alias)
+        if info is not None:
+            return info
+    return None
+
+
+def _rows_from_master_indexes(
+    universe_records: list[dict[str, object]],
+    ticker_map: dict[str, dict[str, object]],
+    ticker_alias_map: dict[str, dict[str, object]] | None,
+    collected_at: pd.Timestamp,
+) -> tuple[list[dict[str, object]], dict[str, int]]:
+    """Collect one year of official SEC filing metadata via quarterly master.idx."""
+    ticker_alias_map = ticker_alias_map or {}
+    start_date = collected_at.to_pydatetime().date() - timedelta(days=365)
+    end_date = collected_at.to_pydatetime().date()
+
+    by_cik: dict[str, list[dict[str, object]]] = {}
+    by_name_candidates: dict[str, list[dict[str, object]]] = {}
+    for record in universe_records:
+        info = _resolve_ticker_info(record.get("symbol"), ticker_map, ticker_alias_map)
+        if info:
+            cik = str(info.get("cik", "")).zfill(10)
+            if cik:
+                by_cik.setdefault(cik, []).append(record)
+        name_key = _norm_company_name(record.get("name"))
+        if name_key:
+            by_name_candidates.setdefault(name_key, []).append(record)
+
+    by_name = {
+        key: values[0]
+        for key, values in by_name_candidates.items()
+        if len(values) == 1
+    }
+
+    rows = []
+    diagnostics: dict[str, int] = {}
+    tz = ZoneInfo("America/New_York")
+
+    for year, quarter in _quarter_keys(start_date, end_date):
+        url = f"https://www.sec.gov/Archives/edgar/full-index/{year}/QTR{quarter}/master.idx"
+        body, transport = _get_master_index_text(url)
+        quarter_count = 0
+        for line in body.splitlines():
+            line = line.rstrip("\r\n")
+            if (
+                not line
+                or line.startswith("Description:")
+                or line.startswith("Last Data Received:")
+                or line.startswith("Comments:")
+                or line.startswith("CIK|")
+            ):
+                continue
+            parts = line.split("|", 4)
+            if len(parts) != 5:
+                continue
+
+            _, company_name, form, filed, filename = parts
+            form = form.strip()
+            if form not in ALLOWED_FORMS:
+                continue
+
+            filed_ts = pd.to_datetime(filed.strip(), errors="coerce")
+            if pd.isna(filed_ts):
+                continue
+            filed_date = filed_ts.date()
+            if filed_date < start_date or filed_date > end_date:
+                continue
+
+            filename = filename.strip()
+            path_parts = [part for part in filename.split("/") if part]
+            cik_from_path = ""
+            for i, part in enumerate(path_parts):
+                if (
+                    part == "data"
+                    and i + 1 < len(path_parts)
+                    and path_parts[i + 1].isdigit()
+                ):
+                    cik_from_path = str(int(path_parts[i + 1])).zfill(10)
+                    break
+            if not cik_from_path:
+                continue
+
+            matched_records = list(by_cik.get(cik_from_path, []))
+            if not matched_records:
+                name_key = _norm_company_name(company_name)
+                record = by_name.get(name_key)
+                if record is not None:
+                    matched_records = [record]
+            if not matched_records:
+                continue
+
+            available_at = pd.Timestamp(
+                datetime.combine(
+                    filed_date,
+                    dt_time(23, 59, 59, 999999),
+                    tzinfo=tz,
+                )
+            ).tz_convert("UTC")
+
+            for record in matched_records:
+                ticker_info = _resolve_ticker_info(
+                    record.get("symbol"),
+                    ticker_map,
+                    ticker_alias_map,
+                ) or {}
+                rows.append({
+                    "symbol": str(record.get("symbol", "")),
+                    "asset_class": "us_stock",
+                    "issuer_name": str(record.get("name", "")),
+                    "sec_title": str(ticker_info.get("title", "")),
+                    "cik": cik_from_path,
+                    "form": form,
+                    "filing_date": filed_date.isoformat(),
+                    "acceptance_datetime": "",
+                    "available_at": available_at.isoformat(),
+                    "accession_number": _accession_from_filename(filename),
+                    "primary_document": Path(filename).name,
+                    "source": "sec_edgar_master_index",
+                    "source_url": url,
+                    "available_at_method": "filing_date_eod_conservative",
+                    "retrieval_transport": transport,
+                    "research_only": True,
+                    "production_changed": False,
+                    "collected_at": collected_at.isoformat(),
+                })
+                quarter_count += 1
+        diagnostics[f"{year}Q{quarter}"] = quarter_count
+
+    return rows, diagnostics
+
+
+
 def _rows_from_submissions(
     universe_row: dict[str, object],
     ticker_info: dict[str, object],
@@ -321,24 +504,46 @@ def main() -> None:
             mapping_source = FALLBACK_TICKERS_URL
             mapping_note = "pinned_third_party_fallback"
         ticker_map = {}
+        ticker_alias_map = {}
         if mapping_source == "sec_official_company_tickers":
-            for value in ticker_payload.values() if isinstance(ticker_payload, dict) else []:
+            items = ticker_payload.values() if isinstance(ticker_payload, dict) else []
+            for value in items:
                 if not isinstance(value, dict):
                     continue
-                ticker = _norm_ticker(value.get("ticker"))
-                if ticker and value.get("cik_str") is not None:
-                    ticker_map[ticker] = {
+                raw_ticker = str(value.get("ticker", ""))
+                exact = _norm_ticker(raw_ticker)
+                if exact and value.get("cik_str") is not None:
+                    info = {
                         "cik": str(value["cik_str"]).zfill(10),
                         "title": str(value.get("title", "")),
                     }
+                    ticker_map[exact] = info
+                    for alias in _ticker_aliases(raw_ticker):
+                        if alias == exact:
+                            continue
+                        prior = ticker_alias_map.get(alias)
+                        if prior is not None and prior.get("cik") != info["cik"]:
+                            ticker_alias_map.pop(alias, None)
+                        elif alias not in ticker_alias_map:
+                            ticker_alias_map[alias] = info
         else:
-            for ticker, cik in ticker_payload.items() if isinstance(ticker_payload, dict) else []:
-                ticker = _norm_ticker(ticker)
-                if ticker and cik:
-                    ticker_map[ticker] = {
+            items = ticker_payload.items() if isinstance(ticker_payload, dict) else []
+            for raw_ticker, cik in items:
+                exact = _norm_ticker(raw_ticker)
+                if exact and cik:
+                    info = {
                         "cik": str(cik).zfill(10),
                         "title": "",
                     }
+                    ticker_map[exact] = info
+                    for alias in _ticker_aliases(raw_ticker):
+                        if alias == exact:
+                            continue
+                        prior = ticker_alias_map.get(alias)
+                        if prior is not None and prior.get("cik") != info["cik"]:
+                            ticker_alias_map.pop(alias, None)
+                        elif alias not in ticker_alias_map:
+                            ticker_alias_map[alias] = info
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
         payload = {
             "status": "DEFERRED",
@@ -362,7 +567,7 @@ def main() -> None:
     bulk_index_diagnostics: dict[str, int] = {}
     bulk_index_used = False
     for row in sorted(records, key=lambda x: str(x.get("symbol", ""))):
-        info = ticker_map.get(_norm_ticker(row.get("symbol")))
+        info = _resolve_ticker_info(row.get("symbol"), ticker_map, ticker_alias_map)
         if not info:
             deferred += 1
             continue
@@ -392,6 +597,7 @@ def main() -> None:
             bulk_rows, bulk_index_diagnostics = _rows_from_master_indexes(
                 records,
                 ticker_map,
+                ticker_alias_map,
                 collected_at,
             )
             rows.extend(bulk_rows)
@@ -413,6 +619,14 @@ def main() -> None:
         "rows": int(len(out)),
         "symbols": int(len(records)),
         "matched_cik_symbols": int(matched),
+        "ticker_alias_matches": int(
+            sum(
+                1
+                for row in records
+                if _norm_ticker(row.get("symbol")) not in ticker_map
+                and _resolve_ticker_info(row.get("symbol"), ticker_map, ticker_alias_map) is not None
+            )
+        ),
         "deferred_symbols": int(deferred),
         "unique_forms": sorted(out["form"].astype(str).unique().tolist()) if not out.empty else [],
         "research_only": True,
@@ -425,6 +639,14 @@ def main() -> None:
         "ticker_mismatch_count": int(ticker_mismatches),
         "bulk_index_used": bool(bulk_index_used),
         "bulk_index_quarters": bulk_index_diagnostics,
+        "bulk_index_retrieval_transports": sorted(
+            {
+                str(row.get("retrieval_transport", ""))
+                for row in rows
+                if row.get("source") == "sec_edgar_master_index"
+                and row.get("retrieval_transport")
+            }
+        ),
         "available_at_method": (
             "acceptance_datetime"
             if not bulk_index_used
