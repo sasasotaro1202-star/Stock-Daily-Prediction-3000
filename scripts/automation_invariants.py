@@ -65,6 +65,11 @@ def main() -> int:
         '    - cron: "*/5 * * * *"',
         "watchdog_5m_schedule",
     )
+    _assert_once(
+        watchdog,
+        "cancel-in-progress: true",
+        "watchdog_latest_run_wins",
+    )
     for due in ("07:17", "09:27", "18:37"):
         _assert_once(watchdog, due, f"watchdog_recovery_window_{due.replace(':', '_')}")
 
