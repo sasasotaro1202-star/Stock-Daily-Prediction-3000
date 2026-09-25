@@ -30,6 +30,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/restore_latest_universe_state.py
+      - name: Refresh official universe with current parser
+        run: python scripts/refresh_universe.py
+      - name: Validate refreshed universe
+        run: python scripts/universe_quality_gate.py
       - uses: actions/upload-artifact@v7
         with:
           name: research-validation-universe-${{ github.run_id }}
