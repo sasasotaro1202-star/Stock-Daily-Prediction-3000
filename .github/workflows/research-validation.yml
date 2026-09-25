@@ -130,8 +130,10 @@ jobs:
         id: cpcv
         run: python scripts/run_cpcv_validation_audit.py
       - name: Upload research evidence
+        if: always()
         uses: actions/upload-artifact@v7
         with:
+          if-no-files-found: warn
           name: research-validation-evidence-${{ github.run_id }}
           path: |
             data/research/latest_metrics.json
