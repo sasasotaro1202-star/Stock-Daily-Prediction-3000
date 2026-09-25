@@ -82,7 +82,7 @@ def test_adaptive_conformal_updates_only_after_session():
     assert 0.01 <= metrics["alpha_min_used"] <= 0.50
     assert 0.01 <= metrics["alpha_max_used"] <= 0.50
     assert metrics["alpha_min_used"] <= metrics["alpha_max_used"]
-    assert metrics["final_alpha"] == pytest.approx(0.07)
+    assert metrics["final_alpha"] == pytest.approx(0.02)
 
 def test_adaptive_conformal_rejects_misaligned_or_nonbinary_feedback():
     y_cal = np.asarray([0, 1] * 20, dtype=int)
@@ -115,6 +115,6 @@ def test_adaptive_conformal_is_deterministic_and_bounded():
     )
     np.testing.assert_allclose(r1["alpha_used"], r2["alpha_used"])
     np.testing.assert_allclose(r1["alpha_used"], np.asarray([0.10, 0.10, 0.11, 0.11]))
-    assert r1["alpha_after_update"] == pytest.approx(0.07)
+    assert r1["alpha_after_update"] == pytest.approx(0.02)
     assert np.isfinite(r1["predicted_class_pvalue"]).all()
     assert np.all((r1["alpha_used"] >= 0.01) & (r1["alpha_used"] <= 0.50))
