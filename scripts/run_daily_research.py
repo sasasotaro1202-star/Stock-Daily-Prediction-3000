@@ -485,7 +485,6 @@ def main():
                 cal_p,
                 raw_test_p,
                 test["session_date"].astype(str).to_numpy(),
-                test.target_up_1d.astype(int),
                 alpha=0.10,
                 gamma=0.02,
                 alpha_min=0.01,
