@@ -184,6 +184,30 @@ jobs:
           )
           print("monitor_price_restore_deferred", json.dumps(payload))
           PY
+      - name: Report performance changes automatically
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/performance_change.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/performance_change.json")
+          if not p.is_file():
+              raise SystemExit("performance change artifact missing")
+          obj = json.loads(p.read_text(encoding="utf-8"))
+          if obj.get("schema_version") != 1:
+              raise SystemExit("performance change schema mismatch")
+          if not isinstance(obj.get("changed"), bool):
+              raise SystemExit("performance change flag invalid")
+          if not isinstance(obj.get("changes"), list):
+              raise SystemExit("performance change list invalid")
+          print(
+              "Stock performance-change monitor: VERIFIED "
+              f"changed={obj['changed']} changes={len(obj['changes'])}"
+          )
+          PY
       - name: Validate accumulated experience output
         run: |
           python - <<'PY'
@@ -204,6 +228,8 @@ jobs:
           path: |
             data/research/monitor_latest.json
             data/research/experience_memory.json
+            data/research/performance_change.json
+            data/research/performance_snapshot.json
           if-no-files-found: warn
           retention-days: 14
       - name: Persist accumulated experience
@@ -214,6 +240,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/research/experience_memory.json
+          if [ -f data/research/performance_snapshot.json ]; then
+            git add data/research/performance_snapshot.json
+          fi
           if git diff --cached --quiet; then
             echo "experience-memory: no change"
             exit 0
