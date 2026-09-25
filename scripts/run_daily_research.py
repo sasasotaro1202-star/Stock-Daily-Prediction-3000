@@ -26,6 +26,10 @@ from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.blend_prediction_cache import (
+    CACHEABLE_BLEND_COMPONENTS,
+    resolve_cached_blend_predictions,
+)
 from src.research.conformal_classification import (
     conformal_prediction_sets,
     conformal_prediction_set_metrics,
@@ -385,6 +389,7 @@ def main():
     adaptive_conformal_rows_by_model: dict[str, list[dict[str, float]]] = {}
     adaptive_conformal_situation_rows_by_model: dict[str, dict[str, list[dict[str, float]]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
+    blend_prediction_cache: dict[int, dict[str, tuple[np.ndarray, np.ndarray]]] = {}
 
     # Fold-level context is identical across model candidates. Compute it once
     # per chronological fold instead of repeating two DataFrame.apply(axis=1)
@@ -476,25 +481,32 @@ def main():
 
             threshold = float(fold_contexts[fold_idx]["threshold"])
 
-            core_fit = cap_training_rows(
-                core,
-                max_rows=300_000,
-                recent_sessions=252,
-            )
-            model = factory()
-            fit_classifier(
-                model,
-                name,
-                core_fit[FEATURE_COLUMNS],
-                core_fit.target_up_1d.astype(int),
-                core_fit["session_date"],
-                half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
-            )
-            cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-            calibrator = make_calibrator("platt").fit(
-                cal_p, cal.target_up_1d.astype(int)
-            )
-            raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+            component_cache = blend_prediction_cache.setdefault(fold_idx, {})
+            cached_blend = resolve_cached_blend_predictions(name, component_cache)
+            if cached_blend is not None:
+                cal_p, raw_test_p = cached_blend
+            else:
+                core_fit = cap_training_rows(
+                    core,
+                    max_rows=300_000,
+                    recent_sessions=252,
+                )
+                model = factory()
+                fit_classifier(
+                    model,
+                    name,
+                    core_fit[FEATURE_COLUMNS],
+                    core_fit.target_up_1d.astype(int),
+                    core_fit["session_date"],
+                    half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
+                )
+                cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+                raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+                if name in CACHEABLE_BLEND_COMPONENTS:
+                    component_cache[name] = (
+                        np.asarray(cal_p, dtype=float),
+                        np.asarray(raw_test_p, dtype=float),
+                    )
             p = calibrator.predict(raw_test_p)
 
             # All fixed-alpha split-conformal p-values are identical across
