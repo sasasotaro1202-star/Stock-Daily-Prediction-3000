@@ -101,3 +101,35 @@ def test_sec_mapping_fallback_is_pinned_and_submission_history_remains_official(
     assert "raw.githubusercontent.com/jadchaar/sec-cik-mapper/7883b83389836f9bba9bdfe53031467235746334" in source
     assert "https://data.sec.gov/submissions/CIK" in source
     assert "pinned_third_party_fallback" in source
+
+
+def test_sec_request_json_handles_gzip_encoded_response():
+    mod = importlib.import_module("scripts.sec_filings_research")
+    import io
+
+    captured = {}
+
+    class Headers:
+        def get(self, key, default=None):
+            return "gzip" if key == "Content-Encoding" else default
+
+    class DummyResponse:
+        headers = Headers()
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            import gzip
+            return gzip.compress(b'{"ok": true}')
+
+    def fake_urlopen(req, timeout):
+        captured["timeout"] = timeout
+        return DummyResponse()
+
+    original = mod.urlopen
+    mod.urlopen = fake_urlopen
+    try:
+        assert mod._get_json(mod.TICKERS_URL) == {"ok": True}
+    finally:
+        mod.urlopen = original

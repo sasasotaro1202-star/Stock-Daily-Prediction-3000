@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import json
 import os
 import time
@@ -39,7 +40,10 @@ def _get_json(url: str) -> object:
         )
         try:
             with urlopen(req, timeout=REQUEST_TIMEOUT) as response:
-                return json.load(response)
+                body = response.read()
+                if str(response.headers.get("Content-Encoding", "")).lower() == "gzip":
+                    body = gzip.decompress(body)
+                return json.loads(body.decode("utf-8"))
         except HTTPError as exc:
             last_error = exc
             if exc.code not in RETRYABLE_HTTP_CODES or attempt >= MAX_REQUEST_ATTEMPTS:
