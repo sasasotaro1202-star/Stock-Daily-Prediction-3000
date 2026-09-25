@@ -98,12 +98,13 @@ def test_current_main_has_shared_model_and_route_holdout_contract():
     assert "required_classifiers" in artifact
 
 
-def test_price_update_has_bounded_retry():
+def test_price_update_has_bounded_retry_and_split_fallback():
     from pathlib import Path
 
     source = Path("scripts/update_prices.py").read_text(encoding="utf-8")
-    assert "for attempt in range(3)" in source
+    assert "attempts = 3 if depth == 0 else 1" in source
     assert "time.sleep(2 ** attempt)" in source
+    assert "if depth < 2 and len(records) > 10" in source
 
 
 def test_paypay_visible_text_parser_handles_non_table_layout():
