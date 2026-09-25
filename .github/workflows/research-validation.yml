@@ -13,9 +13,9 @@ permissions:
   contents: write
 
 concurrency:
-  # Bumped from the pre-recovery lane because an orphaned legacy run was
-  # observed holding the old concurrency group indefinitely.
-  group: research-validation-v2
+  # Isolate the newest recovery lane from the orphaned v2 execution, which
+  # remained in progress without GitHub-side timestamp updates for hours.
+  group: research-validation-v3
   # Preserve an active chronological OOS run. A newer push queues behind it
   # instead of cancelling a long-running research execution mid-fold.
   cancel-in-progress: false
