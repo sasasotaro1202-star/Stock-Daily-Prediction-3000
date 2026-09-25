@@ -140,7 +140,31 @@ def test_sec_request_json_handles_gzip_encoded_response():
         mod.urlopen = original
 
 
-def test_sec_master_index_uses_free_jina_fallback_after_sec_403(monkeypatch):
+def test_sec_master_index_uses_curl_fallback_after_sec_400(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    calls = []
+
+    def fake_urlopen(req, timeout):
+        calls.append(req.full_url)
+        raise mod.HTTPError(req.full_url, 400, "Bad Request", {}, None)
+
+    monkeypatch.setattr(mod, "urlopen", fake_urlopen)
+    monkeypatch.setattr(
+        mod,
+        "_curl_cffi_get_master_index_text",
+        lambda url: ("CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200, "curl_fixture"),
+    )
+
+    text_value, transport = mod._get_master_index_text(
+        "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/master.idx"
+    )
+
+    assert transport == "curl_fixture"
+    assert len(text_value) >= 1000
+    assert len(calls) == 1
+
+
+
     mod = importlib.import_module("scripts.sec_filings_research")
 
     class DummyResponse:
