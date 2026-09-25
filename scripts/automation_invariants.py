@@ -186,6 +186,11 @@ def main() -> int:
     validation_workflow = _read("research-validation.yml")
     _assert_once(
         validation_workflow,
+        "cancel-in-progress: ${{ github.event_name == 'push' }}",
+        "research_validation_supersedes_obsolete_push_runs",
+    )
+    _assert_once(
+        validation_workflow,
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
