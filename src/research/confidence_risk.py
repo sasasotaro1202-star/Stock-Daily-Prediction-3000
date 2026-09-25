@@ -27,6 +27,8 @@ def confidence_risk_features(
     probability,
     expert_probabilities,
     context,
+    *,
+    include_conformal_pvalue: bool = False,
 ) -> np.ndarray:
     """Build finite, bounded meta-risk features from prediction-time inputs.
 
@@ -61,8 +63,13 @@ def confidence_risk_features(
     vote_conflict = np.minimum(direction_votes, 1.0 - direction_votes)
 
     cols = [confidence, entropy, disagreement, expert_range, vote_conflict]
+    context_feature_count = 12 if include_conformal_pvalue else 11
+    if ctx.shape[1] < context_feature_count:
+        raise ValueError(
+            f"context requires at least {context_feature_count} columns"
+        )
     if ctx.shape[1]:
-        for j in range(min(ctx.shape[1], 11)):
+        for j in range(min(ctx.shape[1], context_feature_count)):
             raw = ctx[:, j]
             finite = np.isfinite(raw)
             # Missing context is not a directional zero. Use a bounded

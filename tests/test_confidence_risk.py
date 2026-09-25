@@ -34,6 +34,18 @@ def test_feature_shape_and_finiteness():
     assert out[3, 7] > 0.0 and out[3, 8] == 0.0
     assert out[3, 9] > 0.0 and out[3, 10] == 1.0
 
+    conformal_ctx = np.column_stack(
+        [ctx, np.asarray([0.9, 0.5, 0.1, np.nan])]
+    )
+    conformal_out = confidence_risk_features(
+        p,
+        experts,
+        conformal_ctx,
+        include_conformal_pvalue=True,
+    )
+    assert conformal_out.shape == (4, 29)
+    assert np.all(np.isfinite(conformal_out))
+
 
 def test_temporal_risk_model_and_shrinkage():
     rng = np.random.default_rng(20260925)

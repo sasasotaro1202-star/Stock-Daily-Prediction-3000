@@ -26,6 +26,10 @@ from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.conformal_classification import (
+    conformal_prediction_sets,
+    conformal_prediction_set_metrics,
+)
 from src.research.confidence_risk import (
     apply_confidence_risk_shrinkage,
     confidence_risk_features,
@@ -345,6 +349,7 @@ def main():
     symbol_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     symbol_regime_rows: dict[str, list[tuple[str, dict[str, float]]]] = {}
     selective_rows_by_model: dict[str, list[dict[str, float]]] = {}
+    conformal_rows_by_model_alpha: dict[str, dict[float, list[dict[str, float]]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
 
     for name, factory in make_models().items():
@@ -389,8 +394,26 @@ def main():
             calibrator = make_calibrator("platt").fit(
                 cal_p, cal.target_up_1d.astype(int)
             )
-            p = calibrator.predict(
-                model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+            raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+            p = calibrator.predict(raw_test_p)
+
+            conformal_rows_by_model_alpha.setdefault(name, {})
+            for alpha in (0.05, 0.10, 0.20):
+                conformal_diag = conformal_prediction_set_metrics(
+                    cal.target_up_1d.astype(int),
+                    cal_p,
+                    raw_test_p,
+                    test.target_up_1d.astype(int),
+                    alpha=alpha,
+                )
+                conformal_rows_by_model_alpha[name].setdefault(
+                    float(alpha), []
+                ).append(conformal_diag)
+            conformal_case = conformal_prediction_sets(
+                cal.target_up_1d.astype(int),
+                cal_p,
+                raw_test_p,
+                alpha=0.10,
             )
 
             online_bank = online_prediction_by_fold.setdefault(
@@ -402,9 +425,13 @@ def main():
                     "situations": None,
                     "risk_context": None,
                     "asset_classes": None,
+                    "conformal_pred_pvalues": {},
                 },
             )
             online_bank["predictions"][name] = np.asarray(p, dtype=float)
+            online_bank["conformal_pred_pvalues"][name] = np.asarray(
+                conformal_case["predicted_class_pvalue"], dtype=float
+            )
             if online_bank["asset_classes"] is None:
                 online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
             if online_bank["risk_context"] is None:
@@ -849,6 +876,8 @@ def main():
     risk_history_x = []
     risk_history_y = []
     risk_history_target_y = []
+    risk_conformal_history_x = []
+    risk_conformal_history_y = []
     risk_adjusted_rows = []
     risk_raw_rows = []
     risk_fold_deltas = []
@@ -867,6 +896,21 @@ def main():
         meta_features = confidence_risk_features(
             p_selected, expert_matrix, context
         )
+        conformal_pvalue = np.asarray(
+            bank.get("conformal_pred_pvalues", {}).get(global_selected),
+            dtype=float,
+        )
+        if conformal_pvalue.shape != (len(p_selected),):
+            raise SystemExit(
+                f"FAIL: conformal p-value shape mismatch in fold {fold_idx}"
+            )
+        conformal_context = np.column_stack([context, conformal_pvalue])
+        conformal_meta_features = confidence_risk_features(
+            p_selected,
+            expert_matrix,
+            conformal_context,
+            include_conformal_pvalue=True,
+        )
         selector = fit_temporal_confidence_risk(
             np.asarray(risk_history_x, dtype=float)
             if risk_history_x else np.empty((0, meta_features.shape[1])),
@@ -875,6 +919,18 @@ def main():
             min_rows=risk_min_rows,
         )
         risk = predicted_error_risk(selector, meta_features)
+        conformal_selector = fit_temporal_confidence_risk(
+            np.asarray(risk_conformal_history_x, dtype=float)
+            if risk_conformal_history_x
+            else np.empty((0, conformal_meta_features.shape[1])),
+            np.asarray(risk_conformal_history_y, dtype=int)
+            if risk_conformal_history_y
+            else np.empty((0,), dtype=int),
+            min_rows=risk_min_rows,
+        )
+        conformal_risk = predicted_error_risk(
+            conformal_selector, conformal_meta_features
+        )
         y_fold = np.asarray(bank["y"], dtype=int)
         base_rate = (
             float(np.mean(np.asarray(risk_history_target_y, dtype=int)))
@@ -884,11 +940,27 @@ def main():
             p_selected, risk, base_rate=base_rate,
             risk_threshold=risk_threshold, max_shrink=risk_max_shrink,
         )
+        conformal_adjusted = apply_confidence_risk_shrinkage(
+            p_selected, conformal_risk, base_rate=base_rate,
+            risk_threshold=risk_threshold, max_shrink=risk_max_shrink,
+        )
         raw_m = classification_metrics(y_fold, p_selected)
         adjusted_m = classification_metrics(y_fold, adjusted)
         risk_raw_rows.append(raw_m)
         risk_adjusted_rows.append(adjusted_m)
         risk_fold_deltas.append(float(raw_m["logloss"] - adjusted_m["logloss"]))
+        conformal_adjusted_m = classification_metrics(y_fold, conformal_adjusted)
+        confidence_risk_research.setdefault(
+            "conformal_feature_ablation_rows", []
+        ).append({
+            "fold": float(fold_idx),
+            "raw_logloss": float(raw_m["logloss"]),
+            "conformal_adjusted_logloss": float(conformal_adjusted_m["logloss"]),
+            "raw_brier": float(raw_m["brier"]),
+            "conformal_adjusted_brier": float(conformal_adjusted_m["brier"]),
+            "raw_ece": float(raw_m["ece"]),
+            "conformal_adjusted_ece": float(conformal_adjusted_m["ece"]),
+        })
 
         high = risk >= risk_threshold
         if high.any() and np.unique(y_fold[high]).size >= 2:
@@ -912,6 +984,8 @@ def main():
         risk_history_x.extend(meta_features.tolist())
         risk_history_y.extend(current_correct.tolist())
         risk_history_target_y.extend(y_fold.tolist())
+        risk_conformal_history_x.extend(conformal_meta_features.tolist())
+        risk_conformal_history_y.extend(current_correct.tolist())
         if selector is not None:
             confidence_risk_research["status"] = "EVALUATED"
             confidence_risk_research["training_rows"] = len(risk_history_y)
@@ -2229,9 +2303,51 @@ def main():
         selected_rank_weight = 0.50
         selected_uncertainty_penalty = 0.0
 
+    conformal_prediction_research = {
+        "research_only": True,
+        "production_changed": False,
+        "promotion_allowed": False,
+        "method": "split_conformal_classification_prediction_sets",
+        "calibration_source": "raw_model_probability_on_fold_local_calibration_slice",
+        "test_tuning_allowed": False,
+        "alpha_candidates": {},
+    }
+    for model_name, by_alpha in conformal_rows_by_model_alpha.items():
+        conformal_prediction_research["alpha_candidates"][model_name] = {}
+        for alpha, rows in sorted(by_alpha.items()):
+            conformal_prediction_research["alpha_candidates"][model_name][str(alpha)] = {
+                "folds": len(rows),
+                "mean_set_coverage": float(np.mean([r["set_coverage"] for r in rows])),
+                "mean_set_size": float(np.mean([r["mean_set_size"] for r in rows])),
+                "mean_singleton_rate": float(np.mean([r["singleton_rate"] for r in rows])),
+                "mean_singleton_accuracy": float(np.nanmean([r["singleton_accuracy"] for r in rows])),
+                "mean_empty_rate": float(np.mean([r["empty_rate"] for r in rows])),
+                "mean_predicted_class_pvalue": float(np.mean([r["mean_predicted_class_pvalue"] for r in rows])),
+                "fold_metrics": rows,
+            }
+    ablation_rows = confidence_risk_research.get("conformal_feature_ablation_rows", [])
+    if ablation_rows:
+        deltas = np.asarray(
+            [r["raw_logloss"] - r["conformal_adjusted_logloss"] for r in ablation_rows],
+            dtype=float,
+        )
+        conformal_prediction_research["risk_feature_ablation"] = {
+            "folds": len(ablation_rows),
+            "mean_logloss_improvement": float(np.mean(deltas)),
+            "positive_fold_share": float(np.mean(deltas > 0.0)),
+            "raw_logloss": float(np.mean([r["raw_logloss"] for r in ablation_rows])),
+            "conformal_adjusted_logloss": float(np.mean([r["conformal_adjusted_logloss"] for r in ablation_rows])),
+            "raw_brier": float(np.mean([r["raw_brier"] for r in ablation_rows])),
+            "conformal_adjusted_brier": float(np.mean([r["conformal_adjusted_brier"] for r in ablation_rows])),
+            "raw_ece": float(np.mean([r["raw_ece"] for r in ablation_rows])),
+            "conformal_adjusted_ece": float(np.mean([r["conformal_adjusted_ece"] for r in ablation_rows])),
+            "promotion_allowed": False,
+        }
+
     payload = {
         "results": model_results,
         "return_oos": return_oos,
+        "conformal_prediction_research": conformal_prediction_research,
         "regime_metrics": regime_metrics,
         "situation_metrics": situation_metrics,
         "asset_situation_metrics": asset_situation_metrics,

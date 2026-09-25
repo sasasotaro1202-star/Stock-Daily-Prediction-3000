@@ -74,6 +74,15 @@ def main():
          and "run_sec_filing_ablation.py" in Path(".github/workflows/market-cycle.yml").read_text()
          and "src.research.sec_features" not in Path("scripts/run_daily_prediction.py").read_text()
          and "SEC_FEATURE_COLUMNS" not in Path("scripts/run_daily_prediction.py").read_text()),
+        ("conformal_classification_research_isolation",
+         Path("src/research/conformal_classification.py").exists()
+         and "conformal_prediction_research" in Path("scripts/run_daily_research.py").read_text()
+         and "production_changed" in Path("scripts/run_daily_research.py").read_text()
+         and "src.research.conformal_classification" not in prediction),
+        ("conformal_risk_feature_ablation",
+         "include_conformal_pvalue" in Path("src/research/confidence_risk.py").read_text()
+         and "conformal_feature_ablation_rows" in Path("scripts/run_daily_research.py").read_text()
+         and "include_conformal_pvalue" not in prediction),
         ("confidence_risk_config",
          "confidence_risk:" in pipe
          and "research_only: true" in pipe
