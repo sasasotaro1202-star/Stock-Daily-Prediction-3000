@@ -190,7 +190,7 @@ def test_sec_master_index_uses_curl_fallback_after_sec_400(monkeypatch):
         "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/master.idx"
     )
 
-    assert transport == "jina_reader_sec_official_url"
+    assert transport == "curl_fixture"
     assert len(text_value) >= 1000
     assert calls[0].startswith("https://www.sec.gov/")
     assert calls[1].startswith("https://r.jina.ai/https://www.sec.gov/")
