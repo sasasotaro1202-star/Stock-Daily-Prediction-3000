@@ -13,7 +13,9 @@ permissions:
   contents: write
 
 concurrency:
-  group: research-validation
+  # Bumped from the pre-recovery lane because an orphaned legacy run was
+  # observed holding the old concurrency group indefinitely.
+  group: research-validation-v2
   # Preserve an active chronological OOS run. A newer push queues behind it
   # instead of cancelling a long-running research execution mid-fold.
   cancel-in-progress: false
@@ -170,26 +172,4 @@ jobs:
             data/research/cpcv_validation_audit.json
             data/research/universe_quality.json
           retention-days: 14
-      - name: Persist lightweight research snapshot
-        env:
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: python scripts/persist_research_validation_snapshot.py
-
-      - name: Commit research snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add artifacts/research_validation_latest.json
-          git diff --cached --quiet && exit 0
-          git commit -m "Persist research validation snapshot"
-          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
-            git fetch origin research-status
-            git rebase origin/research-status
-          else
-            git branch --force research-status
-          fi
-          git push origin HEAD:research-status
 
