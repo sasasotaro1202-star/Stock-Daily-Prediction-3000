@@ -202,6 +202,24 @@ def main() -> int:
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
     )
+
+    _assert_once(
+        watchdog,
+        '  push:
+    paths:
+      - ".github/research_validation.trigger"',
+        "watchdog_wakes_on_research_trigger",
+    )
+    _assert_once(
+        watchdog,
+        "current_sha_queued=true",
+        "watchdog_suppresses_duplicate_research_dispatch",
+    )
+    _assert_once(
+        watchdog,
+        "current-SHA queued run already exists after stale queue cleanup; suppressing duplicate dispatch",
+        "watchdog_reports_duplicate_dispatch_suppression",
+    )
     _assert_once(
         watchdog,
         'research_stale_epoch="$((now_epoch - 170 * 60))"',
