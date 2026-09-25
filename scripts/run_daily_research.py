@@ -507,6 +507,9 @@ def main():
                         np.asarray(cal_p, dtype=float),
                         np.asarray(raw_test_p, dtype=float),
                     )
+            calibrator = make_calibrator("platt").fit(
+                cal_p, cal.target_up_1d.astype(int)
+            )
             p = calibrator.predict(raw_test_p)
 
             # All fixed-alpha split-conformal p-values are identical across
