@@ -170,6 +170,16 @@ def main() -> int:
         "drift_scale: 0.50",
         "drift_aware_window_scale",
     )
+    _assert_once(
+        pipeline,
+        "sequential_selection_research:",
+        "sequential_selection_research_config",
+    )
+    _assert_once(
+        research,
+        "chronological_policy_oos(",
+        "sequential_selection_research_call",
+    )
 
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
