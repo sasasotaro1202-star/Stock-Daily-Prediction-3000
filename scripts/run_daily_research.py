@@ -87,7 +87,50 @@ AUDIT = Path("data/research/leakage_audit.json")
 
 
 def make_models():
-    return models()
+    """Return only model candidates explicitly enabled in pipeline.yml.
+
+    The factory may expose additional experimental variants for library-level
+    reuse. OOS selection must nevertheless be driven by the research config so
+    unconfigured models cannot silently alter the candidate set or runtime.
+    """
+    available = models()
+    pipeline_path = Path("config/pipeline.yml")
+    pipeline_cfg = yaml.safe_load(pipeline_path.read_text(encoding="utf-8")) or {}
+    model_cfg = pipeline_cfg.get("models", {}) or {}
+    configured_names: list[str] = []
+    for key in ("primary_candidates", "optional_challengers"):
+        for name in model_cfg.get(key, []) or []:
+            name = str(name)
+            if name not in configured_names:
+                configured_names.append(name)
+
+    if not configured_names:
+        raise SystemExit("FAIL: no classifier candidates configured in pipeline.yml")
+
+    selected = {name: available[name] for name in configured_names if name in available}
+    missing_primary = [
+        str(name)
+        for name in model_cfg.get("primary_candidates", []) or []
+        if str(name) not in selected
+    ]
+    if missing_primary:
+        raise SystemExit(
+            "FAIL: configured primary model factory unavailable: "
+            + ", ".join(missing_primary)
+        )
+
+    missing_optional = [
+        str(name)
+        for name in configured_names
+        if str(name) not in available
+    ]
+    if missing_optional:
+        print(
+            "RESEARCH_MODEL_SKIP unavailable_optional="
+            + ",".join(missing_optional),
+            flush=True,
+        )
+    return selected
 
 
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
