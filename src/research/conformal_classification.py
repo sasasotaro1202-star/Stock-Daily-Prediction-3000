@@ -54,6 +54,148 @@ def conformal_prediction_sets(y_calibration, p_calibration, p_test, *, alpha=0.1
     }
 
 
+def conformal_prediction_set_metrics_from_result(
+    result, y_test, *, alpha=0.10
+) -> dict[str, float]:
+    """Summarize a precomputed split-conformal result without recomputing p-values."""
+    if not 0.0 < float(alpha) < 1.0:
+        raise ValueError("alpha must be in (0,1)")
+    y_out = np.asarray(y_test, dtype=int)
+    pvalue_0 = np.asarray(result["pvalue_0"], dtype=float)
+    pvalue_1 = np.asarray(result["pvalue_1"], dtype=float)
+    if (
+        y_out.ndim != 1
+        or pvalue_0.ndim != 1
+        or pvalue_1.ndim != 1
+        or len(y_out) != len(pvalue_0)
+        or len(y_out) != len(pvalue_1)
+    ):
+        raise ValueError("test labels must align with conformal result")
+    if not np.isin(y_out, (0, 1)).all():
+        raise ValueError("test labels must be binary")
+    include_0 = pvalue_0 > float(alpha)
+    include_1 = pvalue_1 > float(alpha)
+    set_size = include_0.astype(int) + include_1.astype(int)
+    predicted_class = np.asarray(result["predicted_class"], dtype=int)
+    singleton = set_size == 1
+    contains = np.where(y_out == 1, include_1, include_0)
+    return {
+        "alpha": float(alpha),
+        "n_test": float(len(y_out)),
+        "set_coverage": float(np.mean(contains)),
+        "mean_set_size": float(np.mean(set_size)),
+        "singleton_rate": float(np.mean(singleton)),
+        "singleton_accuracy": (
+            float(np.mean(predicted_class[singleton] == y_out[singleton]))
+            if singleton.any() else float("nan")
+        ),
+        "empty_rate": float(np.mean(set_size == 0)),
+        "mean_predicted_class_pvalue": float(
+            np.mean(np.where(predicted_class == 1, pvalue_1, pvalue_0))
+        ),
+    }
+
+
+def group_conformal_prediction_set_metrics_from_result(
+    result, y_test, groups_test, *, alpha=0.10
+) -> dict[str, object]:
+    """Summarize a precomputed group-conformal result without recomputation."""
+    if not 0.0 < float(alpha) < 1.0:
+        raise ValueError("alpha must be in (0,1)")
+    y_out = np.asarray(y_test, dtype=int)
+    g_test = np.asarray(groups_test, dtype=str)
+    pvalue_0 = np.asarray(result["pvalue_0"], dtype=float)
+    pvalue_1 = np.asarray(result["pvalue_1"], dtype=float)
+    if (
+        y_out.ndim != 1
+        or g_test.ndim != 1
+        or pvalue_0.ndim != 1
+        or pvalue_1.ndim != 1
+        or len(y_out) != len(g_test)
+        or len(y_out) != len(pvalue_0)
+        or len(y_out) != len(pvalue_1)
+    ):
+        raise ValueError("test labels/groups must align with conformal result")
+    if not np.isin(y_out, (0, 1)).all():
+        raise ValueError("test labels must be binary")
+    include_0 = pvalue_0 > float(alpha)
+    include_1 = pvalue_1 > float(alpha)
+    set_size = include_0.astype(int) + include_1.astype(int)
+    predicted_class = np.asarray(result["predicted_class"], dtype=int)
+    contains = np.where(y_out == 1, include_1, include_0)
+    by_group = {}
+    for group in np.unique(g_test):
+        idx = g_test == group
+        group_set = set_size[idx]
+        group_singleton = group_set == 1
+        by_group[str(group)] = {
+            "n_test": int(idx.sum()),
+            "coverage": float(np.mean(contains[idx])),
+            "mean_set_size": float(np.mean(group_set)),
+            "singleton_rate": float(np.mean(group_singleton)),
+            "fallback_rate": float(np.mean(result["fallback_to_global"][idx])),
+        }
+    return {
+        "alpha": float(alpha),
+        "n_test": float(len(y_out)),
+        "set_coverage": float(np.mean(contains)),
+        "mean_set_size": float(np.mean(set_size)),
+        "singleton_rate": float(np.mean(set_size == 1)),
+        "singleton_accuracy": (
+            float(np.mean(predicted_class[set_size == 1] == y_out[set_size == 1]))
+            if np.any(set_size == 1) else float("nan")
+        ),
+        "empty_rate": float(np.mean(set_size == 0)),
+        "fallback_rate": float(np.mean(result["fallback_to_global"])),
+        "mean_predicted_class_pvalue": float(
+            np.mean(np.where(predicted_class == 1, pvalue_1, pvalue_0))
+        ),
+        "by_group": by_group,
+    }
+
+
+def adaptive_conformal_prediction_set_metrics_from_result(
+    result, y_test, *, alpha=0.10, gamma=0.02
+) -> dict[str, float]:
+    """Summarize a precomputed adaptive-conformal result without recomputation."""
+    if not 0.0 < float(alpha) < 1.0:
+        raise ValueError("alpha must be in (0,1)")
+    y_out = np.asarray(y_test, dtype=int)
+    pvalue_0 = np.asarray(result["pvalue_0"], dtype=float)
+    pvalue_1 = np.asarray(result["pvalue_1"], dtype=float)
+    if (
+        y_out.ndim != 1
+        or pvalue_0.ndim != 1
+        or pvalue_1.ndim != 1
+        or len(y_out) != len(pvalue_0)
+        or len(y_out) != len(pvalue_1)
+    ):
+        raise ValueError("test labels must align with adaptive conformal result")
+    if not np.isin(y_out, (0, 1)).all():
+        raise ValueError("test labels must be binary")
+    set_size = np.asarray(result["set_size"], dtype=int)
+    predicted_class = np.asarray(result["predicted_class"], dtype=int)
+    contains = np.where(y_out == 1, result["include_1"], result["include_0"])
+    singleton = set_size == 1
+    return {
+        "alpha": float(alpha),
+        "gamma": float(gamma),
+        "n_test": float(len(y_out)),
+        "set_coverage": float(np.mean(contains)),
+        "mean_set_size": float(np.mean(set_size)),
+        "singleton_rate": float(np.mean(singleton)),
+        "singleton_accuracy": (
+            float(np.mean(predicted_class[singleton] == y_out[singleton]))
+            if singleton.any() else float("nan")
+        ),
+        "empty_rate": float(np.mean(set_size == 0)),
+        "mean_alpha_used": float(np.mean(result["alpha_used"])),
+        "final_alpha": float(result["alpha_after_update"]),
+        "alpha_min_used": float(np.min(result["alpha_used"])) if len(result["alpha_used"]) else float(alpha),
+        "alpha_max_used": float(np.max(result["alpha_used"])) if len(result["alpha_used"]) else float(alpha),
+    }
+
+
 def group_conformal_prediction_sets(
     y_calibration,
     p_calibration,
@@ -353,4 +495,14 @@ def adaptive_conformal_prediction_set_metrics(
         "alpha_max_used": float(np.max(result["alpha_used"])) if len(result["alpha_used"]) else float(alpha),
     }
 
-__all__ = ["conformal_prediction_sets", "conformal_prediction_set_metrics", "group_conformal_prediction_sets", "group_conformal_prediction_set_metrics", "adaptive_conformal_prediction_sets", "adaptive_conformal_prediction_set_metrics"]
+__all__ = [
+    "conformal_prediction_sets",
+    "conformal_prediction_set_metrics",
+    "conformal_prediction_set_metrics_from_result",
+    "group_conformal_prediction_sets",
+    "group_conformal_prediction_set_metrics",
+    "group_conformal_prediction_set_metrics_from_result",
+    "adaptive_conformal_prediction_sets",
+    "adaptive_conformal_prediction_set_metrics",
+    "adaptive_conformal_prediction_set_metrics_from_result",
+]
