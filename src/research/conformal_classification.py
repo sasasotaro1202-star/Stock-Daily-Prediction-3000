@@ -23,8 +23,21 @@ def conformal_prediction_sets(y_calibration, p_calibration, p_test, *, alpha=0.1
         raise ValueError("alpha must be in (0,1)")
     y, p_cal, p_test = _validate_inputs(y_calibration, p_calibration, p_test)
     scores = np.where(y == 1, 1.0 - p_cal, p_cal)
-    pvalue_1 = (1.0 + np.sum(scores[:, None] >= (1.0 - p_test)[None, :], axis=0)) / (len(scores) + 1.0)
-    pvalue_0 = (1.0 + np.sum(scores[:, None] >= p_test[None, :], axis=0)) / (len(scores) + 1.0)
+    # Count calibration scores >= each test threshold with a sorted vector.
+    # This is algebraically identical to the broadcasted count but uses
+    # O(n_cal + n_test) memory instead of O(n_cal * n_test).
+    sorted_scores = np.sort(scores)
+    n_scores = len(sorted_scores)
+    pvalue_1 = (
+        1.0
+        + n_scores
+        - np.searchsorted(sorted_scores, 1.0 - p_test, side="left")
+    ) / (n_scores + 1.0)
+    pvalue_0 = (
+        1.0
+        + n_scores
+        - np.searchsorted(sorted_scores, p_test, side="left")
+    ) / (n_scores + 1.0)
     include_1 = pvalue_1 > float(alpha)
     include_0 = pvalue_0 > float(alpha)
     set_size = include_0.astype(int) + include_1.astype(int)

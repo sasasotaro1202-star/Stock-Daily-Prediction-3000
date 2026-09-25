@@ -13,6 +13,8 @@ def test_prediction_sets_flag_ambiguous_and_confident_cases():
     assert result["set_size"][0] == 0
     assert result["set_size"][1] == 1
     assert result["set_size"][2] == 1
+    assert np.all((result["pvalue_0"] > 0.0) & (result["pvalue_0"] <= 1.0))
+    assert np.all((result["pvalue_1"] > 0.0) & (result["pvalue_1"] <= 1.0))
 
 def test_metrics_are_bounded():
     y_cal = np.asarray([0, 1] * 25, dtype=int)
