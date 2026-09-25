@@ -140,6 +140,38 @@ def test_sec_request_json_handles_gzip_encoded_response():
         mod.urlopen = original
 
 
+def test_sec_master_index_uses_free_jina_fallback_after_sec_403(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+
+    class DummyResponse:
+        def __init__(self, body):
+            self._body = body
+        def __enter__(self):
+            return self
+        def __exit__(self, *args):
+            return False
+        def read(self):
+            return self._body
+
+    calls = []
+
+    def fake_urlopen(req, timeout):
+        calls.append(req.full_url)
+        if len(calls) == 1:
+            raise mod.HTTPError(req.full_url, 403, "Forbidden", {}, None)
+        return DummyResponse(("CIK|Company|Form Type|Date Filed|Filename\\n" + "x" * 1200).encode())
+
+    monkeypatch.setattr(mod, "urlopen", fake_urlopen)
+    text_value, transport = mod._get_master_index_text(
+        "https://www.sec.gov/Archives/edgar/full-index/2026/QTR3/master.idx"
+    )
+
+    assert transport == "jina_reader_sec_official_url"
+    assert len(text_value) >= 1000
+    assert calls[0].startswith("https://www.sec.gov/")
+    assert calls[1].startswith("https://r.jina.ai/https://www.sec.gov/")
+
+
 def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
     mod = importlib.import_module("scripts.sec_filings_research")
     import io
@@ -167,7 +199,12 @@ def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
     ]
     ticker_map = {"AAPL": {"cik": "0000320193", "title": "Apple Inc."}}
 
-    rows, diagnostics = mod._rows_from_master_indexes(records, ticker_map, collected)
+    rows, diagnostics = mod._rows_from_master_indexes(
+        records,
+        ticker_map,
+        {},
+        collected,
+    )
 
     assert diagnostics == {"2026Q3": 2}
     assert [row["form"] for row in rows] == ["8-K", "10-Q"]
