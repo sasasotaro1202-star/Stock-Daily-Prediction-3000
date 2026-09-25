@@ -209,7 +209,7 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        'head_sha="$current_sha"',
+        '[ "$head_sha" != "$current_sha" ]',
         "watchdog_research_queue_compares_current_sha",
     )
     _assert_once(
