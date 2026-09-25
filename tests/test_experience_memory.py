@@ -175,3 +175,23 @@ def test_compact_view_includes_latest_session_breakdown(tmp_path: Path):
     assert latest["session_date"] == "2026-09-20"
     assert latest["metrics"]["n"] == 2
     assert "model_a" in latest["by_model"]
+
+
+def test_repeated_no_outcome_update_does_not_change_memory_timestamp(tmp_path: Path):
+    pred_dir = tmp_path / "predictions"
+    pred_dir.mkdir()
+    path = pred_dir / "prediction_20260920T100000Z.parquet"
+    _write_prediction(path, 0.8, 0.03, 0.01)
+
+    observed = pd.read_parquet(path)
+    observed["_prediction_file"] = path.name
+    memory_path = tmp_path / "experience_memory.json"
+
+    first = update_experience_memory(observed, pred_dir, memory_path)
+    before = memory_path.read_text(encoding="utf-8")
+    second = update_experience_memory(observed, pred_dir, memory_path)
+    after = memory_path.read_text(encoding="utf-8")
+
+    assert first["total_resolved"] == 2
+    assert second["total_resolved"] == 2
+    assert before == after
