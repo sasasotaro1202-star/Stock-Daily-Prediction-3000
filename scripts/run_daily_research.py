@@ -48,6 +48,7 @@ from src.research.router import (
 from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
+from src.research.calibration_routing import select_temporal_calibration_method
 from src.research.regime_threshold import (
     aggregate_oos_training_thresholds,
     volatility_threshold_from_training,
@@ -1490,7 +1491,32 @@ def main():
     # scoring. This keeps the calibration choice out of the frozen holdout.
     calibration_rows = {method: [] for method in CALIBRATION_METHODS}
     asset_calibration_rows = {method: [] for method in CALIBRATION_METHODS}
-    for fold in folds:
+
+    # Research-only online calibration routing. A method is selected for fold
+    # t using only calibration performance observed on folds < t; the current
+    # test slice is scored after selection, then its outcomes enter history.
+    calibration_cfg = pipeline_cfg.get("calibration", {})
+    temporal_calibration_research_only = (
+        calibration_cfg.get("temporal_router_research_only", True) is True
+    )
+    if not temporal_calibration_research_only:
+        raise SystemExit("FAIL: temporal calibration router must remain research-only")
+    temporal_min_history = int(
+        calibration_cfg.get("temporal_min_history_folds", 2)
+    )
+    temporal_half_life = float(
+        calibration_cfg.get("temporal_half_life_folds", 4.0)
+    )
+    temporal_stability_penalty = float(
+        calibration_cfg.get("temporal_stability_penalty", 0.25)
+    )
+    temporal_calibration_history = {
+        method: [] for method in CALIBRATION_METHODS
+    }
+    temporal_calibration_rows = []
+    temporal_platt_rows = []
+
+    for fold_idx, fold in enumerate(folds):
         train_dates = dates[: fold.train_end]
         usable_train_dates = (
             train_dates
@@ -1535,6 +1561,20 @@ def main():
         )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
         raw_test_p = model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+
+        # Candidate calibrators are all fit on the current pre-test
+        # calibration slice, but the temporal router chooses among them from
+        # prior OOS folds only.
+        temporal_method = select_temporal_calibration_method(
+            temporal_calibration_history,
+            fold_idx,
+            min_history_folds=temporal_min_history,
+            half_life_folds=temporal_half_life,
+            stability_penalty=temporal_stability_penalty,
+            default_method="platt",
+        )
+        calibrated_test_probabilities = {}
+        fold_candidate_metrics = {}
         for method in CALIBRATION_METHODS:
             calibrator = make_calibrator(method).fit(
                 cal_p,
@@ -1545,10 +1585,12 @@ def main():
                 1e-5,
                 1 - 1e-5,
             )
+            calibrated_test_probabilities[method] = p
             metrics = classification_metrics(
                 test.target_up_1d.astype(int),
                 p,
             )
+            fold_candidate_metrics[method] = metrics
             calibration_rows[method].append(metrics)
 
             # Measure calibration robustness across asset classes without
@@ -1573,6 +1615,97 @@ def main():
                     "ece": float(np.mean([m["ece"] for m in asset_metrics])),
                     "assets": float(len(asset_metrics)),
                 })
+
+        temporal_p = calibrated_test_probabilities[temporal_method]
+        temporal_metrics = classification_metrics(
+            test.target_up_1d.astype(int),
+            temporal_p,
+        )
+        platt_metrics = fold_candidate_metrics["platt"]
+        temporal_metrics["fold"] = float(fold_idx)
+        temporal_metrics["method"] = temporal_method
+        temporal_metrics["n_test"] = float(len(test))
+        temporal_calibration_rows.append(temporal_metrics)
+        temporal_platt_rows.append({
+            **platt_metrics,
+            "fold": float(fold_idx),
+            "method": "platt",
+            "n_test": float(len(test)),
+        })
+
+        # Current-fold candidate outcomes enter the routing history only after
+        # this fold has been scored, preserving strict chronological OOS order.
+        for method in CALIBRATION_METHODS:
+            current = fold_candidate_metrics[method]
+            temporal_calibration_history[method].append({
+                "fold": float(fold_idx),
+                "logloss": float(current["logloss"]),
+                "ece": float(current["ece"]),
+                "brier": float(current["brier"]),
+            })
+
+    temporal_calibration_research = {
+        "status": "INSUFFICIENT_OOS",
+        "research_only": True,
+        "method": "expanding_recent_temporal_calibration_router",
+        "selection_protocol": (
+            "select method from prior chronological OOS calibration outcomes; "
+            "fit selected method on current fold calibration slice; "
+            "score untouched current fold test; only then update history"
+        ),
+        "min_history_folds": temporal_min_history,
+        "half_life_folds": temporal_half_life,
+        "stability_penalty": temporal_stability_penalty,
+    }
+    if temporal_calibration_rows:
+        temporal_agg = aggregate_group(temporal_calibration_rows)
+        platt_agg = aggregate_group(temporal_platt_rows)
+        fold_delta = np.asarray(
+            [
+                float(base["logloss"] - dynamic["logloss"])
+                for dynamic, base in zip(temporal_calibration_rows, temporal_platt_rows)
+            ],
+            dtype=float,
+        )
+        relative_improvement = float(
+            (platt_agg["logloss"] - temporal_agg["logloss"])
+            / max(abs(platt_agg["logloss"]), 1e-9)
+        )
+        positive_share = float(np.mean(fold_delta > 0.0))
+        bootstrap_probability = 0.0
+        bootstrap_p05 = float("-inf")
+        if len(fold_delta) >= 5 and np.isfinite(fold_delta).all():
+            rng = np.random.default_rng(20260925)
+            idx = rng.integers(0, len(fold_delta), size=(2000, len(fold_delta)))
+            boot = fold_delta[idx].mean(axis=1)
+            bootstrap_probability = float(np.mean(boot > 0.0))
+            bootstrap_p05 = float(np.quantile(boot, 0.05))
+        temporal_calibration_research.update({
+            "status": "EVALUATED",
+            "folds": len(temporal_calibration_rows),
+            "raw_oos": platt_agg,
+            "temporal_oos": temporal_agg,
+            "logloss_improvement": float(platt_agg["logloss"] - temporal_agg["logloss"]),
+            "relative_logloss_improvement": relative_improvement,
+            "brier_improvement": float(platt_agg["brier"] - temporal_agg["brier"]),
+            "ece_change": float(temporal_agg["ece"] - platt_agg["ece"]),
+            "positive_fold_share": positive_share,
+            "bootstrap_probability_improvement": bootstrap_probability,
+            "bootstrap_p05_improvement": bootstrap_p05,
+            "selected_method_by_fold": [
+                {"fold": float(row["fold"]), "method": str(row["method"])}
+                for row in temporal_calibration_rows
+            ],
+            "research_positive": bool(
+                len(fold_delta) >= 5
+                and relative_improvement >= 0.03
+                and positive_share >= 0.70
+                and bootstrap_probability >= 0.90
+                and bootstrap_p05 > 0.0
+                and float(temporal_agg["brier"] - platt_agg["brier"]) <= 0.001
+                and float(temporal_agg["ece"] - platt_agg["ece"]) <= 0.0
+            ),
+        })
 
     calibration_candidates = {}
     calibration_balance_weight = float(
@@ -1855,6 +1988,7 @@ def main():
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
         "confidence_risk_research": confidence_risk_research,
+        "temporal_calibration_research": temporal_calibration_research,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
