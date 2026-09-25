@@ -48,7 +48,8 @@ def test_oos_calibration_methods_fit_and_bound_outputs():
 def test_ece_bounds():
     v=expected_calibration_error([0,1,0,1],[0.1,0.9,0.2,0.8])
     assert 0<=v<=1
-\ndef test_classification_metrics_fail_closed_on_invalid_probabilities():
+
+def test_classification_metrics_fail_closed_on_invalid_probabilities():
     import numpy as np
     from src.research.metrics import classification_metrics
 
