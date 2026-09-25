@@ -796,13 +796,14 @@ def main():
     nested_outer_start = nested_cfg.get("outer_start_fold")
     if nested_outer_start is not None:
         nested_outer_start = int(nested_outer_start)
+    nested_baseline = nested_cfg.get("baseline_model", "auto_inner_static")
     nested_selection_research = nested_sequential_policy_oos(
         sequential_model_names,
         outer_start_fold=nested_outer_start,
         min_history_folds=sequential_min_history,
         half_life_folds=sequential_half_life,
         stability_penalty=sequential_stability,
-        baseline_model=str(sequential_baseline),
+        baseline_model=str(nested_baseline),
         min_outer_folds=nested_min_outer,
     )
     nested_selection_research["selection_note"] = (
