@@ -1539,8 +1539,15 @@ def main():
             if row is not None:
                 current_rows[int(lookback)] = row
                 current_drifts[int(lookback)] = float(row["drift"])
+        prior_window_history = {
+            lookback: [
+                row for row in rows
+                if int(row["fold"]) < fold_idx
+            ]
+            for lookback, rows in window_history.items()
+        }
         selected_window, diagnostics = select_drift_aware_window(
-            window_history,
+            prior_window_history,
             fold_idx,
             current_drifts,
             min_history_folds=window_min_history,
