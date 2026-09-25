@@ -1,2 +1,2 @@
-commit=889ece4fd3ec935427d09c2da0257c5b09aaf3c6
-purpose=run chronological OOS with fail-fast tests and situation-level adaptive conformal diagnostics
+commit=2f6bd055c70667d04030c6ae2d55a608b8ec5cf0
+purpose=run chronological OOS with corrected adaptive conformal gamma-specific regression expectations
