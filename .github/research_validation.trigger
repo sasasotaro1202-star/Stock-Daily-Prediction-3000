@@ -1,2 +1,2 @@
-commit=d8064344d606f4bba4a3be4525e261fb44d41c51
-purpose=run chronological OOS comparison after adaptive conformal alpha-trajectory regression lock
+commit=a4ce6df470e1a642b502e59d0971e328ce80a0de
+purpose=run chronological OOS comparison after adaptive conformal audit and regression-test corrections
