@@ -195,7 +195,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
       - name: Persist accumulated experience
-        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED') && hashFiles('data/research/experience_memory.json') != ''
+        if: github.ref == 'refs/heads/main' && steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED') && hashFiles('data/research/experience_memory.json') != ''
         shell: bash
         run: |
           set -euo pipefail
