@@ -73,6 +73,26 @@ def _get_json(url: str) -> object:
 
 
 
+def _jina_get_json(url: str) -> object:
+    """Read an official SEC JSON file through the free Jina Reader fallback."""
+    reader_url = "https://r.jina.ai/" + url
+    req = Request(
+        reader_url,
+        headers={
+            "User-Agent": "Stock-Daily-Prediction-3000/0.1 (SEC research reader)",
+            "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
+        },
+    )
+    with urlopen(req, timeout=45) as response:
+        text_value = response.read().decode("utf-8", errors="replace").strip()
+    if text_value.startswith("{") or text_value.startswith("["):
+        payload = json.loads(text_value)
+    else:
+        raise ValueError("Jina SEC JSON response is not raw JSON")
+    if not isinstance(payload, (dict, list)):
+        raise ValueError("Jina SEC JSON payload has unexpected type")
+    return payload
+
 def _curl_cffi_get_master_index_text(url: str) -> tuple[str, str]:
     """Retry an official SEC index through curl_cffi's browser-like client."""
     from curl_cffi import requests as curl_requests
@@ -533,14 +553,16 @@ def main() -> None:
         try:
             ticker_payload = _get_json(TICKERS_URL)
         except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
-            # SEC's public ticker mapping can be blocked independently from
-            # data.sec.gov submissions. Fall back to a pinned public mapping
-            # only for CIK discovery; filing history remains authoritative SEC
-            # data and each mapped CIK is validated against the submission
-            # payload's ticker list before admission.
-            ticker_payload = _get_json(FALLBACK_TICKERS_URL)
-            mapping_source = FALLBACK_TICKERS_URL
-            mapping_note = "pinned_third_party_fallback"
+            try:
+                # Same official SEC mapping via the free Jina Reader fallback.
+                ticker_payload = _jina_get_json(TICKERS_URL)
+                mapping_source = TICKERS_URL
+                mapping_note = "official_via_jina_reader"
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+                # Third-party pinned CIK map is used only as the final discovery fallback.
+                ticker_payload = _get_json(FALLBACK_TICKERS_URL)
+                mapping_source = FALLBACK_TICKERS_URL
+                mapping_note = "pinned_third_party_fallback"
         ticker_map = {}
         ticker_alias_map = {}
         if mapping_source == "sec_official_company_tickers":
