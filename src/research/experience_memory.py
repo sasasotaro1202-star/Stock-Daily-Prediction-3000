@@ -214,7 +214,7 @@ def update_experience_memory(
         if old is not None and old != fingerprint:
             _append_anomaly(memory, f"prediction file changed after processing; skipped: {filename}")
             continue
-        if not bool(completeness.get(str(filename), False)):
+        if not bool(completeness.get(str(filename), file_complete is None)):
             _append_anomaly(memory, f"prediction file outcome incomplete; deferred: {filename}")
             continue
         frame = predictions[predictions["_prediction_file"] == filename].copy()
