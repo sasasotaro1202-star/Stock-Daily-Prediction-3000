@@ -131,7 +131,7 @@ def _fresh_official_fallback() -> bool:
         _validate_snapshot(dst, str(snapshot["retrieved_at"]))
         print(
             "universe-state: fresh official fallback restored "
-            f"retrieved_at={snapshot["retrieved_at"]} "
+            f"retrieved_at={snapshot['retrieved_at']} "
             f"record_count={snapshot["record_count"]}"
         )
         return True
