@@ -217,7 +217,7 @@ jobs:
 
             if [ -n "$active_run_id" ]; then
               if [ "$active_updated_epoch" -gt 0 ] && [ "$active_updated_epoch" -lt "$research_stale_epoch" ]; then
-                echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 170 minutes; cancelling before Actions timeout"
+                echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 150 minutes; cancelling before Actions timeout"
                 if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
                   echo "${workflow_name}: stale active run $active_run_id cancelled"
                 else
