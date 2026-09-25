@@ -461,7 +461,12 @@ def update_experience_memory(
 
     hard_rows.sort(key=lambda x: float(x.get("hardness", 0.0)), reverse=True)
     memory["hard_cases"] = hard_rows[:MAX_HARD_CASES]
-    memory["recent_hard_cases"] = hard_rows[:MAX_RECENT_CASES]
+    recent_rows = sorted(
+        hard_rows,
+        key=lambda x: str(x.get("prediction_time", "")),
+        reverse=True,
+    )
+    memory["recent_hard_cases"] = recent_rows[:MAX_RECENT_CASES]
 
     daily = memory.get("daily", {})
     if len(daily) > MAX_DAILY_DAYS:
