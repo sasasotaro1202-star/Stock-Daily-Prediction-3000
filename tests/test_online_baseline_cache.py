@@ -21,12 +21,12 @@ def _metric(y, p):
 def test_baseline_cache_matches_direct_fold_and_situation_logloss():
     bank = {
         0: {
-            "y": np.asarray([0, 1] * 20),
+            "y": np.asarray([0, 1] * 30),
             "predictions": {
-                "model": np.asarray([0.2, 0.8] * 20),
+                "model": np.asarray([0.2, 0.8] * 30),
                 "other": np.asarray([0.4, 0.6] * 20),
             },
-            "situations": np.asarray(["normal"] * 20 + ["event"] * 20),
+            "situations": np.asarray(["normal"] * 30 + ["event"] * 30),
         }
     }
     fold_cache, situation_cache = build_baseline_logloss_cache(
@@ -37,10 +37,10 @@ def test_baseline_cache_matches_direct_fold_and_situation_logloss():
     p = bank[0]["predictions"]["model"]
     assert fold_cache[0] == pytest.approx(_metric(y, p)["logloss"])
     assert situation_cache[(0, "normal")] == pytest.approx(
-        _metric(y[:20], p[:20])["logloss"]
+        _metric(y[:30], p[:30])["logloss"]
     )
     assert situation_cache[(0, "event")] == pytest.approx(
-        _metric(y[20:], p[20:])["logloss"]
+        _metric(y[30:], p[30:])["logloss"]
     )
 
 
