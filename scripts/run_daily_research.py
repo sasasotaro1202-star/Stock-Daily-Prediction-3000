@@ -481,16 +481,16 @@ def main():
 
             threshold = float(fold_contexts[fold_idx]["threshold"])
 
+            core_fit = cap_training_rows(
+                core,
+                max_rows=300_000,
+                recent_sessions=252,
+            )
             component_cache = blend_prediction_cache.setdefault(fold_idx, {})
             cached_blend = resolve_cached_blend_predictions(name, component_cache)
             if cached_blend is not None:
                 cal_p, raw_test_p = cached_blend
             else:
-                core_fit = cap_training_rows(
-                    core,
-                    max_rows=300_000,
-                    recent_sessions=252,
-                )
                 model = factory()
                 fit_classifier(
                     model,
