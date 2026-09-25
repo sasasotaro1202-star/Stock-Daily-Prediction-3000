@@ -49,6 +49,10 @@ from src.validation.calibration import CALIBRATION_METHODS, make_calibrator
 from src.validation.training_sample import cap_training_rows
 from src.validation.training_window import restrict_to_lookback
 from src.research.calibration_routing import select_temporal_calibration_method
+from src.research.drift_window import (
+    robust_distribution_shift_score,
+    select_drift_aware_window,
+)
 from src.research.regime_threshold import (
     aggregate_oos_training_thresholds,
     volatility_threshold_from_training,
@@ -1398,6 +1402,7 @@ def main():
     # model-family selection. 0 means all eligible history.
     window_candidates = (252, 504, 756, 0)
     window_metrics = {}
+    window_fold_rows = {lookback: [] for lookback in window_candidates}
     for lookback in window_candidates:
         fold_rows = []
         for fold in folds:
@@ -1451,9 +1456,16 @@ def main():
             p = calibrator.predict(
                 model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
             )
-            fold_rows.append(classification_metrics(
+            metrics = classification_metrics(
                 test.target_up_1d.astype(int), p
-            ))
+            )
+            metrics["fold"] = float(list(folds).index(fold))
+            metrics["drift"] = robust_distribution_shift_score(
+                fit_rows[FEATURE_COLUMNS].to_numpy(dtype=float),
+                test[FEATURE_COLUMNS].to_numpy(dtype=float),
+            )
+            fold_rows.append(metrics)
+        window_fold_rows[lookback] = list(fold_rows)
         if fold_rows:
             logloss = np.asarray(
                 [row["logloss"] for row in fold_rows],
@@ -1484,6 +1496,143 @@ def main():
         selected_training_window = int(selected_window_key)
     else:
         selected_training_window = 0
+
+    # Research-only drift-aware training-window routing. At fold t, the
+    # router sees current-fold features (unlabeled) and chooses a window using
+    # only prior OOS performance from similar drift conditions. Current-fold
+    # outcomes are never used for the choice.
+    window_cfg = pipeline_cfg.get("drift_aware_window", {})
+    if window_cfg.get("research_only", True) is not True:
+        raise SystemExit("FAIL: drift-aware window router must remain research-only")
+    window_min_history = int(window_cfg.get("min_history_folds", 2))
+    window_half_life = float(window_cfg.get("half_life_folds", 4.0))
+    window_drift_scale = float(window_cfg.get("drift_scale", 0.50))
+    window_stability_penalty = float(
+        window_cfg.get("stability_penalty", 0.25)
+    )
+    dynamic_window_rows = []
+    static_window_rows = []
+    selected_window_by_fold = []
+    window_history = {
+        int(lookback): [
+            row for row in window_fold_rows.get(lookback, [])
+            if np.isfinite(float(row.get("fold", np.nan)))
+        ]
+        for lookback in window_candidates
+    }
+    common_folds = sorted({
+        int(row["fold"])
+        for rows in window_history.values()
+        for row in rows
+    })
+    for fold_idx in common_folds:
+        current_rows = {}
+        current_drifts = {}
+        for lookback in window_candidates:
+            row = next(
+                (
+                    candidate for candidate in window_history[int(lookback)]
+                    if int(candidate["fold"]) == fold_idx
+                ),
+                None,
+            )
+            if row is not None:
+                current_rows[int(lookback)] = row
+                current_drifts[int(lookback)] = float(row["drift"])
+        selected_window, diagnostics = select_drift_aware_window(
+            window_history,
+            fold_idx,
+            current_drifts,
+            min_history_folds=window_min_history,
+            half_life_folds=window_half_life,
+            drift_scale=window_drift_scale,
+            stability_penalty=window_stability_penalty,
+        )
+        if selected_window is None or int(selected_training_window) not in current_rows:
+            continue
+        chosen_row = current_rows.get(int(selected_window))
+        baseline_row = current_rows.get(int(selected_training_window))
+        if chosen_row is None or baseline_row is None:
+            continue
+        dynamic_window_rows.append(chosen_row)
+        static_window_rows.append(baseline_row)
+        selected_window_by_fold.append({
+            "fold": float(fold_idx),
+            "selected_window": int(selected_window),
+            "baseline_window": int(selected_training_window),
+            "selection_score": float(diagnostics[int(selected_window)]["score"]),
+            "current_drift": float(
+                diagnostics[int(selected_window)]["current_drift"]
+            ),
+        })
+
+    drift_aware_window_research = {
+        "status": "INSUFFICIENT_OOS",
+        "research_only": True,
+        "method": "recent_oos_performance_conditioned_on_feature_drift",
+        "selection_protocol": (
+            "current-fold unlabeled feature distributions estimate drift; "
+            "window selected only from prior chronological OOS losses with "
+            "recency and drift similarity weighting; current outcomes enter "
+            "history only after scoring"
+        ),
+        "min_history_folds": window_min_history,
+        "half_life_folds": window_half_life,
+        "drift_scale": window_drift_scale,
+        "stability_penalty": window_stability_penalty,
+    }
+    if dynamic_window_rows:
+        dynamic_agg = aggregate_group(dynamic_window_rows)
+        static_agg = aggregate_group(static_window_rows)
+        deltas = np.asarray(
+            [
+                float(base["logloss"] - dynamic["logloss"])
+                for dynamic, base in zip(dynamic_window_rows, static_window_rows)
+            ],
+            dtype=float,
+        )
+        relative_improvement = float(
+            (static_agg["logloss"] - dynamic_agg["logloss"])
+            / max(abs(static_agg["logloss"]), 1e-9)
+        )
+        positive_share = float(np.mean(deltas > 0.0))
+        bootstrap_probability = 0.0
+        bootstrap_p05 = float("-inf")
+        if len(deltas) >= 5 and np.isfinite(deltas).all():
+            rng = np.random.default_rng(20260925)
+            idx = rng.integers(0, len(deltas), size=(2000, len(deltas)))
+            boot = deltas[idx].mean(axis=1)
+            bootstrap_probability = float(np.mean(boot > 0.0))
+            bootstrap_p05 = float(np.quantile(boot, 0.05))
+        drift_aware_window_research.update({
+            "status": "EVALUATED",
+            "folds": len(dynamic_window_rows),
+            "dynamic_oos": dynamic_agg,
+            "static_baseline_oos": static_agg,
+            "logloss_improvement": float(
+                static_agg["logloss"] - dynamic_agg["logloss"]
+            ),
+            "relative_logloss_improvement": relative_improvement,
+            "brier_improvement": float(
+                static_agg["brier"] - dynamic_agg["brier"]
+            ),
+            "ece_change": float(
+                dynamic_agg["ece"] - static_agg["ece"]
+            ),
+            "positive_fold_share": positive_share,
+            "bootstrap_probability_improvement": bootstrap_probability,
+            "bootstrap_p05_improvement": bootstrap_p05,
+            "selected_window_by_fold": selected_window_by_fold,
+            "research_positive": bool(
+                len(deltas) >= 5
+                and relative_improvement >= 0.03
+                and positive_share >= 0.70
+                and bootstrap_probability >= 0.90
+                and bootstrap_p05 > 0.0
+                and float(dynamic_agg["brier"] - static_agg["brier"]) <= 0.001
+                and float(dynamic_agg["ece"] - static_agg["ece"]) <= 0.0
+            ),
+        })
 
     # Select the probability calibration method on chronological OOS after
     # model-family and training-window selection. Every candidate is fit only
@@ -1989,6 +2138,7 @@ def main():
         "online_expert_research": online_expert_research,
         "confidence_risk_research": confidence_risk_research,
         "temporal_calibration_research": temporal_calibration_research,
+        "drift_aware_window_research": drift_aware_window_research,
         "global_selection_candidates": balanced_candidates,
         "regime_vol_threshold": global_vol_threshold,
         "regime_vol_threshold_source": "oos_fold_train_median",
