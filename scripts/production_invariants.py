@@ -83,6 +83,12 @@ def main():
          and "conformal_prediction_research" in Path("scripts/run_daily_research.py").read_text()
          and "production_changed" in Path("scripts/run_daily_research.py").read_text()
          and "src.research.conformal_classification" not in prediction),
+        ("group_conformal_classification_research_isolation",
+         Path("src/research/conformal_classification.py").exists()
+         and "group_conformal_prediction_sets" in Path("src/research/conformal_classification.py").read_text()
+         and "group_conformal_prediction_research" in Path("scripts/run_daily_research.py").read_text()
+         and "production_changed" in Path("scripts/run_daily_research.py").read_text()
+         and "src.research.conformal_classification" not in prediction),
         ("conformal_risk_feature_ablation",
          "include_conformal_pvalue" in Path("src/research/confidence_risk.py").read_text()
          and "conformal_feature_ablation_rows" in Path("scripts/run_daily_research.py").read_text()
