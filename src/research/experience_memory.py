@@ -189,9 +189,12 @@ def _load(path: Path) -> dict[str, Any]:
         payload.setdefault("total_deferred_files", 0)
         payload.setdefault("total_anomalies", len(payload.get("anomalies", [])))
         payload.setdefault("research_priority", [])
+        _rebuild_priority(payload)
         return payload
     if version != MEMORY_VERSION:
         raise RuntimeError("experience memory version mismatch")
+    if "rolling" not in payload:
+        _rebuild_priority(payload)
     return payload
 
 
