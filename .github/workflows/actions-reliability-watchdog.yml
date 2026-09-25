@@ -151,6 +151,127 @@ jobs:
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
 
+          inspect_research_validation() {
+            local workflow_file="research-validation.yml"
+            local workflow_name="Research validation"
+            local runs
+            if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
+              echo "::error title=${workflow_name} Actions API unavailable::unable to inspect recent workflow runs"
+              failures=$((failures + 1))
+              return 0
+            fi
+
+            local now_epoch
+            now_epoch="$(date -u +%s)"
+            local research_stale_epoch
+            research_stale_epoch="$((now_epoch - 170 * 60))"
+            local queued_cutoff_epoch
+            queued_cutoff_epoch="$((now_epoch - 30 * 60))"
+            local active_run_id=""
+            local active_head_sha=""
+            local active_updated_epoch=0
+            local queued_ids=()
+            local queued_shas=()
+            local queued_created_epochs=()
+
+            local run_entries
+            run_entries="$(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')"
+            while IFS= read -r encoded; do
+              [ -n "$encoded" ] || continue
+              local run_json
+              run_json="$(printf '%s' "$encoded" | base64 -d)"
+              local run_id
+              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+              local status
+              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
+              local head_sha
+              head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
+              local updated
+              updated="$(printf '%s' "$run_json" | jq -r '.updated_at // .created_at // empty')"
+              local created
+              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
+              local updated_epoch
+              updated_epoch="$(date -d "$updated" +%s 2>/dev/null || echo 0)"
+              local created_epoch
+              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+              [ -n "$run_id" ] || continue
+
+              if [ "$status" = "in_progress" ]; then
+                if [ -z "$active_run_id" ] || [ "$updated_epoch" -lt "$active_updated_epoch" ]; then
+                  active_run_id="$run_id"
+                  active_head_sha="$head_sha"
+                  active_updated_epoch="$updated_epoch"
+                fi
+              elif [ "$status" = "queued" ] || [ "$status" = "pending" ]; then
+                queued_ids+=( "$run_id" )
+                queued_shas+=( "$head_sha" )
+                queued_created_epochs+=( "$created_epoch" )
+              fi
+            done <<< "$run_entries"
+
+            if [ -n "$active_run_id" ]; then
+              if [ "$active_updated_epoch" -gt 0 ] && [ "$active_updated_epoch" -lt "$research_stale_epoch" ]; then
+                echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 170 minutes; cancelling before Actions timeout"
+                if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "${workflow_name}: stale active run $active_run_id cancelled"
+                else
+                  echo "::error title=${workflow_name} stale active recovery failed::unable to cancel stale run $active_run_id"
+                  failures=$((failures + 1))
+                  return 0
+                fi
+                active_run_id=""
+              else
+                echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha"
+                return 0
+              fi
+            fi
+
+            local recovered_queue=false
+            local idx
+            for idx in "${!queued_ids[@]}"; do
+              local run_id="${queued_ids[$idx]}"
+              local head_sha="${queued_shas[$idx]}"
+              local created_epoch="${queued_created_epochs[$idx]}"
+              local should_cancel=false
+
+              if [ "$head_sha" != "$current_sha" ]; then
+                should_cancel=true
+                echo "::warning title=${workflow_name} stale queued SHA::queued run $run_id targets superseded SHA $head_sha; current=$current_sha"
+              elif [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queued_cutoff_epoch" ]; then
+                should_cancel=true
+                echo "::warning title=${workflow_name} stale queued run::current-SHA run $run_id has remained queued for over 30 minutes"
+              fi
+
+              if [ "$should_cancel" = true ]; then
+                if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then
+                  recovered_queue=true
+                  echo "${workflow_name}: stale queued run $run_id cancelled"
+                else
+                  echo "::error title=${workflow_name} queued recovery cancel failed::unable to cancel stale queued run $run_id"
+                  failures=$((failures + 1))
+                fi
+              fi
+            done
+
+            if [ "$recovered_queue" = true ]; then
+              if gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "${workflow_name}: fresh main-branch run dispatched after stale queue cleanup"
+              else
+                echo "::error title=${workflow_name} queued recovery dispatch failed::unable to dispatch fresh main-branch run"
+                failures=$((failures + 1))
+              fi
+            else
+              echo "${workflow_name}: no stale queued run requiring recovery"
+            fi
+          }
+
+          # Research validation intentionally preserves an active chronological
+          # OOS run. Recover only stale active runs near their hard timeout, and
+          # only replace queued runs when no active research run is occupying the
+          # lane; this prevents a legitimate queued research run from being
+          # repeatedly cancelled while a long OOS execution is still running.
+          inspect_research_validation
+
           recover_missing_scheduled_run() {
             local workflow_file="$1"
             local workflow_name="$2"
