@@ -184,6 +184,14 @@ def main() -> int:
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
     validation_workflow = _read("research-validation.yml")
+    quality_gate = str(
+        (ROOT / "scripts" / "data_quality_gate.py").read_text(encoding="utf-8")
+    )
+    _assert_once(
+        quality_gate,
+        '"provider_deferred_ratio_over_5pct",',
+        "excessive_provider_deferral_fails_closed",
+    )
     _assert_once(
         validation_workflow,
         "cancel-in-progress: ${{ github.event_name == 'push' }}",
