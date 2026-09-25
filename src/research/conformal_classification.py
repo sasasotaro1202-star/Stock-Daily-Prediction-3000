@@ -236,6 +236,12 @@ def adaptive_conformal_prediction_sets(
     dates = np.asarray(session_dates)
     if dates.ndim != 1 or len(dates) != len(p_test):
         raise ValueError("session_dates must align with test probabilities")
+    if observed_y_test is not None:
+        observed = np.asarray(observed_y_test, dtype=int)
+        if observed.ndim != 1 or len(observed) != len(p_test):
+            raise ValueError("observed_y_test must align with test probabilities")
+        if not np.isin(observed, (0, 1)).all():
+            raise ValueError("observed_y_test must be binary")
 
     scores = np.where(y == 1, 1.0 - p_cal, p_cal)
     alpha_t = float(np.clip(alpha, alpha_min, alpha_max))
@@ -269,7 +275,7 @@ def adaptive_conformal_prediction_sets(
         set_size[idx] = include_0[idx].astype(int) + include_1[idx].astype(int)
 
         if observed_y_test is not None:
-            yy = np.asarray(observed_y_test, dtype=int)[idx]
+            yy = observed[idx]
             contains = np.where(yy == 1, include_1[idx], include_0[idx])
             miss = float(np.mean(~contains))
             alpha_t = float(np.clip(
@@ -293,6 +299,7 @@ def adaptive_conformal_prediction_sets(
         "predicted_class": predicted_class,
         "predicted_class_pvalue": predicted_class_pvalue,
         "alpha_used": alpha_used,
+        "alpha_after_update": float(alpha_t),
     }
 
 
@@ -341,7 +348,7 @@ def adaptive_conformal_prediction_set_metrics(
         ),
         "empty_rate": float(np.mean(set_size == 0)),
         "mean_alpha_used": float(np.mean(result["alpha_used"])),
-        "final_alpha": float(result["alpha_used"][-1]) if len(result["alpha_used"]) else float(alpha),
+        "final_alpha": float(result["alpha_after_update"]),
         "alpha_min_used": float(np.min(result["alpha_used"])) if len(result["alpha_used"]) else float(alpha),
         "alpha_max_used": float(np.max(result["alpha_used"])) if len(result["alpha_used"]) else float(alpha),
     }
