@@ -194,8 +194,8 @@ def main() -> int:
     )
     _assert_once(
         validation_workflow,
-        "cancel-in-progress: ${{ github.event_name == 'push' }}",
-        "research_validation_supersedes_obsolete_push_runs",
+        "cancel-in-progress: false",
+        "research_validation_preserves_active_oos_runs",
     )
     _assert_once(
         validation_workflow,
