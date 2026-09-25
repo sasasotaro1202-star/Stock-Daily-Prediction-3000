@@ -309,15 +309,15 @@ def main() -> int:
         "git push origin HEAD:main",
         "research_status_does_not_mutate_main",
     )
-    _assert_once(
-        validation_workflow,
-        "git push origin HEAD:research-status",
-        "research_snapshot_never_pushes_main",
-    )
     _assert_absent(
         validation_workflow,
         "git push origin HEAD:main",
         "research_snapshot_does_not_mutate_main",
+    )
+    _assert_absent(
+        validation_workflow,
+        "git push origin HEAD:research-status",
+        "research_validation_no_direct_status_branch_push",
     )
     _assert_once(
         validation_workflow,
