@@ -127,7 +127,31 @@ def aggregate_model_rows(
     return {model: aggregate_group(rs) for model, rs in grouped.items()}
 
 
+def _self_validate_conformal_research():
+    """Fail fast on conformal research primitive corruption before expensive OOS work."""
+    y_cal = np.asarray([0, 1] * 20, dtype=int)
+    p_cal = np.asarray([0.2, 0.8] * 20, dtype=float)
+    groups_cal = np.asarray(["stable"] * 40)
+    p_test = np.asarray([0.95, 0.05], dtype=float)
+    groups_test = np.asarray(["stable", "stable"])
+    result = group_conformal_prediction_sets(
+        y_cal,
+        p_cal,
+        groups_cal,
+        p_test,
+        groups_test,
+        alpha=0.10,
+        min_group_size=20,
+    )
+    if result["set_size"].shape != (2,):
+        raise SystemExit("FAIL: group conformal self-check shape mismatch")
+    if not np.isfinite(result["predicted_class_pvalue"]).all():
+        raise SystemExit("FAIL: group conformal self-check produced non-finite p-values")
+
+
 def main():
+    _self_validate_conformal_research()
+
     if not PRICE_DIR.exists():
         raise SystemExit("DEFERRED: canonical price dataset is absent")
 
