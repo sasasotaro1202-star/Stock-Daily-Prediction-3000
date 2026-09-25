@@ -256,8 +256,8 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
-        "types: [completed]",
-        "research_validation_status_workflow_completed_only",
+        "types: [in_progress, completed]",
+        "research_validation_status_workflow_tracks_active_and_completed",
     )
     _assert_once(
         status_workflow,
