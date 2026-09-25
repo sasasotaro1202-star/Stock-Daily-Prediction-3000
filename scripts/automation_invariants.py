@@ -202,16 +202,25 @@ def main() -> int:
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
-    for outcome_id in ("research_oos", "sec_research", "sec_ablation", "cpcv"):
-        _assert_once(
-            validation_workflow,
-            f"steps.{outcome_id}.outcome",
-            f"research_validation_{outcome_id}_outcome_binding",
-        )
-    _assert_absent(
+    _assert_once(
         validation_workflow,
-        "steps.cpcv.outputs.outcome",
-        "research_validation_no_cpcv_outputs_binding",
+        "research-status:",
+        "research_validation_dedicated_status_job",
+    )
+    _assert_once(
+        validation_workflow,
+        "needs: research",
+        "research_validation_status_needs_research",
+    )
+    _assert_once(
+        validation_workflow,
+        "if: always()",
+        "research_validation_status_runs_always",
+    )
+    _assert_once(
+        validation_workflow,
+        "python scripts/persist_research_validation_status.py",
+        "research_validation_status_script",
     )
     _assert_once(
         validation_workflow,
