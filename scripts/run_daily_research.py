@@ -460,7 +460,11 @@ def main():
             "situations": situations.astype(str).to_numpy(copy=True),
         }
 
-    for name, factory in make_models().items():
+    for model_index, (name, factory) in enumerate(make_models().items(), start=1):
+        print(
+            f"RESEARCH_PROGRESS model={model_index} name={name} total_models={len(make_models())} total_folds={len(folds)}",
+            flush=True,
+        )
         fold_rows = []
         for fold_idx, fold in enumerate(folds):
             train_dates = dates[: fold.train_end]
@@ -472,6 +476,11 @@ def main():
             core = df[df.session_date.isin(core_dates)]
             cal = df[df.session_date.isin(cal_dates)]
             test = df[df.session_date.isin(test_dates)].reset_index(drop=True)
+            print(
+                f"RESEARCH_PROGRESS model={name} fold={fold_idx + 1}/{len(folds)} "
+                f"core={len(core)} cal={len(cal)} test={len(test)}",
+                flush=True,
+            )
 
             if min(len(core), len(cal), len(test)) < 50:
                 continue
@@ -1390,6 +1399,10 @@ def main():
                 baseline_fold_logloss.get(fold_idx, float("nan"))
                 - ensemble_metrics["logloss"]
                 if baseline is not None else float("nan")
+            )
+            print(
+                f"RESEARCH_PROGRESS_DONE model={name} fold={fold_idx + 1}/{len(folds)}",
+                flush=True,
             )
             fold_rows.append({
                 "fold": float(fold_idx),
