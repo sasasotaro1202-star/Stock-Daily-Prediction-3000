@@ -1,2 +1,2 @@
-commit=27bc2a4c780a158011b273766e0abbc3129d96e8
-purpose=run chronological OOS comparison after correcting adaptive conformal regression expectations
+commit=791ae38a356eaf08e892e37c900186c9ae0f942b
+purpose=run chronological OOS after latest fail-fast, evidence-persistence, and adaptive conformal validation changes
