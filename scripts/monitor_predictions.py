@@ -14,6 +14,7 @@ PRED_DIR=Path("data/predictions")
 BARS=Path("data/prices")
 OUT=Path("data/research/monitor_latest.json")
 EXPERIENCE=Path("data/research/experience_memory.json")
+EXPERIENCE_REPORT=Path("data/research/experience_report.json")
 
 
 def load_predictions() -> pd.DataFrame:
@@ -204,7 +205,37 @@ def main():
                 "experience":compact_view(experience),
             }
 
+    experience_view = compact_view(
+        experience
+        if "experience" in locals()
+        else {
+            "version": 2,
+            "updated_at": None,
+            "total_resolved": 0,
+            "total_files_processed": 0,
+            "research_priority": [],
+            "rolling": {},
+            "error_types": {},
+            "by_error_bucket": {},
+            "top_hard_cases": [],
+            "recent_hard_cases": [],
+            "anomalies": [],
+            "total_deferred_files": 0,
+            "total_anomalies": 0,
+            "by_model_id": {},
+            "by_regime": {},
+            "by_market_situation": {},
+            "by_direction_confidence": {},
+            "by_model_disagreement": {},
+        }
+    )
+    payload["experience"] = experience_view
+
     OUT.parent.mkdir(parents=True,exist_ok=True)
+    EXPERIENCE_REPORT.write_text(
+        json.dumps(experience_view, indent=2, default=str),
+        encoding="utf-8",
+    )
     OUT.write_text(
         json.dumps(payload,indent=2,default=str),
         encoding="utf-8",
