@@ -77,3 +77,22 @@ def test_missing_comparator_is_fail_closed():
     )
     assert evidence["status"] == "INSUFFICIENT_EVIDENCE"
     assert evidence["eligible_for_freeze"] is False
+
+
+def test_selection_evidence_reports_dependence_aware_block_bootstrap():
+    evidence = paired_logloss_selection_evidence(
+        "challenger",
+        {
+            "challenger": {"logloss": 0.55, "logloss_std": 0.01, "folds": 8},
+            "champion": {"logloss": 0.60, "logloss_std": 0.02, "folds": 8},
+        },
+        {
+            "challenger": _rows([0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55, 0.55]),
+            "champion": _rows([0.60, 0.60, 0.60, 0.60, 0.60, 0.60, 0.60, 0.60]),
+        },
+        trial_count=1,
+        min_folds=5,
+    )
+    assert evidence["block_bootstrap_probability_improvement"] == 1.0
+    assert evidence["block_bootstrap_p05_improvement"] > 0.0
+    assert evidence["block_bootstrap_block_length"] == 2
