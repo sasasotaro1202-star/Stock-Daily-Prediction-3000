@@ -90,6 +90,11 @@ def main():
          and "temporal_calibration_research" in Path("scripts/run_daily_research.py").read_text()
          and "temporal_router_research_only: true" in pipe
          and "src.research.calibration_routing" not in prediction),
+        ("drift_aware_window_research_isolation",
+         Path("src/research/drift_window.py").exists()
+         and "drift_aware_window_research" in Path("scripts/run_daily_research.py").read_text()
+         and "research_only: true" in pipe
+         and "src.research.drift_window" not in prediction),
         ("selective_probability_research_isolation",
          Path("src/research/selective.py").exists()
          and "selective_probability_research" in Path("scripts/run_daily_research.py").read_text()
