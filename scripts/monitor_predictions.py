@@ -88,8 +88,19 @@ def main():
         m["prediction_time"]=pd.to_datetime(
             m["prediction_time"],utc=True,errors="coerce"
         )
+        available = m["outcome_available_at"].gt(m["prediction_time"])
+        expected_counts = pred.groupby("_prediction_file").size()
+        available_counts = (
+            m.loc[available]
+            .groupby("_prediction_file")
+            .size()
+        )
+        complete_files = {
+            str(filename): int(count) == int(available_counts.get(filename, 0))
+            for filename, count in expected_counts.items()
+        }
         m=m[
-            m["outcome_available_at"].gt(m["prediction_time"])
+            available
         ].dropna(
             subset=[
                 "forward_return_1d",
@@ -102,6 +113,7 @@ def main():
             m,
             PRED_DIR,
             EXPERIENCE,
+            file_complete=complete_files,
         )
         n=len(m)
         if n<250:
