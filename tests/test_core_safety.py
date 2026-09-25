@@ -817,9 +817,9 @@ def test_data_quality_provider_deferred_ratio_blocks_large_omission(tmp_path, mo
     )
     monkeypatch.setenv("GITHUB_RUN_ID", "large-test")
     gate.UNIVERSE = universe
-    result = gate.main()
+    with pytest.raises(SystemExit, match="critical price/universe quality issue"):
+        gate.main()
     payload = json.loads((root / "research" / "data_quality.json").read_text(encoding="utf-8"))
-    assert result == 0
     assert payload["status"] == "DEFERRED"
     assert payload["provider_deferred_ratio"] == 0.5
 
