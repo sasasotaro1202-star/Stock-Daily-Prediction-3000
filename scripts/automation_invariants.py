@@ -276,6 +276,11 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
+        "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}",
+        "research_validation_status_targets_workflow_status",
+    )
+    _assert_once(
+        status_workflow,
         "python scripts/persist_research_validation_status.py",
         "research_validation_status_script",
     )
