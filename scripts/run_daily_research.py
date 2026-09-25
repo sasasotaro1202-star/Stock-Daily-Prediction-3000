@@ -380,6 +380,7 @@ def main():
     conformal_rows_by_model_alpha: dict[str, dict[float, list[dict[str, float]]]] = {}
     group_conformal_rows_by_model: dict[str, list[dict[str, object]]] = {}
     adaptive_conformal_rows_by_model: dict[str, list[dict[str, float]]] = {}
+    adaptive_conformal_situation_rows_by_model: dict[str, dict[str, list[dict[str, float]]]] = {}
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
 
     for name, factory in make_models().items():
@@ -479,6 +480,18 @@ def main():
             adaptive_conformal_rows_by_model.setdefault(name, []).append(
                 adaptive_conformal_diag
             )
+            adaptive_conformal_case = adaptive_conformal_prediction_sets(
+                cal.target_up_1d.astype(int),
+                cal_p,
+                raw_test_p,
+                test["session_date"].astype(str).to_numpy(),
+                test.target_up_1d.astype(int),
+                alpha=0.10,
+                gamma=0.02,
+                alpha_min=0.01,
+                alpha_max=0.50,
+                observed_y_test=test.target_up_1d.astype(int).to_numpy(),
+            )
 
             online_bank = online_prediction_by_fold.setdefault(
                 fold_idx,
@@ -492,6 +505,9 @@ def main():
                     "conformal_pred_pvalues": {},
                     "group_conformal_pred_pvalues": {},
                     "group_conformal_set_size": {},
+                    "adaptive_conformal_pred_pvalues": {},
+                    "adaptive_conformal_set_size": {},
+                    "adaptive_conformal_alpha_used": {},
                 },
             )
             online_bank["predictions"][name] = np.asarray(p, dtype=float)
@@ -503,6 +519,15 @@ def main():
             )
             online_bank["group_conformal_set_size"][name] = np.asarray(
                 group_conformal_case["set_size"], dtype=int
+            )
+            online_bank["adaptive_conformal_pred_pvalues"][name] = np.asarray(
+                adaptive_conformal_case["predicted_class_pvalue"], dtype=float
+            )
+            online_bank["adaptive_conformal_set_size"][name] = np.asarray(
+                adaptive_conformal_case["set_size"], dtype=int
+            )
+            online_bank["adaptive_conformal_alpha_used"][name] = np.asarray(
+                adaptive_conformal_case["alpha_used"], dtype=float
             )
             if online_bank["asset_classes"] is None:
                 online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
@@ -614,6 +639,39 @@ def main():
                 ),
                 axis=1,
             )
+            online_bank["situations"] = situations.astype(str).to_numpy(copy=True)
+            adaptive_conformal_situation_rows_by_model.setdefault(name, {})
+            adaptive_alpha = online_bank["adaptive_conformal_alpha_used"][name]
+            adaptive_size = online_bank["adaptive_conformal_set_size"][name]
+            adaptive_predicted = (p >= 0.5).astype(int)
+            test_y = test.target_up_1d.to_numpy(dtype=int)
+            for situation_name in sorted(situations.dropna().astype(str).unique()):
+                mask = situations.astype(str).eq(situation_name).to_numpy()
+                if mask.sum() < 30 or np.unique(test_y[mask]).size < 2:
+                    continue
+                y_s = test_y[mask]
+                include_true = np.where(
+                    y_s == 1,
+                    adaptive_conformal_case["include_1"][mask],
+                    adaptive_conformal_case["include_0"][mask],
+                )
+                size_s = adaptive_size[mask]
+                singleton = size_s == 1
+                adaptive_conformal_situation_rows_by_model[name].setdefault(
+                    situation_name, []
+                ).append({
+                    "fold": float(fold_idx),
+                    "n_test": float(mask.sum()),
+                    "coverage": float(np.mean(include_true)),
+                    "mean_set_size": float(np.mean(size_s)),
+                    "singleton_rate": float(np.mean(singleton)),
+                    "singleton_accuracy": (
+                        float(np.mean(adaptive_predicted[mask][singleton] == y_s[singleton]))
+                        if singleton.any() else float("nan")
+                    ),
+                    "empty_rate": float(np.mean(size_s == 0)),
+                    "mean_alpha_used": float(np.mean(adaptive_alpha[mask])),
+                })
             for situation_name in sorted(situations.dropna().unique()):
                 mask = situations.eq(situation_name)
                 subset = test.loc[mask]
@@ -2440,6 +2498,19 @@ def main():
             "mean_empty_rate": float(np.mean([r["empty_rate"] for r in rows])),
             "mean_alpha_used": float(np.mean([r["mean_alpha_used"] for r in rows])),
             "mean_final_alpha": float(np.mean([r["final_alpha"] for r in rows])),
+            "situation_metrics": {
+                situation_name: {
+                    "folds": len(srows),
+                    "n_test_min": float(min(r["n_test"] for r in srows)),
+                    "coverage": float(np.mean([r["coverage"] for r in srows])),
+                    "mean_set_size": float(np.mean([r["mean_set_size"] for r in srows])),
+                    "singleton_rate": float(np.mean([r["singleton_rate"] for r in srows])),
+                    "singleton_accuracy": float(np.nanmean([r["singleton_accuracy"] for r in srows])),
+                    "empty_rate": float(np.mean([r["empty_rate"] for r in srows])),
+                    "mean_alpha_used": float(np.mean([r["mean_alpha_used"] for r in srows])),
+                }
+                for situation_name, srows in adaptive_conformal_situation_rows_by_model.get(model_name, {}).items()
+            },
             "fold_metrics": rows,
         }
 
