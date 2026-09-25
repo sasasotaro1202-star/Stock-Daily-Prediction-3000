@@ -137,11 +137,11 @@ def chronological_policy_oos(
         if fold < min_history_folds:
             continue
         prior_row_maps = {
-            model_name: {
-                prior_fold: row
+            model_name: [
+                row
                 for prior_fold, row in rows.items()
                 if prior_fold < fold
-            }
+            ]
             for model_name, rows in row_maps.items()
         }
         selected, diagnostics = select_prior_oos_model(
