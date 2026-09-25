@@ -105,7 +105,7 @@ def test_price_update_has_bounded_retry_and_split_fallback():
     source = Path("scripts/update_prices.py").read_text(encoding="utf-8")
     assert "attempts = 3 if depth == 0 else 1" in source
     assert "sleep_fn(2 ** attempt)" in source
-    assert "if depth < 2 and len(records) > 10" in source
+    assert "if depth < 3 and len(records) > 5" in source
 
 
 def test_paypay_visible_text_parser_handles_non_table_layout():
