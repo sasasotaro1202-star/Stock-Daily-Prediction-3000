@@ -209,6 +209,16 @@ def main() -> int:
     )
     _assert_once(
         validation_workflow,
+        "if: always()\n        uses: actions/upload-artifact@v7",
+        "research_validation_uploads_partial_evidence",
+    )
+    _assert_once(
+        validation_workflow,
+        "if-no-files-found: warn",
+        "research_validation_partial_evidence_warning",
+    )
+    _assert_once(
+        validation_workflow,
         "needs: research",
         "research_validation_status_needs_research",
     )
