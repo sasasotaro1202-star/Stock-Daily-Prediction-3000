@@ -132,7 +132,7 @@ def _fresh_official_fallback() -> bool:
         print(
             "universe-state: fresh official fallback restored "
             f"retrieved_at={snapshot['retrieved_at']} "
-            f"record_count={snapshot["record_count"]}"
+            f"record_count={snapshot['record_count']}"
         )
         return True
     except Exception as exc:
