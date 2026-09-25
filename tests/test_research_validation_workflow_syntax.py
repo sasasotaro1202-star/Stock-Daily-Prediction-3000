@@ -93,6 +93,7 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
     monkeypatch.setenv("GITHUB_SHA", "default-sha")
     monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "123")
     monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "abc")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "failure")
     monkeypatch.setattr(
         status.urllib.request,
         "urlopen",
@@ -127,6 +128,34 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
     assert payload["job_status"] == "failure"
     assert payload["research_step"] == "success"
     assert payload["evidence_artifact_present"] is False
+
+
+def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("GITHUB_SHA", "default-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "123")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "cancelled-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "cancelled")
+
+    def urlopen(request, timeout):
+        if "/artifacts?" in request.full_url:
+            return _Response({"artifacts": []})
+        return _Response({"jobs": []})
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", urlopen)
+
+    assert status.main() == 0
+    payload = json.loads(
+        (Path("artifacts") / "research_validation_status.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["status_lookup_ok"] is True
+    assert payload["job_status"] == "cancelled"
+    assert payload["status_lookup_error"] is None
 
 
 def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
