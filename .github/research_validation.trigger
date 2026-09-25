@@ -1,2 +1,2 @@
-commit=c4a2c67d0934d5bba6d68178580ad00657e78aae
-purpose=rerun current-head research after OOS candidate/config and research-status hardening; validate chronological OOS, PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
+commit=6b548702ac430bda4da1026b06e256c8a900a7ae
+purpose=rerun current-head research after OOS candidate freezing and active-status observability hardening; validate chronological OOS, PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
