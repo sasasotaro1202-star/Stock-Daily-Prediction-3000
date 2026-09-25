@@ -23,6 +23,7 @@ from src.research.metrics import aggregate_metric_rows, classification_metrics, 
 from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
+from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
 from src.research.confidence_risk import (
@@ -941,11 +942,11 @@ def main():
         bootstrap_probability = 0.0
         bootstrap_p05 = float("-inf")
         if len(fold_array) >= 5 and np.isfinite(fold_array).all():
-            rng = np.random.default_rng(20260925)
-            idx = rng.integers(0, len(fold_array), size=(2000, len(fold_array)))
-            boot = fold_array[idx].mean(axis=1)
-            bootstrap_probability = float(np.mean(boot > 0.0))
-            bootstrap_p05 = float(np.quantile(boot, 0.05))
+            bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+                fold_array,
+                n_bootstrap=4000,
+                seed=20260925,
+            )
         positive_fold_share = (
             float(np.mean(fold_array > 0.0)) if len(fold_array) else 0.0
         )
@@ -1658,11 +1659,11 @@ def main():
         bootstrap_probability = 0.0
         bootstrap_p05 = float("-inf")
         if len(deltas) >= 5 and np.isfinite(deltas).all():
-            rng = np.random.default_rng(20260925)
-            idx = rng.integers(0, len(deltas), size=(2000, len(deltas)))
-            boot = deltas[idx].mean(axis=1)
-            bootstrap_probability = float(np.mean(boot > 0.0))
-            bootstrap_p05 = float(np.quantile(boot, 0.05))
+            bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+                deltas,
+                n_bootstrap=4000,
+                seed=20260925,
+            )
         drift_aware_window_research.update({
             "status": "EVALUATED",
             "folds": len(dynamic_window_rows),
@@ -1883,11 +1884,11 @@ def main():
         bootstrap_probability = 0.0
         bootstrap_p05 = float("-inf")
         if len(fold_delta) >= 5 and np.isfinite(fold_delta).all():
-            rng = np.random.default_rng(20260925)
-            idx = rng.integers(0, len(fold_delta), size=(2000, len(fold_delta)))
-            boot = fold_delta[idx].mean(axis=1)
-            bootstrap_probability = float(np.mean(boot > 0.0))
-            bootstrap_p05 = float(np.quantile(boot, 0.05))
+            bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+                fold_delta,
+                n_bootstrap=4000,
+                seed=20260925,
+            )
         temporal_calibration_research.update({
             "status": "EVALUATED",
             "folds": len(temporal_calibration_rows),
