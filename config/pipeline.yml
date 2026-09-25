@@ -79,6 +79,10 @@ calibration:
   method: oos_selected
   candidates: [platt, beta, isotonic, temperature]
   fit_inside_oos_train_only: true
+  temporal_router_research_only: true
+  temporal_min_history_folds: 2
+  temporal_half_life_folds: 4.0
+  temporal_stability_penalty: 0.25
 release:
   frozen_holdout_required: true
   independent_leakage_audit_required: true
