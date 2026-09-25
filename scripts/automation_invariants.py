@@ -300,6 +300,16 @@ def main() -> int:
         "research_validation_status_serialized_commits",
     )
     _assert_once(
+        status_workflow,
+        "git push origin HEAD:research-status",
+        "research_status_never_pushes_main",
+    )
+    _assert_absent(
+        status_workflow,
+        "git push origin HEAD:main",
+        "research_status_does_not_mutate_main",
+    )
+    _assert_once(
         validation_workflow,
         "if: always()\n        uses: actions/upload-artifact@v7",
         "research_validation_uploads_partial_evidence",
