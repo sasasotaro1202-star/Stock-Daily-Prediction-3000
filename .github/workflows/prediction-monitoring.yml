@@ -9,7 +9,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 concurrency:
   group: prediction-monitoring
@@ -143,9 +143,9 @@ jobs:
           fi
           exit "$rc"
 
-      - name: Monitor realized outcomes
-        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED')
+      - name: Accumulate prediction experience
         run: python scripts/monitor_predictions.py
+
       - name: Record deferred monitoring state
         if: steps.restore_price.outputs.restore_ok != 'true' || steps.price_state.outputs.available != 'true' || (steps.data_quality.outputs.status == 'DEFERRED' && steps.data_quality_retry.outputs.status == 'DEFERRED')
         env:
@@ -184,8 +184,38 @@ jobs:
           )
           print("monitor_price_restore_deferred", json.dumps(payload))
           PY
+      - name: Validate accumulated experience output
+        run: python - <<'PY'
+import json
+from pathlib import Path
+path = Path('data/research/experience_memory.json')
+if path.exists():
+    payload = json.loads(path.read_text(encoding='utf-8'))
+    assert payload.get('version') == 1
+    assert int(payload.get('total_resolved', 0)) >= 0
+    print('experience_memory_valid', payload.get('total_resolved', 0))
+else:
+    print('experience_memory_absent: safe because monitoring was deferred')
+PY
       - uses: actions/upload-artifact@v7
         with:
           name: monitoring-${{ github.run_id }}
-          path: data/research/monitor_latest.json
+          path: |
+            data/research/monitor_latest.json
+            data/research/experience_memory.json
+          if-no-files-found: error
           retention-days: 14
+      - name: Persist accumulated experience
+        if: steps.restore_price.outputs.restore_ok == 'true' && steps.price_state.outputs.available == 'true' && (steps.data_quality.outputs.status != 'DEFERRED' || steps.data_quality_retry.outputs.status != 'DEFERRED') && hashFiles('data/research/experience_memory.json') != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research/experience_memory.json
+          if git diff --cached --quiet; then
+            echo "experience-memory: no change"
+            exit 0
+          fi
+          git commit -m "chore: accumulate resolved prediction experience"
+          git push origin HEAD:main
