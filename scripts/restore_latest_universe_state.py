@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+
+import requests
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -45,6 +47,65 @@ def _validate_snapshot(path: Path, created_at: str) -> None:
         )
 
 
+def _api_get(url: str, token: str) -> dict:
+    response = requests.get(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2026-03-10",
+        },
+        timeout=25,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _recent_market_cycle_universe_artifacts(repo: str, token: str) -> list[dict]:
+    """Find retained universe artifacts directly from recent market-cycle runs."""
+    runs = _api_get(
+        f"https://api.github.com/repos/{repo}/actions/workflows/market-cycle.yml/runs?per_page=20",
+        token,
+    ).get("workflow_runs", [])
+    now = datetime.now(timezone.utc)
+    candidates: list[dict] = []
+    for run in runs:
+        run_id = run.get("id")
+        created_at = run.get("created_at")
+        if not run_id or not created_at:
+            continue
+        try:
+            created = datetime.fromisoformat(
+                str(created_at).replace("Z", "+00:00")
+            )
+            if created.tzinfo is None:
+                continue
+        except ValueError:
+            continue
+        age = (now - created.astimezone(timezone.utc)).total_seconds()
+        if age < -300 or age > MAX_AGE_SECONDS:
+            continue
+        try:
+            artifacts = _api_get(
+                f"https://api.github.com/repos/{repo}/actions/runs/{int(run_id)}/artifacts?per_page=100",
+                token,
+            ).get("artifacts", [])
+        except Exception:
+            continue
+        candidates.extend(
+            artifact
+            for artifact in artifacts
+            if str(artifact.get("name", "")).startswith("universe-")
+            and not artifact.get("expired")
+            and artifact.get("created_at")
+        )
+    return sorted(
+        candidates,
+        key=lambda artifact: str(artifact.get("created_at", "")),
+        reverse=True,
+    )
+
+
 def _find_universe_snapshot(root: Path) -> Path:
     matches = [p for p in root.rglob("latest.json") if p.is_file()]
     if len(matches) != 1:
@@ -61,31 +122,10 @@ def _find_universe_snapshot(root: Path) -> Path:
 def main():
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
-    payload = __import__("requests").get(
-        f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100",
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-        },
-        timeout=25,
-    )
-    payload.raise_for_status()
-    payload = payload.json()
-    candidates = sorted(
-        (
-            artifact
-            for artifact in payload.get("artifacts", [])
-            if str(artifact.get("name", "")).startswith("universe-")
-            and not artifact.get("expired")
-            and artifact.get("created_at")
-        ),
-        key=lambda artifact: artifact.get("created_at", ""),
-        reverse=True,
-    )
+    candidates = _recent_market_cycle_universe_artifacts(repo, token)
     if not candidates:
         raise SystemExit(
-            "DEFERRED: no retained successful market-cycle universe artifact"
+            "DEFERRED: no retained market-cycle universe artifact in bounded 7-day window"
         )
 
     errors = []
