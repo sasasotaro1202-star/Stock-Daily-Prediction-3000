@@ -8,17 +8,23 @@ import numpy as np
 import pandas as pd
 
 from src.research.metrics import classification_metrics
+from src.research.experience_memory import compact_view, update_experience_memory
 
 PRED_DIR=Path("data/predictions")
 BARS=Path("data/prices")
 OUT=Path("data/research/monitor_latest.json")
+EXPERIENCE=Path("data/research/experience_memory.json")
 
 
 def load_predictions() -> pd.DataFrame:
     files=sorted(glob.glob(str(PRED_DIR/"prediction_*.parquet")))
     if not files:
         return pd.DataFrame()
-    frames=[pd.read_parquet(p) for p in files]
+    frames=[]
+    for p in files:
+        frame=pd.read_parquet(p).copy()
+        frame["_prediction_file"]=Path(p).name
+        frames.append(frame)
     out=pd.concat(frames,ignore_index=True)
     out["prediction_time"]=pd.to_datetime(
         out["prediction_time"],utc=True,errors="coerce"
@@ -92,12 +98,18 @@ def main():
             ]
         )
 
+        experience = update_experience_memory(
+            m,
+            PRED_DIR,
+            EXPERIENCE,
+        )
         n=len(m)
         if n<250:
             payload={
                 "status":"WARMUP",
                 "evaluated":int(n),
                 "reason":"insufficient completed outcomes",
+                "experience":compact_view(experience),
             }
         else:
             def evaluate(frame:pd.DataFrame)->dict:
@@ -177,6 +189,7 @@ def main():
                     m["model_version"].value_counts(dropna=False).to_dict()
                     if "model_version" in m.columns else {}
                 ),
+                "experience":compact_view(experience),
             }
 
     OUT.parent.mkdir(parents=True,exist_ok=True)
