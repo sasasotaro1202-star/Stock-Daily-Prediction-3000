@@ -511,4 +511,12 @@ def compact_view(memory: dict[str, Any]) -> dict[str, Any]:
             k: _finalize_group(v)
             for k, v in memory.get("by_market_situation", {}).items()
         },
+        "by_direction_confidence": {
+            k: _finalize_group(v)
+            for k, v in memory.get("by_direction_confidence", {}).items()
+        },
+        "by_model_disagreement": {
+            k: _finalize_group(v)
+            for k, v in memory.get("by_model_disagreement", {}).items()
+        },
     }
