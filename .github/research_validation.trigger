@@ -1,2 +1,2 @@
-commit=e4fb8c142dddc801b6fba885f983ebbffaf4f847
-purpose=run fresh chronological OOS validation including asset-class conditional conformal ablation and fail-fast self-check
+commit=f593b9bfe348f880c5e4ef137e08b210259a299f
+purpose=run chronological OOS comparison of static, asset-conditional, and session-adaptive conformal research layers
