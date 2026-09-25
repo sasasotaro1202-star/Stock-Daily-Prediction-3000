@@ -57,6 +57,47 @@ def test_sec_collector_is_research_only():
     assert "load_production_artifact" not in source
 
 
+def test_sec_403_falls_back_to_browser_impersonation(monkeypatch):
+    mod = importlib.import_module("scripts.sec_filings_research")
+    captured = {}
+
+    def fake_urlopen(req, timeout):
+        raise mod.HTTPError(
+            req.full_url,
+            403,
+            "Forbidden",
+            {"Retry-After": "0"},
+            None,
+        )
+
+    class DummyResponse:
+        status_code = 200
+
+        def json(self):
+            return {"ok": True}
+
+    def fake_curl_get(url, **kwargs):
+        captured["url"] = url
+        captured["kwargs"] = kwargs
+        return DummyResponse()
+
+    monkeypatch.setattr(mod, "urlopen", fake_urlopen)
+    monkeypatch.setattr(mod, "_curl_cffi_get_json", lambda url: fake_curl_get(
+        url,
+        headers={
+            "User-Agent": mod.USER_AGENT,
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip, deflate",
+        },
+        impersonate="chrome",
+        timeout=mod.REQUEST_TIMEOUT,
+    ).json())
+
+    assert mod._get_json(mod.TICKERS_URL) == {"ok": True}
+    assert captured["url"] == mod.TICKERS_URL
+    assert captured["kwargs"]["impersonate"] == "chrome"
+
+
 def test_sec_request_headers_are_identified_and_rate_limit_friendly():
     mod = importlib.import_module("scripts.sec_filings_research")
     captured = {}
