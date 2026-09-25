@@ -4,6 +4,8 @@ from typing import Iterable, Mapping, Sequence
 
 import numpy as np
 
+from src.research.statistics import moving_block_bootstrap_mean
+
 
 def _weighted_selection_score(
     rows: Sequence[Mapping[str, object]],
@@ -228,11 +230,11 @@ def chronological_policy_oos(
     if len(fold_delta_rows) >= 5:
         deltas = np.asarray(fold_delta_rows, dtype=float)
         if np.isfinite(deltas).all():
-            rng = np.random.default_rng(20260925)
-            idx = rng.integers(0, len(deltas), size=(2000, len(deltas)))
-            boot = deltas[idx].mean(axis=1)
-            bootstrap_probability = float(np.mean(boot > 0.0))
-            bootstrap_p05 = float(np.quantile(boot, 0.05))
+            bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+                deltas,
+                n_bootstrap=4000,
+                seed=20260925,
+            )
 
     positive_fold_share = (
         float(np.mean(np.asarray(fold_delta_rows) > 0.0))
@@ -259,7 +261,7 @@ def chronological_policy_oos(
     )
     return {
         "status": "EVALUATED" if selected_rows else "INSUFFICIENT_OOS",
-        "method": "prior_oos_sequential_model_selection",
+        "method": "prior_oos_sequential_model_selection_block_bootstrap",
         "min_history_folds": int(min_history_folds),
         "half_life_folds": float(half_life_folds),
         "stability_penalty": float(stability_penalty),
@@ -276,6 +278,8 @@ def chronological_policy_oos(
         "positive_fold_share": positive_fold_share,
         "bootstrap_probability_improvement": bootstrap_probability,
         "bootstrap_p05_improvement": bootstrap_p05,
+        "bootstrap_method": "moving_block",
+
         "research_positive": research_positive,
         "selected_model_by_fold": decisions,
         "research_only": True,
