@@ -86,7 +86,7 @@ def fetch_resilient(
         if attempt < attempts - 1:
             sleep_fn(2 ** attempt)
 
-    if depth < 2 and len(records) > 10:
+    if depth < 3 and len(records) > 5:
         midpoint = len(records) // 2
         left = fetch_resilient(
             records[:midpoint],
