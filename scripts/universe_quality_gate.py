@@ -22,7 +22,23 @@ def main():
         reasons.append("non_tradeable_in_current_universe")
     if any("paypay-sec.co.jp" not in str(row.get("source_url","")) for row in rows):
         reasons.append("non_paypay_source")
-    result={"status":"PASS" if not reasons else "FAIL","record_count":len(rows),"reasons":reasons}
+    suspicious_us_names = [
+        str(row.get("name", "")).strip()
+        for row in rows
+        if str(row.get("asset_class", "")).startswith("us_")
+        and (
+            str(row.get("name", "")).strip().startswith("#")
+            or "アルファベット順" in str(row.get("name", ""))
+        )
+    ]
+    if suspicious_us_names:
+        reasons.append("suspicious_us_security_names")
+    result={
+        "status":"PASS" if not reasons else "FAIL",
+        "record_count":len(rows),
+        "reasons":reasons,
+        "suspicious_us_security_name_count":len(suspicious_us_names),
+    }
     out=Path("data/research/universe_quality.json")
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(result,indent=2),encoding="utf-8")
