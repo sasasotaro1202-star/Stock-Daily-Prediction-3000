@@ -28,8 +28,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_RUN_ID: ${{ github.event.workflow_run.id }}
-          GITHUB_SHA: ${{ github.event.workflow_run.head_sha }}
+          RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
           GITHUB_API_URL: ${{ github.api_url }}
         run: python scripts/persist_research_validation_status.py
       - name: Commit research status evidence
