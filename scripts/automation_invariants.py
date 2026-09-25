@@ -186,6 +186,22 @@ def main() -> int:
     validation_workflow = _read("research-validation.yml")
     _assert_once(
         validation_workflow,
+        'pip install -e ".[dev,research]"',
+        "research_validation_installs_test_dependencies",
+    )
+    for outcome_id in ("research_oos", "sec_research", "sec_ablation", "cpcv"):
+        _assert_once(
+            validation_workflow,
+            f"steps.{outcome_id}.outcome",
+            f"research_validation_{outcome_id}_outcome_binding",
+        )
+    _assert_absent(
+        validation_workflow,
+        "steps.cpcv.outputs.outcome",
+        "research_validation_no_cpcv_outputs_binding",
+    )
+    _assert_once(
+        validation_workflow,
         '      - ".github/research_validation.trigger"',
         "research_validation_explicit_trigger",
     )
