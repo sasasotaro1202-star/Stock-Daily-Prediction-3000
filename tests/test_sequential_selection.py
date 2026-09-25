@@ -72,8 +72,8 @@ def test_chronological_policy_scores_after_each_selection():
 
 def test_nested_policy_reserves_later_outer_block_and_adapts_prequentially():
     rows = {
-        "slow": _rows([0.50, 0.51, 0.52, 0.70, 0.70, 0.70, 0.70, 0.70, 0.70]),
-        "fast": _rows([0.60, 0.59, 0.58, 0.40, 0.39, 0.38, 0.37, 0.36, 0.35]),
+        "slow": _rows([0.40, 0.41, 0.42, 0.70, 0.70, 0.70, 0.70, 0.70, 0.70]),
+        "fast": _rows([0.60, 0.61, 0.62, 0.40, 0.39, 0.38, 0.37, 0.36, 0.35]),
     }
     result = nested_sequential_policy_oos(
         rows,
