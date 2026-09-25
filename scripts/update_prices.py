@@ -83,10 +83,6 @@ def fetch_resilient(
             data = pd.DataFrame()
         if not data.empty:
             if {"asset_class", "symbol"}.issubset(data.columns):
-                requested_keys = {
-                    (str(rec["asset_class"]), str(rec["symbol"]))
-                    for rec in records
-                }
                 observed_keys = {
                     (str(asset_class), str(symbol))
                     for asset_class, symbol in zip(
