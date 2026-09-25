@@ -1,2 +1,2 @@
-commit=2f6bd055c70667d04030c6ae2d55a608b8ec5cf0
-purpose=run chronological OOS with corrected adaptive conformal gamma-specific regression expectations
+commit=7373cbc52d6624b6a770f96bba05b19ceeb2554b
+purpose=rerun chronological OOS after PayPay table-parser false-positive fix
