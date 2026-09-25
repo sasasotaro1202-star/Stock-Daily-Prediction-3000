@@ -106,3 +106,20 @@ def test_nested_policy_requires_enough_outer_folds():
         min_outer_folds=5,
     )
     assert result["status"] == "INSUFFICIENT_OOS"
+
+
+def test_nested_policy_auto_baseline_is_selected_from_inner_block_only():
+    rows = {
+        "slow": _rows([0.50, 0.51, 0.70, 0.70, 0.70, 0.70, 0.70, 0.70]),
+        "fast": _rows([0.60, 0.59, 0.40, 0.39, 0.38, 0.37, 0.36, 0.35]),
+    }
+    result = nested_sequential_policy_oos(
+        rows,
+        outer_start_fold=3,
+        min_history_folds=3,
+        min_outer_folds=5,
+        baseline_model="auto_inner_static",
+    )
+    assert result["status"] == "EVALUATED"
+    assert result["baseline_model"] == "slow"
+    assert result["baseline_model_policy"] == "auto_inner_static"

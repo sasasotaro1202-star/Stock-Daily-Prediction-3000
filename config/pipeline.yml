@@ -109,7 +109,7 @@ sequential_selection_research:
   min_history_folds: 3
   half_life_folds: 4.0
   stability_penalty: 0.25
-  baseline_model: logistic
+  baseline_model: auto_inner_static
 
 nested_policy_oos_research:
   research_only: true

@@ -87,6 +87,16 @@ def nested_sequential_policy_oos(
             rows[fold] for fold in inner_folds if fold in rows
         ]
 
+    fixed_inner_baseline = baseline_model
+    if baseline_model in (None, "auto_inner_static"):
+        fixed_inner_baseline, _ = select_prior_oos_model(
+            history_by_model,
+            outer_start_fold,
+            min_history_folds=min_history_folds,
+            half_life_folds=half_life_folds,
+            stability_penalty=stability_penalty,
+        )
+
     outer_deltas: list[float] = []
     selected_rows: list[Mapping[str, object]] = []
     baseline_rows: list[Mapping[str, object]] = []
@@ -122,14 +132,14 @@ def nested_sequential_policy_oos(
             ),
         }
 
-        if baseline_model is not None and baseline_model in row_maps:
-            baseline = row_maps[baseline_model].get(fold)
+        if fixed_inner_baseline is not None and fixed_inner_baseline in row_maps:
+            baseline = row_maps[fixed_inner_baseline].get(fold)
             if baseline is not None:
                 baseline_rows.append(baseline)
                 gain = float(baseline["logloss"]) - float(selected_row["logloss"])
                 if np.isfinite(gain):
                     outer_deltas.append(gain)
-                decision["baseline_model"] = str(baseline_model)
+                decision["baseline_model"] = str(fixed_inner_baseline)
                 decision["baseline_logloss"] = float(baseline["logloss"])
                 decision["logloss_gain_vs_baseline"] = gain
 
@@ -198,7 +208,8 @@ def nested_sequential_policy_oos(
         "min_history_folds": min_history_folds,
         "half_life_folds": float(half_life_folds),
         "stability_penalty": float(stability_penalty),
-        "baseline_model": baseline_model,
+        "baseline_model": fixed_inner_baseline,
+        "baseline_model_policy": str(baseline_model) if baseline_model is not None else "auto_inner_static",
         "selected_oos_logloss": selected_mean,
         "baseline_oos_logloss": baseline_mean,
         "logloss_improvement": improvement,
