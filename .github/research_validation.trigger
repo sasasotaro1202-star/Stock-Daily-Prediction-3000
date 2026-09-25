@@ -1,4 +1,2 @@
-commit=0964eb4966efa4d7d52c1459e5335b0013134f3a
-
-
-purpose=rerun latest-head chronological OOS after watchdog/invariant recovery fixes; validate PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
+commit=8ded11b0722bcb08f7e360ad0eda554cfa7fec70
+purpose=rerun latest-head chronological OOS after status-persistence isolation; validate PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
