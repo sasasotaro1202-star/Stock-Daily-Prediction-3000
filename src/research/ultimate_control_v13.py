@@ -197,6 +197,24 @@ def _history_quality_weights(folds: list[dict], models: list[str]) -> np.ndarray
     return x / x.sum()
 
 
+def _dynamic_routing_weights(
+    probabilities: np.ndarray,
+    history_quality: np.ndarray,
+) -> np.ndarray:
+    """Build causal row-wise soft-routing weights from current predictions and prior-only quality."""
+    p = np.asarray(probabilities, dtype=float)
+    q = safe_probability(np.asarray(history_quality, dtype=float))
+    if p.ndim != 2 or p.shape[1] != len(q):
+        raise ValueError("invalid routing inputs")
+    mean_p = p.mean(axis=1, keepdims=True)
+    disagreement = np.abs(p - mean_p)
+    scale = np.maximum(p.std(axis=1, keepdims=True), 0.01)
+    consensus = np.exp(-disagreement / scale)
+    raw = consensus * q[None, :]
+    denom = np.sum(raw, axis=1, keepdims=True)
+    return raw / np.clip(denom, EPS, None)
+
+
 def _fit_failure_predictor(
     x_hist: list[np.ndarray],
     y_hist: list[int],
@@ -322,7 +340,15 @@ def _select_probability(
     quality: np.ndarray,
     retrieval_success: np.ndarray,
 ) -> np.ndarray:
-    base = np.sum(p_matrix * quality[None, :], axis=1)
+    quality_arr = np.asarray(quality, dtype=float)
+    if quality_arr.ndim == 1:
+        base = np.sum(p_matrix * quality_arr[None, :], axis=1)
+    elif quality_arr.ndim == 2:
+        if quality_arr.shape != p_matrix.shape:
+            raise ValueError("invalid row-wise routing weight shape")
+        base = np.sum(p_matrix * quality_arr, axis=1)
+    else:
+        raise ValueError("invalid routing weight rank")
     if strategy == "standard":
         return safe_probability(p_matrix[:, 0])
     if strategy == "ensemble":
@@ -455,6 +481,9 @@ def evaluate_v13(
         future_regime = max(transition.items(), key=lambda x: x[1])[0]
 
         quality = _history_quality_weights(ordered[:t], models)
+        routing_weights = _dynamic_routing_weights(p_matrix, quality)
+        dynamic_ensemble = safe_probability(np.sum(p_matrix * routing_weights, axis=1))
+        equal_weight = safe_probability(np.mean(p_matrix, axis=1))
         retrieval_success, retrieval_failure = _retrieval_success(
             state,
             history_states,
@@ -501,7 +530,7 @@ def evaluate_v13(
                 ]))
                 next_labels.append(_failure_label(km, nm))
             x_base = np.asarray([
-                float(state["std_probability"].mean()),
+                float(np.mean(predictability)),
                 float(state["mean_probability"].mean()),
                 float(state["feature_drift"].mean()),
             ])
@@ -535,7 +564,7 @@ def evaluate_v13(
         per_strategy_preds = {}
         for s in STRATEGIES:
             per_strategy_preds[s] = _select_probability(
-                s, p_matrix, quality, retrieval_success
+                s, p_matrix, routing_weights, retrieval_success
             )
             met = metrics(y, per_strategy_preds[s])
             if s == "abstain":
@@ -593,7 +622,7 @@ def evaluate_v13(
 
         changed = np.abs(output_p - selected_p) > 1e-9
         revised = np.asarray(changed & active, dtype=bool)
-        baseline = _select_probability("ensemble", p_matrix, quality, retrieval_success)
+        baseline = equal_weight
         base_correct = (baseline >= 0.5) == y
         revised_correct = (output_p >= 0.5) == y
         revision_accuracy = float(np.mean(revised_correct[revised])) if revised.any() else float("nan")
@@ -631,6 +660,27 @@ def evaluate_v13(
             "future_regime": future_regime,
             "future_regime_probabilities": transition,
             "metrics": fold_metric,
+            "routing": {
+                "weight_means": {
+                    m: float(np.mean(routing_weights[:, i])) for i, m in enumerate(models)
+                },
+                "weight_stds": {
+                    m: float(np.std(routing_weights[:, i])) for i, m in enumerate(models)
+                },
+                "weight_concentration": float(np.mean(np.max(routing_weights, axis=1))),
+                "weight_entropy": float(np.mean(-np.sum(routing_weights * np.log(np.clip(routing_weights, EPS, 1.0)), axis=1))),
+                "dynamic_vs_equal": metrics(y, dynamic_ensemble),
+                "equal_weight": metrics(y, equal_weight),
+            },
+            "disagreement": {
+                "probability_mean": float(np.mean(p_matrix)),
+                "probability_std_mean": float(np.mean(np.std(p_matrix, axis=1))),
+                "probability_range_mean": float(np.mean(np.ptp(p_matrix, axis=1))),
+                "probability_entropy_mean": float(np.mean(state["prediction_entropy"])),
+                "agreement_mean": float(np.mean(state["agreement"])),
+                "max_row_std": float(np.max(np.std(p_matrix, axis=1))),
+                "max_row_range": float(np.max(np.ptp(p_matrix, axis=1))),
+            },
             "chosen_strategy_counts": chosen_counts,
             "chosen_action_counts": action_counts,
             "coverage": float(np.mean(active)),
@@ -723,11 +773,8 @@ def evaluate_v13(
     # Provenance is intentionally strict: this bank does not carry full event/publication/
     # retrieval timestamps, so v13 does not upgrade PIT status on its own.
     pit_status = "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE"
-    leakage_status = "PASS" if len(ordered) >= min_folds else "BLOCKED"
-    meta_status = "PASS" if all(not bool(x.get("current_labels_used_for_meta_training", False)) for x in [
-        {"current_labels_used_for_meta_training": False}
-        for _ in ordered
-    ]) else "FAIL"
+    leakage_status = "BLOCKED_V13_LAYER_REQUIRES_UPSTREAM_INDEPENDENT_AUDIT"
+    meta_status = "BLOCKED_INDEPENDENT_META_LEAKAGE_AUDIT_REQUIRED"
 
     return {
         "schema_version": "v13.0",
@@ -824,12 +871,30 @@ def evaluate_v13(
             "worst_brier_delta": float(np.max(br_deltas)) if br_deltas else float("nan"),
             "worst_ece_delta": float(np.max(ece_deltas)) if ece_deltas else float("nan"),
         },
+        "routing": {
+            "status": "EXECUTED_ROW_WISE_SOFT_ROUTING",
+            "folds": fold_results,
+            "aggregate": {
+                "dynamic": {
+                    k: mean_metric([x["routing"]["dynamic_vs_equal"][k] for x in fold_results[-locked_folds:]], k)
+                    for k in ("accuracy", "logloss", "brier", "ece")
+                },
+                "equal_weight": {
+                    k: mean_metric([x["routing"]["equal_weight"][k] for x in fold_results[-locked_folds:]], k)
+                    for k in ("accuracy", "logloss", "brier", "ece")
+                },
+            },
+            "locked_fold_weight_concentration_mean": float(np.mean([x["routing"]["weight_concentration"] for x in fold_results[-locked_folds:]])),
+            "locked_fold_weight_entropy_mean": float(np.mean([x["routing"]["weight_entropy"] for x in fold_results[-locked_folds:]])),
+        },
+        "performance_success": False,
+        "performance_success_reason": "promotion-blocked until full PIT/meta-leakage/nested-OOS/robustness/statistical evidence is independently verified",
         "drift_monitor": {
             "feature_drift_mean": float(np.mean([x["uncertainty"]["distribution_shift"] for x in locked])) if locked else float("nan"),
             "ood_mean": float(np.mean([x["ood_mean"] for x in locked])) if locked else float("nan"),
         },
         "robustness": {
-            "status": "EXECUTED_DESCRIPTIVE",
+            "status": "EXECUTED_DESCRIPTIVE_NOT_STRESS_TESTED",
             "stress_dimensions": [
                 "model_disagreement",
                 "feature_missingness",
@@ -845,8 +910,8 @@ def evaluate_v13(
             "Leakage": leakage_status,
             "Meta-Leakage": meta_status,
             "OOS": "PASS",
-            "Nested_OOS": "PASS_CONTROL_PLANE_ONLY",
-            "Reproducibility": "PASS_DETERMINISTIC_SEED",
+            "Nested_OOS": "PENDING_INDEPENDENT_NESTED_SELECTION",
+            "Reproducibility": "PARTIAL_DETERMINISTIC_SEED_ONLY",
             "Artifact_Integrity": "PENDING_ARTIFACT_STEP",
             "Fallback": "IMPLEMENTED_RESEARCH_ONLY",
             "Rollback": "NOT_MUTATED_PRODUCTION",
