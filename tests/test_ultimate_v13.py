@@ -70,3 +70,23 @@ def test_v13_artifact_is_json_safe_and_routing_has_causal_contract(tmp_path):
     assert "selection_is_outcome_free_current_fold" in payload["prediction_strategy"]
     for fold in payload["fold_results"]:
         assert 0.0 <= fold["coverage"] <= 1.0
+
+
+def test_v13_exposes_failure_calibration_ttf_and_error_diversity(tmp_path):
+    build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    payload = json.loads((tmp_path / "ultimate_summary.json").read_text())
+    for model in ("logistic", "extra_trees"):
+        cal = payload["future_failure"]["calibration_1step"][model]
+        assert cal["observations"] >= 1
+        assert 0.0 <= cal["brier"] <= 1.0
+        assert 0.0 <= cal["ece"] <= 1.0
+        assert model in payload["time_to_failure"]["retrospective_evaluation"]
+    assert payload["error_correlation"]["status"] == "EXECUTED_RETROSPECTIVE_DIAGNOSTIC"
+    assert (tmp_path / "error_correlation.json").exists()
+
+
+def test_v13_false_revision_is_revision_conditional(tmp_path):
+    build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    payload = json.loads((tmp_path / "ultimate_summary.json").read_text())
+    value = payload["revision_metrics"]["false_revision"]
+    assert value is None or 0.0 <= value <= 1.0
