@@ -203,8 +203,12 @@ def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
         for key in ("fold", "row", "regime", "strategy", "status", "hits"):
             assert a[key] == b[key]
         for key in ("failure_rate", "success_probability", "best_distance"):
-            av, bv = float(a.get(key, float("nan"))), float(b.get(key, float("nan")))
-            assert np.isclose(av, bv, equal_nan=True)
+            av = a.get(key)
+            bv = b.get(key)
+            if av is None or bv is None:
+                assert av is None and bv is None
+            else:
+                assert np.isclose(float(av), float(bv), equal_nan=True)
     for a, b in zip(
         result["strategy_failure"]["rows"][:-6],
         changed["strategy_failure"]["rows"][:-6],
