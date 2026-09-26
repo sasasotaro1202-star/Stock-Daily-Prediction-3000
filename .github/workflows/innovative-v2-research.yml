@@ -1,0 +1,143 @@
+name: Innovative prediction control v2 research
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/innovative-v2-20260926
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: innovative-v2-research
+  cancel-in-progress: false
+
+jobs:
+  restore-universe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore latest official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_universe_state.py
+      - name: Refresh official universe
+        run: python scripts/refresh_universe.py
+      - name: Validate universe
+        run: python scripts/universe_quality_gate.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: innovative-v2-universe-${{ github.run_id }}
+          path: data/universe/latest.json
+          retention-days: 7
+
+  price-shards:
+    needs: restore-universe
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - uses: actions/download-artifact@v7
+        with:
+          name: innovative-v2-universe-${{ github.run_id }}
+          path: data/universe
+      - name: Restore previous price state
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_price_state.py
+      - name: Update assigned price shard
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 2
+        run: python scripts/update_prices.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: innovative-v2-price-${{ matrix.shard }}-${{ github.run_id }}
+          path: data/prices/
+          retention-days: 7
+
+  research:
+    needs: price-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: innovative-v2-price-*-${{ github.run_id }}
+          path: data/prices
+          merge-multiple: true
+      - uses: actions/download-artifact@v7
+        with:
+          name: innovative-v2-universe-${{ github.run_id }}
+          path: data/universe
+      - name: Update free market context
+        run: python scripts/update_market_context.py
+      - name: Automation invariant preflight
+        run: python scripts/automation_invariants.py
+      - name: Catalog integrity
+        run: python scripts/catalog_integrity.py
+      - name: Canonicalize price store
+        run: python scripts/normalize_price_store.py
+      - name: Universe quality gate
+        run: python scripts/universe_quality_gate.py
+      - name: Price quality gate
+        run: python scripts/data_quality_gate.py
+      - name: Independent PIT leakage audit
+        run: python scripts/run_independent_leakage_audit.py
+      - name: Innovative v2 unit tests
+        run: pytest -q tests/test_innovative_control_v2.py
+      - name: Chronological OOS + innovative v2
+        run: python scripts/run_daily_research.py
+      - name: Publish v2 score summary
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          d = json.loads(Path("data/research/latest_metrics.json").read_text())
+          v2 = d.get("innovative_prediction_control_v2", {})
+          base = v2.get("full_vs_baseline", {})
+          print("## Innovative prediction control v2")
+          print(f"- Status: `{v2.get('status', 'unknown')}`")
+          print(f"- Delta Accuracy: `{base.get('accuracy', 'n/a')}`")
+          print(f"- Delta LogLoss: `{base.get('logloss', 'n/a')}`")
+          print(f"- Delta Brier: `{base.get('brier', 'n/a')}`")
+          print(f"- PIT: `{v2.get('pit_audit', 'n/a')}`")
+          print(f"- Meta-Leakage: `{v2.get('meta_leakage', 'n/a')}`")
+          print(f"- Promotion: `{v2.get('promotion', 'HOLD')}`")
+          PY
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: innovative-v2-evidence-${{ github.run_id }}
+          path: |
+            data/research/latest_metrics.json
+            data/research/leakage_audit.json
+            data/research/data_quality.json
+            data/research/universe_quality.json
+          retention-days: 14
