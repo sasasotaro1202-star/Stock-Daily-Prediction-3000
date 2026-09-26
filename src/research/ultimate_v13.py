@@ -175,6 +175,9 @@ def _future_failure_labels(
         for idx, row in enumerate(rows):
             ll = float(row["logloss"])
             br = float(row["brier"])
+            # Early-warning risk for fold T is computed before the T outcome
+            # is appended to history. This makes the risk prediction strictly
+            # prior-only and suitable for an OOS early-warning audit.
             if len(prior_ll) < 2:
                 risk = 0.5
                 risk_basis = "insufficient_prior_folds"
@@ -183,12 +186,18 @@ def _future_failure_labels(
                 trend_ll = float(prior_ll[-1] - prior_ll[-2])
                 base_br = float(np.mean(prior_br))
                 raw = (
-                    (ll - base_ll) / max(DEFAULT_FAILURE_LOGLOSS_MARGIN, 1e-6)
-                    + 0.5 * trend_ll / max(DEFAULT_FAILURE_LOGLOSS_MARGIN, 1e-6)
-                    + (br - base_br) / max(DEFAULT_FAILURE_BRIER_MARGIN, 1e-6)
+                    trend_ll / max(DEFAULT_FAILURE_LOGLOSS_MARGIN, 1e-6)
+                    + 0.5 * (
+                        (prior_ll[-1] - base_ll)
+                        / max(DEFAULT_FAILURE_LOGLOSS_MARGIN, 1e-6)
+                    )
+                    + 0.5 * (
+                        (prior_br[-1] - base_br)
+                        / max(DEFAULT_FAILURE_BRIER_MARGIN, 1e-6)
+                    )
                 )
                 risk = float(1.0 / (1.0 + np.exp(-0.5 * raw)))
-                risk_basis = "prior_folds_only"
+                risk_basis = "strictly_prior_folds_only"
             risks[model].append(
                 {"fold": idx, "future_failure_risk": float(np.clip(risk, 0.0, 1.0)), "risk_basis": risk_basis}
             )
@@ -219,12 +228,18 @@ def _future_failure_labels(
 def _time_to_failure(labels: Mapping[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
     out: dict[str, list[dict[str, Any]]] = {}
     for model, rows in labels.items():
+        failure_events = {
+            int(row["fold"]) + 1
+            for row in rows
+            if bool(row["next_fold_failure"])
+        }
         model_out: list[dict[str, Any]] = []
-        for i, row in enumerate(rows):
-            hit = next((j for j in range(i + 1, len(rows)) if rows[j]["next_fold_failure"]), None)
+        for row in rows:
+            start = int(row["fold"])
+            hit = next((event_fold for event_fold in sorted(failure_events) if event_fold > start), None)
             model_out.append({
-                "fold": int(row["fold"]),
-                "time_to_failure_folds": None if hit is None else int(hit - i),
+                "fold": start,
+                "time_to_failure_folds": None if hit is None else int(hit - start),
                 "failure_event_within_history": hit is not None,
             })
         out[model] = model_out
