@@ -22,17 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+        with:
           fetch-depth: 0
-      - name: Select serialized research-status branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
-            git fetch origin research-status
-            git checkout -B research-status origin/research-status
-          else
-            git checkout -B research-status
-          fi
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -68,11 +60,33 @@ jobs:
           RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
           GITHUB_API_URL: ${{ github.api_url }}
         run: python scripts/persist_research_validation_status.py
+
+      - name: Preserve generated status outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/research-validation-status
+          mkdir -p /tmp/research-validation-status
+          cp artifacts/research_validation_status.json /tmp/research-validation-status/
+          if [ -f artifacts/research_validation_latest.json ]; then
+            cp artifacts/research_validation_latest.json /tmp/research-validation-status/
+          fi
       - name: Commit research status evidence
         if: always()
         shell: bash
         run: |
           set -euo pipefail
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch origin research-status
+            git checkout -B research-status origin/research-status
+          else
+            git checkout -B research-status
+          fi
+          mkdir -p artifacts
+          cp /tmp/research-validation-status/research_validation_status.json artifacts/research_validation_status.json
+          if [ -f /tmp/research-validation-status/research_validation_latest.json ]; then
+            cp /tmp/research-validation-status/research_validation_latest.json artifacts/research_validation_latest.json
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add artifacts/research_validation_status.json
