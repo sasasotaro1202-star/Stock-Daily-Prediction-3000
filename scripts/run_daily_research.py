@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -26,6 +27,7 @@ from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.innovative_control_v6 import evaluate_v6
 from src.research.blend_prediction_cache import (
     CACHEABLE_BLEND_COMPONENTS,
     resolve_cached_blend_predictions,
@@ -646,8 +648,10 @@ def main():
                     "y": test.target_up_1d.astype(int).to_numpy(copy=True),
                     "predictions": {},
                     "situations": None,
+                    "regimes": None,
                     "risk_context": None,
                     "asset_classes": None,
+                    "symbols": None,
                     "conformal_pred_pvalues": {},
                     "group_conformal_pred_pvalues": {},
                     "group_conformal_set_size": {},
@@ -677,6 +681,16 @@ def main():
             )
             if online_bank["asset_classes"] is None:
                 online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
+            if online_bank["symbols"] is None:
+                online_bank["symbols"] = (
+                    test["symbol"].astype(str).to_numpy()
+                    if "symbol" in test.columns
+                    else np.array([""] * len(test), dtype=str)
+                )
+            if online_bank["regimes"] is None:
+                online_bank["regimes"] = np.asarray(
+                    fold_contexts[fold_idx]["regime"], dtype=str
+                )
             if online_bank["risk_context"] is None:
                 risk_columns = [
                     "volatility_20", "volume_ratio_20", "gap_pct", "breadth_up",
@@ -2653,6 +2667,42 @@ def main():
             "fold_metrics": rows,
         }
 
+    innovative_v6 = {"status": "DISABLED", "production_changed": False, "promotion": "HOLD"}
+    if os.getenv("INNOVATIVE_V6_ENABLE", "0") == "1":
+        bank_path = Path("data/research/innovative_v6_oos_bank.parquet")
+        bank_rows = []
+        for fold_idx in sorted(online_prediction_by_fold):
+            bank = online_prediction_by_fold[fold_idx]
+            n = len(bank["y"])
+            frame = pd.DataFrame({
+                "fold": int(fold_idx),
+                "session_date": pd.to_datetime(bank["session_dates"]).astype(str),
+                "y": np.asarray(bank["y"], dtype=int),
+                "asset_class": np.asarray(bank.get("asset_classes", [""] * n), dtype=str),
+                "symbol": np.asarray(bank.get("symbols", [""] * n), dtype=str),
+                "situation": np.asarray(bank.get("situations", [""] * n), dtype=str),
+                "regime": np.asarray(bank.get("regimes", ["normal"] * n), dtype=str),
+            })
+            risk = np.asarray(bank.get("risk_context"), dtype=float)
+            if risk.ndim == 2:
+                for i in range(risk.shape[1]):
+                    frame[f"risk_{i}"] = risk[:, i]
+            for model_name, probs in sorted((bank.get("predictions") or {}).items()):
+                frame[f"p__{model_name}"] = np.asarray(probs, dtype=float)
+            bank_rows.append(frame)
+        if bank_rows:
+            bank_path.parent.mkdir(parents=True, exist_ok=True)
+            pd.concat(bank_rows, ignore_index=True).to_parquet(bank_path, index=False)
+            innovative_v6 = evaluate_v6(online_prediction_by_fold)
+            innovative_v6["input_bank"] = str(bank_path)
+        else:
+            innovative_v6 = {
+                "status": "BLOCKED",
+                "reason": "empty_oos_prediction_bank",
+                "production_changed": False,
+                "promotion": "HOLD",
+            }
+
     payload = {
         "results": model_results,
         "return_oos": return_oos,
@@ -2690,6 +2740,7 @@ def main():
         "online_expert_research": online_expert_research,
         "online_expert_balanced_research": online_expert_balanced_research,
         "confidence_risk_research": confidence_risk_research,
+        "innovative_prediction_control_v6": innovative_v6,
         "temporal_calibration_research": temporal_calibration_research,
         "drift_aware_window_research": drift_aware_window_research,
         "global_selection_candidates": balanced_candidates,
