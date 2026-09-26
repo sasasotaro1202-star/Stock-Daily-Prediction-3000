@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from typing import Any, Mapping
 
 import numpy as np
@@ -129,6 +130,22 @@ def _scenario_row(mean_p: float, dispersion: float, ood: float) -> dict[str, Any
     }
 
 
+def _parse_pit_timestamp(value: Any) -> datetime | None:
+    """Parse an explicit timezone-aware PIT timestamp; invalid/naive values fail closed."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    raw = value.strip()
+    if raw.endswith("Z"):
+        raw = raw[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
+
 def _active_information_contract(bank: Mapping[int, Mapping[str, Any]]) -> dict[str, Any]:
     candidates_seen = 0
     accepted = []
@@ -148,8 +165,18 @@ def _active_information_contract(bank: Mapping[int, Mapping[str, Any]]) -> dict[
                 continue
             if not all(np.isfinite(v) for v in (benefit, cost, risk)):
                 continue
+            available_at = _parse_pit_timestamp(c.get("available_at"))
+            prediction_time = _parse_pit_timestamp(c.get("prediction_time"))
+            # A PIT-safe boolean is not sufficient evidence. Exact, timezone-aware
+            # timestamps are required, and source availability must precede prediction.
+            if available_at is None or prediction_time is None:
+                continue
+            if available_at > prediction_time:
+                continue
             accepted.append({
                 "name": str(c.get("name", "unknown")),
+                "available_at": available_at.isoformat(),
+                "prediction_time": prediction_time.isoformat(),
                 "net_value_proxy": float(benefit - cost - risk),
             })
     if not candidates_seen:
