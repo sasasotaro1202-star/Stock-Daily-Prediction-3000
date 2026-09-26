@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -12,6 +13,11 @@ import pandas as pd
 
 from src.research.ultimate_control_v13 import evaluate_v13
 from src.research.ultimate_v13_extensions import augment_v13_result
+from src.research.v13_governance import (
+    experiment_record,
+    safety_governance,
+    validate_experiment_registry,
+)
 
 
 def _json_safe(value: Any) -> Any:
@@ -98,6 +104,37 @@ def build_ultimate_intelligence(
         "Frozen_Holdout": "not used for v13 tuning",
     }
 
+    commit = os.environ.get("GITHUB_SHA", "unknown")
+    audits = result.get("audits", {})
+    result["governance"] = safety_governance(
+        promotion_allowed=bool(result.get("promotion_allowed", False)),
+        pit_status=str(audits.get("PIT", "UNKNOWN")),
+        leakage_status=str(audits.get("Leakage", "UNKNOWN")),
+        meta_leakage_status=str(audits.get("Meta-Leakage", "UNKNOWN")),
+        robustness_status=str(result.get("robustness", {}).get("status", "UNKNOWN")),
+        reproducibility_status=str(result.get("reproducibility", {}).get("status", "UNKNOWN")),
+        production_changed=bool(result.get("production_changed", False)),
+    )
+    registry_row = experiment_record(
+        experiment_id="ultimate-v13-control-plane",
+        hypothesis="Prior-only adaptive retrieval and governance remain causal under chronological OOS.",
+        commit=commit,
+        dataset="chronological_oos_bank",
+        feature_version=str(result.get("schema_version", "unknown")),
+        model_version="v13-control-plane",
+        parameters={"locked_folds": int(result.get("locked_folds", 0))},
+        train_period="chronological-prior",
+        validation_period="chronological-dev",
+        oos_period="chronological-locked",
+        metrics=result.get("metrics_locked", {}),
+        decision="HOLD",
+    )
+    result["experiment_registry"] = {
+        "status": "EXECUTED_SINGLE_EXPERIMENT_RECORD",
+        "rows": [registry_row],
+        "validation": validate_experiment_registry([registry_row]),
+    }
+
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     safe = _json_safe(result)
@@ -134,6 +171,8 @@ def build_ultimate_intelligence(
         ("failure_memory.json", "failure_memory"),
         ("prediction_history.json", "prediction_history"),
         ("strategy_failure.json", "strategy_failure"),
+        ("governance.json", "governance"),
+        ("experiment_registry.json", "experiment_registry"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -173,6 +212,8 @@ def build_ultimate_intelligence(
             "failure_memory.json",
             "prediction_history.json",
             "strategy_failure.json",
+            "governance.json",
+            "experiment_registry.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
