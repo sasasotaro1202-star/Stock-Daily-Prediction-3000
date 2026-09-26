@@ -67,7 +67,7 @@ def main() -> int:
     all_folds = make_date_folds(
         dates, min_train=252, test_size=21, step=21, embargo=1, purge=1
     )
-    folds = all_folds[:7]
+    folds = all_folds[-7:]
     if len(folds) < 5:
         raise SystemExit(f"BLOCKED: only {len(folds)} reduced OOS folds")
 
@@ -97,11 +97,6 @@ def main() -> int:
             continue
 
         threshold = volatility_threshold_from_training(core["volatility_20"])
-        regime = np.where(
-            core.iloc[0:0].index.astype(int),
-            "",
-            "",
-        )
         test_regime = np.where(
             pd.to_numeric(test["volatility_20"], errors="coerce").to_numpy(dtype=float) >= threshold,
             "high_vol",
