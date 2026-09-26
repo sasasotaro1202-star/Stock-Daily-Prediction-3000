@@ -119,6 +119,9 @@ jobs:
         run: python scripts/run_independent_leakage_audit.py
       - name: Fail-fast conformal unit tests
         run: pytest -q tests/test_conformal_classification.py
+      - name: Ultimate v13 unit tests
+        run: pytest -q tests/test_ultimate_v13.py
+
 
       - name: Chronological OOS research
         id: research_oos
