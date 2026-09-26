@@ -224,7 +224,7 @@ jobs:
           print(f"- Router stability status: {(v.get('router_stability') or {}).get('status', 'n/a')}")
           print(f"- Meta-label status: {(v.get("meta_label") or {}).get("status", "n/a")}")
           print(f"- Meta-label coverage: {(v.get("meta_label") or {}).get("locked_summary", {}).get("coverage", "n/a")}")
-          print(f"- Error attribution: {(v.get("error_attribution") or {}).get("status", "n/a")}"))
+          print(f"- Error attribution: {(v.get("error_attribution") or {}).get("status", "n/a")}")
           print(f"- Failure memory rows: {(v.get("failure_memory") or {}).get("total_rows", "n/a")}")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
           if adv.exists():
