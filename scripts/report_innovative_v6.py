@@ -66,11 +66,8 @@ def main() -> int:
         "- Production adoption: disabled",
     ]
     Path("artifacts").mkdir(parents=True, exist_ok=True)
-    Path("artifacts/v6_report.md").write_text("
-".join(lines) + "
-", encoding="utf-8")
-    print("
-".join(lines))
+    Path("artifacts/v6_report.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print("\n".join(lines))
     return 0
 
 
