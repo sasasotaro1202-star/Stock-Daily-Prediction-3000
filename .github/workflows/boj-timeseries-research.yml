@@ -30,7 +30,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: pip install -e .
+      - run: pip install -e ".[dev]"
       - name: BOJ parser unit tests
         run: pytest -q tests/test_boj_api.py tests/test_external_sources.py
       - name: Collect BOJ research data
