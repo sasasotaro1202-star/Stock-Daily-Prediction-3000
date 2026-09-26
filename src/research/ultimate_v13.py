@@ -130,6 +130,8 @@ def build_ultimate_intelligence(
         ("router_stability.json", "router_stability"),
         ("active_information.json", "active_information"),
         ("meta_label.json", "meta_label"),
+        ("error_attribution.json", "error_attribution"),
+        ("failure_memory.json", "failure_memory"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
