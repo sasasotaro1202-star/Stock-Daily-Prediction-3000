@@ -61,7 +61,7 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
 def test_research_validation_has_external_status_workflow() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' in text
-    assert "types: [completed]" in text
+    assert "types: [completed, in_progress]" in text
     assert "group: research-validation-status" in text
     assert "python scripts/persist_research_validation_status.py" in text
     assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" in text
@@ -128,6 +128,37 @@ def test_status_script_records_research_job_outcomes(monkeypatch, tmp_path) -> N
     assert payload["job_status"] == "failure"
     assert payload["research_step"] == "success"
     assert payload["evidence_artifact_present"] is False
+
+
+def test_status_script_accepts_in_progress_workflow_before_research_job_exists(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("GITHUB_SHA", "default-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "124")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "active-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "in_progress")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "")
+
+    def urlopen(request, timeout):
+        if "/artifacts?" in request.full_url:
+            return _Response({"artifacts": []})
+        return _Response({"jobs": []})
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", urlopen)
+
+    assert status.main() == 0
+    payload = json.loads(
+        (Path("artifacts") / "research_validation_status.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert payload["status_lookup_ok"] is True
+    assert payload["workflow_run_id"] == "124"
+    assert payload["workflow_status"] == "in_progress"
+    assert payload["job_status"] == "in_progress"
+    assert payload["status_lookup_error"] is None
 
 
 def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypatch, tmp_path) -> None:
