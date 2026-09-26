@@ -366,6 +366,8 @@ def evaluate_innovative_v2(
     }
     drift_history: list[float] = []
     previous_weights: dict[str, np.ndarray] = {}
+    routed_history_p: dict[str, list[np.ndarray]] = {mode: [] for mode in "ABCDEFGHIJ"}
+    routed_history_y: dict[str, list[np.ndarray]] = {mode: [] for mode in "ABCDEFGHIJ"}
     registry: list[dict[str, object]] = []
 
     for t in range(len(ordered)):
@@ -444,21 +446,39 @@ def evaluate_innovative_v2(
                         (future_bank["predictions"] or {})[model_name], dtype=float
                     )
                     future_y = np.asarray(future_bank["y"], dtype=int)
-                    # Map future outcome risk by symbol when possible; otherwise
-                    # use the fold-level future miss rate. Both are future labels
-                    # relative to the feature timestamp and remain PIT-safe.
-                    yy_feature = np.asarray(feature_bank["y"], dtype=int)
                     state_k = _make_state_matrix(
                         build_disagreement_features(feature_probs),
                         np.asarray(feature_bank.get("risk_context"), dtype=float),
                         0.0,
                     )
-                    model_correct = (future_preds >= 0.5) == future_y
-                    future_miss_rate = 1.0 - float(np.mean(model_correct))
+                    # Strictly future target: use the first next-fold observation
+                    # for the same symbol when symbols are available. If symbol
+                    # identity is unavailable, use the future-fold miss rate as a
+                    # conservative fallback label. The feature timestamp is always
+                    # earlier than the label timestamp.
+                    symbols_k = np.asarray(feature_bank.get("symbols"), dtype=str)
+                    symbols_f = np.asarray(future_bank.get("symbols"), dtype=str)
+                    labels = np.full(len(state_k), np.nan, dtype=float)
+                    if symbols_k.size == len(state_k) and symbols_f.size == len(future_y):
+                        first_by_symbol = {}
+                        for row_i, sym in enumerate(symbols_f):
+                            first_by_symbol.setdefault(sym, row_i)
+                        for row_i, sym in enumerate(symbols_k):
+                            future_i = first_by_symbol.get(sym)
+                            if future_i is not None:
+                                future_loss = -(
+                                    future_y[future_i] * np.log(_safe_clip_probability(future_preds[future_i]))
+                                    + (1 - future_y[future_i]) * np.log(1.0 - _safe_clip_probability(future_preds[future_i]))
+                                )
+                                labels[row_i] = float(future_loss > np.log(2.0))
+                    if np.isnan(labels).all():
+                        future_miss_rate = 1.0 - float(np.mean((future_preds >= 0.5) == future_y))
+                        labels[:] = float(future_miss_rate > 0.50)
+                    else:
+                        fallback = float(np.nanmean(labels)) if np.isfinite(labels).any() else 0.5
+                        labels = np.where(np.isfinite(labels), labels, fallback)
                     train_X.append(state_k)
-                    train_y.append(
-                        np.full(len(state_k), int(future_miss_rate > 0.50), dtype=int)
-                    )
+                    train_y.append(labels.astype(int))
                 if train_X:
                     fx = pd.concat(train_X, ignore_index=True)
                     fy = np.concatenate(train_y)
@@ -485,23 +505,14 @@ def evaluate_innovative_v2(
                 )
             p_raw = _blend(probs, weights)
 
-            # Calibration uses strictly prior routed OOS predictions.
-            history_p = []
-            history_y = []
-            for hb_index, hb in enumerate(prior_banks):
-                hp = np.column_stack(
-                    [np.asarray((hb["predictions"] or {})[name], dtype=float) for name in models]
-                )
-                h_state = build_disagreement_features(hp)
-                h_quality = _static_quality_weights(ordered[:hb_index], models)
-                h_blend = _blend(hp, np.tile(h_quality, (len(hp), 1)))
-                history_p.append(h_blend)
-                history_y.append(np.asarray(hb["y"], dtype=int))
+            # Calibration uses only prior routed predictions for the same mode.
             cal = _fit_platt_on_history(
-                np.concatenate(history_p) if history_p else np.array([], dtype=float),
-                np.concatenate(history_y) if history_y else np.array([], dtype=int),
+                np.concatenate(routed_history_p[mode]) if routed_history_p[mode] else np.array([], dtype=float),
+                np.concatenate(routed_history_y[mode]) if routed_history_y[mode] else np.array([], dtype=int),
             )
             p = _apply_platt(cal, p_raw)
+            routed_history_p[mode].append(np.asarray(p_raw, dtype=float))
+            routed_history_y[mode].append(np.asarray(y, dtype=int))
             mode_predictions[mode] = p
             mode_predictability[mode] = predictability
             previous_weights[mode] = np.mean(weights, axis=0)
