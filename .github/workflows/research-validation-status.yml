@@ -61,6 +61,7 @@ jobs:
         run: python scripts/persist_research_validation_status.py
 
       - name: Preserve generated status outputs
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
