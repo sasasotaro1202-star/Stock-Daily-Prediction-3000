@@ -104,7 +104,7 @@ def test_unknown_available_at_is_fail_closed() -> None:
 def test_non_us_event_does_not_enter_us_features() -> None:
     mod = importlib.import_module("src.research.event_intelligence")
     raw = _events().copy()
-    raw.loc[0, "asset_class"] = "non_us"
+    raw.loc[:, "asset_class"] = "non_us"
     prices = pd.DataFrame(
         [
             {

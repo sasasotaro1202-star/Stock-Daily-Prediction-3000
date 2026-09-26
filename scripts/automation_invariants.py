@@ -258,15 +258,15 @@ def main() -> int:
         'if [[ "$head_sha" != "$current_sha" ]]; then',
         "watchdog_research_queue_compares_current_sha",
     )
-    _assert_once(
+    _assert_absent(
         watchdog,
         'active_head_sha" != "$current_sha"',
-        "watchdog_research_cancels_superseded_active_run",
+        "watchdog_research_does_not_cancel_only_for_superseded_sha",
     )
     _assert_once(
         watchdog,
-        'active_run_id=""\n                recovery_needed=true\n              else',
-        "watchdog_research_redispatches_after_active_recovery",
+        "Preserve a running chronological OOS",
+        "watchdog_research_preserves_active_oos",
     )
     _assert_absent(
         watchdog,
