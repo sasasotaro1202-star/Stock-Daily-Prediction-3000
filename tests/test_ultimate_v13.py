@@ -216,9 +216,11 @@ def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
         for key in ("fold", "row", "regime", "strategy"):
             assert a[key] == b[key]
         for key in ("prior_failure_rate_raw", "prior_failure_rate_smoothed"):
-            assert np.isclose(
-                float(a[key]), float(b[key]), equal_nan=True
-            )
+            av, bv = a[key], b[key]
+            if av is None or bv is None:
+                assert av is None and bv is None
+            else:
+                assert np.isclose(float(av), float(bv), equal_nan=True)
     assert all("historical_retrieval" in row for row in result["prediction_ledger"]["row_level"])
     assert (tmp_path / "prediction_history.json").exists()
     assert (tmp_path / "strategy_failure.json").exists()
