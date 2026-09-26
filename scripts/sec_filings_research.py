@@ -729,6 +729,10 @@ def main() -> None:
             ticker_alias_map = {}
             mapping_source = str(LOCAL_TICKER_MAP)
             mapping_note = "pinned_universe_subset"
+            expected = {_norm_ticker(row.get("symbol")) for row in records if _norm_ticker(row.get("symbol"))}
+            missing = sorted(expected - set(ticker_map))
+            if missing:
+                raise ValueError("local SEC ticker map missing universe symbols:" + ",".join(missing))
         else:
             try:
                 ticker_payload = _get_json(TICKERS_URL)
