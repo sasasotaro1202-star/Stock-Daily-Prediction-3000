@@ -215,6 +215,30 @@ def _dynamic_routing_weights(
     return raw / np.clip(denom, EPS, None)
 
 
+
+def _failure_aware_routing_weights(
+    current_weights: np.ndarray,
+    failure_risks: Mapping[str, float],
+    models: list[str],
+) -> np.ndarray:
+    """Downweight models by prior-only estimated future failure risk."""
+    w = np.asarray(current_weights, dtype=float)
+    if w.ndim != 2 or w.shape[1] != len(models):
+        raise ValueError("invalid current routing weights")
+    survival = np.asarray(
+        [
+            1.0 - float(np.clip(failure_risks.get(m, 0.5), 0.0, 1.0))
+            for m in models
+        ],
+        dtype=float,
+    )
+    # Keep a non-zero floor: the failure predictor is uncertain and must not
+    # collapse the portfolio to one model.
+    survival = np.maximum(survival, 0.15)
+    adjusted = w * survival[None, :]
+    return adjusted / np.clip(adjusted.sum(axis=1, keepdims=True), EPS, None)
+
+
 def _fit_failure_predictor(
     x_hist: list[np.ndarray],
     y_hist: list[int],
