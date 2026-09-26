@@ -780,7 +780,7 @@ def main() -> None:
                                 ticker_alias_map.pop(alias, None)
                             elif alias not in ticker_alias_map:
                                 ticker_alias_map[alias] = info
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+    except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
         payload = {
             "status": "DEFERRED",
             "reason": f"sec_metadata_fetch_failed:{getattr(exc, 'code', '')}:{type(exc).__name__}",
