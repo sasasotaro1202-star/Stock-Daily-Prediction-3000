@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -32,7 +33,7 @@ def _extract_run_blocks(text: str) -> list[str]:
                 break
             block.append(line[block_indent:] if len(line) >= block_indent else "")
             i += 1
-        blocks.append("\n".join(block) + "\n")
+        blocks.append(textwrap.dedent("\n".join(block)) + "\n")
     return blocks
 
 
@@ -105,7 +106,7 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert text.index("Preserve generated status outputs") < text.index("Commit research status evidence")
     preserve_pos = text.index("      - name: Preserve generated status outputs")
     assert text.index("        if: always()", preserve_pos) < text.index("        shell: bash", preserve_pos)
-    assert text.index("git checkout -B research-status origin/research-status") > text.index("Preserve generated status outputs")
+    assert text.index("git checkout -B research-status origin/research-status --force") > text.index("Preserve generated status outputs")
     main_text = WORKFLOW.read_text(encoding="utf-8")
     assert "  research-status:" not in main_text
     assert "research-validation-status" not in main_text
