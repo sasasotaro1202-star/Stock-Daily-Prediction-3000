@@ -8,6 +8,11 @@ import pandas as pd
 import yaml
 
 from src.features.context import add_cross_sectional_context, add_market_context
+from src.research.event_intelligence import (
+    EVENT_INTELLIGENCE_FEATURE_COLUMNS,
+    add_event_intelligence_features,
+    build_event_ledger,
+)
 from src.research.sec_features import SEC_FEATURE_COLUMNS, add_sec_filing_features
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.fit import fit_classifier
@@ -42,6 +47,41 @@ def _deferred(reason: str) -> None:
     print(OUT.read_text(encoding="utf-8"))
 
 
+def _fit_and_predict(
+    model_name: str,
+    factory,
+    train: pd.DataFrame,
+    calibration: pd.DataFrame,
+    test: pd.DataFrame,
+    columns: list[str],
+    model_cfg: dict,
+) -> tuple[np.ndarray, dict]:
+    model = factory()
+    fit_classifier(
+        model,
+        model_name,
+        train[columns],
+        train["target_up_1d"].astype(int),
+        train["session_date"],
+        half_life_sessions=int(
+            model_cfg.get("recency_weight_half_life_sessions", 252)
+        ),
+    )
+    raw_cal = model.predict_proba(calibration[columns])[:, 1]
+    from src.validation.calibration import make_calibrator
+
+    calibrator = make_calibrator("platt").fit(
+        raw_cal,
+        calibration["target_up_1d"].astype(int),
+    )
+    p = np.clip(
+        calibrator.predict(model.predict_proba(test[columns])[:, 1]),
+        1e-5,
+        1 - 1e-5,
+    )
+    return p, classification_metrics(test["target_up_1d"].astype(int), p)
+
+
 def main() -> None:
     if not PRICE.exists():
         _deferred("canonical_price_dataset_missing")
@@ -68,6 +108,16 @@ def main() -> None:
         _deferred("direction_oos_not_complete")
         return
 
+    event_ledger, event_diag = build_event_ledger(sec)
+    if event_diag.get("status") != "PASS":
+        _deferred(
+            f"event_ledger_not_pit_safe:{event_diag.get('reason') or 'unknown'}"
+        )
+        return
+    if event_ledger.empty:
+        _deferred("event_ledger_empty")
+        return
+
     selected = str(metrics.get("selected_model", "")).strip()
     if not selected:
         _deferred("selected_model_missing")
@@ -85,15 +135,18 @@ def main() -> None:
         df["available_at"], utc=True, errors="coerce"
     )
     df = df.dropna(subset=["session_date", "available_at"]).copy()
+
     market_context_path = Path("data/market_context.parquet")
     if not market_context_path.exists():
         _deferred("market_context_missing")
         return
     context = pd.read_parquet(market_context_path)
+
     df = add_technical_features(df)
     df = add_market_context(df, context)
     df = add_cross_sectional_context(df)
     df = add_sec_filing_features(df, sec)
+    df = add_event_intelligence_features(df, event_ledger)
     df = add_targets(df)
 
     cutoff_value = frozen.get("cutoff_date")
@@ -103,7 +156,9 @@ def main() -> None:
     cutoff = pd.Timestamp(cutoff_value).date()
     df = df[df["session_date"] <= cutoff].copy()
 
-    enhanced_columns = list(FEATURE_COLUMNS) + list(SEC_FEATURE_COLUMNS)
+    baseline_columns = list(FEATURE_COLUMNS)
+    sec_columns = baseline_columns + list(SEC_FEATURE_COLUMNS)
+    event_columns = sec_columns + list(EVENT_INTELLIGENCE_FEATURE_COLUMNS)
     df = df.dropna(subset=FEATURE_COLUMNS + ["target_up_1d"]).copy()
     if len(df) < 5000:
         _deferred("insufficient_pit_safe_rows")
@@ -136,6 +191,7 @@ def main() -> None:
         cal_n = max(20, int(len(chosen_train_dates) * 0.2))
         if len(chosen_train_dates) - cal_n < 40:
             continue
+
         core_dates = set(chosen_train_dates[:-cal_n])
         cal_dates = set(chosen_train_dates[-cal_n:])
         test_dates = set(dates[fold.test_start : fold.test_end])
@@ -152,8 +208,7 @@ def main() -> None:
             continue
 
         fit_core = restrict_to_lookback(
-            core,
-            None if lookback == 0 else lookback,
+            core, None if lookback == 0 else lookback
         )
         fit_core = cap_training_rows(
             fit_core,
@@ -161,71 +216,38 @@ def main() -> None:
             recent_sessions=min(252, lookback or 252),
         )
 
-        baseline_model = factory()
-        sec_model = factory()
-        fit_classifier(
-            baseline_model,
-            selected,
-            fit_core[FEATURE_COLUMNS],
-            fit_core["target_up_1d"].astype(int),
-            fit_core["session_date"],
-            half_life_sessions=int(
-                model_cfg.get("recency_weight_half_life_sessions", 252)
-            ),
+        _, base = _fit_and_predict(
+            selected, factory, fit_core, cal, test, baseline_columns, model_cfg
         )
-        fit_classifier(
-            sec_model,
-            selected,
-            fit_core[enhanced_columns],
-            fit_core["target_up_1d"].astype(int),
-            fit_core["session_date"],
-            half_life_sessions=int(
-                model_cfg.get("recency_weight_half_life_sessions", 252)
-            ),
+        _, sec_result = _fit_and_predict(
+            selected, factory, fit_core, cal, test, sec_columns, model_cfg
+        )
+        _, event_result = _fit_and_predict(
+            selected, factory, fit_core, cal, test, event_columns, model_cfg
         )
 
-        baseline_cal = baseline_model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-        sec_cal = sec_model.predict_proba(cal[enhanced_columns])[:, 1]
-        from src.validation.calibration import make_calibrator
-
-        baseline_calibrator = make_calibrator("platt").fit(
-            baseline_cal,
-            cal["target_up_1d"].astype(int),
-        )
-        sec_calibrator = make_calibrator("platt").fit(
-            sec_cal,
-            cal["target_up_1d"].astype(int),
-        )
-
-        base_p = np.clip(
-            baseline_calibrator.predict(
-                baseline_model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
-            ),
-            1e-5,
-            1 - 1e-5,
-        )
-        sec_p = np.clip(
-            sec_calibrator.predict(
-                sec_model.predict_proba(test[enhanced_columns])[:, 1]
-            ),
-            1e-5,
-            1 - 1e-5,
-        )
-        y = test["target_up_1d"].astype(int)
-        base = classification_metrics(y, base_p)
-        enhanced = classification_metrics(y, sec_p)
         rows.append(
             {
                 "fold": fold_index,
                 "n_test": int(len(test)),
                 "baseline_logloss": base["logloss"],
-                "sec_logloss": enhanced["logloss"],
-                "logloss_delta_improvement": base["logloss"] - enhanced["logloss"],
+                "sec_logloss": sec_result["logloss"],
+                "event_logloss": event_result["logloss"],
+                "sec_vs_baseline_logloss_delta_improvement": base["logloss"] - sec_result["logloss"],
+                "event_vs_sec_logloss_delta_improvement": sec_result["logloss"] - event_result["logloss"],
                 "baseline_brier": base["brier"],
-                "sec_brier": enhanced["brier"],
-                "brier_delta_improvement": base["brier"] - enhanced["brier"],
+                "sec_brier": sec_result["brier"],
+                "event_brier": event_result["brier"],
+                "sec_vs_baseline_brier_delta_improvement": base["brier"] - sec_result["brier"],
+                "event_vs_sec_brier_delta_improvement": sec_result["brier"] - event_result["brier"],
                 "baseline_ece": base["ece"],
-                "sec_ece": enhanced["ece"],
+                "sec_ece": sec_result["ece"],
+                "event_ece": event_result["ece"],
+                "sec_vs_baseline_ece_delta_improvement": base["ece"] - sec_result["ece"],
+                "event_vs_sec_ece_delta_improvement": sec_result["ece"] - event_result["ece"],
+                "baseline_accuracy": base["accuracy"],
+                "sec_accuracy": sec_result["accuracy"],
+                "event_accuracy": event_result["accuracy"],
             }
         )
 
@@ -233,22 +255,32 @@ def main() -> None:
         _deferred(f"valid_oos_folds_too_few:{len(rows)}")
         return
 
-    deltas = np.asarray(
-        [float(row["logloss_delta_improvement"]) for row in rows],
+    sec_logloss_delta = np.asarray(
+        [float(row["sec_vs_baseline_logloss_delta_improvement"]) for row in rows],
         dtype=float,
     )
-    brier_deltas = np.asarray(
-        [float(row["brier_delta_improvement"]) for row in rows],
+    event_logloss_delta = np.asarray(
+        [float(row["event_vs_sec_logloss_delta_improvement"]) for row in rows],
         dtype=float,
     )
-    mean_delta = float(np.mean(deltas))
-    positive_folds = int(np.sum(deltas > 0.0))
-    # Keep promotion deliberately conservative. This ablation is only a
-    # candidate; production code is unchanged unless a future release gate
-    # explicitly validates the feature on a fresh frozen holdout.
+    sec_brier_delta = np.asarray(
+        [float(row["sec_vs_baseline_brier_delta_improvement"]) for row in rows],
+        dtype=float,
+    )
+    event_brier_delta = np.asarray(
+        [float(row["event_vs_sec_brier_delta_improvement"]) for row in rows],
+        dtype=float,
+    )
+    event_ece_delta = np.asarray(
+        [float(row["event_vs_sec_ece_delta_improvement"]) for row in rows],
+        dtype=float,
+    )
+
+    mean_event_delta = float(np.mean(event_logloss_delta))
+    positive_event_folds = int(np.sum(event_logloss_delta > 0.0))
     recommended = bool(
-        mean_delta >= 0.002
-        and positive_folds >= max(3, int(np.ceil(len(rows) * 0.67)))
+        mean_event_delta >= 0.002
+        and positive_event_folds >= max(3, int(np.ceil(len(rows) * 0.67)))
     )
 
     payload = {
@@ -256,21 +288,39 @@ def main() -> None:
         "selected_model": selected,
         "folds": rows,
         "summary": {
-            "mean_logloss_delta_improvement": mean_delta,
-            "median_logloss_delta_improvement": float(np.median(deltas)),
-            "positive_folds": positive_folds,
-            "mean_brier_delta_improvement": float(np.mean(brier_deltas)),
-            "logloss_delta_std": (
-                float(np.std(deltas, ddof=1)) if len(deltas) >= 2 else 0.0
+            "sec_mean_logloss_delta_improvement": float(np.mean(sec_logloss_delta)),
+            "event_mean_logloss_delta_improvement_vs_sec": mean_event_delta,
+            "event_median_logloss_delta_improvement_vs_sec": float(np.median(event_logloss_delta)),
+            "event_positive_logloss_folds": positive_event_folds,
+            "sec_mean_brier_delta_improvement": float(np.mean(sec_brier_delta)),
+            "event_mean_brier_delta_improvement_vs_sec": float(np.mean(event_brier_delta)),
+            "event_mean_ece_delta_improvement_vs_sec": float(np.mean(event_ece_delta)),
+            "event_logloss_delta_std": (
+                float(np.std(event_logloss_delta, ddof=1))
+                if len(event_logloss_delta) >= 2
+                else 0.0
             ),
         },
         "feature_columns_added": list(SEC_FEATURE_COLUMNS),
+        "event_intelligence_feature_columns_added": list(
+            EVENT_INTELLIGENCE_FEATURE_COLUMNS
+        ),
+        "event_intelligence": {
+            "status": event_diag["status"],
+            "ledger_rows": event_diag["usable_rows"],
+            "ledger_symbols": event_diag["symbols"],
+            "pit_invalid_rows": event_diag["pit_invalid_rows"],
+            "deduplicated_rows": event_diag["deduplicated_rows"],
+            "families": event_diag["families"],
+            "availability_rule": "event.available_at <= price.available_at",
+            "unknown_available_at": "FAIL_CLOSED",
+        },
         "recommended_for_further_holdout": recommended,
         "research_only": True,
         "production_changed": False,
         "selection_note": (
-            "same selected model and chronological folds as current OOS; "
-            "SEC features admitted only at acceptance/available_at <= price available_at"
+            "nested chronological ablation: baseline -> SEC event counts -> "
+            "Opta-like structured event signature; frozen holdout remains excluded from tuning"
         ),
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
