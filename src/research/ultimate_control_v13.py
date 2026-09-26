@@ -1028,10 +1028,7 @@ def evaluate_v13(
 
     strategy_summary = {}
     for s, rows in metrics_by_strategy.items():
-        locked_rows = [
-            row for row, fold in zip(rows, ordered) if len(locked) and fold is ordered[fold_results.index(next(fr for fr in fold_results if fr["fold"] == ordered.index(fold)))]
-        ]
-        # Avoid fragile identity logic: fold number alignment is deterministic.
+        # Fold order is chronological, so the locked suffix is the deterministic locked sample.
         locked_rows = rows[-locked_folds:]
         strategy_summary[s] = {
             "accuracy": mean_metric(locked_rows, "accuracy"),
