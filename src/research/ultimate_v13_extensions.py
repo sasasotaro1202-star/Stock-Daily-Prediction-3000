@@ -167,6 +167,47 @@ def _active_information_contract(bank: Mapping[int, Mapping[str, Any]]) -> dict[
     }
 
 
+def _attribute_failure(
+    *,
+    prediction: float,
+    outcome: int,
+    predictability: float,
+    ood: float,
+    failure_risk: float,
+    disagreement: float,
+) -> str:
+    """Post-outcome attribution only; never used to form the same-fold prediction."""
+    wrong = (prediction >= 0.5) != bool(outcome)
+    if not wrong:
+        return "correct"
+    if prediction >= 0.75 or prediction <= 0.25:
+        return "high_confidence_wrong"
+    if np.isfinite(ood) and ood >= 0.85:
+        return "ood_extrapolation"
+    if np.isfinite(failure_risk) and failure_risk >= 0.82:
+        return "future_failure_warning"
+    if np.isfinite(predictability) and predictability < 0.25:
+        return "low_predictability"
+    if np.isfinite(disagreement) and disagreement >= 0.06:
+        return "high_model_disagreement"
+    return "other_prediction_error"
+
+
+def _prior_failure_rate(
+    failures: list[Mapping[str, Any]],
+    *,
+    regime: str,
+    strategy: str,
+) -> float:
+    matched = [
+        row for row in failures
+        if row.get("regime") == regime and row.get("strategy") == strategy
+    ]
+    if not matched:
+        return float("nan")
+    return float(np.mean([float(row.get("failed", 0)) for row in matched]))
+
+
 def augment_v13_result(
     bank: Mapping[int, Mapping[str, Any]],
     result: dict[str, Any],
@@ -181,6 +222,8 @@ def augment_v13_result(
     scenario_rows = []
     contracts = []
     ledger_rows = []
+    failure_memory_rows: list[dict[str, Any]] = []
+    error_attribution_counts: dict[str, int] = {}
 
     for t, fold in enumerate(ordered):
         y = np.asarray(fold.get("y", []), dtype=int)
@@ -220,13 +263,54 @@ def augment_v13_result(
         })
 
         symbols = np.asarray(fold.get("symbols", [""] * len(y))).astype(str)
-        meta_scores = np.asarray(fold_result.get("meta_label", {}).get("scores", [float("nan")] * len(y)), dtype=float)
+        regimes = np.asarray(
+            fold.get("regimes", fold.get("situations", ["unknown"] * len(y)))
+        ).astype(str)
+        meta_scores = np.asarray(
+            fold_result.get("meta_label", {}).get("scores", [float("nan")] * len(y)),
+            dtype=float,
+        )
         actions = fold_result.get("chosen_action_counts", {})
         strategies = fold_result.get("chosen_strategy_counts", {})
         weight_means = fold_result.get("routing", {}).get("weight_means", {})
-        chosen_strategy = np.asarray(fold_result.get("chosen_strategy", ["unknown"] * len(y)), dtype=object)
-        chosen_action = np.asarray(fold_result.get("chosen_action", ["unknown"] * len(y)), dtype=object)
+        chosen_strategy = np.asarray(
+            fold_result.get("chosen_strategy", ["unknown"] * len(y)), dtype=object
+        )
+        chosen_action = np.asarray(
+            fold_result.get("chosen_action", ["unknown"] * len(y)), dtype=object
+        )
+        fold_predictability = float(
+            fold_result.get("predictability_mean", float("nan"))
+        )
+        fold_ood = float(fold_result.get("ood_mean", float("nan")))
+        fold_failure_risk = float(
+            fold_result.get("max_failure_risk", float("nan"))
+        )
+        fold_disagreement = float(
+            fold_result.get("disagreement", {}).get("probability_std_mean", float("nan"))
+        )
         for i, symbol in enumerate(symbols):
+            strategy_i = (
+                str(chosen_strategy[i]) if i < len(chosen_strategy) else "unknown"
+            )
+            action_i = str(chosen_action[i]) if i < len(chosen_action) else "unknown"
+            failure_type = _attribute_failure(
+                prediction=float(tta_p[i]),
+                outcome=int(y[i]),
+                predictability=fold_predictability,
+                ood=fold_ood,
+                failure_risk=fold_failure_risk,
+                disagreement=fold_disagreement,
+            )
+            failed = int(failure_type != "correct")
+            error_attribution_counts[failure_type] = (
+                error_attribution_counts.get(failure_type, 0) + 1
+            )
+            prior_failure_rate = _prior_failure_rate(
+                failure_memory_rows,
+                regime=str(regimes[i]),
+                strategy=strategy_i,
+            )
             ledger_rows.append({
                 "fold": int(t),
                 "row": int(i),
@@ -235,16 +319,35 @@ def augment_v13_result(
                 "prediction_time": None,
                 "prediction": float(tta_p[i]),
                 "dynamic_prediction": float(dynamic[i]),
-                "strategy": str(chosen_strategy[i]) if i < len(chosen_strategy) else "unknown",
-                "action": str(chosen_action[i]) if i < len(chosen_action) else "unknown",
+                "strategy": strategy_i,
+                "action": action_i,
                 "model_weights": {str(k): float(v) for k, v in weight_means.items()},
-                "predictability": float(fold_result.get("predictability_mean", float("nan"))),
-                "ood": float(fold_result.get("ood_mean", float("nan"))),
-                "failure_risk": float(fold_result.get("max_failure_risk", float("nan"))),
-                "meta_label_probability": float(meta_scores[i]) if i < len(meta_scores) else float("nan"),
+                "predictability": fold_predictability,
+                "ood": fold_ood,
+                "failure_risk": fold_failure_risk,
+                "meta_label_probability": (
+                    float(meta_scores[i]) if i < len(meta_scores) else float("nan")
+                ),
                 "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
-                "result": None,
-                "failure_type": None,
+                "result": int(y[i]),
+                "failed": failed,
+                "failure_type": failure_type,
+                "prior_similar_failure_rate": prior_failure_rate,
+            })
+            failure_memory_rows.append({
+                "fold": int(t),
+                "row": int(i),
+                "symbol": str(symbol),
+                "regime": str(regimes[i]),
+                "strategy": strategy_i,
+                "action": action_i,
+                "prediction": float(tta_p[i]),
+                "predictability": fold_predictability,
+                "ood": fold_ood,
+                "failure_risk": fold_failure_risk,
+                "disagreement": fold_disagreement,
+                "failed": failed,
+                "failure_type": failure_type,
             })
         contracts.append({
             "fold": int(t),
@@ -317,6 +420,30 @@ def augment_v13_result(
         "exact_timestamp_lineage": False,
         "production_changed": False,
     }
+    locked_memory = [
+        row for row in failure_memory_rows
+        if int(row["fold"]) >= len(ordered) - locked_folds
+    ]
+    result["error_attribution"] = {
+        "status": "EXECUTED_POST_OUTCOME_ATTRIBUTION",
+        "counts_all_folds": error_attribution_counts,
+        "locked_failure_rate": (
+            float(np.mean([r["failed"] for r in locked_memory]))
+            if locked_memory else float("nan")
+        ),
+    }
+    result["failure_memory"] = {
+        "status": "EXECUTED_CAUSAL_POST_OUTCOME_MEMORY",
+        "rows": failure_memory_rows,
+        "total_rows": len(failure_memory_rows),
+        "total_failures": int(sum(r["failed"] for r in failure_memory_rows)),
+        "locked_failures": int(sum(r["failed"] for r in locked_memory)),
+        "future_use_contract": (
+            "Only rows from folds strictly before the current fold may be "
+            "used for subsequent prediction-time adaptation."
+        ),
+    }
+
     result["prediction_ledger"] = {
         "status": "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK",
         "scope": "v13_control_plane_summary",
