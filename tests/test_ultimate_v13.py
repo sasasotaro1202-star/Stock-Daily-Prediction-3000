@@ -5,6 +5,7 @@ from src.research.v13_governance import (
     safety_governance,
     validate_experiment_registry,
 )
+from src.research.ultimate_v13_extensions import _active_information_contract
 
 
 def test_experiment_record_is_deterministically_hashed():
@@ -184,6 +185,54 @@ def test_v13_prior_only_tta_scenario_contract_and_ledger(tmp_path):
         "active_information.json",
     ):
         assert (tmp_path / name).exists()
+
+
+def test_active_information_requires_explicit_causal_timestamps():
+    missing_timestamps = {
+        0: {
+            "information_candidates": [{
+                "name": "missing",
+                "pit_safe": True,
+                "expected_logloss_reduction": 0.10,
+                "cost": 0.01,
+                "failure_risk": 0.01,
+            }]
+        }
+    }
+    assert _active_information_contract(missing_timestamps)["status"] == "BLOCKED_NO_PIT_SAFE_CANDIDATES"
+
+    future_available = {
+        0: {
+            "information_candidates": [{
+                "name": "future",
+                "pit_safe": True,
+                "available_at": "2026-01-02T09:10:00+09:00",
+                "prediction_time": "2026-01-02T09:05:00+09:00",
+                "expected_logloss_reduction": 0.10,
+                "cost": 0.01,
+                "failure_risk": 0.01,
+            }]
+        }
+    }
+    assert _active_information_contract(future_available)["status"] == "BLOCKED_NO_PIT_SAFE_CANDIDATES"
+
+    valid = {
+        0: {
+            "information_candidates": [{
+                "name": "valid",
+                "pit_safe": True,
+                "available_at": "2026-01-02T09:00:00+09:00",
+                "prediction_time": "2026-01-02T09:05:00+09:00",
+                "expected_logloss_reduction": 0.10,
+                "cost": 0.01,
+                "failure_risk": 0.01,
+            }]
+        }
+    }
+    out = _active_information_contract(valid)
+    assert out["status"] == "EXECUTED_PIT_SAFE_METADATA_CONTRACT"
+    assert out["accepted"][0]["available_at"] == "2026-01-02T09:00:00+09:00"
+    assert out["accepted"][0]["prediction_time"] == "2026-01-02T09:05:00+09:00"
 
 
 def test_v13_failure_memory_and_error_attribution_are_post_outcome_only(tmp_path):
