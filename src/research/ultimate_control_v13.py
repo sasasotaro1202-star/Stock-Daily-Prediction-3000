@@ -261,6 +261,32 @@ def _fit_failure_predictor(
     return float(np.clip(model.predict_proba(current)[:, 1][0], 0.0, 1.0))
 
 
+
+def _fit_meta_label_predictor(
+    x_hist: list[np.ndarray],
+    y_hist: list[np.ndarray],
+    x_current: np.ndarray,
+) -> np.ndarray:
+    """Predict individual prediction correctness using only prior-fold outcomes."""
+    current = np.asarray(x_current, dtype=float)
+    if current.ndim != 2:
+        raise ValueError("invalid meta-label current features")
+    if not y_hist:
+        return np.full(len(current), 0.5, dtype=float)
+    X = np.vstack([np.asarray(x, dtype=float) for x in x_hist if len(x)])
+    y = np.concatenate([np.asarray(v, dtype=int) for v in y_hist if len(v)])
+    if len(y) < 20 or len(np.unique(y)) < 2 or X.ndim != 2 or X.shape[1] != current.shape[1]:
+        return np.full(len(current), float(np.mean(y)) if len(y) else 0.5, dtype=float)
+    if not np.isfinite(X).all() or not np.isfinite(current).all():
+        return np.full(len(current), float(np.mean(y)), dtype=float)
+    model = Pipeline([
+        ("scale", StandardScaler()),
+        ("logistic", LogisticRegression(C=0.5, max_iter=2000, random_state=13013)),
+    ])
+    model.fit(X, y)
+    return np.clip(model.predict_proba(current)[:, 1], 0.0, 1.0)
+
+
 def _failure_label(cur_m: dict[str, float], nxt_m: dict[str, float]) -> int:
     return int(
         (nxt_m["accuracy"] < cur_m["accuracy"] - 0.03)
@@ -596,6 +622,8 @@ def evaluate_v13(
     per_model_ttf: dict[str, list[float]] = {m: [] for m in models}
     failure_labels_history: dict[str, list[int]] = {m: [] for m in models}
     failure_features_history: dict[str, list[np.ndarray]] = {m: [] for m in models}
+    meta_features_history: list[np.ndarray] = []
+    meta_labels_history: list[np.ndarray] = []
     previous_selected: dict[str, float] = {}
     revision_rows = []
 
@@ -747,6 +775,26 @@ def evaluate_v13(
         failure_aware_weights = _failure_aware_routing_weights(
             routing_weights, failure_risks, models
         )
+        failure_aware_ensemble = safe_probability(
+            np.sum(p_matrix * failure_aware_weights, axis=1)
+        )
+        meta_features = np.column_stack([
+            dynamic_ensemble,
+            state["std_probability"].to_numpy(dtype=float),
+            np.abs(dynamic_ensemble - 0.5),
+            predictability,
+            ood,
+            state["data_completeness"].to_numpy(dtype=float),
+            state["feature_reliability"].to_numpy(dtype=float),
+            np.full(len(y), max_failure, dtype=float),
+            retrieval_success,
+        ])
+        meta_score = _fit_meta_label_predictor(
+            meta_features_history,
+            meta_labels_history,
+            meta_features,
+        )
+        meta_active = (meta_score >= 0.60) & (ood < 0.85)
         future_failure_aware_ensemble = safe_probability(
             np.sum(p_matrix * failure_aware_weights, axis=1)
         )
@@ -830,9 +878,22 @@ def evaluate_v13(
         for i, sym in enumerate(symbols):
             previous_selected[sym] = float(output_p[i])
 
+        meta_metrics = metrics(y[meta_active], failure_aware_ensemble[meta_active]) if meta_active.any() else {
+            "accuracy": float("nan"), "logloss": float("nan"), "brier": float("nan"), "ece": float("nan")
+        }
+        meta_label_rows = {
+            "mean": float(np.mean(meta_score)),
+            "min": float(np.min(meta_score)) if len(meta_score) else float("nan"),
+            "max": float(np.max(meta_score)) if len(meta_score) else float("nan"),
+            "coverage": float(np.mean(meta_active)),
+            "active_metrics": meta_metrics,
+        }
+
         # Persist row-level state for history-only retrieval/failure modeling.
         history_states.append(state.copy())
         history_success.append(((baseline >= 0.5) == y).astype(int))
+        meta_features_history.append(meta_features.copy())
+        meta_labels_history.append(((dynamic_ensemble >= 0.5) == y).astype(int))
         if t > 0:
             prev_mode = str(pd.Series(ordered[t - 1]["frame"]["regime"]).mode().iloc[0])
             history_modes.append((prev_mode, current_regime))
@@ -896,6 +957,7 @@ def evaluate_v13(
             "future_predictability_mean": float(np.mean(future_predictability)),
             "ood_mean": float(np.mean(ood)),
             "max_failure_risk": float(max_failure),
+            "meta_label": meta_label_rows,
             "failure_severity": _severity(max_failure),
             "model_failure": {
                 m: {
@@ -997,6 +1059,27 @@ def evaluate_v13(
         for x in locked
     ]
 
+    meta_locked = [x.get("meta_label", {}) for x in locked]
+    meta_summary = {
+        "coverage": mean_metric(meta_locked, "coverage"),
+        "active_accuracy": mean_metric(
+            [{"active_accuracy": r.get("active_metrics", {}).get("accuracy", float("nan"))} for r in meta_locked],
+            "active_accuracy",
+        ),
+        "active_logloss": mean_metric(
+            [{"active_logloss": r.get("active_metrics", {}).get("logloss", float("nan"))} for r in meta_locked],
+            "active_logloss",
+        ),
+        "active_brier": mean_metric(
+            [{"active_brier": r.get("active_metrics", {}).get("brier", float("nan"))} for r in meta_locked],
+            "active_brier",
+        ),
+        "active_ece": mean_metric(
+            [{"active_ece": r.get("active_metrics", {}).get("ece", float("nan"))} for r in meta_locked],
+            "active_ece",
+        ),
+    }
+
     # Provenance is intentionally strict: this bank does not carry full event/publication/
     # retrieval timestamps, so v13 does not upgrade PIT status on its own.
     pit_status = "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE"
@@ -1084,6 +1167,11 @@ def evaluate_v13(
             "delta_selected_minus_baseline": delta,
         },
         "strategy_summary_locked": strategy_summary,
+        "meta_label": {
+            "status": "EXECUTED_PRIOR_ONLY_INDIVIDUAL_PREDICTION_META_LABEL",
+            "threshold": 0.60,
+            "locked_summary": meta_summary,
+        },
         "statistical_validation": {
             "method": "moving_block_bootstrap_on_locked_fold_deltas",
             "delta_accuracy_ci95": block_bootstrap_ci(acc_deltas),
