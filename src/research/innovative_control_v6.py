@@ -553,10 +553,12 @@ def evaluate_v6(
         }
         for mi, name in enumerate(models):
             for metric in failure_metrics:
-                if t >= 2 and past_failure_frames[name][metric]:
+                matured_frames = past_failure_frames[name][metric][:-1] if t >= 2 else []
+                matured_labels = past_failure_labels[name][metric][:-1] if t >= 2 else []
+                if matured_frames:
                     fr = _fit_meta_model(
-                        past_failure_frames[name][metric],
-                        past_failure_labels[name][metric],
+                        matured_frames,
+                        matured_labels,
                         state,
                     )
                     if fr is not None:
@@ -573,10 +575,14 @@ def evaluate_v6(
             )
 
         # Retrieval uses only already matured state/outcome history.
+        matured_state_frames = past_state_frames[:-1] if t >= 2 else []
+        matured_predictability_labels = (
+            past_predictability_labels[:-1] if t >= 2 else []
+        )
         retrieval_failure, retrieval_success = _nearest_history(
             state,
-            past_state_frames,
-            [x for x in past_predictability_labels],
+            matured_state_frames,
+            [x for x in matured_predictability_labels],
             state,
             k=12,
         )
