@@ -108,12 +108,18 @@ def main() -> int:
         missing, out_dir=ROOT / "adversarial_missing_data"
     )
     _assert_base_contract(missing_result)
+    def _finite_or_unavailable(value) -> bool:
+        # JSON-safe artifacts encode NaN/unknown numeric signals as null.
+        # Under missing prediction-time data, null is the explicit fail-safe
+        # representation and must not be treated as a type error.
+        return value is None or np.isfinite(float(value))
+
     checks["missing_data_fail_safe"] = bool(
         missing_result["production_changed"] is False
         and missing_result["promotion_allowed"] is False
         and all(
-            np.isfinite(float(x["predictability_mean"]))
-            and np.isfinite(float(x["ood_mean"]))
+            _finite_or_unavailable(x["predictability_mean"])
+            and _finite_or_unavailable(x["ood_mean"])
             for x in missing_result["fold_results"]
         )
     )
