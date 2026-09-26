@@ -1,0 +1,45 @@
+name: BOJ time-series research
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "20 7 * * 1-5"
+      timezone: "Asia/Tokyo"
+  push:
+    paths:
+      - "config/boj_series.yml"
+      - "src/data/boj_api.py"
+      - "scripts/collect_boj_research.py"
+      - "tests/test_boj_api.py"
+      - ".github/workflows/boj-timeseries-research.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: boj-timeseries-research
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: BOJ parser unit tests
+        run: pytest -q tests/test_boj_api.py tests/test_external_sources.py
+      - name: Collect BOJ research data
+        run: python scripts/collect_boj_research.py
+      - name: Upload BOJ research artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: boj-timeseries-research-${{ github.run_id }}
+          path: |
+            data/research/boj_timeseries.parquet
+            data/research/boj_timeseries.json
+          retention-days: 14
