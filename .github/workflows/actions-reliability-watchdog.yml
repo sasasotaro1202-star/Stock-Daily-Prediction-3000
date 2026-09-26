@@ -1,5 +1,7 @@
 name: Actions reliability watchdog
 
+# Recovery trigger: rerun watchdog on latest HEAD after research timeout-policy alignment.
+
 on:
   workflow_dispatch:
   push:
