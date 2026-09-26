@@ -78,9 +78,11 @@ jobs:
           set -euo pipefail
           if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
             git fetch origin research-status
-            git checkout -B research-status origin/research-status
+            # Generated status files are already preserved above. Force the
+            # branch switch so those working-tree files cannot block checkout.
+            git checkout -B research-status origin/research-status --force
           else
-            git checkout -B research-status
+            git checkout -B research-status --force
           fi
           mkdir -p artifacts
           cp /tmp/research-validation-status/research_validation_status.json artifacts/research_validation_status.json
