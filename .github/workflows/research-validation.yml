@@ -86,7 +86,7 @@ jobs:
     runs-on: ubuntu-latest
     # OOS is CPU-heavy across chronological folds and challengers. Keep
     # verification/recovery safe while allowing a full research pass to finish.
-    timeout-minutes: 180
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
