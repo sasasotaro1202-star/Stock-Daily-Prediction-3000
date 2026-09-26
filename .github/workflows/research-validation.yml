@@ -13,9 +13,9 @@ permissions:
   contents: write
 
 concurrency:
-  # Isolate the newest recovery lane from the orphaned v2 execution, which
+  # Isolate the newest recovery lane from stale/orphaned executions, which
   # remained in progress without GitHub-side timestamp updates for hours.
-  group: research-validation-v3
+  group: research-validation-v4
   # Preserve an active chronological OOS run. A newer push queues behind it
   # instead of cancelling a long-running research execution mid-fold.
   cancel-in-progress: false
