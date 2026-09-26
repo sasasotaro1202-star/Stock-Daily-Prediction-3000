@@ -79,6 +79,14 @@ def build_ultimate_intelligence(
         locked_folds=2,
         min_folds=5,
     )
+    # A blocked control-plane result must remain blocked; extensions require
+    # a fully materialized chronological OOS result and must not reinterpret
+    # insufficient-fold inputs as executable evidence.
+    if result.get("status") != "OOS_COMPLETE":
+        result["research_only"] = True
+        result["production_changed"] = False
+        result["promotion_allowed"] = False
+        return result
     result = augment_v13_result(bank, result)
     result["research_only"] = True
     result["production_changed"] = False
