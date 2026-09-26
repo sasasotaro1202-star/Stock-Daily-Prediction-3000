@@ -957,7 +957,7 @@ def evaluate_v13(
             "future_predictability_mean": float(np.mean(future_predictability)),
             "ood_mean": float(np.mean(ood)),
             "max_failure_risk": float(max_failure),
-            "meta_label": meta_label_rows,
+            "meta_label": {**meta_label_rows, "scores": meta_score.astype(float).tolist()},
             "failure_severity": _severity(max_failure),
             "model_failure": {
                 m: {
