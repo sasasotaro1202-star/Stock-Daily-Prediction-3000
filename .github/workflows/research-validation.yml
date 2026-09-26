@@ -121,6 +121,8 @@ jobs:
         run: pytest -q tests/test_conformal_classification.py
       - name: Ultimate v13 unit tests
         run: pytest -q tests/test_ultimate_v13.py
+      - name: Ultimate v13 meta-leakage audit
+        run: python scripts/run_v13_meta_leakage_audit.py
 
 
       - name: Chronological OOS research
@@ -145,8 +147,12 @@ jobs:
               raise SystemExit("FAIL: v13 research_only invariant missing")
           summary = Path("data/research/ultimate_v13/ultimate_summary.json")
           manifest = Path("data/research/ultimate_v13/artifact_manifest.json")
-          if not summary.exists() or not manifest.exists():
+          meta_audit = Path("data/research/v13_meta_leakage_audit.json")
+          if not summary.exists() or not manifest.exists() or not meta_audit.exists():
               raise SystemExit("FAIL: v13 artifact files missing")
+          audit = json.loads(meta_audit.read_text(encoding="utf-8"))
+          if audit.get("status") != "PASS":
+              raise SystemExit("FAIL: v13 meta-leakage audit did not PASS")
           json.loads(summary.read_text(encoding="utf-8"))
           json.loads(manifest.read_text(encoding="utf-8"))
           print("ULTIMATE_V13_ARTIFACT=PASS")
@@ -177,6 +183,12 @@ jobs:
           print(f"- Dynamic LogLoss: {dyn.get('logloss', 'n/a')}")
           print(f"- Equal-weight LogLoss: {eq.get('logloss', 'n/a')}")
           print(f"- Dynamic LogLoss relative improvement: {r.get('relative_logloss_improvement', 'n/a')}")
+          print(f"- Dynamic Accuracy: {dyn.get('accuracy', 'n/a')}")
+          print(f"- Equal-weight Accuracy: {eq.get('accuracy', 'n/a')}")
+          print(f"- Dynamic Brier: {dyn.get('brier', 'n/a')}")
+          print(f"- Equal-weight Brier: {eq.get('brier', 'n/a')}")
+          print(f"- Dynamic ECE: {dyn.get('ece', 'n/a')}")
+          print(f"- Equal-weight ECE: {eq.get('ece', 'n/a')}")
           print(f"- Production changed: {v.get('production_changed')}")
           print(f"- Promotion allowed: {v.get('promotion_gate', {}).get('allowed')}")
           PY
