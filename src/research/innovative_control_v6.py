@@ -471,8 +471,18 @@ def evaluate_v6(
     results = {m: ModeResult([], [], []) for m in modes}
     past_state_frames: list[pd.DataFrame] = []
     past_predictability_labels: list[np.ndarray] = []
-    past_failure_frames: dict[str, list[pd.DataFrame]] = {name: [] for name in models}
-    past_failure_labels: dict[str, list[np.ndarray]] = {name: [] for name in models}
+    failure_metrics = ("accuracy", "logloss", "brier", "ece")
+    past_failure_frames: dict[str, dict[str, list[pd.DataFrame]]] = {
+        name: {metric: [] for metric in failure_metrics} for name in models
+    }
+    past_failure_labels: dict[str, dict[str, list[np.ndarray]]] = {
+        name: {metric: [] for metric in failure_metrics} for name in models
+    }
+    calibration_p_history: dict[str, list[np.ndarray]] = {mode: [] for mode in modes}
+    calibration_y_history: dict[str, list[np.ndarray]] = {mode: [] for mode in modes}
+    failure_component_history: dict[str, dict[str, list[float]]] = {
+        name: {metric: [] for metric in failure_metrics} for name in models
+    }
     past_perf: dict[str, list[dict[str, float]]] = {name: [] for name in models}
     previous_by_symbol: dict[str, dict[str, float]] = {}
     previous_velocity_by_symbol: dict[str, dict[str, float]] = {}
@@ -535,18 +545,32 @@ def evaluate_v6(
             )
 
         # Failure predictors are trained only from k -> k+1 pairs with k <= t-2.
+        # Each quality dimension has its own target; routing uses their mean risk.
         failure_risk = np.full((len(y), len(models)), 0.5, dtype=float)
-        failure_multi: dict[str, np.ndarray] = {}
+        failure_component_risk: dict[str, dict[str, np.ndarray]] = {
+            name: {metric: np.full(len(y), 0.5, dtype=float) for metric in failure_metrics}
+            for name in models
+        }
         for mi, name in enumerate(models):
-            if t >= 2 and past_failure_frames[name]:
-                fr = _fit_meta_model(
-                    past_failure_frames[name],
-                    past_failure_labels[name],
-                    state,
+            for metric in failure_metrics:
+                if t >= 2 and past_failure_frames[name][metric]:
+                    fr = _fit_meta_model(
+                        past_failure_frames[name][metric],
+                        past_failure_labels[name][metric],
+                        state,
+                    )
+                    if fr is not None:
+                        failure_component_risk[name][metric] = fr
+                failure_component_history[name][metric].append(
+                    float(np.mean(failure_component_risk[name][metric]))
                 )
-                if fr is not None:
-                    failure_risk[:, mi] = fr
-            failure_multi[name] = failure_risk[:, mi].copy()
+            failure_risk[:, mi] = np.mean(
+                np.column_stack([
+                    failure_component_risk[name][metric]
+                    for metric in failure_metrics
+                ]),
+                axis=1,
+            )
 
         # Retrieval uses only already matured state/outcome history.
         retrieval_failure, retrieval_success = _nearest_history(
@@ -618,18 +642,9 @@ def evaluate_v6(
                     target_rate = float(np.mean(prior_y))
                     p_raw = 0.85 * p_raw + 0.15 * target_rate
 
-            # Calibration is strictly historical. For locked folds, this path
-            # still never observes the locked outcome before producing the fold's prediction.
-            prior_p = []
-            prior_y = []
-            for past_i in range(t):
-                pb = ordered[past_i]
-                pp = np.column_stack(
-                    [np.asarray((pb.get("predictions") or {})[name], dtype=float) for name in models]
-                )
-                prior_p.append(np.sum(pp * _quality_weights(ordered[:past_i], models), axis=1))
-                prior_y.append(np.asarray(pb["y"], dtype=int))
-
+            # Calibration is strictly historical and mode-specific.
+            prior_p = calibration_p_history[mode]
+            prior_y = calibration_y_history[mode]
             if prior_p and sum(map(len, prior_y)) >= 100:
                 hp = np.concatenate(prior_p)
                 hy = np.concatenate(prior_y)
@@ -638,9 +653,16 @@ def evaluate_v6(
                     ("logistic", LogisticRegression(max_iter=1000, C=0.5, random_state=42)),
                 ])
                 cal_model.fit(np.log(safe_probability(hp)).reshape(-1, 1), hy)
-                p = np.asarray(cal_model.predict_proba(np.log(safe_probability(p_raw)).reshape(-1, 1))[:, 1], dtype=float)
+                p = np.asarray(
+                    cal_model.predict_proba(
+                        np.log(safe_probability(p_raw)).reshape(-1, 1)
+                    )[:, 1],
+                    dtype=float,
+                )
             else:
                 p = safe_probability(p_raw)
+            calibration_p_history[mode].append(np.asarray(p_raw, dtype=float))
+            calibration_y_history[mode].append(np.asarray(y, dtype=int))
 
             # Safety: severe shift / non-finite / extreme collapse => verified baseline.
             unsafe = (
@@ -701,14 +723,15 @@ def evaluate_v6(
                 nxt_acc = accuracy_score(nxt_y, nxt_p >= 0.5)
                 cur_ece = _ece(y, safe_probability(cur_p))
                 nxt_ece = _ece(nxt_y, safe_probability(nxt_p))
-                labels_failure = np.full(len(state), int(
-                    (nxt_loss - cur_loss > 0.02)
-                    or (nxt_brier - cur_brier > 0.008)
-                    or (cur_acc - nxt_acc > 0.03)
-                    or (nxt_ece - cur_ece > 0.02)
-                ), dtype=int)
-                past_failure_frames[name].append(state.copy())
-                past_failure_labels[name].append(labels_failure)
+                labels_by_metric = {
+                    "accuracy": np.full(len(state), int(cur_acc - nxt_acc > 0.03), dtype=int),
+                    "logloss": np.full(len(state), int(nxt_loss - cur_loss > 0.02), dtype=int),
+                    "brier": np.full(len(state), int(nxt_brier - cur_brier > 0.008), dtype=int),
+                    "ece": np.full(len(state), int(nxt_ece - cur_ece > 0.02), dtype=int),
+                }
+                for metric, label in labels_by_metric.items():
+                    past_failure_frames[name][metric].append(state.copy())
+                    past_failure_labels[name][metric].append(label)
 
             blended = np.sum(probs * np.tile(_quality_weights(ordered[:t], models), (len(y), 1)), axis=1)
             difficulty = (
