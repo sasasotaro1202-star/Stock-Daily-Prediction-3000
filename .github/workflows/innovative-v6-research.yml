@@ -1,0 +1,153 @@
+name: Maximum Future-Generalization Predictive Control v6
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - research/innovative-v6-20260926
+    paths:
+      - "src/research/innovative_control_v6.py"
+      - "scripts/run_daily_research.py"
+      - "scripts/meta_leakage_audit_v6.py"
+      - "scripts/promotion_gate_v6.py"
+      - "scripts/report_innovative_v6.py"
+      - "scripts/artifact_integrity_v6.py"
+      - "tests/test_innovative_control_v6.py"
+      - ".github/workflows/innovative-v6-research.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: innovative-v6-research-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - name: Compile Python
+        run: python -m compileall -q src scripts
+      - name: Validate automation invariants
+        run: python scripts/automation_invariants.py
+
+  tests:
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - name: V6 unit tests
+        env:
+          PYTHONHASHSEED: "0"
+        run: pytest -q tests/test_innovative_control_v6.py
+      - name: Conformal integration tests
+        env:
+          PYTHONHASHSEED: "0"
+        run: pytest -q tests/test_conformal_classification.py
+
+  research_oos:
+    needs: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - name: Restore official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_universe_state.py
+      - name: Refresh and validate universe
+        run: |
+          python scripts/refresh_universe.py
+          python scripts/universe_quality_gate.py
+      - name: Restore price state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRICE_SHARD_INDEX: "0"
+          PRICE_SHARD_COUNT: "1"
+          PRICE_MAX_WORKERS: "2"
+        run: python scripts/restore_latest_price_state.py
+      - name: Update prices
+        env:
+          PRICE_SHARD_INDEX: "0"
+          PRICE_SHARD_COUNT: "1"
+          PRICE_MAX_WORKERS: "2"
+        run: python scripts/update_prices.py
+      - name: Pre-OOS quality gates
+        run: |
+          python scripts/update_market_context.py
+          python scripts/automation_invariants.py
+          python scripts/catalog_integrity.py
+          python scripts/normalize_price_store.py
+          python scripts/universe_quality_gate.py
+          python scripts/data_quality_gate.py
+          python scripts/run_independent_leakage_audit.py
+          pytest -q tests/test_conformal_classification.py
+      - name: Run full chronological OOS with v6
+        env:
+          INNOVATIVE_V6_ENABLE: "1"
+          PYTHONHASHSEED: "0"
+        run: python scripts/run_daily_research.py
+      - name: Meta-leakage audit
+        run: python scripts/meta_leakage_audit_v6.py
+      - name: Artifact integrity
+        run: python scripts/artifact_integrity_v6.py
+      - name: Promotion gate
+        run: python scripts/promotion_gate_v6.py
+      - name: Generate report
+        run: python scripts/report_innovative_v6.py
+      - name: Upload E2E evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: innovative-v6-evidence-${{ github.run_id }}
+          path: |
+            data/research/latest_metrics.json
+            data/research/innovative_v6_oos_bank.parquet
+            data/research/leakage_audit.json
+            data/research/data_quality.json
+            data/research/universe_quality.json
+            artifacts/v6_meta_leakage_audit.json
+            artifacts/v6_artifact_integrity.json
+            artifacts/v6_promotion_gate.json
+            artifacts/v6_report.md
+          retention-days: 14
+
+  final_status:
+    needs: research_oos
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Report workflow state
+        run: |
+          echo "research_oos_result=${{ needs.research_oos.result }}"
+          if [ "${{ needs.research_oos.result }}" != "success" ]; then
+            echo "Maximum Future-Generalization v6 E2E: FAILED"
+            exit 1
+          fi
+          echo "Maximum Future-Generalization v6 E2E: VERIFIED"
