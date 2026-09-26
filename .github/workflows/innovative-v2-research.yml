@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: innovative-v2-research
+  group: innovative-v2-${{ github.sha }}
   cancel-in-progress: false
 
 jobs:
