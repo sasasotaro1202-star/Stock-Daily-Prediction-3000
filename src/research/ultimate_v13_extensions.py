@@ -180,6 +180,7 @@ def augment_v13_result(
     tta_rows = []
     scenario_rows = []
     contracts = []
+    ledger_rows = []
 
     for t, fold in enumerate(ordered):
         y = np.asarray(fold.get("y", []), dtype=int)
@@ -221,6 +222,28 @@ def augment_v13_result(
         symbols = np.asarray(fold.get("symbols", [""] * len(y))).astype(str)
         actions = fold_result.get("chosen_action_counts", {})
         strategies = fold_result.get("chosen_strategy_counts", {})
+        weight_means = fold_result.get("routing", {}).get("weight_means", {})
+        chosen_strategy = np.asarray(fold_result.get("_chosen_strategy", ["unknown"] * len(y)), dtype=object)
+        chosen_action = np.asarray(fold_result.get("_chosen_action", ["unknown"] * len(y)), dtype=object)
+        for i, symbol in enumerate(symbols):
+            ledger_rows.append({
+                "fold": int(t),
+                "row": int(i),
+                "is_locked": bool(t >= len(ordered) - locked_folds),
+                "symbol": str(symbol),
+                "prediction_time": None,
+                "prediction": float(tta_p[i]),
+                "dynamic_prediction": float(dynamic[i]),
+                "strategy": str(chosen_strategy[i]) if i < len(chosen_strategy) else "unknown",
+                "action": str(chosen_action[i]) if i < len(chosen_action) else "unknown",
+                "model_weights": {str(k): float(v) for k, v in weight_means.items()},
+                "predictability": float(fold_result.get("predictability_mean", float("nan"))),
+                "ood": float(fold_result.get("ood_mean", float("nan"))),
+                "failure_risk": float(fold_result.get("max_failure_risk", float("nan"))),
+                "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
+                "result": None,
+                "failure_type": None,
+            })
         contracts.append({
             "fold": int(t),
             "prediction_time": None,
@@ -293,11 +316,12 @@ def augment_v13_result(
         "production_changed": False,
     }
     result["prediction_ledger"] = {
-        "status": "EXECUTED_FOLD_AND_ROW_COUNT_LEDGER",
+        "status": "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK",
         "scope": "v13_control_plane_summary",
         "total_predictions": total_predictions,
         "action_counts": ledger_actions,
         "strategy_counts": ledger_strategies,
+        "row_level": ledger_rows,
         "selected_policy_metrics_snapshot": selected,
         "baseline_ensemble_metrics_snapshot": baseline,
         "production_changed": False,
