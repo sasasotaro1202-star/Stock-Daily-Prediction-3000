@@ -79,3 +79,30 @@ def test_boj_context_rejects_non_boj_source():
             ),
             boj,
         )
+
+
+def test_boj_change_uses_observation_order():
+    rows = []
+    for ts, obs_date, level in [
+        ("2026-09-28T06:00:00Z", "2026-09-25", 0.70),
+        ("2026-09-29T06:00:00Z", "2026-09-28", 0.72),
+    ]:
+        for code, value in [
+            ("STRDCLUCON", level),
+            ("STRDCLUCONH", level + 0.01),
+            ("STRDCLUCONL", level - 0.01),
+        ]:
+            rows.append([ts, obs_date, code, value, "boj_timeseries"])
+    boj = pd.DataFrame(rows, columns=[
+        "available_at","observation_date","series_code","value","source"
+    ])
+    boj["available_at"] = pd.to_datetime(boj["available_at"], utc=True)
+    boj["observation_date"] = pd.to_datetime(boj["observation_date"]).dt.date
+    out = add_boj_context(
+        pd.DataFrame({
+            "available_at": pd.to_datetime(["2026-09-29T07:00:00Z"])
+        }),
+        boj,
+        min_history=1,
+    )
+    assert out.loc[0, "boj_call_rate_change"] == pytest.approx(0.02)

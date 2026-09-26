@@ -75,9 +75,8 @@ def add_boj_context(
     series["boj_call_rate_level"] = piv["STRDCLUCON"]
     series["boj_call_rate_high"] = piv["STRDCLUCONH"]
     series["boj_call_rate_low"] = piv["STRDCLUCONL"]
-    series["boj_call_rate_change"] = (
-        series["boj_call_rate_level"].groupby(level=0).diff()
-    )
+    series = series.sort_values("observation_date")
+    series["boj_call_rate_change"] = series["boj_call_rate_level"].diff()
     series["boj_call_rate_range"] = (
         series["boj_call_rate_high"] - series["boj_call_rate_low"]
     )
