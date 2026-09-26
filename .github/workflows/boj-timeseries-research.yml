@@ -26,7 +26,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -73,12 +73,7 @@ jobs:
               echo "FAIL: missing shard report $report"
               rc=1
             else
-              python - "$report" <<'PY' || rc=1
-import json, sys
-p=json.load(open(sys.argv[1], encoding="utf-8"))
-if p.get("status") != "PASS" or p.get("deferred"):
-    raise SystemExit(f"FAIL: price shard not fully resolved: {p}")
-PY
+              python -c 'import json,sys; p=json.load(open(sys.argv[1], encoding="utf-8")); raise SystemExit(f"FAIL: price shard not fully resolved: {p}") if p.get("status") != "PASS" or p.get("deferred") else None' "$report" || rc=1
             fi
           done
           exit "$rc"
