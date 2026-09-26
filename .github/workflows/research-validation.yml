@@ -170,15 +170,15 @@ jobs:
           dyn = r.get("dynamic") or {}
           eq = r.get("equal_weight") or {}
           print("## Ultimate v13 research layer")
-          print(f"- Status: ${{v.get('status')}}")
-          print(f"- Folds: ${{v.get('folds')}}")
-          print(f"- Models: ${{len(v.get('models') or [])}}")
-          print(f"- Predictability proxy mean: ${{(v.get('predictability') or {}).get('mean', 'n/a')}}")
-          print(f"- Dynamic LogLoss: ${{dyn.get('logloss', 'n/a')}}")
-          print(f"- Equal-weight LogLoss: ${{eq.get('logloss', 'n/a')}}")
-          print(f"- Dynamic LogLoss relative improvement: ${{r.get('relative_logloss_improvement', 'n/a')}}")
-          print(f"- Production changed: ${{v.get('production_changed')}}")
-          print(f"- Promotion allowed: ${{v.get('promotion_gate', {}).get('allowed')}}")
+          print(f"- Status: {v.get('status')}")
+          print(f"- Folds: {v.get('folds')}")
+          print(f"- Models: {len(v.get('models') or [])}")
+          print(f"- Predictability proxy mean: {(v.get('predictability') or {}).get('mean', 'n/a')}")
+          print(f"- Dynamic LogLoss: {dyn.get('logloss', 'n/a')}")
+          print(f"- Equal-weight LogLoss: {eq.get('logloss', 'n/a')}")
+          print(f"- Dynamic LogLoss relative improvement: {r.get('relative_logloss_improvement', 'n/a')}")
+          print(f"- Production changed: {v.get('production_changed')}")
+          print(f"- Promotion allowed: {v.get('promotion_gate', {}).get('allowed')}")
           PY
 
       - name: Publish compact OOS score summary
