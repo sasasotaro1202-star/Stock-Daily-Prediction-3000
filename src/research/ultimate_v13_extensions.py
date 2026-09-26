@@ -220,6 +220,7 @@ def augment_v13_result(
         })
 
         symbols = np.asarray(fold.get("symbols", [""] * len(y))).astype(str)
+        meta_scores = np.asarray(fold_result.get("meta_label", {}).get("scores", [float("nan")] * len(y)), dtype=float)
         actions = fold_result.get("chosen_action_counts", {})
         strategies = fold_result.get("chosen_strategy_counts", {})
         weight_means = fold_result.get("routing", {}).get("weight_means", {})
@@ -240,6 +241,7 @@ def augment_v13_result(
                 "predictability": float(fold_result.get("predictability_mean", float("nan"))),
                 "ood": float(fold_result.get("ood_mean", float("nan"))),
                 "failure_risk": float(fold_result.get("max_failure_risk", float("nan"))),
+                "meta_label_probability": float(meta_scores[i]) if i < len(meta_scores) else float("nan"),
                 "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
                 "result": None,
                 "failure_type": None,
