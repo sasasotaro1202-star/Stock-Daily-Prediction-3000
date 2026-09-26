@@ -332,11 +332,12 @@ def _nearest_history(
         return np.full(len(current), 0.5), np.full(len(current), 0.5)
     cols = [c for c in STATE_COLUMNS if c in state.columns]
     hist = pd.concat(history_states, ignore_index=True)[cols].to_numpy(dtype=float)
+    hist_y = np.concatenate([np.asarray(x).reshape(-1) for x in history_labels]).astype(float)
     # Deterministic cap prevents quadratic explosion on large universes.
     if len(hist) > 5000:
         idx = np.linspace(0, len(hist) - 1, 5000, dtype=int)
         hist = hist[idx]
-        history_labels = [np.asarray(x).reshape(-1)[idx] for x in history_labels]
+        hist_y = hist_y[idx]
     cur = current[cols].to_numpy(dtype=float)
     # Robust scaling based on prior history only.
     med = np.nanmedian(hist, axis=0)
@@ -344,7 +345,6 @@ def _nearest_history(
     scale[~np.isfinite(scale) | (scale < 1e-6)] = 1.0
     hist_z = (np.nan_to_num(hist, nan=0.0) - med) / scale
     cur_z = (np.nan_to_num(cur, nan=0.0) - med) / scale
-    hist_y = np.concatenate(history_labels).astype(float)
     failure_score = np.zeros(len(cur), dtype=float)
     success_score = np.zeros(len(cur), dtype=float)
     failure_mass = np.zeros(len(cur), dtype=float)
@@ -809,7 +809,15 @@ def evaluate_v6(
             "delta_accuracy_ci95": block_bootstrap_ci(acc_delta_folds),
             "delta_logloss_ci95": block_bootstrap_ci(ll_delta_folds),
             "delta_brier_ci95": block_bootstrap_ci(br_delta_folds),
-            "delta_ece_ci95": (None, None),
+            "delta_ece_ci95": (
+                block_bootstrap_ci([
+                    float(a["ece"] - b["ece"])
+                    for a, b in zip(
+                        summary["P_full_v6"]["fold_metrics"][-locked_folds:],
+                        summary["A"]["fold_metrics"][-locked_folds:],
+                    )
+                ])
+            ),
             "method": "moving_block_bootstrap",
             "block_length": 3,
             "draws": 1000,
