@@ -305,7 +305,8 @@ if __name__=="__main__":
         encoding="utf-8",
     )
 
+    final_status="PASS" if not unresolved else "DEGRADED"
     print(
-        f"price-update: PASS shard={SHARD_INDEX}/{SHARD_COUNT} "
+        f"price-update: {final_status} shard={SHARD_INDEX}/{SHARD_COUNT} "
         f"completed={completed}/{len(selected)} deferred={deferred}"
     )
