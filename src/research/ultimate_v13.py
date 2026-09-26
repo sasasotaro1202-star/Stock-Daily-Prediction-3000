@@ -28,7 +28,10 @@ def _json_safe(value: Any) -> Any:
 def _to_frame(fold: Mapping[str, Any]) -> tuple[pd.DataFrame, np.ndarray]:
     y = np.asarray(fold.get("y", []), dtype=int)
     dates = np.asarray(fold.get("session_dates", [""] * len(y)), dtype=str)
-    situations = np.asarray(fold.get("situations", ["unknown"] * len(y)), dtype=str)
+    situations = np.asarray(
+        fold.get("regimes", fold.get("situations", ["unknown"] * len(y))),
+        dtype=str,
+    )
     symbols = np.asarray(fold.get("symbols", [""] * len(y)), dtype=str)
     assets = np.asarray(fold.get("asset_classes", ["unknown"] * len(y)), dtype=str)
     risk = np.asarray(
