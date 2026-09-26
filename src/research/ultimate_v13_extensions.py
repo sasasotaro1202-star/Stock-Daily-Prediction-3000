@@ -365,6 +365,10 @@ def augment_v13_result(
         fold_disagreement = float(
             fold_result.get("disagreement", {}).get("probability_std_mean", float("nan"))
         )
+        # Freeze prior-state views at fold start. Current-fold outcomes must never
+        # enter retrieval or strategy-failure estimates for another row in this fold.
+        prior_failure_memory = list(failure_memory_rows)
+        prior_ledger_rows = list(ledger_rows)
         for i, symbol in enumerate(symbols):
             strategy_i = (
                 str(chosen_strategy[i]) if i < len(chosen_strategy) else "unknown"
@@ -383,17 +387,17 @@ def augment_v13_result(
                 error_attribution_counts.get(failure_type, 0) + 1
             )
             prior_failure_rate = _prior_failure_rate(
-                failure_memory_rows,
+                prior_failure_memory,
                 regime=str(regimes[i]),
                 strategy=strategy_i,
             )
             smoothed_strategy_failure_rate = _strategy_failure_rate(
-                failure_memory_rows,
+                prior_failure_memory,
                 regime=str(regimes[i]),
                 strategy=strategy_i,
             )
             retrieval = _historical_prediction_retrieval(
-                ledger_rows,
+                prior_ledger_rows,
                 regime=str(regimes[i]),
                 prediction=float(tta_p[i]),
                 predictability=fold_predictability,

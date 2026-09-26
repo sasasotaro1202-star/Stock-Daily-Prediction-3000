@@ -218,3 +218,37 @@ def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
     assert all("historical_retrieval" in row for row in result["prediction_ledger"]["row_level"])
     assert (tmp_path / "prediction_history.json").exists()
     assert (tmp_path / "strategy_failure.json").exists()
+
+    same_fold = _bank()
+    same_fold_changed = _bank()
+    same_fold_changed[4]["y"][0] = 1 - same_fold_changed[4]["y"][0]
+    base_h = build_ultimate_intelligence(same_fold, out_dir=tmp_path / "same_a")
+    changed_h = build_ultimate_intelligence(same_fold_changed, out_dir=tmp_path / "same_b")
+    base_hist = [
+        r for r in base_h["prediction_history"]["rows"] if r["fold"] == 4 and r["row"] > 0
+    ]
+    changed_hist = [
+        r for r in changed_h["prediction_history"]["rows"] if r["fold"] == 4 and r["row"] > 0
+    ]
+    assert base_hist == changed_hist
+    base_strat = [
+        r for r in base_h["strategy_failure"]["rows"] if r["fold"] == 4 and r["row"] > 0
+    ]
+    changed_strat = [
+        r for r in changed_h["strategy_failure"]["rows"] if r["fold"] == 4 and r["row"] > 0
+    ]
+    for a, b in zip(base_strat, changed_strat):
+        assert a["fold"] == b["fold"]
+        assert a["row"] == b["row"]
+        assert a["regime"] == b["regime"]
+        assert a["strategy"] == b["strategy"]
+        assert np.isclose(
+            float(a["prior_failure_rate_raw"]),
+            float(b["prior_failure_rate_raw"]),
+            equal_nan=True,
+        )
+        assert np.isclose(
+            float(a["prior_failure_rate_smoothed"]),
+            float(b["prior_failure_rate_smoothed"]),
+            equal_nan=True,
+        )
