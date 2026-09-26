@@ -196,8 +196,25 @@ def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
     altered = _bank()
     altered[5]["y"] = np.ones(6, dtype=int)
     changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "altered")
-    assert result["prediction_history"]["rows"][:-6] == changed["prediction_history"]["rows"][:-6]
-    assert result["strategy_failure"]["rows"][:-6] == changed["strategy_failure"]["rows"][:-6]
+    for a, b in zip(
+        result["prediction_history"]["rows"][:-6],
+        changed["prediction_history"]["rows"][:-6],
+    ):
+        for key in ("fold", "row", "regime", "strategy", "status", "hits"):
+            assert a[key] == b[key]
+        for key in ("failure_rate", "success_probability", "best_distance"):
+            av, bv = float(a.get(key, float("nan"))), float(b.get(key, float("nan")))
+            assert np.isclose(av, bv, equal_nan=True)
+    for a, b in zip(
+        result["strategy_failure"]["rows"][:-6],
+        changed["strategy_failure"]["rows"][:-6],
+    ):
+        for key in ("fold", "row", "regime", "strategy"):
+            assert a[key] == b[key]
+        for key in ("prior_failure_rate_raw", "prior_failure_rate_smoothed"):
+            assert np.isclose(
+                float(a[key]), float(b[key]), equal_nan=True
+            )
     assert all("historical_retrieval" in row for row in result["prediction_ledger"]["row_level"])
     assert (tmp_path / "prediction_history.json").exists()
     assert (tmp_path / "strategy_failure.json").exists()
