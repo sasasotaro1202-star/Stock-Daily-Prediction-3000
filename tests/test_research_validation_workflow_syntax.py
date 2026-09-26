@@ -52,7 +52,7 @@ def _extract_python_heredocs(text: str) -> list[str]:
             i += 1
         if i >= len(lines):
             raise AssertionError("unterminated Python heredoc in workflow")
-        blocks.append("\n".join(block) + "\n")
+        blocks.append(textwrap.dedent("\n".join(block)) + "\n")
         i += 1
     return blocks
 
