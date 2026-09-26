@@ -138,10 +138,12 @@ def _state_from_probabilities(
         if ref.ndim != 2 or ref.shape[1] != risk.shape[1]:
             drift = np.zeros(len(p), dtype=float)
         else:
-            ref_med = np.nanmedian(ref, axis=0)
-            ref_sd = np.nanstd(ref, axis=0)
-            ref_valid = np.isfinite(ref_med)
-            ref_med = np.where(ref_valid, ref_med, 0.0)
+            ref_valid = np.isfinite(ref).any(axis=0)
+            ref_med = np.zeros(ref.shape[1], dtype=float)
+            ref_sd = np.ones(ref.shape[1], dtype=float)
+            if ref_valid.any():
+                ref_med[ref_valid] = np.nanmedian(ref[:, ref_valid], axis=0)
+                ref_sd[ref_valid] = np.nanstd(ref[:, ref_valid], axis=0)
             ref_sd[~np.isfinite(ref_sd) | (ref_sd < 1e-6)] = 1.0
             # Avoid RuntimeWarning on all-NaN current/history columns. A risk
             # dimension contributes to drift only when both the historical
