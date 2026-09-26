@@ -256,6 +256,22 @@ def _apply_platt(model, p: np.ndarray) -> np.ndarray:
     return _safe_clip_probability(model.predict_proba(x)[:, 1])
 
 
+def _ece(y: np.ndarray, p: np.ndarray, bins: int = 10) -> float:
+    y = np.asarray(y, dtype=int)
+    p = _safe_clip_probability(p)
+    edges = np.linspace(0.0, 1.0, bins + 1)
+    total = float(len(y))
+    value = 0.0
+    for left, right in zip(edges[:-1], edges[1:]):
+        mask = (p >= left) & (p < right if right < 1.0 else p <= right)
+        if not mask.any():
+            continue
+        confidence = float(np.mean(p[mask]))
+        accuracy = float(np.mean(y[mask]))
+        value += float(mask.mean()) * abs(accuracy - confidence)
+    return float(value)
+
+
 def selective_metrics(
     y: np.ndarray,
     p: np.ndarray,
@@ -276,6 +292,7 @@ def selective_metrics(
             "accuracy": float(accuracy_score(ys, ps >= 0.5)),
             "logloss": float(log_loss(ys, ps, labels=[0, 1])),
             "brier": float(brier_score_loss(ys, ps)),
+            "ece": float(_ece(ys, ps)),
         }
     k_hi = max(1, int(np.ceil(len(y) * 0.30)))
     hi_idx = order[:k_hi]
@@ -294,6 +311,7 @@ def _metrics(
         "accuracy": float(accuracy_score(y, p >= 0.5)),
         "logloss": float(log_loss(y, p, labels=[0, 1])),
         "brier": float(brier_score_loss(y, p)),
+        "ece": float(_ece(y, p)),
     }
 
 
@@ -560,7 +578,7 @@ def evaluate_innovative_v2(
         summary[mode] = {
             "metrics": {
                 key: float(frame[key].mean())
-                for key in ("accuracy", "logloss", "brier")
+                for key in ("accuracy", "logloss", "brier", "ece")
             },
             "fold_metrics": result.fold_metrics,
             "coverage": {
@@ -581,12 +599,12 @@ def evaluate_innovative_v2(
         locked_frame = pd.DataFrame(result.fold_metrics).iloc[locked_start:]
         summary[mode]["locked_metrics"] = {
             key: float(locked_frame[key].mean())
-            for key in ("accuracy", "logloss", "brier")
+            for key in ("accuracy", "logloss", "brier", "ece")
         }
         summary[mode]["development_metrics"] = (
             {
                 key: float(pd.DataFrame(result.fold_metrics).iloc[:locked_start][key].mean())
-                for key in ("accuracy", "logloss", "brier")
+                for key in ("accuracy", "logloss", "brier", "ece")
             }
             if locked_start > 0
             else {}
@@ -609,6 +627,7 @@ def evaluate_innovative_v2(
             "accuracy": float(locked_full["accuracy"] - locked_baseline["accuracy"]),
             "logloss": float(locked_full["logloss"] - locked_baseline["logloss"]),
             "brier": float(locked_full["brier"] - locked_baseline["brier"]),
+            "ece": float(locked_full["ece"] - locked_baseline["ece"]),
         }
 
     if baseline and full:
@@ -624,10 +643,15 @@ def evaluate_innovative_v2(
             float(j["brier"] - a["brier"])
             for a, j in zip(summary["A"]["fold_metrics"], summary["J"]["fold_metrics"])
         ]
+        ece_deltas = [
+            float(j["ece"] - a["ece"])
+            for a, j in zip(summary["A"]["fold_metrics"], summary["J"]["fold_metrics"])
+        ]
         statistical = {
             "delta_accuracy_ci95": block_bootstrap_ci(acc_deltas),
             "delta_logloss_ci95": block_bootstrap_ci(ll_deltas),
             "delta_brier_ci95": block_bootstrap_ci(br_deltas),
+            "delta_ece_ci95": block_bootstrap_ci(ece_deltas),
             "bootstrap": "moving_block",
             "block_length": 3,
             "n_boot": 1000,
