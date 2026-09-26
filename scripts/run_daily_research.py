@@ -74,6 +74,7 @@ from src.research.drift_window import (
     robust_distribution_shift_score,
     select_drift_aware_window,
 )
+from src.research.ultimate_v13 import build_ultimate_intelligence
 from src.research.regime_threshold import (
     aggregate_oos_training_thresholds,
     volatility_threshold_from_training,
@@ -2652,6 +2653,10 @@ def main():
             "mean_fallback_rate": float(np.mean([r["fallback_rate"] for r in rows])),
             "fold_metrics": rows,
         }
+
+    # v13 is research-only and consumes the already-computed chronological
+    # OOS prediction bank. No additional model fitting or production state is used.
+    ultimate_v13 = build_ultimate_intelligence(online_prediction_by_fold)
 
     payload = {
         "results": model_results,
