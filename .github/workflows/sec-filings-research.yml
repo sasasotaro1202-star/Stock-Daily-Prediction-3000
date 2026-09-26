@@ -11,6 +11,7 @@ on:
       - "scripts/run_sec_filing_ablation.py"
       - "src/research/sec_features.py"
       - "tests/test_sec_filing_research.py"
+      - "data/reference/sec_ticker_to_cik.json"
       - ".github/workflows/sec-filings-research.yml"
 
 permissions:
