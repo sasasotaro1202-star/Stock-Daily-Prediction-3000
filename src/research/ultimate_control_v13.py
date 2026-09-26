@@ -853,6 +853,8 @@ def evaluate_v13(
             },
             "chosen_strategy_counts": chosen_counts,
             "chosen_action_counts": action_counts,
+            "chosen_strategy": strategy.astype(str).tolist(),
+            "chosen_action": chosen_action.astype(str).tolist(),
             "coverage": float(np.mean(active)),
             "revision_accuracy": revision_accuracy,
             "false_revision": false_revision,
