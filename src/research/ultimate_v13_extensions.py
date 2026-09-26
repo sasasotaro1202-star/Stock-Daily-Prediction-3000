@@ -224,8 +224,8 @@ def augment_v13_result(
         actions = fold_result.get("chosen_action_counts", {})
         strategies = fold_result.get("chosen_strategy_counts", {})
         weight_means = fold_result.get("routing", {}).get("weight_means", {})
-        chosen_strategy = np.asarray(fold_result.get("_chosen_strategy", ["unknown"] * len(y)), dtype=object)
-        chosen_action = np.asarray(fold_result.get("_chosen_action", ["unknown"] * len(y)), dtype=object)
+        chosen_strategy = np.asarray(fold_result.get("chosen_strategy", ["unknown"] * len(y)), dtype=object)
+        chosen_action = np.asarray(fold_result.get("chosen_action", ["unknown"] * len(y)), dtype=object)
         for i, symbol in enumerate(symbols):
             ledger_rows.append({
                 "fold": int(t),
