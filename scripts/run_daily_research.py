@@ -649,6 +649,8 @@ def main():
                     "situations": None,
                     "risk_context": None,
                     "asset_classes": None,
+                    "symbols": None,
+                    "regimes": None,
                     "conformal_pred_pvalues": {},
                     "group_conformal_pred_pvalues": {},
                     "group_conformal_set_size": {},
@@ -678,6 +680,16 @@ def main():
             )
             if online_bank["asset_classes"] is None:
                 online_bank["asset_classes"] = test["asset_class"].astype(str).to_numpy()
+            if online_bank["symbols"] is None:
+                online_bank["symbols"] = (
+                    test["symbol"].astype(str).to_numpy()
+                    if "symbol" in test.columns
+                    else np.asarray([""] * len(test), dtype=str)
+                )
+            if online_bank["regimes"] is None:
+                online_bank["regimes"] = np.asarray(
+                    fold_contexts[fold_idx]["regime"], dtype=str
+                )
             if online_bank["risk_context"] is None:
                 risk_columns = [
                     "volatility_20", "volume_ratio_20", "gap_pct", "breadth_up",
@@ -2660,6 +2672,7 @@ def main():
 
     payload = {
         "results": model_results,
+        "ultimate_v13": ultimate_v13,
         "return_oos": return_oos,
         "adaptive_conformal_prediction_research": adaptive_conformal_prediction_research,
         "group_conformal_prediction_research": group_conformal_prediction_research,
