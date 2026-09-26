@@ -208,6 +208,80 @@ def _prior_failure_rate(
     return float(np.mean([float(row.get("failed", 0)) for row in matched]))
 
 
+def _historical_prediction_retrieval(
+    rows: list[Mapping[str, Any]],
+    *,
+    regime: str,
+    prediction: float,
+    predictability: float,
+    ood: float,
+    failure_risk: float,
+    disagreement: float,
+    top_k: int = 10,
+) -> dict[str, Any]:
+    """Retrieve prior prediction cases only; current-fold rows are absent by construction."""
+    if not rows:
+        return {
+            "status": "BLOCKED_NO_PRIOR_PREDICTION_HISTORY",
+            "hits": 0,
+            "failure_rate": float("nan"),
+            "success_probability": float("nan"),
+        }
+    candidates = []
+    for row in rows:
+        rp = np.asarray([
+            float(row.get("prediction", 0.5)),
+            float(row.get("predictability", 0.5)),
+            float(row.get("ood", 0.0)),
+            float(row.get("failure_risk", 0.0)),
+            float(row.get("disagreement", 0.0)),
+        ], dtype=float)
+        cp = np.asarray([prediction, predictability, ood, failure_risk, disagreement], dtype=float)
+        if not np.isfinite(rp).all() or not np.isfinite(cp).all():
+            continue
+        scale = np.asarray([0.20, 0.50, 0.50, 0.50, 0.10], dtype=float)
+        distance = float(np.mean(np.abs(rp - cp) / scale))
+        if str(row.get("regime")) == regime:
+            distance *= 0.80
+        candidates.append((distance, int(row.get("failed", 0))))
+    if not candidates:
+        return {
+            "status": "BLOCKED_NO_FINITE_PRIOR_MATCHES",
+            "hits": 0,
+            "failure_rate": float("nan"),
+            "success_probability": float("nan"),
+        }
+    candidates.sort(key=lambda x: x[0])
+    selected = candidates[:max(1, int(top_k))]
+    failure_rate = float(np.mean([x[1] for x in selected]))
+    return {
+        "status": "EXECUTED_PRIOR_ONLY_RETRIEVAL",
+        "hits": int(len(selected)),
+        "failure_rate": failure_rate,
+        "success_probability": float(1.0 - failure_rate),
+        "best_distance": float(selected[0][0]),
+    }
+
+
+def _strategy_failure_rate(
+    failures: list[Mapping[str, Any]],
+    *,
+    regime: str,
+    strategy: str,
+) -> float:
+    """Smoothed historical failure rate using only completed prior rows."""
+    matched = [
+        row for row in failures
+        if str(row.get("regime")) == regime and str(row.get("strategy")) == strategy
+    ]
+    if not matched:
+        return float("nan")
+    failed = float(np.sum([int(row.get("failed", 0)) for row in matched]))
+    n = float(len(matched))
+    # Jeffreys-style smoothing prevents an empty/small history from becoming an extreme 0/1 rate.
+    return float((failed + 0.5) / (n + 1.0))
+
+
 def augment_v13_result(
     bank: Mapping[int, Mapping[str, Any]],
     result: dict[str, Any],
@@ -224,6 +298,8 @@ def augment_v13_result(
     ledger_rows = []
     failure_memory_rows: list[dict[str, Any]] = []
     error_attribution_counts: dict[str, int] = {}
+    prediction_history_rows: list[dict[str, Any]] = []
+    strategy_failure_rows: list[dict[str, Any]] = []
 
     for t, fold in enumerate(ordered):
         y = np.asarray(fold.get("y", []), dtype=int)
@@ -311,6 +387,35 @@ def augment_v13_result(
                 regime=str(regimes[i]),
                 strategy=strategy_i,
             )
+            smoothed_strategy_failure_rate = _strategy_failure_rate(
+                failure_memory_rows,
+                regime=str(regimes[i]),
+                strategy=strategy_i,
+            )
+            retrieval = _historical_prediction_retrieval(
+                ledger_rows,
+                regime=str(regimes[i]),
+                prediction=float(tta_p[i]),
+                predictability=fold_predictability,
+                ood=fold_ood,
+                failure_risk=fold_failure_risk,
+                disagreement=fold_disagreement,
+            )
+            prediction_history_rows.append({
+                "fold": int(t),
+                "row": int(i),
+                "regime": str(regimes[i]),
+                "strategy": strategy_i,
+                **retrieval,
+            })
+            strategy_failure_rows.append({
+                "fold": int(t),
+                "row": int(i),
+                "regime": str(regimes[i]),
+                "strategy": strategy_i,
+                "prior_failure_rate_raw": prior_failure_rate,
+                "prior_failure_rate_smoothed": smoothed_strategy_failure_rate,
+            })
             ledger_rows.append({
                 "fold": int(t),
                 "row": int(i),
@@ -333,6 +438,8 @@ def augment_v13_result(
                 "failed": failed,
                 "failure_type": failure_type,
                 "prior_similar_failure_rate": prior_failure_rate,
+                "prior_strategy_failure_rate": smoothed_strategy_failure_rate,
+                "historical_retrieval": retrieval,
             })
             failure_memory_rows.append({
                 "fold": int(t),
@@ -432,6 +539,21 @@ def augment_v13_result(
             if locked_memory else float("nan")
         ),
     }
+    result["prediction_history"] = {
+        "status": "EXECUTED_PRIOR_ONLY_HISTORY_RETRIEVAL",
+        "rows": prediction_history_rows,
+        "total_rows": len(prediction_history_rows),
+        "causality_contract": "Only ledger rows from folds strictly before the current fold are retrievable.",
+        "current_fold_outcomes_excluded": True,
+    }
+    result["strategy_failure"] = {
+        "status": "EXECUTED_PRIOR_ONLY_STRATEGY_FAILURE_MEMORY",
+        "rows": strategy_failure_rows,
+        "total_rows": len(strategy_failure_rows),
+        "smoothing": "Jeffreys-style (failed+0.5)/(n+1.0)",
+        "current_fold_outcomes_excluded": True,
+    }
+
     result["failure_memory"] = {
         "status": "EXECUTED_CAUSAL_POST_OUTCOME_MEMORY",
         "rows": failure_memory_rows,

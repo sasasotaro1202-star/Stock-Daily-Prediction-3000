@@ -180,3 +180,24 @@ def test_v13_meta_label_is_prior_only_and_ledgered(tmp_path):
     changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "altered")
     for a, b in zip(result["fold_results"][:-1], changed["fold_results"][:-1]):
         assert a["meta_label"]["scores"] == b["meta_label"]["scores"]
+
+
+def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    history = result["prediction_history"]
+    strategy = result["strategy_failure"]
+    assert history["status"] == "EXECUTED_PRIOR_ONLY_HISTORY_RETRIEVAL"
+    assert history["current_fold_outcomes_excluded"] is True
+    assert strategy["status"] == "EXECUTED_PRIOR_ONLY_STRATEGY_FAILURE_MEMORY"
+    assert strategy["current_fold_outcomes_excluded"] is True
+    assert len(history["rows"]) == 36
+    assert len(strategy["rows"]) == 36
+
+    altered = _bank()
+    altered[5]["y"] = np.ones(6, dtype=int)
+    changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "altered")
+    assert result["prediction_history"]["rows"][:-6] == changed["prediction_history"]["rows"][:-6]
+    assert result["strategy_failure"]["rows"][:-6] == changed["strategy_failure"]["rows"][:-6]
+    assert all("historical_retrieval" in row for row in result["prediction_ledger"]["row_level"])
+    assert (tmp_path / "prediction_history.json").exists()
+    assert (tmp_path / "strategy_failure.json").exists()
