@@ -157,6 +157,7 @@ jobs:
           v13_ledger = Path("data/research/ultimate_v13/prediction_ledger.json")
           v13_router = Path("data/research/ultimate_v13/router_stability.json")
           v13_info = Path("data/research/ultimate_v13/active_information.json")
+          v13_meta = Path("data/research/ultimate_v13/meta_label.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -168,6 +169,7 @@ jobs:
               or not v13_ledger.exists()
               or not v13_router.exists()
               or not v13_info.exists()
+              or not v13_meta.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
@@ -220,6 +222,8 @@ jobs:
           print(f"- Dynamic pre-TTA LogLoss: {dd.get('logloss', 'n/a')}")
           print(f"- Active information status: {(v.get('active_information') or {}).get('status', 'n/a')}")
           print(f"- Router stability status: {(v.get('router_stability') or {}).get('status', 'n/a')}")
+          print(f"- Meta-label status: {(v.get("meta_label") or {}).get("status", "n/a")}")
+          print(f"- Meta-label coverage: {(v.get("meta_label") or {}).get("locked_summary", {}).get("coverage", "n/a")}")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
           if adv.exists():
               print(f"- Adversarial structural audit: {json.loads(adv.read_text(encoding='utf-8')).get('status', 'n/a')}")
