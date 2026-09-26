@@ -119,6 +119,24 @@ def test_v13_prior_only_tta_scenario_contract_and_ledger(tmp_path):
         assert (tmp_path / name).exists()
 
 
+def test_v13_failure_memory_and_error_attribution_are_post_outcome_only(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    ledger = result["prediction_ledger"]["row_level"]
+    assert all(row["result"] in (0, 1) for row in ledger)
+    assert all(row["failure_type"] for row in ledger)
+    assert "correct" in result["error_attribution"]["counts_all_folds"]
+    memory = result["failure_memory"]
+    assert memory["status"] == "EXECUTED_CAUSAL_POST_OUTCOME_MEMORY"
+    assert memory["total_rows"] == 36
+    assert memory["total_failures"] >= 0
+    assert all(
+        "prediction" in row and "failed" in row and "failure_type" in row
+        for row in memory["rows"]
+    )
+    assert (tmp_path / "error_attribution.json").exists()
+    assert (tmp_path / "failure_memory.json").exists()
+
+
 def test_v13_tta_history_is_causal(tmp_path):
     baseline = build_ultimate_intelligence(_bank(), out_dir=tmp_path / "a")
     altered = _bank()
