@@ -127,3 +127,21 @@ def test_v13_tta_history_is_causal(tmp_path):
     for a, b in zip(baseline["tta"]["folds"][:-1], changed["tta"]["folds"][:-1]):
         assert a["adaptation"] == b["adaptation"]
         assert a["delta_tta_minus_dynamic"] == b["delta_tta_minus_dynamic"]
+
+
+def test_v13_exposes_future_failure_aware_routing_challenger(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    routing = result["routing"]
+    assert "future_failure_aware" in routing["aggregate"]
+    assert "delta_failure_aware_minus_dynamic" in routing["aggregate"]
+    for fold in routing["folds"]:
+        metrics = fold["routing"]["future_failure_aware"]
+        assert 0.0 <= metrics["accuracy"] <= 1.0
+        assert 0.0 <= metrics["brier"] <= 1.0
+        assert 0.0 <= metrics["ece"] <= 1.0
+        weights = np.asarray(
+            list(fold["routing"]["future_failure_weight_means"].values()),
+            dtype=float,
+        )
+        assert np.isfinite(weights).all()
+        assert np.isclose(float(weights.sum()), 1.0)
