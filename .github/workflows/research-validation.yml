@@ -151,11 +151,21 @@ jobs:
           manifest = Path("data/research/ultimate_v13/artifact_manifest.json")
           meta_audit = Path("data/research/v13_meta_leakage_audit.json")
           adversarial_audit = Path("data/research/ultimate_v13/adversarial_robustness.json")
+          v13_tta = Path("data/research/ultimate_v13/tta.json")
+          v13_scenarios = Path("data/research/ultimate_v13/scenarios.json")
+          v13_contracts = Path("data/research/ultimate_v13/prediction_contracts.json")
+          v13_ledger = Path("data/research/ultimate_v13/prediction_ledger.json")
+          v13_router = Path("data/research/ultimate_v13/router_stability.json")
           if (
               not summary.exists()
               or not manifest.exists()
               or not meta_audit.exists()
               or not adversarial_audit.exists()
+              or not v13_tta.exists()
+              or not v13_scenarios.exists()
+              or not v13_contracts.exists()
+              or not v13_ledger.exists()
+              or not v13_router.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
@@ -200,6 +210,14 @@ jobs:
           print(f"- Equal-weight Brier: {eq.get('brier', 'n/a')}")
           print(f"- Dynamic ECE: {dyn.get('ece', 'n/a')}")
           print(f"- Equal-weight ECE: {eq.get('ece', 'n/a')}")
+          tta = v.get("tta") or {}
+          td = tta.get("tta") or {}
+          dd = tta.get("dynamic") or {}
+          print(f"- Prior-only TTA status: {tta.get('status', 'n/a')}")
+          print(f"- Prior-only TTA LogLoss: {td.get('logloss', 'n/a')}")
+          print(f"- Dynamic pre-TTA LogLoss: {dd.get('logloss', 'n/a')}")
+          print(f"- Active information status: {(v.get('active_information') or {}).get('status', 'n/a')}")
+          print(f"- Router stability status: {(v.get('router_stability') or {}).get('status', 'n/a')}")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
           if adv.exists():
               print(f"- Adversarial structural audit: {json.loads(adv.read_text(encoding='utf-8')).get('status', 'n/a')}")
