@@ -21,7 +21,7 @@ claim is represented as BLOCKED/UNAVAILABLE rather than inferred.
 
 from dataclasses import dataclass
 import math
-from typing import Iterable
+from typing import Iterable, Mapping
 
 import numpy as np
 import pandas as pd
@@ -720,6 +720,12 @@ def evaluate_v13(
             failure_features_history[name].extend(next_ready)
 
         max_failure = max(failure_risks.values(), default=0.5)
+        failure_aware_weights = _failure_aware_routing_weights(
+            routing_weights, failure_risks, models
+        )
+        future_failure_aware_ensemble = safe_probability(
+            np.sum(p_matrix * failure_aware_weights, axis=1)
+        )
         strategy = _policy(
             predictability,
             ood,
@@ -841,6 +847,10 @@ def evaluate_v13(
                 "weight_entropy": float(np.mean(-np.sum(routing_weights * np.log(np.clip(routing_weights, EPS, 1.0)), axis=1))),
                 "dynamic_vs_equal": metrics(y, dynamic_ensemble),
                 "equal_weight": metrics(y, equal_weight),
+                "future_failure_aware": metrics(y, future_failure_aware_ensemble),
+                "future_failure_weight_means": {
+                    m: float(np.mean(failure_aware_weights[:, i])) for i, m in enumerate(models)
+                },
             },
             "disagreement": {
                 "probability_mean": float(np.mean(p_matrix)),
@@ -918,6 +928,11 @@ def evaluate_v13(
     }
     routing_equal = {
         k: mean_metric(routing_equal_rows, k)
+        for k in ("accuracy", "logloss", "brier", "ece")
+    }
+    routing_failure_aware_rows = [x["routing"]["future_failure_aware"] for x in locked]
+    routing_failure_aware = {
+        k: mean_metric(routing_failure_aware_rows, k)
         for k in ("accuracy", "logloss", "brier", "ece")
     }
     relative_logloss_improvement = float(
@@ -1074,6 +1089,11 @@ def evaluate_v13(
                     for k in routing_dynamic
                 },
                 "relative_logloss_improvement": relative_logloss_improvement,
+                "future_failure_aware": routing_failure_aware,
+                "delta_failure_aware_minus_dynamic": {
+                    k: float(routing_failure_aware[k] - routing_dynamic[k])
+                    for k in routing_failure_aware
+                },
             },
             "locked_fold_weight_concentration_mean": float(np.mean([x["routing"]["weight_concentration"] for x in locked])),
             "locked_fold_weight_entropy_mean": float(np.mean([x["routing"]["weight_entropy"] for x in locked])),
