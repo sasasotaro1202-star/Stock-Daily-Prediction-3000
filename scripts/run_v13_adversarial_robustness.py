@@ -92,7 +92,11 @@ def main() -> int:
     altered_result = build_ultimate_intelligence(altered, out_dir=altered_dir)
     prior_count = len(result["fold_results"]) - 1
     checks["prior_history_immutable_under_current_outcome_change"] = (
-        result["future_failure"]["per_model"] == altered_result["future_failure"]["per_model"]
+        all(
+            result["future_failure"]["per_model"][name][:-1]
+            == altered_result["future_failure"]["per_model"][name][:-1]
+            for name in result["future_failure"]["per_model"]
+        )
         and result["fold_results"][:prior_count] == altered_result["fold_results"][:prior_count]
     )
 
