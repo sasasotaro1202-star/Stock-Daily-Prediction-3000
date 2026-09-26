@@ -656,6 +656,12 @@ def evaluate_v13(
             ]
         ].to_numpy(dtype=float)
 
+        # Persist compact target-free summaries before they can be used by
+        # later failure-prediction folds. These summaries never include current outcomes.
+        state["summary_state"] = float(np.mean(predictability))
+        state["summary_pred"] = float(np.mean(p_matrix))
+        state["summary_drift"] = float(np.mean(state["feature_drift"]))
+
         failure_risks: dict[str, float] = {}
         ttf: dict[str, float] = {}
         for name in models:
@@ -673,10 +679,21 @@ def evaluate_v13(
                     np.asarray(ordered[k + 1]["y"], dtype=int),
                     np.asarray(ordered[k + 1]["predictions"][name], dtype=float),
                 )
+                # history_states[k] is the state snapshot produced at fold k.
+                # Current/next-fold outcomes are never part of these features.
+                if k >= len(history_states):
+                    continue
+                prior_state = history_states[k]
                 next_ready.append(np.asarray([
-                    float(ordered[k]["summary_state"]),
-                    float(np.mean(ordered[k]["summary_pred"])),
-                    float(np.mean(ordered[k]["summary_drift"])),
+                    float(prior_state["summary_state"].iloc[0]
+                          if isinstance(prior_state["summary_state"], pd.Series)
+                          else prior_state["summary_state"]),
+                    float(prior_state["summary_pred"].iloc[0]
+                          if isinstance(prior_state["summary_pred"], pd.Series)
+                          else prior_state["summary_pred"]),
+                    float(prior_state["summary_drift"].iloc[0]
+                          if isinstance(prior_state["summary_drift"], pd.Series)
+                          else prior_state["summary_drift"]),
                 ]))
                 next_labels.append(_failure_label(km, nm))
             x_base = np.asarray([
@@ -871,10 +888,7 @@ def evaluate_v13(
             },
         })
 
-        # Keep fold-level summary columns target-free for future-failure history.
-        state["summary_state"] = float(np.mean(predictability))
-        state["summary_pred"] = float(np.mean(p_matrix))
-        state["summary_drift"] = float(np.mean(state["feature_drift"]))
+
 
     error_correlation = _error_correlation_diagnostics(ordered, models)
     failure_calibration = _failure_calibration(ordered, models, per_model_failure_risk)
