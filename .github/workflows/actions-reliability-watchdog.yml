@@ -11,6 +11,9 @@ on:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"
       timezone: "Asia/Tokyo"
+  workflow_run:
+    workflows: ["Research validation"]
+    types: [completed]
 
 permissions:
   actions: write
