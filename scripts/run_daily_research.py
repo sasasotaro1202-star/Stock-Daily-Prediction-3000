@@ -26,6 +26,7 @@ from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.innovative_control_v2 import evaluate_innovative_v2
 from src.research.blend_prediction_cache import (
     CACHEABLE_BLEND_COMPONENTS,
     resolve_cached_blend_predictions,
@@ -2653,6 +2654,8 @@ def main():
             "fold_metrics": rows,
         }
 
+    innovative_v2 = evaluate_innovative_v2(online_prediction_by_fold)
+
     payload = {
         "results": model_results,
         "return_oos": return_oos,
@@ -2690,6 +2693,7 @@ def main():
         "online_expert_research": online_expert_research,
         "online_expert_balanced_research": online_expert_balanced_research,
         "confidence_risk_research": confidence_risk_research,
+        "innovative_prediction_control_v2": innovative_v2,
         "temporal_calibration_research": temporal_calibration_research,
         "drift_aware_window_research": drift_aware_window_research,
         "global_selection_candidates": balanced_candidates,
