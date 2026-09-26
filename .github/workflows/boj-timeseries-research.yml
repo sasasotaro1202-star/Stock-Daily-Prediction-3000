@@ -46,6 +46,8 @@ jobs:
             PRICE_SHARD_INDEX="$shard" python scripts/restore_latest_price_state.py
           done
       - name: Refresh official universe for price bootstrap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
           python scripts/restore_latest_universe_state.py
