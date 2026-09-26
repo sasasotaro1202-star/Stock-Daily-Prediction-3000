@@ -1,4 +1,4 @@
-commit=e9e6a9899079cfbaca35119cabd87d85fff21223
-purpose=rerun latest-head chronological OOS after status-persistence isolation; validate PIT/leakage, calibration, SEC/CPCV evidence, frozen-holdout safety, data quality, and artifact integrity without automatic promotion
+commit=f5b82b46312918a101f4182bcf9a8888ab9cb552
+purpose=rerun latest-head v13 validation after future-failure-aware routing and row-level prediction ledger extensions; validate PIT/leakage, calibration, OOS, robustness, artifact integrity, and promotion safety without automatic promotion
 
-rerun_epoch=2026-09-26T21:45:00+09:00
+rerun_epoch=2026-09-26T21:56:00+09:00
