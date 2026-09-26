@@ -123,6 +123,61 @@ jobs:
       - name: Chronological OOS research
         id: research_oos
         run: python scripts/run_daily_research.py
+      - name: Validate Ultimate v13 research artifact
+        if: steps.research_oos.outcome == 'success'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("data/research/latest_metrics.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          v13 = data.get("ultimate_v13")
+          if not isinstance(v13, dict):
+              raise SystemExit("FAIL: ultimate_v13 payload missing")
+          if v13.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: v13 research layer must remain promotion-blocked")
+          if not v13.get("research_only"):
+              raise SystemExit("FAIL: v13 research_only invariant missing")
+          summary = Path("data/research/ultimate_v13/ultimate_summary.json")
+          manifest = Path("data/research/ultimate_v13/artifact_manifest.json")
+          if not summary.exists() or not manifest.exists():
+              raise SystemExit("FAIL: v13 artifact files missing")
+          json.loads(summary.read_text(encoding="utf-8"))
+          json.loads(manifest.read_text(encoding="utf-8"))
+          print("ULTIMATE_V13_ARTIFACT=PASS")
+          print("ULTIMATE_V13_FOLDS=", v13.get("folds"))
+          print("ULTIMATE_V13_MODELS=", len(v13.get("models") or []))
+          print("ULTIMATE_V13_PREDICTABILITY_MEAN=", (v13.get("predictability") or {}).get("mean"))
+          print("ULTIMATE_V13_DYNAMIC_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("dynamic", {}).get("logloss"))
+          print("ULTIMATE_V13_EQUAL_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("equal_weight", {}).get("logloss"))
+          PY
+
+      - name: Publish Ultimate v13 score summary
+        if: always() && steps.research_oos.outcome == 'success'
+        shell: bash
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+          d = json.loads(Path("data/research/latest_metrics.json").read_text(encoding="utf-8"))
+          v = d.get("ultimate_v13") or {}
+          r = (v.get("routing") or {}).get("aggregate") or {}
+          dyn = r.get("dynamic") or {}
+          eq = r.get("equal_weight") or {}
+          print("## Ultimate v13 research layer")
+          print(f"- Status: ${{v.get('status')}}")
+          print(f"- Folds: ${{v.get('folds')}}")
+          print(f"- Models: ${{len(v.get('models') or [])}}")
+          print(f"- Predictability proxy mean: ${{(v.get('predictability') or {}).get('mean', 'n/a')}}")
+          print(f"- Dynamic LogLoss: ${{dyn.get('logloss', 'n/a')}}")
+          print(f"- Equal-weight LogLoss: ${{eq.get('logloss', 'n/a')}}")
+          print(f"- Dynamic LogLoss relative improvement: ${{r.get('relative_logloss_improvement', 'n/a')}}")
+          print(f"- Production changed: ${{v.get('production_changed')}}")
+          print(f"- Promotion allowed: ${{v.get('promotion_gate', {}).get('allowed')}}")
+          PY
+
       - name: Publish compact OOS score summary
         if: always() && steps.research_oos.outcome == 'success'
         shell: bash
@@ -171,5 +226,6 @@ jobs:
             data/research/sec_filing_ablation.json
             data/research/cpcv_validation_audit.json
             data/research/universe_quality.json
+            data/research/ultimate_v13/**
           retention-days: 14
 
