@@ -141,7 +141,12 @@ def _state_from_probabilities(
             ref_med = np.nanmedian(ref, axis=0)
             ref_sd = np.nanstd(ref, axis=0)
             ref_sd[~np.isfinite(ref_sd) | (ref_sd < 1e-6)] = 1.0
-            cur_med = np.nanmedian(risk, axis=0)
+            # Avoid RuntimeWarning on all-NaN current columns. Unknown current
+            # inputs contribute neutral drift rather than fabricated values.
+            valid_cur = np.isfinite(risk).any(axis=0)
+            cur_med = np.zeros(risk.shape[1], dtype=float)
+            if valid_cur.any():
+                cur_med[valid_cur] = np.nanmedian(risk[:, valid_cur], axis=0)
             drift = np.full(len(p), float(
                 np.mean(np.clip(np.abs(cur_med - ref_med) / ref_sd, 0.0, 8.0) / 8.0)
             ))
