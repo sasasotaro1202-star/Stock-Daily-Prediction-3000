@@ -22,7 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          # Status persistence must execute the newest fail-safe controller
+          # from main, while the research run SHA remains only provenance.
+          ref: main
           fetch-depth: 0
       - uses: actions/setup-python@v7
         with:
