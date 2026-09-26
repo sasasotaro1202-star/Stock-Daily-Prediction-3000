@@ -327,3 +327,18 @@ def test_v13_prediction_history_and_strategy_failure_are_prior_only(tmp_path):
             float(b["prior_failure_rate_smoothed"]),
             equal_nan=True,
         )
+
+
+def test_v13_build_emits_governance_and_experiment_registry(tmp_path, monkeypatch):
+    monkeypatch.setenv("GITHUB_SHA", "test-sha")
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    assert result["governance"]["status"] == "EXECUTED_RESEARCH_GOVERNANCE"
+    assert result["governance"]["promotion_allowed"] is False
+    assert result["governance"]["rollback_target"] == "previous_verified"
+    registry = result["experiment_registry"]
+    assert registry["status"] == "EXECUTED_SINGLE_EXPERIMENT_RECORD"
+    assert registry["validation"]["status"] == "PASS"
+    assert len(registry["rows"]) == 1
+    assert len(registry["rows"][0]["record_sha256"]) == 64
+    assert (tmp_path / "governance.json").exists()
+    assert (tmp_path / "experiment_registry.json").exists()
