@@ -130,6 +130,19 @@ def test_v13_failure_risk_is_prior_only(tmp_path):
         assert a == b
 
 
+def test_v13_historical_all_missing_risk_is_safe(tmp_path):
+    bank = _bank()
+    for fold in bank:
+        bank[fold]["risk_context"][:, 0] = np.nan
+
+    result = build_ultimate_intelligence(bank, out_dir=tmp_path)
+    assert result["status"] == "OOS_COMPLETE"
+    for fold in result["fold_results"]:
+        assert np.isfinite(float(fold["predictability_mean"]))
+        assert np.isfinite(float(fold["ood_mean"]))
+        assert np.isfinite(float(fold["routing"]["weight_concentration"]))
+
+
 def test_v13_artifact_is_json_safe_and_routing_has_causal_contract(tmp_path):
     result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
     payload = json.loads((tmp_path / "ultimate_summary.json").read_text())
