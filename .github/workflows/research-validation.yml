@@ -156,6 +156,7 @@ jobs:
           v13_contracts = Path("data/research/ultimate_v13/prediction_contracts.json")
           v13_ledger = Path("data/research/ultimate_v13/prediction_ledger.json")
           v13_router = Path("data/research/ultimate_v13/router_stability.json")
+          v13_info = Path("data/research/ultimate_v13/active_information.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -166,6 +167,7 @@ jobs:
               or not v13_contracts.exists()
               or not v13_ledger.exists()
               or not v13_router.exists()
+              or not v13_info.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
