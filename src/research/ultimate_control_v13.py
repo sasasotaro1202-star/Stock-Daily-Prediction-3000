@@ -138,18 +138,32 @@ def _state_from_probabilities(
         if ref.ndim != 2 or ref.shape[1] != risk.shape[1]:
             drift = np.zeros(len(p), dtype=float)
         else:
-            ref_med = np.nanmedian(ref, axis=0)
-            ref_sd = np.nanstd(ref, axis=0)
+            ref_valid = np.isfinite(ref).any(axis=0)
+            ref_med = np.zeros(ref.shape[1], dtype=float)
+            ref_sd = np.ones(ref.shape[1], dtype=float)
+            if ref_valid.any():
+                ref_med[ref_valid] = np.nanmedian(ref[:, ref_valid], axis=0)
+                ref_sd[ref_valid] = np.nanstd(ref[:, ref_valid], axis=0)
             ref_sd[~np.isfinite(ref_sd) | (ref_sd < 1e-6)] = 1.0
-            # Avoid RuntimeWarning on all-NaN current columns. Unknown current
-            # inputs contribute neutral drift rather than fabricated values.
+            # Avoid RuntimeWarning on all-NaN current/history columns. A risk
+            # dimension contributes to drift only when both the historical
+            # reference and current observation contain usable values.
             valid_cur = np.isfinite(risk).any(axis=0)
+            comparable = ref_valid & valid_cur
             cur_med = np.zeros(risk.shape[1], dtype=float)
             if valid_cur.any():
                 cur_med[valid_cur] = np.nanmedian(risk[:, valid_cur], axis=0)
-            drift = np.full(len(p), float(
-                np.mean(np.clip(np.abs(cur_med - ref_med) / ref_sd, 0.0, 8.0) / 8.0)
-            ))
+            if comparable.any():
+                dim_drift = np.clip(
+                    np.abs(cur_med[comparable] - ref_med[comparable])
+                    / ref_sd[comparable],
+                    0.0,
+                    8.0,
+                ) / 8.0
+                drift_value = float(np.mean(dim_drift))
+            else:
+                drift_value = 0.0
+            drift = np.full(len(p), drift_value, dtype=float)
 
     feature_reliability = np.clip(completeness * (1.0 - 0.5 * drift), 0.0, 1.0)
     if risk.shape[1] >= 3:

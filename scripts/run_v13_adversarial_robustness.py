@@ -124,6 +124,26 @@ def main() -> int:
         )
     )
 
+    # Historical-missing risk dimension: an entire risk feature can be absent
+    # for all prior folds. It must not turn causal drift/routing diagnostics
+    # into NaN or raise during artifact serialization.
+    historical_missing = _bank()
+    for fold in historical_missing:
+        historical_missing[fold]["risk_context"][:, 0] = np.nan
+    historical_missing_result = build_ultimate_intelligence(
+        historical_missing,
+        out_dir=ROOT / "adversarial_historical_missing_risk",
+    )
+    _assert_base_contract(historical_missing_result)
+    checks["historical_missing_risk_dimension_safe"] = bool(
+        all(
+            _finite_or_unavailable(x["predictability_mean"])
+            and _finite_or_unavailable(x["ood_mean"])
+            and np.isfinite(float(x["routing"]["weight_concentration"]))
+            for x in historical_missing_result["fold_results"]
+        )
+    )
+
     # Disagreement spike: widen model separation but require valid normalized
     # routing evidence rather than a particular direction of movement.
     spike = _bank()
