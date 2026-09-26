@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from src.research.ultimate_control_v13 import evaluate_v13
+from src.research.ultimate_v13_extensions import augment_v13_result
 
 
 def _json_safe(value: Any) -> Any:
@@ -78,6 +79,7 @@ def build_ultimate_intelligence(
         locked_folds=2,
         min_folds=5,
     )
+    result = augment_v13_result(bank, result)
     result["research_only"] = True
     result["production_changed"] = False
     result["promotion_allowed"] = False
@@ -113,6 +115,12 @@ def build_ultimate_intelligence(
         ("worst_case.json", "worst_case_locked"),
         ("robustness.json", "robustness"),
         ("audits.json", "audits"),
+        ("tta.json", "tta"),
+        ("scenarios.json", "scenarios"),
+        ("prediction_contracts.json", "prediction_contracts"),
+        ("prediction_ledger.json", "prediction_ledger"),
+        ("router_stability.json", "router_stability"),
+        ("active_information.json", "active_information"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -141,6 +149,12 @@ def build_ultimate_intelligence(
             "worst_case.json",
             "robustness.json",
             "audits.json",
+            "tta.json",
+            "scenarios.json",
+            "prediction_contracts.json",
+            "prediction_ledger.json",
+            "router_stability.json",
+            "active_information.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
