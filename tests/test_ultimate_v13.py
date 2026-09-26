@@ -90,3 +90,35 @@ def test_v13_false_revision_is_revision_conditional(tmp_path):
     payload = json.loads((tmp_path / "ultimate_summary.json").read_text())
     value = payload["revision_metrics"]["false_revision"]
     assert value is None or 0.0 <= value <= 1.0
+
+
+def test_v13_prior_only_tta_scenario_contract_and_ledger(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    assert result["tta"]["status"] == "EXECUTED_PRIOR_ONLY_RESEARCH_ABLATION"
+    assert result["tta"]["production_changed"] is False
+    assert result["tta"]["promotion_allowed"] is False
+    assert len(result["tta"]["folds"]) == 6
+    assert result["scenarios"]["status"] == "EXECUTED_HEURISTIC_PROXY"
+    assert result["prediction_contracts"]["exact_timestamp_lineage"] is False
+    assert result["prediction_ledger"]["total_predictions"] == 36
+    assert result["router_stability"]["status"] == "EXECUTED_DESCRIPTIVE_ROUTER_MONITOR"
+    assert result["active_information"]["status"] == "BLOCKED_NO_SOURCE_VALUE_OF_INFORMATION_METADATA"
+    for name in (
+        "tta.json",
+        "scenarios.json",
+        "prediction_contracts.json",
+        "prediction_ledger.json",
+        "router_stability.json",
+        "active_information.json",
+    ):
+        assert (tmp_path / name).exists()
+
+
+def test_v13_tta_history_is_causal(tmp_path):
+    baseline = build_ultimate_intelligence(_bank(), out_dir=tmp_path / "a")
+    altered = _bank()
+    altered[5]["y"] = np.ones(6, dtype=int)
+    changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "b")
+    for a, b in zip(baseline["tta"]["folds"][:-1], changed["tta"]["folds"][:-1]):
+        assert a["adaptation"] == b["adaptation"]
+        assert a["delta_tta_minus_dynamic"] == b["delta_tta_minus_dynamic"]
