@@ -18,6 +18,7 @@ OUT = Path("data/research/sec_filings_research.parquet")
 META = Path("data/research/sec_filings_research.json")
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
 FALLBACK_TICKERS_URL = "https://raw.githubusercontent.com/jadchaar/sec-cik-mapper/7883b83389836f9bba9bdfe53031467235746334/mappings/stocks/ticker_to_cik.json"
+LOCAL_TICKER_MAP = Path("data/reference/sec_ticker_to_cik.json")
 EFTS_SEARCH_URL = "https://efts.sec.gov/LATEST/search-index"
 EFTS_PAGE_SIZE = 100
 EFTS_MAX_PAGES = 20
@@ -77,25 +78,55 @@ def _get_json(url: str) -> object:
 
 
 
+def _parse_json_with_wrappers(text_value: str) -> object:
+    """Parse raw or reader-wrapped JSON while rejecting malformed payloads."""
+    cleaned = text_value.lstrip("\ufeff").strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines and lines[0].strip().startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        for start, ch in enumerate(cleaned):
+            if ch not in "{[":
+                continue
+            try:
+                value, _ = decoder.raw_decode(cleaned[start:])
+                return value
+            except json.JSONDecodeError:
+                continue
+    raise ValueError("SEC JSON response did not contain a parseable JSON object")
+
+
 def _jina_get_json(url: str) -> object:
-    """Read an official SEC JSON file through the free Jina Reader fallback."""
-    reader_url = "https://r.jina.ai/" + url
-    req = Request(
-        reader_url,
-        headers={
-            "User-Agent": "Stock-Daily-Prediction-3000/0.1 (SEC research reader)",
-            "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
-        },
-    )
-    with urlopen(req, timeout=45) as response:
-        text_value = response.read().decode("utf-8", errors="replace").strip()
-    if text_value.startswith("{") or text_value.startswith("["):
-        payload = json.loads(text_value)
-    else:
-        raise ValueError("Jina SEC JSON response is not raw JSON")
-    if not isinstance(payload, (dict, list)):
-        raise ValueError("Jina SEC JSON payload has unexpected type")
-    return payload
+    """Read an official SEC JSON file through bounded free Jina Reader fallbacks."""
+    last_error: Exception | None = None
+    for target in (url, url.replace("https://", "http://", 1)):
+        reader_url = "https://r.jina.ai/" + target
+        req = Request(
+            reader_url,
+            headers={
+                "User-Agent": "Stock-Daily-Prediction-3000/0.1 (SEC research reader)",
+                "Accept": "application/json,text/plain;q=0.9,*/*;q=0.8",
+            },
+        )
+        try:
+            with urlopen(req, timeout=45) as response:
+                text_value = response.read().decode("utf-8", errors="replace").strip()
+            payload = _parse_json_with_wrappers(text_value)
+            if not isinstance(payload, (dict, list)):
+                raise ValueError("Jina SEC JSON payload has unexpected type")
+            return payload
+        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            last_error = exc
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError("Jina SEC JSON request failed without an exception")
 
 def _curl_cffi_get_json(url: str) -> object:
     """Free browser-like JSON fallback for an official SEC endpoint."""
@@ -683,63 +714,68 @@ def main() -> None:
         ]
         mapping_source = "sec_official_company_tickers"
         mapping_note = "official"
-        try:
-            ticker_payload = _get_json(TICKERS_URL)
-        except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
-            try:
-                # Same official SEC mapping via the free Jina Reader fallback.
-                ticker_payload = _jina_get_json(TICKERS_URL)
-                # Preserve the official company_tickers schema so the parser
-                # below uses ticker/cik_str fields rather than third-party map keys.
-                mapping_source = "sec_official_company_tickers"
-                mapping_note = "official_via_jina_reader"
-            except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
-                # Third-party pinned CIK map is used only as the final discovery fallback.
-                ticker_payload = _get_json(FALLBACK_TICKERS_URL)
-                mapping_source = FALLBACK_TICKERS_URL
-                mapping_note = "pinned_third_party_fallback"
-        ticker_map = {}
-        ticker_alias_map = {}
-        if mapping_source == "sec_official_company_tickers":
-            items = ticker_payload.values() if isinstance(ticker_payload, dict) else []
-            for value in items:
-                if not isinstance(value, dict):
-                    continue
-                raw_ticker = str(value.get("ticker", ""))
-                exact = _norm_ticker(raw_ticker)
-                if exact and value.get("cik_str") is not None:
-                    info = {
-                        "cik": str(value["cik_str"]).zfill(10),
-                        "title": str(value.get("title", "")),
-                    }
-                    ticker_map[exact] = info
-                    for alias in _ticker_aliases(raw_ticker):
-                        if alias == exact:
-                            continue
-                        prior = ticker_alias_map.get(alias)
-                        if prior is not None and prior.get("cik") != info["cik"]:
-                            ticker_alias_map.pop(alias, None)
-                        elif alias not in ticker_alias_map:
-                            ticker_alias_map[alias] = info
+        ticker_payload = None
+
+        if LOCAL_TICKER_MAP.exists():
+            local_payload = json.loads(LOCAL_TICKER_MAP.read_text(encoding="utf-8"))
+            local_tickers = local_payload.get("tickers", {}) if isinstance(local_payload, dict) else {}
+            if not isinstance(local_tickers, dict) or not local_tickers:
+                raise ValueError("local SEC ticker map has no usable tickers")
+            ticker_map = {
+                _norm_ticker(key): {"cik": str(value).zfill(10), "title": ""}
+                for key, value in local_tickers.items()
+                if _norm_ticker(key) and str(value).strip()
+            }
+            ticker_alias_map = {}
+            mapping_source = str(LOCAL_TICKER_MAP)
+            mapping_note = "pinned_universe_subset"
         else:
-            items = ticker_payload.items() if isinstance(ticker_payload, dict) else []
-            for raw_ticker, cik in items:
-                exact = _norm_ticker(raw_ticker)
-                if exact and cik:
-                    info = {
-                        "cik": str(cik).zfill(10),
-                        "title": "",
-                    }
-                    ticker_map[exact] = info
-                    for alias in _ticker_aliases(raw_ticker):
-                        if alias == exact:
-                            continue
-                        prior = ticker_alias_map.get(alias)
-                        if prior is not None and prior.get("cik") != info["cik"]:
-                            ticker_alias_map.pop(alias, None)
-                        elif alias not in ticker_alias_map:
-                            ticker_alias_map[alias] = info
-    except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
+            try:
+                ticker_payload = _get_json(TICKERS_URL)
+            except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+                try:
+                    ticker_payload = _jina_get_json(TICKERS_URL)
+                    mapping_source = "sec_official_company_tickers"
+                    mapping_note = "official_via_jina_reader"
+                except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError):
+                    ticker_payload = _get_json(FALLBACK_TICKERS_URL)
+                    mapping_source = FALLBACK_TICKERS_URL
+                    mapping_note = "pinned_third_party_fallback"
+            ticker_map = {}
+            ticker_alias_map = {}
+            if mapping_source == "sec_official_company_tickers":
+                items = ticker_payload.values() if isinstance(ticker_payload, dict) else []
+                for value in items:
+                    if not isinstance(value, dict):
+                        continue
+                    raw_ticker = str(value.get("ticker", ""))
+                    exact = _norm_ticker(raw_ticker)
+                    if exact and value.get("cik_str") is not None:
+                        info = {"cik": str(value["cik_str"]).zfill(10), "title": str(value.get("title", ""))}
+                        ticker_map[exact] = info
+                        for alias in _ticker_aliases(raw_ticker):
+                            if alias == exact:
+                                continue
+                            prior = ticker_alias_map.get(alias)
+                            if prior is not None and prior.get("cik") != info["cik"]:
+                                ticker_alias_map.pop(alias, None)
+                            elif alias not in ticker_alias_map:
+                                ticker_alias_map[alias] = info
+            else:
+                items = ticker_payload.items() if isinstance(ticker_payload, dict) else []
+                for raw_ticker, cik in items:
+                    exact = _norm_ticker(raw_ticker)
+                    if exact and cik:
+                        info = {"cik": str(cik).zfill(10), "title": ""}
+                        ticker_map[exact] = info
+                        for alias in _ticker_aliases(raw_ticker):
+                            if alias == exact:
+                                continue
+                            prior = ticker_alias_map.get(alias)
+                            if prior is not None and prior.get("cik") != info["cik"]:
+                                ticker_alias_map.pop(alias, None)
+                            elif alias not in ticker_alias_map:
+                                ticker_alias_map[alias] = info    except (HTTPError, URLError, TimeoutError, OSError, ValueError, json.JSONDecodeError) as exc:
         payload = {
             "status": "DEFERRED",
             "reason": f"sec_metadata_fetch_failed:{getattr(exc, 'code', '')}:{type(exc).__name__}",
@@ -887,6 +923,8 @@ def main() -> None:
         "started_at": started.isoformat(),
         "mapping_source": mapping_source,
         "mapping_note": mapping_note,
+        "mapping_entries": int(len(ticker_map)),
+        "universe_direct_matches": int(sum(1 for row in records if _norm_ticker(row.get("symbol")) in ticker_map)),
         "submission_failure_counts": submission_failures,
         "ticker_mismatch_count": int(ticker_mismatches),
         "bulk_index_used": bool(bulk_index_used),

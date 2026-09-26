@@ -400,3 +400,22 @@ def test_sec_master_index_fallback_is_pit_conservative(monkeypatch):
     assert rows[0]["acceptance_datetime"] == ""
     assert rows[0]["available_at"] == "2026-09-25T03:59:59.999999+00:00"
     assert rows[0]["accession_number"] == "0000320193-26-000001"
+
+
+def test_jina_json_parser_accepts_wrapped_json():
+    mod = importlib.import_module("scripts.sec_filings_research")
+    wrapped = "prefix\\n```json\\n{\"ok\": true}\\n```\\n"
+    assert mod._parse_json_with_wrappers(wrapped) == {"ok": True}
+
+
+def test_local_sec_ticker_map_is_pinned_to_universe_reference():
+    import json
+
+    path = Path("data/reference/sec_ticker_to_cik.json")
+    assert path.exists()
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["source_commit"] == "7883b83389836f9bba9bdfe53031467235746334"
+    assert len(payload["tickers"]) == 272
+    assert payload["tickers"]["AAPL"] == "0000320193"
+    assert payload["tickers"]["PAYP"] == "0002080845"
+    assert payload["tickers"]["SPCX"] == "0001181412"
