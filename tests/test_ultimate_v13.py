@@ -101,6 +101,11 @@ def test_v13_prior_only_tta_scenario_contract_and_ledger(tmp_path):
     assert result["scenarios"]["status"] == "EXECUTED_HEURISTIC_PROXY"
     assert result["prediction_contracts"]["exact_timestamp_lineage"] is False
     assert result["prediction_ledger"]["total_predictions"] == 36
+    assert result["prediction_ledger"]["status"] == "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK"
+    assert len(result["prediction_ledger"]["row_level"]) == 36
+    assert all(row["pit_status"] == "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE" for row in result["prediction_ledger"]["row_level"])
+    assert all(row["strategy"] != "unknown" for row in result["prediction_ledger"]["row_level"])
+    assert all(row["action"] != "unknown" for row in result["prediction_ledger"]["row_level"])
     assert result["router_stability"]["status"] == "EXECUTED_DESCRIPTIVE_ROUTER_MONITOR"
     assert result["active_information"]["status"] == "BLOCKED_NO_SOURCE_VALUE_OF_INFORMATION_METADATA"
     for name in (
