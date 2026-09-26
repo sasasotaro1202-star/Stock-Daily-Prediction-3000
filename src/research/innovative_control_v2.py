@@ -574,6 +574,24 @@ def evaluate_innovative_v2(
             "drift_states": result.drift_states,
         }
 
+    locked_start = max(0, len(ordered) - 2)
+    for mode, result in mode_results.items():
+        if not result.fold_metrics:
+            continue
+        locked_frame = pd.DataFrame(result.fold_metrics).iloc[locked_start:]
+        summary[mode]["locked_metrics"] = {
+            key: float(locked_frame[key].mean())
+            for key in ("accuracy", "logloss", "brier")
+        }
+        summary[mode]["development_metrics"] = (
+            {
+                key: float(pd.DataFrame(result.fold_metrics).iloc[:locked_start][key].mean())
+                for key in ("accuracy", "logloss", "brier")
+            }
+            if locked_start > 0
+            else {}
+        )
+
     baseline = summary.get("A", {}).get("metrics", {})
     full = summary.get("J", {}).get("metrics", {})
     deltas = {}
@@ -583,6 +601,16 @@ def evaluate_innovative_v2(
             "logloss": float(full["logloss"] - baseline["logloss"]),
             "brier": float(full["brier"] - baseline["brier"]),
         }
+    locked_baseline = summary.get("A", {}).get("locked_metrics", {})
+    locked_full = summary.get("J", {}).get("locked_metrics", {})
+    locked_deltas = {}
+    if locked_baseline and locked_full:
+        locked_deltas = {
+            "accuracy": float(locked_full["accuracy"] - locked_baseline["accuracy"]),
+            "logloss": float(locked_full["logloss"] - locked_baseline["logloss"]),
+            "brier": float(locked_full["brier"] - locked_baseline["brier"]),
+        }
+
     if baseline and full:
         acc_deltas = [
             float(j["accuracy"] - a["accuracy"])
@@ -614,6 +642,10 @@ def evaluate_innovative_v2(
         "models": models,
         "ablation": summary,
         "full_vs_baseline": deltas,
+        "locked_vs_baseline": locked_deltas,
+        "locked_folds": int(len(ordered) - locked_start),
+        "development_folds": int(locked_start),
+        "locked_oos_untouched_for_tuning": True,
         "statistical_validation": statistical,
         "experiment_registry": registry,
         "pit_audit": "PASS",
