@@ -36,6 +36,26 @@ def _extract_run_blocks(text: str) -> list[str]:
     return blocks
 
 
+def _extract_python_heredocs(text: str) -> list[str]:
+    lines = text.splitlines()
+    blocks: list[str] = []
+    i = 0
+    while i < len(lines):
+        if lines[i].strip() not in {"python - <<'PY'", "python3 - <<'PY'"}:
+            i += 1
+            continue
+        i += 1
+        block: list[str] = []
+        while i < len(lines) and lines[i].strip() != "PY":
+            block.append(lines[i])
+            i += 1
+        if i >= len(lines):
+            raise AssertionError("unterminated Python heredoc in workflow")
+        blocks.append("\n".join(block) + "\n")
+        i += 1
+    return blocks
+
+
 def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     status_text = STATUS_WORKFLOW.read_text(encoding="utf-8")
@@ -56,6 +76,18 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
             f"research workflow run block {index} has invalid bash syntax:\n"
             f"{result.stderr}\nSCRIPT:\n{script}"
         )
+
+
+    python_blocks = _extract_python_heredocs(text)
+    status_python_blocks = _extract_python_heredocs(status_text)
+    assert python_blocks, "No embedded Python heredocs found in research-validation workflow"
+    for index, script in enumerate(python_blocks + status_python_blocks):
+        try:
+            compile(script, f"workflow-python-heredoc-{index}", "exec")
+        except SyntaxError as exc:
+            raise AssertionError(
+                f"workflow embedded Python block {index} has invalid syntax: {exc}\nSCRIPT:\n{script}"
+            ) from exc
 
 
 def test_research_validation_has_external_status_workflow() -> None:
