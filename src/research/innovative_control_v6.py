@@ -914,18 +914,51 @@ def evaluate_v6(
 
     label_noise = detect_label_noise(ordered)
     invariant_features = invariant_feature_stability(ordered[:dev_end])
-    failure_horizons = {
-        name: float(
-            1.0 / max(
-                float(np.mean([
-                    summary["P_full_v6"]["fold_metrics"][i]["failure_risk_mean"]
-                    for i in range(len(summary["P_full_v6"]["fold_metrics"]))
-                    if i < len(summary["P_full_v6"]["fold_metrics"])
-                ])),
-                0.05,
+    failure_horizons = {}
+    failure_component_means = {}
+    for name in models:
+        component = {}
+        for metric in failure_metrics:
+            vals = failure_component_history[name][metric]
+            component[metric] = float(np.mean(vals)) if vals else 0.5
+        failure_component_means[name] = component
+        risk_mean = float(np.mean(list(component.values())))
+        failure_horizons[name] = float(1.0 / max(risk_mean, 0.05))
+
+    locked_full_rows = pd.DataFrame(summary["P_full_v6"]["fold_metrics"]).iloc[-locked_folds:]
+    locked_base_rows = pd.DataFrame(summary["A"]["fold_metrics"]).iloc[-locked_folds:]
+    worst_period = {
+        "worst_accuracy_delta": float(
+            np.min(
+                locked_full_rows["accuracy"].to_numpy()
+                - locked_base_rows["accuracy"].to_numpy()
             )
-        )
-        for name in models
+        ),
+        "worst_logloss_delta": float(
+            np.max(
+                locked_full_rows["logloss"].to_numpy()
+                - locked_base_rows["logloss"].to_numpy()
+            )
+        ),
+        "worst_brier_delta": float(
+            np.max(
+                locked_full_rows["brier"].to_numpy()
+                - locked_base_rows["brier"].to_numpy()
+            )
+        ),
+        "worst_ece_delta": float(
+            np.max(
+                locked_full_rows["ece"].to_numpy()
+                - locked_base_rows["ece"].to_numpy()
+            )
+        ),
+    }
+    router_safety = {
+        "mean_weight_entropy": float(locked_full_rows["weight_entropy"].mean()),
+        "weight_collapse_observed": bool(
+            locked_full_rows["weight_entropy"].min() < 0.10
+        ),
+        "safety_fallback_enabled": True,
     }
 
     return {
@@ -965,6 +998,7 @@ def evaluate_v6(
             "future_window": "next_chronological_fold",
             "matured_history_only": True,
             "failure_horizon_proxy_folds": failure_horizons,
+            "component_risk_mean": failure_component_means,
             "monitoring": "AVAILABLE_AFTER_FUTURE_MATURITY",
         },
         "predictability": {
@@ -1010,5 +1044,7 @@ def evaluate_v6(
             "status": "IMPLEMENTED_RESEARCH_ONLY",
             "baseline": "quality_weighted_verified_candidate",
         },
+        "router_safety": router_safety,
+        "worst_period_locked_delta": worst_period,
         "production_artifact": "UNCHANGED",
     }
