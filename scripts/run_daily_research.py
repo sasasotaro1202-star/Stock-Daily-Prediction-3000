@@ -2695,6 +2695,11 @@ def main():
             pd.concat(bank_rows, ignore_index=True).to_parquet(bank_path, index=False)
             innovative_v6 = evaluate_v6(online_prediction_by_fold)
             innovative_v6["input_bank"] = str(bank_path)
+            innovative_v6["run_metadata"] = {
+                "git_sha": os.getenv("GITHUB_SHA", "unknown"),
+                "run_id": os.getenv("GITHUB_RUN_ID", "unknown"),
+                "ref": os.getenv("GITHUB_REF", "unknown"),
+            }
         else:
             innovative_v6 = {
                 "status": "BLOCKED",
