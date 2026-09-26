@@ -200,6 +200,67 @@ def add_prediction_dynamics(
     return out, next_prev, next_vel, flip_state
 
 
+def detect_label_noise(fold_banks: list[Mapping[str, object]]) -> dict[str, int]:
+    duplicate_rows = 0
+    conflicting_rows = 0
+    for bank in fold_banks:
+        n = len(np.asarray(bank.get("y", [])))
+        symbols = np.asarray(bank.get("symbols", [""] * n), dtype=str)
+        dates = np.asarray(bank.get("session_dates", [""] * n), dtype=str)
+        y = np.asarray(bank.get("y", []), dtype=int)
+        frame = pd.DataFrame({"date": dates, "symbol": symbols, "y": y})
+        dup = frame.duplicated(["date", "symbol"], keep=False)
+        duplicate_rows += int(dup.sum())
+        if dup.any():
+            for _, g in frame.loc[dup].groupby(["date", "symbol"], dropna=False):
+                if g["y"].nunique() > 1:
+                    conflicting_rows += int(len(g))
+    return {
+        "duplicate_rows": duplicate_rows,
+        "conflicting_label_rows": conflicting_rows,
+        "status": "PASS" if conflicting_rows == 0 else "WARN",
+    }
+
+
+def invariant_feature_stability(
+    prior_folds: list[Mapping[str, object]],
+) -> dict[str, float]:
+    if len(prior_folds) < 3:
+        return {}
+    scores: list[np.ndarray] = []
+    for bank in prior_folds:
+        risk = bank.get("risk_context")
+        if risk is None:
+            continue
+        x = np.asarray(risk, dtype=float)
+        y = np.asarray(bank["y"], dtype=int)
+        if x.ndim != 2 or x.shape[0] != len(y):
+            continue
+        fold_scores = []
+        for j in range(x.shape[1]):
+            col = x[:, j]
+            if np.nanstd(col) < 1e-9:
+                fold_scores.append(0.0)
+                continue
+            cc = np.corrcoef(np.nan_to_num(col, nan=np.nanmedian(col)), y)[0, 1]
+            fold_scores.append(float(cc) if np.isfinite(cc) else 0.0)
+        scores.append(np.asarray(fold_scores, dtype=float))
+    if not scores:
+        return {}
+    arr = np.vstack(scores)
+    out = {}
+    for j in range(arr.shape[1]):
+        signs = np.sign(arr[:, j])
+        signs = signs[signs != 0]
+        stability = float(max(np.mean(signs == np.sign(np.median(arr[:, j]))) if len(signs) else 0.0, 0.0))
+        out[f"risk_{j}"] = stability
+    return out
+
+
+def safe_source_reliability() -> str:
+    return "UNAVAILABLE_NO_SOURCE_METADATA"
+
+
 def compute_feature_reliability(
     prior_folds: list[Mapping[str, object]],
     current_risk: np.ndarray,
@@ -484,6 +545,10 @@ def evaluate_v6(
         name: {metric: [] for metric in failure_metrics} for name in models
     }
     past_perf: dict[str, list[dict[str, float]]] = {name: [] for name in models}
+    predictability_monitor: list[dict[str, float]] = []
+    failure_monitor: list[dict[str, float]] = []
+    previous_predictability: dict[str, np.ndarray] = {}
+    previous_failure_risk: dict[str, np.ndarray] = {}
     previous_by_symbol: dict[str, dict[str, float]] = {}
     previous_velocity_by_symbol: dict[str, dict[str, float]] = {}
     per_fold_audit: list[dict[str, object]] = []
@@ -747,6 +812,31 @@ def evaluate_v6(
             past_state_frames.append(state.copy())
             past_predictability_labels.append(difficulty.astype(int))
 
+        # Evaluate previously issued meta predictions only after the current fold matures.
+        if t > 0 and previous_predictability:
+            prev_score = previous_predictability["score"]
+            difficulty_now = float(
+                log_loss(
+                    np.asarray(bank["y"], dtype=int),
+                    safe_probability(
+                        np.sum(
+                            np.column_stack([
+                                np.asarray((bank.get("predictions") or {})[name], dtype=float)
+                                for name in models
+                            ]) * np.tile(_quality_weights(ordered[:t], models), (len(y), 1)),
+                            axis=1,
+                        )
+                    ),
+                    labels=[0, 1],
+                ) < UNIFORM_LOGLOSS
+            )
+            predictability_monitor.append({
+                "fold": float(t - 1),
+                "realized_next_fold_easy": difficulty_now,
+                "predicted_mean": float(np.mean(prev_score)),
+                "brier": float((np.mean(prev_score) - difficulty_now) ** 2),
+            })
+
         for name in models:
             p0 = np.asarray((bank.get("predictions") or {})[name], dtype=float)
             met0 = _metrics(y, p0)
@@ -822,6 +912,22 @@ def evaluate_v6(
     ):
         promotion = "CANDIDATE"
 
+    label_noise = detect_label_noise(ordered)
+    invariant_features = invariant_feature_stability(ordered[:dev_end])
+    failure_horizons = {
+        name: float(
+            1.0 / max(
+                float(np.mean([
+                    summary["P_full_v6"]["fold_metrics"][i]["failure_risk_mean"]
+                    for i in range(len(summary["P_full_v6"]["fold_metrics"]))
+                    if i < len(summary["P_full_v6"]["fold_metrics"])
+                ])),
+                0.05,
+            )
+        )
+        for name in models
+    }
+
     return {
         "schema_version": "v6.0",
         "status": "OOS_COMPLETE",
@@ -855,13 +961,17 @@ def evaluate_v6(
         "future_failure": {
             "status": "RESEARCH_COMPLETE",
             "models": models,
+            "objectives": ["accuracy", "logloss", "brier", "ece"],
             "future_window": "next_chronological_fold",
             "matured_history_only": True,
+            "failure_horizon_proxy_folds": failure_horizons,
+            "monitoring": "AVAILABLE_AFTER_FUTURE_MATURITY",
         },
         "predictability": {
             "status": "RESEARCH_COMPLETE",
             "dimensions": ["Data", "Model", "Information", "Regime", "Temporal", "Local"],
             "calibration_status": "DESCRIPTIVE_ONLY",
+            "monitoring_rows": predictability_monitor,
         },
         "error_correlation": {
             "status": "RESEARCH_COMPLETE",
@@ -874,11 +984,24 @@ def evaluate_v6(
         "retrieval": {
             "status": "RESEARCH_COMPLETE",
             "history_only": True,
+            "prototype_and_failure_similarity": True,
         },
         "uncertainty": {
             "status": "RESEARCH_COMPLETE",
             "decomposition": ["Model", "DistributionShift", "Information", "IrreducibleProxy"],
         },
+        "feature_reliability": {
+            "status": "RESEARCH_COMPLETE",
+            "invariant_stability": invariant_features,
+        },
+        "source_reliability": safe_source_reliability(),
+        "label_noise": label_noise,
+        "multi_horizon_consistency": "NOT_AVAILABLE_SINGLE_TARGET_HORIZON",
+        "residual_modeling": "NOT_IMPLEMENTED_IN_THIS_V6_RUN",
+        "hidden_state_reconstruction": "NOT_IMPLEMENTED_IN_THIS_V6_RUN",
+        "test_time_adaptation": "RESEARCHED_VIA_TTA_MODE",
+        "online_adaptation": "NOT_PRODUCTION_ENABLED",
+
         "counterfactual_stability": "DESCRIPTIVE_STRESS",
         "robustness": "DESCRIPTIVE_STRESS",
         "shadow": "PENDING",
