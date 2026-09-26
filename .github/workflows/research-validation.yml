@@ -158,6 +158,10 @@ jobs:
           v13_router = Path("data/research/ultimate_v13/router_stability.json")
           v13_info = Path("data/research/ultimate_v13/active_information.json")
           v13_meta = Path("data/research/ultimate_v13/meta_label.json")
+          v13_history = Path("data/research/ultimate_v13/prediction_history.json")
+          v13_strategy_failure = Path("data/research/ultimate_v13/strategy_failure.json")
+          v13_governance = Path("data/research/ultimate_v13/governance.json")
+          v13_registry = Path("data/research/ultimate_v13/experiment_registry.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -170,6 +174,10 @@ jobs:
               or not v13_router.exists()
               or not v13_info.exists()
               or not v13_meta.exists()
+              or not v13_history.exists()
+              or not v13_strategy_failure.exists()
+              or not v13_governance.exists()
+              or not v13_registry.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
@@ -178,8 +186,26 @@ jobs:
           adversarial = json.loads(adversarial_audit.read_text(encoding="utf-8"))
           if adversarial.get("status") != "PASS":
               raise SystemExit("FAIL: v13 adversarial structural audit did not PASS")
+          manifest_data = json.loads(manifest.read_text(encoding="utf-8"))
+          required_artifacts = {
+              "prediction_history.json",
+              "strategy_failure.json",
+              "governance.json",
+              "experiment_registry.json",
+          }
+          if not required_artifacts.issubset(set(manifest_data.get("artifacts") or [])):
+              raise SystemExit("FAIL: v13 manifest missing required governance/history artifacts")
+          governance = json.loads(v13_governance.read_text(encoding="utf-8"))
+          if governance.get("contracts", {}).get("research_only") is not True:
+              raise SystemExit("FAIL: v13 governance research_only contract missing")
+          if governance.get("contracts", {}).get("no_auto_promotion") is not True:
+              raise SystemExit("FAIL: v13 governance auto-promotion safety contract missing")
+          registry = json.loads(v13_registry.read_text(encoding="utf-8"))
+          if registry.get("validation", {}).get("status") != "PASS":
+              raise SystemExit("FAIL: v13 experiment registry validation did not PASS")
           json.loads(summary.read_text(encoding="utf-8"))
-          json.loads(manifest.read_text(encoding="utf-8"))
+          json.loads(v13_history.read_text(encoding="utf-8"))
+          json.loads(v13_strategy_failure.read_text(encoding="utf-8"))
           print("ULTIMATE_V13_ARTIFACT=PASS")
           print("ULTIMATE_V13_FOLDS=", v13.get("folds"))
           print("ULTIMATE_V13_MODELS=", len(v13.get("models") or []))
