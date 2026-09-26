@@ -121,6 +121,7 @@ def build_ultimate_intelligence(
         ("prediction_ledger.json", "prediction_ledger"),
         ("router_stability.json", "router_stability"),
         ("active_information.json", "active_information"),
+        ("meta_label.json", "meta_label"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -155,6 +156,7 @@ def build_ultimate_intelligence(
             "prediction_ledger.json",
             "router_stability.json",
             "active_information.json",
+            "meta_label.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
