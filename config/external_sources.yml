@@ -1,0 +1,180 @@
+version: 1
+research_only: true
+default_policy: FAIL_CLOSED
+sources:
+  - id: gdelt_doc
+    family: news_events
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: global
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: "15m+"
+    pit_mode: publication_time
+    historical_window: "rolling_3_months"
+    expected_features: [mention_count, source_diversity, burst, entity_attention, sentiment_proxy, event_intensity]
+  - id: finra_short_sale
+    family: equity_microstructure
+    enabled_research: true
+    auth: none
+    cost: free_noncommercial
+    coverage: us_equities
+    asset_classes: [us_stock]
+    temporal_resolution: daily
+    pit_mode: same_day_post_publication
+    historical_window: "2018-08-01+"
+    expected_features: [short_volume_ratio, short_volume_zscore, venue_disagreement, short_volume_burst]
+  - id: fred_alfred
+    family: macro
+    enabled_research: true
+    auth: free_registration
+    cost: free
+    coverage: us_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: daily
+    pit_mode: realtime_vintage
+    historical_window: "series_dependent"
+    expected_features: [level, change, surprise, revision, macro_regime]
+  - id: us_treasury_curve
+    family: rates
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: us_rates
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: daily
+    pit_mode: publication_time
+    historical_window: "long_history"
+    expected_features: [2s10s, 3m10y, level, slope, curvature, daily_change]
+  - id: cftc_cot
+    family: positioning
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: futures_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: weekly
+    pit_mode: release_time_required
+    historical_window: "1986+"
+    expected_features: [net_speculative_position, commercial_position, positioning_change]
+  - id: boj_timeseries
+    family: macro
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: japan_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: daily_or_lower
+    pit_mode: publication_time
+    historical_window: "series_dependent"
+    expected_features: [policy_rate, tankan, money, prices, credit, yield_curve]
+  - id: bls_public_data
+    family: macro
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: us_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: release_event
+    pit_mode: release_schedule
+    historical_window: "series_dependent"
+    expected_features: [cpi, ppi, payrolls, unemployment, jolts, wage_growth]
+  - id: bea_release_data
+    family: macro
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: us_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: release_event
+    pit_mode: release_schedule
+    historical_window: "series_dependent"
+    expected_features: [gdp, income, consumption, trade, corporate_profits]
+  - id: ecb_data
+    family: macro
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: euro_macro
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: daily_or_lower
+    pit_mode: historical_versions_available
+    historical_window: "series_dependent"
+    expected_features: [ecb_policy, euro_rates, credit, monetary_conditions]
+  - id: bis_stats
+    family: global_finance
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: global_finance
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: monthly_or_lower
+    pit_mode: publication_time
+    historical_window: "series_dependent"
+    expected_features: [credit_growth, debt, cross_border_flows, banking_conditions]
+  - id: edinet
+    family: corporate_disclosure
+    enabled_research: true
+    auth: free_registration
+    cost: free
+    coverage: japan_corporates
+    asset_classes: [jp_stock, jp_reit]
+    temporal_resolution: filing_event
+    pit_mode: document_available_time
+    historical_window: "multi_year"
+    expected_features: [revenue, profit, guidance, ownership, capital_actions, narrative_events]
+  - id: estat
+    family: macro
+    enabled_research: true
+    auth: free_registration
+    cost: free
+    coverage: japan_macro
+    asset_classes: [jp_stock, jp_reit, us_stock, us_etf]
+    temporal_resolution: release_event
+    pit_mode: release_time_required
+    historical_window: "series_dependent"
+    expected_features: [cpi, labor, trade, production, household_activity]
+  - id: cme_cboe_context
+    family: volatility_and_derivatives
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: us_derivatives
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: daily
+    pit_mode: official_publication_time
+    historical_window: "series_dependent"
+    expected_features: [volatility_term_structure, volatility_change, index_volume, market_breadth]
+  - id: usgs_events
+    family: exogenous_shock
+    enabled_research: true
+    auth: none
+    cost: free
+    coverage: global_events
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: minutes
+    pit_mode: event_time_plus_publication
+    historical_window: "feed_dependent"
+    expected_features: [earthquake_intensity, proximity, affected_region, event_burst]
+  - id: noaa_ncei
+    family: weather_and_climate
+    enabled_research: true
+    auth: free_registration
+    cost: free
+    coverage: global_weather
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: hourly_or_daily
+    pit_mode: observation_publication_required
+    historical_window: "station_dependent"
+    expected_features: [temperature_anomaly, precipitation, storm, degree_days, climate_shock]
+  - id: openfigi
+    family: reference_data
+    enabled_research: true
+    auth: optional
+    cost: free
+    coverage: global_securities
+    asset_classes: [jp_stock, us_stock, jp_etf, us_etf, jp_reit]
+    temporal_resolution: static_reference
+    pit_mode: reference_snapshot
+    historical_window: "current_reference"
+    expected_features: [security_id, exchange, share_class, security_type, identifier_crosswalk]
