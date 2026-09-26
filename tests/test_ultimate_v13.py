@@ -1,5 +1,74 @@
 from __future__ import annotations
 
+from src.research.v13_governance import (
+    experiment_record,
+    safety_governance,
+    validate_experiment_registry,
+)
+
+
+def test_experiment_record_is_deterministically_hashed():
+    a = experiment_record(
+        experiment_id="v13-test-001",
+        hypothesis="prior-only retrieval is causal",
+        commit="abc",
+        dataset="synthetic",
+        feature_version="f1",
+        model_version="m1",
+        parameters={"k": 10},
+        train_period="2025",
+        validation_period="2026Q1",
+        oos_period="2026Q2",
+    )
+    b = experiment_record(
+        experiment_id="v13-test-001",
+        hypothesis="prior-only retrieval is causal",
+        commit="abc",
+        dataset="synthetic",
+        feature_version="f1",
+        model_version="m1",
+        parameters={"k": 10},
+        train_period="2025",
+        validation_period="2026Q1",
+        oos_period="2026Q2",
+    )
+    assert a == b
+    assert len(a["record_sha256"]) == 64
+
+
+def test_governance_blocks_when_pit_is_blocked():
+    out = safety_governance(
+        promotion_allowed=False,
+        pit_status="BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
+        leakage_status="PASS",
+        meta_leakage_status="PASS",
+        robustness_status="PASS",
+        reproducibility_status="PASS",
+        production_changed=False,
+    )
+    assert out["kill_switch_engaged"] is True
+    assert out["action"] == "BLOCK_NEW_V13_PATH"
+    assert out["fallback_target"] == "verified_baseline"
+    assert out["rollback_target"] == "previous_verified"
+    assert out["promotion_allowed"] is False
+
+
+def test_registry_validation_rejects_duplicate_ids():
+    row = experiment_record(
+        experiment_id="dup",
+        hypothesis="x",
+        commit="c",
+        dataset="d",
+        feature_version="f",
+        model_version="m",
+        parameters={},
+        train_period="t",
+        validation_period="v",
+        oos_period="o",
+    )
+    assert validate_experiment_registry([row, row])["status"] == "FAIL"
+from __future__ import annotations
+
 import json
 
 import numpy as np
