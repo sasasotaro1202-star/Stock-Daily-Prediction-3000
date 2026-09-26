@@ -103,6 +103,8 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert "ref: ${{ github.event.workflow_run.head_sha }}\n        with:" not in text
     assert text.index("Persist research validation status") < text.index("Preserve generated status outputs")
     assert text.index("Preserve generated status outputs") < text.index("Commit research status evidence")
+    preserve_pos = text.index("      - name: Preserve generated status outputs")
+    assert text.index("        if: always()", preserve_pos) < text.index("        shell: bash", preserve_pos)
     assert text.index("git checkout -B research-status origin/research-status") > text.index("Preserve generated status outputs")
     main_text = WORKFLOW.read_text(encoding="utf-8")
     assert "  research-status:" not in main_text
