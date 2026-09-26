@@ -145,3 +145,20 @@ def test_v13_exposes_future_failure_aware_routing_challenger(tmp_path):
         )
         assert np.isfinite(weights).all()
         assert np.isclose(float(weights.sum()), 1.0)
+
+
+def test_v13_meta_label_is_prior_only_and_ledgered(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    meta = result["meta_label"]
+    assert meta["status"] == "EXECUTED_PRIOR_ONLY_INDIVIDUAL_PREDICTION_META_LABEL"
+    assert meta["threshold"] == 0.60
+    assert 0.0 <= meta["locked_summary"]["coverage"] <= 1.0
+    rows = result["prediction_ledger"]["row_level"]
+    assert len(rows) == 36
+    assert all(0.0 <= float(row["meta_label_probability"]) <= 1.0 for row in rows)
+
+    altered = _bank()
+    altered[5]["y"] = np.ones(6, dtype=int)
+    changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "altered")
+    for a, b in zip(result["fold_results"][:-1], changed["fold_results"][:-1]):
+        assert a["meta_label"]["scores"] == b["meta_label"]["scores"]
