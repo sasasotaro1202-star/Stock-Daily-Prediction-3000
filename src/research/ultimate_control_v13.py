@@ -737,6 +737,21 @@ def evaluate_v13(
         for k in selected_summary
     }
 
+    routing_dynamic_rows = [x["routing"]["dynamic_vs_equal"] for x in locked]
+    routing_equal_rows = [x["routing"]["equal_weight"] for x in locked]
+    routing_dynamic = {
+        k: mean_metric(routing_dynamic_rows, k)
+        for k in ("accuracy", "logloss", "brier", "ece")
+    }
+    routing_equal = {
+        k: mean_metric(routing_equal_rows, k)
+        for k in ("accuracy", "logloss", "brier", "ece")
+    }
+    relative_logloss_improvement = float(
+        (routing_equal["logloss"] - routing_dynamic["logloss"])
+        / max(abs(routing_equal["logloss"]), EPS)
+    )
+
     strategy_summary = {}
     for s, rows in metrics_by_strategy.items():
         locked_rows = [
@@ -875,17 +890,16 @@ def evaluate_v13(
             "status": "EXECUTED_ROW_WISE_SOFT_ROUTING",
             "folds": fold_results,
             "aggregate": {
-                "dynamic": {
-                    k: mean_metric([x["routing"]["dynamic_vs_equal"][k] for x in fold_results[-locked_folds:]], k)
-                    for k in ("accuracy", "logloss", "brier", "ece")
+                "dynamic": routing_dynamic,
+                "equal_weight": routing_equal,
+                "delta_dynamic_minus_equal": {
+                    k: float(routing_dynamic[k] - routing_equal[k])
+                    for k in routing_dynamic
                 },
-                "equal_weight": {
-                    k: mean_metric([x["routing"]["equal_weight"][k] for x in fold_results[-locked_folds:]], k)
-                    for k in ("accuracy", "logloss", "brier", "ece")
-                },
+                "relative_logloss_improvement": relative_logloss_improvement,
             },
-            "locked_fold_weight_concentration_mean": float(np.mean([x["routing"]["weight_concentration"] for x in fold_results[-locked_folds:]])),
-            "locked_fold_weight_entropy_mean": float(np.mean([x["routing"]["weight_entropy"] for x in fold_results[-locked_folds:]])),
+            "locked_fold_weight_concentration_mean": float(np.mean([x["routing"]["weight_concentration"] for x in locked])),
+            "locked_fold_weight_entropy_mean": float(np.mean([x["routing"]["weight_entropy"] for x in locked])),
         },
         "performance_success": False,
         "performance_success_reason": "promotion-blocked until full PIT/meta-leakage/nested-OOS/robustness/statistical evidence is independently verified",
