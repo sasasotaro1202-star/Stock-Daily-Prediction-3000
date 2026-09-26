@@ -1,4 +1,4 @@
-commit=f5b82b46312918a101f4182bcf9a8888ab9cb552
-purpose=rerun latest-head v13 validation after future-failure-aware routing and row-level prediction ledger extensions; validate PIT/leakage, calibration, OOS, robustness, artifact integrity, and promotion safety without automatic promotion
+commit=637e1aa9f62e95b705947d50319b99951bce819e
+purpose=rerun latest-head v13 validation after repository verification passed; validate PIT/leakage, meta-leakage, chronological OOS, ablation, robustness, artifact integrity, statistical evidence, and promotion safety without automatic promotion
 
-rerun_epoch=2026-09-26T21:56:00+09:00
+rerun_epoch=2026-09-26T22:00:00+09:00
