@@ -362,6 +362,156 @@ def _select_probability(
     raise ValueError(f"unknown strategy: {strategy}")
 
 
+
+
+def _error_correlation_diagnostics(
+    fold_banks: list[dict],
+    models: list[str],
+) -> dict[str, object]:
+    """Retrospective error-diversity diagnostics; never used for current-fold routing."""
+    residuals: dict[str, list[float]] = {m: [] for m in models}
+    errors: dict[str, list[int]] = {m: [] for m in models}
+    for fold in fold_banks:
+        y = np.asarray(fold["y"], dtype=int)
+        for name in models:
+            p = safe_probability(np.asarray(fold["predictions"][name], dtype=float))
+            residuals[name].extend((p - y).tolist())
+            errors[name].extend(((p >= 0.5).astype(int) != y).astype(int).tolist())
+
+    corr: dict[str, dict[str, float]] = {m: {} for m in models}
+    overlap: dict[str, dict[str, float]] = {m: {} for m in models}
+    pairs: list[float] = []
+    for i, a in enumerate(models):
+        for j, b in enumerate(models):
+            if a == b:
+                corr[a][b] = 1.0
+                overlap[a][b] = 1.0
+                continue
+            av = np.asarray(residuals[a], dtype=float)
+            bv = np.asarray(residuals[b], dtype=float)
+            if len(av) >= 3 and np.std(av) > 1e-12 and np.std(bv) > 1e-12:
+                value = float(np.corrcoef(av, bv)[0, 1])
+                corr[a][b] = value if np.isfinite(value) else 0.0
+            else:
+                corr[a][b] = 0.0
+            ea = np.asarray(errors[a], dtype=bool)
+            eb = np.asarray(errors[b], dtype=bool)
+            union = float(np.sum(ea | eb))
+            overlap[a][b] = float(np.sum(ea & eb) / union) if union else 1.0
+        for b in models[i + 1:]:
+            pairs.append(float(corr[a][b]))
+    return {
+        "status": "EXECUTED_RETROSPECTIVE_DIAGNOSTIC",
+        "current_fold_routing_uses": False,
+        "residual_correlation": corr,
+        "error_overlap_jaccard": overlap,
+        "mean_pairwise_error_correlation": float(np.mean(pairs)) if pairs else 0.0,
+    }
+
+
+def _failure_calibration(
+    fold_banks: list[dict],
+    models: list[str],
+    risk_by_model: dict[str, list[float]],
+) -> dict[str, dict[str, float]]:
+    """Evaluate one-step-ahead failure risk against the next-fold outcome, retrospectively."""
+    out: dict[str, dict[str, float]] = {}
+    for name in models:
+        labels: list[int] = []
+        risks: list[float] = []
+        for t in range(len(fold_banks) - 1):
+            cur = metrics(
+                np.asarray(fold_banks[t]["y"], dtype=int),
+                np.asarray(fold_banks[t]["predictions"][name], dtype=float),
+            )
+            nxt = metrics(
+                np.asarray(fold_banks[t + 1]["y"], dtype=int),
+                np.asarray(fold_banks[t + 1]["predictions"][name], dtype=float),
+            )
+            labels.append(_failure_label(cur, nxt))
+            risks.append(float(risk_by_model[name][t]))
+        if not labels:
+            out[name] = {
+                "horizon_folds": 1.0,
+                "observations": 0.0,
+                "brier": float("nan"),
+                "ece": float("nan"),
+                "positive_rate": float("nan"),
+                "mean_risk": float("nan"),
+            }
+            continue
+        y = np.asarray(labels, dtype=int)
+        p = safe_probability(np.asarray(risks, dtype=float))
+        out[name] = {
+            "horizon_folds": 1.0,
+            "observations": float(len(y)),
+            "brier": float(np.mean((p - y) ** 2)),
+            "ece": float(ece(y, p)),
+            "positive_rate": float(np.mean(y)),
+            "mean_risk": float(np.mean(p)),
+        }
+    return out
+
+
+def _time_to_failure_evaluation(
+    fold_banks: list[dict],
+    models: list[str],
+    predicted_ttf: dict[str, list[float]],
+) -> dict[str, dict[str, float]]:
+    """Compare fold-ahead TTF proxy with first observed future failure; censored cases are excluded from MAE."""
+    out: dict[str, dict[str, float]] = {}
+    for name in models:
+        fold_metrics = [
+            metrics(
+                np.asarray(fold["y"], dtype=int),
+                np.asarray(fold["predictions"][name], dtype=float),
+            )
+            for fold in fold_banks
+        ]
+        failures = [
+            _failure_label(fold_metrics[i], fold_metrics[i + 1])
+            for i in range(len(fold_metrics) - 1)
+        ]
+        observed: list[float] = []
+        predicted: list[float] = []
+        censored = 0
+        for t in range(len(fold_metrics) - 1):
+            next_failure = None
+            for k in range(t, len(failures)):
+                if failures[k]:
+                    next_failure = k + 1 - t
+                    break
+            if next_failure is None:
+                censored += 1
+                continue
+            observed.append(float(next_failure))
+            predicted.append(float(predicted_ttf[name][t]))
+        if observed:
+            errors = np.abs(np.asarray(predicted) - np.asarray(observed))
+            out[name] = {
+                "status": "EXECUTED_RETROSPECTIVE_PROXY_EVAL",
+                "event_cases": float(len(observed)),
+                "censored_cases": float(censored),
+                "event_rate": float(len(observed) / max(len(observed) + censored, 1)),
+                "predicted_mean": float(np.mean(predicted)),
+                "observed_mean": float(np.mean(observed)),
+                "mae_on_event_cases": float(np.mean(errors)),
+                "median_abs_error_on_event_cases": float(np.median(errors)),
+            }
+        else:
+            out[name] = {
+                "status": "INSUFFICIENT_FAILURE_EVENTS",
+                "event_cases": 0.0,
+                "censored_cases": float(censored),
+                "event_rate": 0.0,
+                "predicted_mean": float(np.mean(predicted_ttf[name])) if predicted_ttf[name] else float("nan"),
+                "observed_mean": float("nan"),
+                "mae_on_event_cases": float("nan"),
+                "median_abs_error_on_event_cases": float("nan"),
+            }
+    return out
+
+
 @dataclass
 class FoldResult:
     fold: int
@@ -626,7 +776,10 @@ def evaluate_v13(
         base_correct = (baseline >= 0.5) == y
         revised_correct = (output_p >= 0.5) == y
         revision_accuracy = float(np.mean(revised_correct[revised])) if revised.any() else float("nan")
-        false_revision = float(np.mean(revised & base_correct & ~revised_correct)) if len(y) else float("nan")
+        false_revision = (
+            float(np.mean(revised & base_correct & ~revised_correct) / np.mean(revised))
+            if revised.any() else float("nan")
+        )
         for i, sym in enumerate(symbols):
             previous_selected[sym] = float(output_p[i])
 
@@ -723,6 +876,10 @@ def evaluate_v13(
         state["summary_pred"] = float(np.mean(p_matrix))
         state["summary_drift"] = float(np.mean(state["feature_drift"]))
 
+    error_correlation = _error_correlation_diagnostics(ordered, models)
+    failure_calibration = _failure_calibration(ordered, models, per_model_failure_risk)
+    ttf_evaluation = _time_to_failure_evaluation(ordered, models, per_model_ttf)
+
     locked = [x for x in fold_results if x["is_locked"]]
     selected_rows = [x["metrics"]["selected_policy"] for x in locked]
     baseline_rows = [x["metrics"]["ensemble"] for x in locked]
@@ -816,16 +973,20 @@ def evaluate_v13(
             "status": "EXECUTED",
             "per_model": per_model_failure_risk,
             "severity_scale": ["normal", "warning", "failure", "critical"],
+            "calibration_1step": failure_calibration,
         },
         "time_to_failure": {
             "status": "EXECUTED_PROXY",
             "unit": "chronological_OOS_folds",
             "per_model": per_model_ttf,
+            "retrospective_evaluation": ttf_evaluation,
+            "interpretation": "1/risk remains a proxy; evaluation reports event-censored agreement with the observed first future failure",
         },
         "regime_transition": {
             "status": "EXECUTED",
             "future_regime_is_predictive_proxy": True,
         },
+        "error_correlation": error_correlation,
         "retrieval": {
             "status": "EXECUTED_HISTORY_ONLY",
             "success_and_failure": True,
