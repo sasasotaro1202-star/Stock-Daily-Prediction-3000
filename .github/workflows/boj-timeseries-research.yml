@@ -36,21 +36,52 @@ jobs:
       - run: pip install -e ".[dev]"
       - name: BOJ parser and PIT feature tests
         run: pytest -q tests/test_boj_api.py tests/test_boj_features.py tests/test_external_sources.py
-      - name: Restore latest price state shards
+      - name: Restore latest price state shards when available
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          rm -rf data/prices
           mkdir -p data/prices
           for shard in 0 1 2 3; do
             PRICE_SHARD_INDEX="$shard" python scripts/restore_latest_price_state.py
           done
-          count=$(find data/prices -maxdepth 1 -name 'batch_*.parquet' -type f | wc -l)
-          if [ "$count" -ne 4 ]; then
-            echo "DEFERRED: expected 4 restored price shard partitions, found $count"
-            exit 1
-          fi
+      - name: Refresh official universe for price bootstrap
+        run: |
+          set -euo pipefail
+          python scripts/restore_latest_universe_state.py
+          python scripts/refresh_universe.py
+          python scripts/universe_quality_gate.py
+      - name: Update all price shards (reuse cache or free bootstrap)
+        env:
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 1
+        run: |
+          set -euo pipefail
+          pids=()
+          for shard in 0 1 2 3; do
+            (PRICE_SHARD_INDEX="$shard" python scripts/update_prices.py) > "data/prices/shard_${shard}.log" 2>&1 &
+            pids+=("$!")
+          done
+          rc=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || rc=1
+          done
+          for shard in 0 1 2 3; do
+            cat "data/prices/shard_${shard}.log"
+            report="data/prices/price_deferred_shard_${shard}.json"
+            if [ ! -f "$report" ]; then
+              echo "FAIL: missing shard report $report"
+              rc=1
+            else
+              python - "$report" <<'PY' || rc=1
+import json, sys
+p=json.load(open(sys.argv[1], encoding="utf-8"))
+if p.get("status") != "PASS" or p.get("deferred"):
+    raise SystemExit(f"FAIL: price shard not fully resolved: {p}")
+PY
+            fi
+          done
+          exit "$rc"
       - name: Canonicalize restored price state
         run: python scripts/normalize_price_store.py
       - name: Collect BOJ research data
