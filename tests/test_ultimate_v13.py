@@ -67,8 +67,6 @@ def test_registry_validation_rejects_duplicate_ids():
         oos_period="o",
     )
     assert validate_experiment_registry([row, row])["status"] == "FAIL"
-from __future__ import annotations
-
 import json
 
 import numpy as np
