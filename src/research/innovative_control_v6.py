@@ -63,16 +63,6 @@ def entropy_binary(p: np.ndarray) -> np.ndarray:
 def multiclass_js_binary(p: np.ndarray) -> np.ndarray:
     q = np.stack([1.0 - p, p], axis=-1)
     mean = np.mean(q, axis=1)
-    out = np.zeros(len(p), dtype=float)
-    for row in q:
-        m = np.mean(row, axis=0)
-        vals = []
-        for r in row:
-            vals.append(
-                0.5 * np.sum(r * (np.log(np.clip(r, EPS, 1.0)) - np.log(np.clip(m, EPS, 1.0))))
-            )
-        # The per-row calculation above is JS for each model distribution.
-        out[len(vals) - len(vals):] if False else None
     # Vectorized stable JS:
     m = mean
     kl = np.sum(q * (np.log(np.clip(q, EPS, 1.0)) - np.log(np.clip(m[:, None, :], EPS, 1.0))), axis=2)
@@ -323,7 +313,11 @@ def _past_error_correlation(
     lengths = min(len(x) for x in errors)
     if lengths < 10:
         return np.eye(len(models), dtype=float)
-    return np.corrcoef(np.vstack([x[:lengths] for x in errors]))
+    corr = np.corrcoef(np.vstack([x[:lengths] for x in errors]))
+    if not np.isfinite(corr).all():
+        corr = np.nan_to_num(corr, nan=0.0, posinf=0.0, neginf=0.0)
+        np.fill_diagonal(corr, 1.0)
+    return corr
 
 
 def _nearest_history(
@@ -338,6 +332,11 @@ def _nearest_history(
         return np.full(len(current), 0.5), np.full(len(current), 0.5)
     cols = [c for c in STATE_COLUMNS if c in state.columns]
     hist = pd.concat(history_states, ignore_index=True)[cols].to_numpy(dtype=float)
+    # Deterministic cap prevents quadratic explosion on large universes.
+    if len(hist) > 5000:
+        idx = np.linspace(0, len(hist) - 1, 5000, dtype=int)
+        hist = hist[idx]
+        history_labels = [np.asarray(x).reshape(-1)[idx] for x in history_labels]
     cur = current[cols].to_numpy(dtype=float)
     # Robust scaling based on prior history only.
     med = np.nanmedian(hist, axis=0)
@@ -489,7 +488,14 @@ def evaluate_v6(
         if len(y) != len(probs) or not np.isfinite(probs).all():
             raise ValueError(f"invalid OOS bank at fold {t}")
         symbols = np.asarray(bank.get("symbols", [""] * len(y)), dtype=str)
-        risk = np.asarray(bank.get("risk_context"), dtype=float)
+        risk_raw = bank.get("risk_context")
+        risk = (
+            np.asarray(risk_raw, dtype=float)
+            if risk_raw is not None
+            else np.zeros((len(y), 0), dtype=float)
+        )
+        if risk.ndim != 2 or risk.shape[0] != len(y):
+            raise ValueError(f"invalid risk context at fold {t}")
         state = disagreement_features(probs)
         state, next_prev, next_vel, _ = add_prediction_dynamics(
             state, probs, symbols, previous_by_symbol, previous_velocity_by_symbol
@@ -499,7 +505,7 @@ def evaluate_v6(
 
         feature_rel, feature_drift = compute_feature_reliability(ordered[:t], risk)
         shock = information_shock_score(risk)
-        state["data_completeness"] = np.isfinite(risk).mean(axis=1) if risk.ndim == 2 else 1.0
+        state["data_completeness"] = np.isfinite(risk).mean(axis=1) if risk.shape[1] else 1.0
         state["feature_reliability"] = feature_rel
         state["feature_drift"] = feature_drift
         state["information_shock"] = shock
