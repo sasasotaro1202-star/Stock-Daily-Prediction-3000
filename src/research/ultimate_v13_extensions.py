@@ -226,7 +226,7 @@ def augment_v13_result(
             "prediction_time": None,
             "valid_until": None,
             "prediction_timestamp_status": "BLOCKED_NO_EXACT_PREDICTION_TIME",
-            "data_snapshot_sha256": _prediction_snapshot_digest(fold),
+            "prediction_input_snapshot_sha256": _prediction_snapshot_digest(fold),
             "models": models,
             "strategy_counts": strategies,
             "action_counts": actions,
