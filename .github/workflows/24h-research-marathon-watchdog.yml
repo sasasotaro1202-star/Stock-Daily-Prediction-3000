@@ -28,37 +28,97 @@ jobs:
         run: |
           set -euo pipefail
 
-          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/24h-research-marathon.yml/runs?per_page=20")"
-          now="$(date -u +%s)"
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/24h-research-marathon.yml/runs?per_page=50")"
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          SELF_RUN_ID="$GITHUB_RUN_ID"
 
-          active_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].id // empty')"
-          active_started="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].run_started_at // empty')"
+          printf '%s' "$runs" > /tmp/marathon-runs.json
+          python - /tmp/marathon-runs.json "$MAIN_SHA" "$SELF_RUN_ID" <<'PY' > /tmp/decision.json
+          import json, sys
+          from datetime import datetime, timezone
 
-          if [ -n "${active_id}" ] && [ -n "${active_started}" ]; then
-            start_epoch="$(date -d "${active_started}" +%s 2>/dev/null || echo 0)"
-            age_minutes="$(( (now-start_epoch)/60 ))"
-            echo "MARATHON_ACTIVE run=${active_id} age_minutes=${age_minutes}"
-            if [ "${age_minutes}" -gt 1450 ]; then
-              echo "::warning title=24H marathon stale::cancelling run ${active_id} after ${age_minutes} minutes"
-              gh run cancel "${active_id}" --repo "${GITHUB_REPOSITORY}"
-              gh workflow run 24h-research-marathon.yml --repo "${GITHUB_REPOSITORY}" --ref main
-            fi
-            exit 0
-          fi
+          runs=json.load(open(sys.argv[1],encoding="utf-8")).get("workflow_runs",[])
+          main_sha=sys.argv[2]
+          self_id=int(sys.argv[3])
+          now=datetime.now(timezone.utc)
+          active_statuses={"queued","pending","in_progress","waiting","requested"}
 
-          queued_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].id // empty')"
-          queued_created="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].created_at // empty')"
+          def parse_ts(row, field="updated_at"):
+              raw=row.get(field) or row.get("created_at")
+              return datetime.fromisoformat(raw.replace("Z","+00:00")) if raw else now
 
-          if [ -n "${queued_id}" ] && [ -n "${queued_created}" ]; then
-            created_epoch="$(date -d "${queued_created}" +%s 2>/dev/null || echo 0)"
-            age_minutes="$(( (now-created_epoch)/60 ))"
-            echo "MARATHON_QUEUED run=${queued_id} age_minutes=${age_minutes}"
-            if [ "${age_minutes}" -gt 60 ]; then
-              echo "::warning title=24H marathon queue stall::cancelling run ${queued_id} after ${age_minutes} minutes"
-              gh run cancel "${queued_id}" --repo "${GITHUB_REPOSITORY}"
-              gh workflow run 24h-research-marathon.yml --repo "${GITHUB_REPOSITORY}" --ref main
-            fi
-            exit 0
-          fi
+          candidates=[r for r in runs if int(r.get("id",0) or 0) != self_id]
+          active=[r for r in candidates if r.get("status") in active_statuses]
 
-          echo "24H marathon: no recovery required"
+          stale=[]
+          for r in active:
+              status=r.get("status")
+              age=(now-parse_ts(r, "run_started_at" if status=="in_progress" else "updated_at")).total_seconds()/60
+              if status in {"queued","pending"} and age >= 30:
+                  stale.append((r,age,"queue"))
+              elif status=="in_progress" and age >= 1450:
+                  stale.append((r,age,"active"))
+
+          if stale:
+              r,age,kind=stale[0]
+              print(json.dumps({"action":"CANCEL_AND_DISPATCH","run_id":int(r["id"]),"reason":f"stale_{kind}","age_minutes":round(age,1)}))
+          elif active:
+              print(json.dumps({"action":"WAIT","reason":"active_run_present"}))
+          else:
+              completed_main=[r for r in candidates if r.get("status")=="completed" and r.get("head_sha")==main_sha]
+              completed_main.sort(key=lambda r: parse_ts(r,"updated_at"), reverse=True)
+              if not completed_main:
+                  print(json.dumps({"action":"DISPATCH","reason":"no_completed_main_run"}))
+              else:
+                  latest=completed_main[0]
+                  age=(now-parse_ts(latest,"updated_at")).total_seconds()/60
+                  recent_failures=[
+                      r for r in completed_main
+                      if (now-parse_ts(r,"updated_at")).total_seconds() <= 6*3600
+                      and r.get("conclusion") in {"failure","cancelled","timed_out"}
+                  ]
+                  conclusion=latest.get("conclusion")
+                  if conclusion in {"failure","cancelled","timed_out"} and age >= 10 and len(recent_failures) < 3:
+                      print(json.dumps({"action":"DISPATCH","reason":"recent_failed_run_recovery","age_minutes":round(age,1)}))
+                  elif len(recent_failures) >= 3 and age < 360:
+                      print(json.dumps({"action":"HOLD","reason":"three_recent_failures_cooldown","failures":len(recent_failures)}))
+                  elif age >= 24*60:
+                      print(json.dumps({"action":"DISPATCH","reason":"24h_cycle_elapsed","age_minutes":round(age,1)}))
+                  else:
+                      print(json.dumps({"action":"WAIT","reason":"cycle_within_window","age_minutes":round(age,1)}))
+          PY
+
+          cat /tmp/decision.json
+          action="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["action"])')"
+          run_id="$(python -c 'import json; print(json.load(open("/tmp/decision.json")).get("run_id",""))')"
+          reason="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["reason"])')"
+
+          dispatch_main() {
+            for attempt in 1 2 3 4; do
+              if gh workflow run 24h-research-marathon.yml --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "WATCHDOG: dispatched fresh 24H run (attempt $attempt/4)"
+                return 0
+              fi
+              sleep $((attempt * 4))
+            done
+            echo "WATCHDOG: bounded dispatch retries exhausted" >&2
+            return 1
+          }
+
+          case "$action" in
+            WAIT|HOLD)
+              echo "WATCHDOG: $action ($reason)"
+              ;;
+            CANCEL_AND_DISPATCH)
+              gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
+              echo "WATCHDOG: cancelled stale run $run_id"
+              dispatch_main
+              ;;
+            DISPATCH)
+              dispatch_main
+              ;;
+            *)
+              echo "WATCHDOG: unknown action $action" >&2
+              exit 1
+              ;;
+          esac

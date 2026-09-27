@@ -3,9 +3,6 @@ name: 24H Research Marathon
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/24h-research-marathon.yml"
   schedule:
     - cron: "5 0 * * *"
       timezone: "Asia/Tokyo"
@@ -52,7 +49,7 @@ jobs:
           pids=()
           for shard in 0 1 2 3; do
             (PRICE_SHARD_INDEX="${shard}" python scripts/update_prices.py) > "data/prices/marathon_core_shard_${shard}.log" 2>&1 &
-            pids+=( "$$!" )
+            pids+=( "$!" )
           done
           rc=0
           for pid in "${pids[@]}"; do
@@ -142,7 +139,7 @@ jobs:
           pids=()
           for shard in 0 1 2 3; do
             (PRICE_SHARD_INDEX="${shard}" python scripts/update_prices.py) > "data/prices/marathon_finra_shard_${shard}.log" 2>&1 &
-            pids+=( "$$!" )
+            pids+=( "$!" )
           done
           rc=0
           for pid in "${pids[@]}"; do
@@ -219,7 +216,7 @@ jobs:
           pids=()
           for shard in 0 1 2 3; do
             (PRICE_SHARD_INDEX="${shard}" python scripts/update_prices.py) > "data/prices/marathon_treasury_shard_${shard}.log" 2>&1 &
-            pids+=( "$$!" )
+            pids+=( "$!" )
           done
           rc=0
           for pid in "${pids[@]}"; do
@@ -327,12 +324,98 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+
       - uses: actions/download-artifact@v7
+        continue-on-error: true
         with:
           pattern: marathon-*
           path: marathon-evidence
           merge-multiple: true
+      - name: Write immutable final checkpoint
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          root=Path("marathon-evidence")
+          results={
+              "core_oos":"${{ needs.core_oos.result }}",
+              "finra":"${{ needs.finra.result }}",
+              "treasury":"${{ needs.treasury.result }}",
+              "audits":"${{ needs.audits.result }}",
+          }
+          required={
+              "core_oos":[
+                  "data/research/latest_metrics.json",
+                  "data/research/leakage_audit.json",
+                  "data/research/independent_leakage_audit.json",
+                  "data/research/data_quality.json",
+                  "data/research/universe_quality.json",
+                  "data/research/market_context_quality.json",
+              ],
+              "finra":[
+                  "data/research/finra_short_sale.json",
+                  "data/research/finra_short_sale_ablation.json",
+              ],
+              "treasury":[
+                  "data/research/treasury_curve.json",
+                  "data/research/treasury_ablation.json",
+              ],
+              "audits":[
+                  "data/research/independent_leakage_audit.json",
+                  "data/research/v13_meta_leakage_audit.json",
+                  "data/research/cpcv_validation_audit.json",
+              ],
+          }
+          missing=[]
+          for lane, paths in required.items():
+              if results[lane] != "success":
+                  continue
+              for rel in paths:
+                  p=root/rel
+                  if not p.is_file() or p.stat().st_size <= 0:
+                      missing.append(f"{lane}:{rel}")
+
+          mutation_files=[]
+          for p in sorted(root.rglob("*.json")) if root.exists() else []:
+              try:
+                  obj=json.loads(p.read_text(encoding="utf-8"))
+              except Exception:
+                  continue
+              if isinstance(obj,dict) and obj.get("production_changed") is True:
+                  mutation_files.append(str(p.relative_to(root)))
+
+          status="COMPLETED" if all(v=="success" for v in results.values()) and not missing and not mutation_files else "PARTIAL_OR_BLOCKED"
+          payload={
+              "schema_version":1,
+              "status":status,
+              "research_only":True,
+              "production_changed":False,
+              "github_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "github_sha":os.environ["GITHUB_SHA"],
+              "lane_results":results,
+              "missing_required_evidence":missing,
+              "production_mutation_evidence":mutation_files,
+          }
+          out=Path("marathon-final-checkpoint.json")
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          print(json.dumps(payload,indent=2,sort_keys=True))
+          if status != "COMPLETED":
+              raise SystemExit("FAIL: 24H final checkpoint is not complete")
+          PY
+      - name: Upload final checkpoint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: marathon-final-checkpoint-${{ github.run_id }}
+          path: marathon-final-checkpoint.json
+          if-no-files-found: error
+          retention-days: 1
       - name: Build marathon summary
+        if: always()
         shell: bash
         run: |
           set -euo pipefail
@@ -365,6 +448,7 @@ jobs:
           retention-days: 1
           path: marathon-summary.json
       - name: Enforce lane outcomes
+        if: always()
         run: |
           test "${{ needs.core_oos.result }}" = success
           test "${{ needs.finra.result }}" = success
