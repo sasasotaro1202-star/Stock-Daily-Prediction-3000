@@ -49,7 +49,7 @@ def _submit(start: date,end: date,symbols: list[str]) -> list[dict]:
 def _available_at(d: date) -> pd.Timestamp:
     return pd.Timestamp(datetime.combine(d+timedelta(days=1),datetime.min.time()),tz="Asia/Tokyo")+pd.Timedelta(hours=12)
 
-def collect_finra_short_sale(start: date,end: date,symbols: list[str],*,symbol_chunk_size: int=250,window_days: int=15) -> pd.DataFrame:
+def collect_finra_short_sale(start: date,end: date,symbols: list[str],*,symbol_chunk_size: int=500,window_days: int=30) -> pd.DataFrame:
     symbols=sorted({str(x).strip().upper() for x in symbols if str(x).strip()})
     if not symbols or start>end: return pd.DataFrame()
     rows=[]
