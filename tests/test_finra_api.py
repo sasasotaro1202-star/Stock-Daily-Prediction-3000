@@ -25,3 +25,27 @@ def test_finra_missing_history_is_explicit():
     prices=pd.DataFrame([{"symbol":"XYZ","asset_class":"us_stock","available_at":"2026-09-28T07:17:00Z"}])
     out=add_finra_context(prices,pd.DataFrame())
     assert out.loc[0,"finra_data_available"]==0.0 and out.loc[0,"finra_short_ratio"]==0.0
+
+def test_finra_rejects_missing_or_impossible_volumes(monkeypatch):
+    import src.data.finra_api as api
+
+    def fake_submit(*args, **kwargs):
+        return [{
+            "tradeReportDate":"2026-09-25",
+            "securitiesInformationProcessorSymbolIdentifier":"ABC",
+            "shortParQuantity":None,
+            "shortExemptParQuantity":1,
+            "totalParQuantity":10,
+            "reportingFacilityCode":"NQ",
+            "marketCode":"Q",
+        }]
+
+    monkeypatch.setattr(api, "_submit", fake_submit)
+    try:
+        api.collect_finra_short_sale(
+            date(2026,9,25), date(2026,9,25), ["ABC"]
+        )
+    except ValueError as exc:
+        assert "missing numeric volume" in str(exc)
+    else:
+        raise AssertionError("expected missing volume to fail closed")
