@@ -28,7 +28,8 @@ def main():
     idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
-    name = f"price-state-shard-{idx}"
+    preferred_name = f"price-state-shard-{idx}"
+    research_prefix = f"research-validation-price-{idx}-"
 
     query = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
     try:
@@ -44,7 +45,13 @@ def main():
 
     candidates = [
         a for a in payload.get("artifacts", [])
-        if a.get("name") == name and not a.get("expired")
+        if (
+            not a.get("expired")
+            and (
+                a.get("name") == preferred_name
+                or str(a.get("name", "")).startswith(research_prefix)
+            )
+        )
     ]
     if not candidates:
         print("price-state: no previous artifact; initial 5y fetch will run")
