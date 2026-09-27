@@ -17,6 +17,7 @@ on:
       - ".github/workflows/boj-timeseries-research.yml"
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
