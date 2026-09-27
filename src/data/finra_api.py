@@ -36,8 +36,7 @@ def _poll(location: str, timeout_seconds: int=180) -> list[dict]:
 def _submit(start: date,end: date,symbols: list[str]) -> list[dict]:
     body={"async":True,"limit":100000,"offset":0,"fields":list(FIELDS),
           "dateRangeFilters":[{"fieldName":"tradeReportDate","startDate":start.isoformat(),"endDate":end.isoformat()}],
-          "domainFilters":[{"fieldName":"securitiesInformationProcessorSymbolIdentifier","values":symbols}],
-          "sortFields":["+tradeReportDate","+securitiesInformationProcessorSymbolIdentifier"]}
+          "domainFilters":[{"fieldName":"securitiesInformationProcessorSymbolIdentifier","values":symbols}]}
     req=Request(FINRA_URL,data=json.dumps(body).encode(),method="POST",
                 headers={"User-Agent":USER_AGENT,"Accept":"application/json","Content-Type":"application/json"})
     with urlopen(req,timeout=90) as r:
