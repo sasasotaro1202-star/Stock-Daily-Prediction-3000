@@ -49,3 +49,22 @@ def test_finra_rejects_missing_or_impossible_volumes(monkeypatch):
         assert "missing numeric volume" in str(exc)
     else:
         raise AssertionError("expected missing volume to fail closed")
+
+def test_finra_collection_uses_bounded_request_batches(monkeypatch):
+    import src.data.finra_api as api
+
+    calls = []
+
+    def fake_submit(start, end, symbols):
+        calls.append((start, end, tuple(symbols)))
+        return []
+
+    monkeypatch.setattr(api, "_submit", fake_submit)
+    api.collect_finra_short_sale(
+        date(2026,1,1),
+        date(2026,3,31),
+        [f"S{i}" for i in range(1001)],
+    )
+    assert len(calls) == 9
+    assert all(len(symbols) <= 500 for _, _, symbols in calls)
+    assert all((end - start).days <= 29 for start, end, _ in calls)
