@@ -68,8 +68,18 @@ def collect_finra_short_sale(start: date,end: date,symbols: list[str],*,symbol_c
     if not need.issubset(f.columns): raise ValueError("FINRA response missing fields")
     f["session_date"]=pd.to_datetime(f["session_date"],errors="coerce").dt.date
     f["symbol"]=f["symbol"].astype(str).str.upper().str.strip()
-    for c in ("short_volume","short_exempt_volume","total_volume"): f[c]=pd.to_numeric(f[c],errors="coerce").fillna(0.0)
-    f=f.dropna(subset=["session_date","symbol"]); f=f[(f.short_volume>=0)&(f.total_volume>=0)]
+    for c in ("short_volume","short_exempt_volume","total_volume"):
+        f[c] = pd.to_numeric(f[c], errors="coerce")
+    f=f.dropna(subset=["session_date","symbol"])
+    required_numeric=("short_volume","short_exempt_volume","total_volume")
+    if f[list(required_numeric)].isna().any().any():
+        raise ValueError("FINRA response contains missing numeric volume fields")
+    if (f[list(required_numeric)] < 0).any().any():
+        raise ValueError("FINRA response contains negative volume fields")
+    if (f["short_volume"] > f["total_volume"]).any():
+        raise ValueError("FINRA response has short volume greater than total volume")
+    if (f["short_exempt_volume"] > f["total_volume"]).any():
+        raise ValueError("FINRA response has short-exempt volume greater than total volume")
     g=f.groupby(["session_date","symbol"],as_index=False).agg(
         short_volume=("short_volume","sum"),short_exempt_volume=("short_exempt_volume","sum"),total_volume=("total_volume","sum"))
     den=g["total_volume"].replace(0,np.nan)
