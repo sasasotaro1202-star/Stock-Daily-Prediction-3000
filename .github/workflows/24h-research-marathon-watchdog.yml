@@ -1,0 +1,64 @@
+
+name: 24H Research Marathon Watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: research-marathon-watchdog
+  cancel-in-progress: true
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect and recover marathon
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/24h-research-marathon.yml/runs?per_page=20")"
+          now="$(date -u +%s)"
+
+          active_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].id // empty')"
+          active_started="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "in_progress")] | sort_by(.run_started_at) | reverse | .[0].run_started_at // empty')"
+
+          if [ -n "${active_id}" ] && [ -n "${active_started}" ]; then
+            start_epoch="$(date -d "${active_started}" +%s 2>/dev/null || echo 0)"
+            age_minutes="$(( (now-start_epoch)/60 ))"
+            echo "MARATHON_ACTIVE run=${active_id} age_minutes=${age_minutes}"
+            if [ "${age_minutes}" -gt 1450 ]; then
+              echo "::warning title=24H marathon stale::cancelling run ${active_id} after ${age_minutes} minutes"
+              gh run cancel "${active_id}" --repo "${GITHUB_REPOSITORY}"
+              gh workflow run 24h-research-marathon.yml --repo "${GITHUB_REPOSITORY}" --ref main
+            fi
+            exit 0
+          fi
+
+          queued_id="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].id // empty')"
+          queued_created="$(printf '%s' "${runs}" | jq -r '[.workflow_runs[] | select(.status == "queued" or .status == "pending")] | sort_by(.created_at) | .[0].created_at // empty')"
+
+          if [ -n "${queued_id}" ] && [ -n "${queued_created}" ]; then
+            created_epoch="$(date -d "${queued_created}" +%s 2>/dev/null || echo 0)"
+            age_minutes="$(( (now-created_epoch)/60 ))"
+            echo "MARATHON_QUEUED run=${queued_id} age_minutes=${age_minutes}"
+            if [ "${age_minutes}" -gt 60 ]; then
+              echo "::warning title=24H marathon queue stall::cancelling run ${queued_id} after ${age_minutes} minutes"
+              gh run cancel "${queued_id}" --repo "${GITHUB_REPOSITORY}"
+              gh workflow run 24h-research-marathon.yml --repo "${GITHUB_REPOSITORY}" --ref main
+            fi
+            exit 0
+          fi
+
+          echo "24H marathon: no recovery required"
