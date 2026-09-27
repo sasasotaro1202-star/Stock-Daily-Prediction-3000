@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: finra-short-sale-research
+  group: finra-short-sale-research-v2
   cancel-in-progress: false
 
 jobs:
