@@ -1,0 +1,89 @@
+name: FINRA short-sale research
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/data/finra_api.py"
+      - "src/research/finra_features.py"
+      - "scripts/collect_finra_research.py"
+      - "scripts/run_finra_ablation.py"
+      - "tests/test_finra_api.py"
+      - ".github/workflows/finra-short-sale-research.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: finra-short-sale-research
+  cancel-in-progress: false
+
+jobs:
+  research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: FINRA parser and PIT tests
+        run: pytest -q tests/test_finra_api.py tests/test_external_sources.py
+      - name: Restore latest price state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/prices
+          for shard in 0 1 2 3; do
+            PRICE_SHARD_INDEX="$shard" python scripts/restore_latest_price_state.py
+          done
+      - name: Refresh official universe
+        run: |
+          set -euo pipefail
+          python scripts/refresh_universe.py
+          python scripts/universe_quality_gate.py
+      - name: Update price shards
+        env:
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 1
+        run: |
+          set -euo pipefail
+          pids=()
+          for shard in 0 1 2 3; do
+            (PRICE_SHARD_INDEX="$shard" python scripts/update_prices.py) > "data/prices/finra_shard_${shard}.log" 2>&1 &
+            pids+=( "$!" )
+          done
+          rc=0
+          for pid in "${pids[@]}"; do wait "$pid" || rc=1; done
+          total_deferred=0
+          for shard in 0 1 2 3; do
+            cat "data/prices/finra_shard_${shard}.log"
+            report="data/prices/price_deferred_shard_${shard}.json"
+            if [ ! -f "$report" ]; then echo "FAIL: missing $report"; rc=1; continue; fi
+            count="$(python -c 'import json,sys; print(len(json.load(open(sys.argv[1],encoding="utf-8")).get("deferred",[]) or []))' "$report")"
+            total_deferred=$((total_deferred+count))
+          done
+          expected="$(python -c 'import json; print(len(json.load(open("data/universe/latest.json",encoding="utf-8")).get("records",[])))')"
+          python -c 'import sys; total=int(sys.argv[1]); expected=int(sys.argv[2]); ratio=total/expected if expected else 1.0; print(f"price-provider-deferred-ratio={ratio:.6f}"); sys.exit("FAIL: provider deferred ratio over 5%") if ratio>0.05 else sys.exit(0)' "$total_deferred" "$expected"
+          exit "$rc"
+      - name: Canonicalize price store
+        run: python scripts/normalize_price_store.py
+      - name: Update market context
+        run: python scripts/update_market_context.py
+      - name: Collect FINRA research data
+        run: python scripts/collect_finra_research.py
+      - name: Run FINRA OOS ablation
+        run: python scripts/run_finra_ablation.py
+      - name: Upload FINRA research evidence
+        uses: actions/upload-artifact@v7
+        with:
+          name: finra-short-sale-research-${{ github.run_id }}
+          path: |
+            data/research/finra_short_sale.parquet
+            data/research/finra_short_sale.json
+            data/research/finra_short_sale_ablation.json
+          retention-days: 14
