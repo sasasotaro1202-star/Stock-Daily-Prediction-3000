@@ -31,7 +31,7 @@ def _fetch_year(year: int) -> pd.DataFrame:
     request = Request(url, headers={"User-Agent": USER_AGENT, "Accept": "text/html"})
     with urlopen(request, timeout=45) as response:
         html = response.read().decode("utf-8", errors="replace")
-    tables = pd.read_html(StringIO(html))
+    tables = pd.read_html(StringIO(html), flavor="lxml")
     if not tables:
         return pd.DataFrame()
     table = max(tables, key=lambda frame: frame.shape[1]).copy()
