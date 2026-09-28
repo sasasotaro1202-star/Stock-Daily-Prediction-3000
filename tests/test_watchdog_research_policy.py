@@ -23,3 +23,11 @@ def test_watchdog_still_cancels_only_hard_age_expired_active_research() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "has exceeded 350 minutes of active age" in text
     assert "stale active run $active_run_id cancelled by hard-age guard" in text
+
+
+def test_stale_heartbeat_has_bounded_self_recovery() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "dispatch_heartbeat_recovery()" in text
+    assert "for attempt in 1 2 3" in text
+    assert "gh workflow run heartbeat.yml --repo" in text
+    assert "bounded heartbeat dispatch retries exhausted" in text
