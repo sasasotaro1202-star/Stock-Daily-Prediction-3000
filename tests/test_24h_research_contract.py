@@ -1,5 +1,4 @@
 from pathlib import Path
-import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 MARATHON = ROOT / ".github" / "workflows" / "24h-research-marathon.yml"
@@ -7,10 +6,10 @@ WATCHDOG = ROOT / ".github" / "workflows" / "24h-research-marathon-watchdog.yml"
 
 
 def test_marathon_is_schedule_or_manual_only():
-    cfg = yaml.safe_load(MARATHON.read_text(encoding="utf-8"))
-    assert "push" not in cfg["on"]
-    assert "workflow_dispatch" in cfg["on"]
-    assert cfg["on"]["schedule"]
+    text = MARATHON.read_text(encoding="utf-8")
+    assert "\n  push:" not in text
+    assert "workflow_dispatch:" in text
+    assert '    - cron: "5 0 * * *"' in text
 
 
 def test_marathon_price_shard_pid_is_real_background_pid():
@@ -22,7 +21,7 @@ def test_marathon_price_shard_pid_is_real_background_pid():
 def test_marathon_final_checkpoint_is_fail_closed():
     text = MARATHON.read_text(encoding="utf-8")
     assert "Write immutable final checkpoint" in text
-    assert 'if: always()' in text
+    assert text.count('if: always()') >= 3
     assert '"research_only":True' in text
     assert '"production_changed":False' in text
     assert 'if status != "COMPLETED":' in text
