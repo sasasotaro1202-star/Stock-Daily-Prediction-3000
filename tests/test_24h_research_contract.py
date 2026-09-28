@@ -1,5 +1,7 @@
 from pathlib import Path
 
+# Recovery invariant: keep this contract dependency-light so CI can validate it early.
+
 ROOT = Path(__file__).resolve().parents[1]
 MARATHON = ROOT / ".github" / "workflows" / "24h-research-marathon.yml"
 WATCHDOG = ROOT / ".github" / "workflows" / "24h-research-marathon-watchdog.yml"
