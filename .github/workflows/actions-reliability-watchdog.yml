@@ -378,26 +378,43 @@ jobs:
           recover_missing_scheduled_run "prediction-monitoring.yml" "Prediction monitoring" "09:27" 30
           recover_missing_scheduled_run "market-cycle.yml" "Market cycle" "18:37" 30
 
+          dispatch_heartbeat_recovery() {
+            local attempt
+            for attempt in 1 2 3; do
+              if gh workflow run heartbeat.yml --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "Automation heartbeat: recovery dispatched on main (attempt ${attempt}/3)"
+                return 0
+              fi
+              sleep $((attempt * 3))
+            done
+            echo "::error title=Automation heartbeat recovery dispatch failed::bounded heartbeat dispatch retries exhausted"
+            return 1
+          }
+
           if ! heartbeat_runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/heartbeat.yml/runs?status=success&per_page=1" 2>/dev/null)"; then
             echo "::error title=Automation heartbeat API unavailable::unable to inspect successful heartbeat runs"
             failures=$((failures + 1))
           else
             latest_heartbeat="$(printf '%s' "$heartbeat_runs" | jq -r '.workflow_runs[0].created_at // empty')"
             if [ -z "$latest_heartbeat" ]; then
-            echo "::error title=Automation heartbeat missing::no successful heartbeat run is available"
-            failures=$((failures + 1))
-          else
-            heartbeat_epoch="$(date -d "$latest_heartbeat" +%s 2>/dev/null || echo 0)"
-            # Heartbeat runs every 6h. Allow one missed schedule plus runner/API delay;
-            # alert only after 13h so a healthy 6h cadence does not create false stale failures.
-            heartbeat_cutoff="$(date -u -d '13 hours ago' +%s)"
-            if [ "$heartbeat_epoch" -le 0 ] || [ "$heartbeat_epoch" -lt "$heartbeat_cutoff" ]; then
-              echo "::error title=Automation heartbeat stale::latest successful heartbeat is older than 13 hours: $latest_heartbeat"
-              failures=$((failures + 1))
+              echo "::warning title=Automation heartbeat missing::no successful heartbeat run is available; dispatching bounded recovery"
+              if ! dispatch_heartbeat_recovery; then
+                failures=$((failures + 1))
+              fi
             else
-              echo "Automation heartbeat: fresh ($latest_heartbeat)"
+              heartbeat_epoch="$(date -d "$latest_heartbeat" +%s 2>/dev/null || echo 0)"
+              # Heartbeat runs every 6h. Allow one missed schedule plus runner/API delay;
+              # recover automatically only after the 13h stale boundary.
+              heartbeat_cutoff="$(date -u -d '13 hours ago' +%s)"
+              if [ "$heartbeat_epoch" -le 0 ] || [ "$heartbeat_epoch" -lt "$heartbeat_cutoff" ]; then
+                echo "::warning title=Automation heartbeat stale::latest successful heartbeat is older than 13 hours: $latest_heartbeat"
+                if ! dispatch_heartbeat_recovery; then
+                  failures=$((failures + 1))
+                fi
+              else
+                echo "Automation heartbeat: fresh ($latest_heartbeat)"
+              fi
             fi
-          fi
           fi
 
           if [ "$failures" -gt 0 ]; then
