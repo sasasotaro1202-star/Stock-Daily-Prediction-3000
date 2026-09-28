@@ -100,8 +100,7 @@ jobs:
               "head_sha": os.environ["GITHUB_SHA"],
               "research_only": True,
               "production_changed": False,
-          }, indent=2) + "
-", encoding="utf-8")
+          }, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload core evidence
         if: always()
@@ -204,8 +203,7 @@ jobs:
               "head_sha": os.environ["GITHUB_SHA"],
               "research_only": True,
               "production_changed": False,
-          }, indent=2) + "
-", encoding="utf-8")
+          }, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload FINRA evidence
         if: always()
@@ -301,8 +299,7 @@ jobs:
               "head_sha": os.environ["GITHUB_SHA"],
               "research_only": True,
               "production_changed": False,
-          }, indent=2) + "
-", encoding="utf-8")
+          }, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload Treasury evidence
         if: always()
@@ -378,8 +375,7 @@ jobs:
               "head_sha": os.environ["GITHUB_SHA"],
               "research_only": True,
               "production_changed": False,
-          }, indent=2) + "
-", encoding="utf-8")
+          }, indent=2) + "\n", encoding="utf-8")
           PY
       - name: Upload audit evidence
         if: always()
