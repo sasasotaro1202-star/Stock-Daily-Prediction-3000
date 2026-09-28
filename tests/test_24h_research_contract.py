@@ -30,6 +30,9 @@ def test_marathon_final_checkpoint_is_fail_closed():
     assert 'if-no-files-found: error' in text
     for lane in ("core_oos", "finra", "treasury", "audits"):
         assert f'"{lane}"' in text
+    for checkpoint in ("core_oos.json", "finra.json", "treasury.json", "audits.json"):
+        assert f"marathon-checkpoints/{checkpoint}" in text
+    assert text.count("if: success()") >= 4
 
 
 def test_watchdog_has_bounded_recovery_and_failure_cooldown():
