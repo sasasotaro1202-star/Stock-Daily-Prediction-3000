@@ -84,6 +84,24 @@ jobs:
         run: pytest -q tests/test_conformal_classification.py tests/test_routing_and_pit.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
+      - name: Write core OOS success checkpoint
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p marathon-checkpoints
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("marathon-checkpoints/core_oos.json").write_text(json.dumps({
+              "stage": "core_oos",
+              "status": "success",
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "research_only": True,
+              "production_changed": False,
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload core evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -101,6 +119,7 @@ jobs:
             data/research/cpcv_validation_audit.json
             data/research/v13_meta_leakage_audit.json
             data/research/ultimate_v13/**
+            marathon-checkpoints/core_oos.json
 
   finra:
     needs: core_oos
@@ -168,6 +187,24 @@ jobs:
         run: python scripts/collect_finra_research.py
       - name: Run FINRA OOS ablation
         run: python scripts/run_finra_ablation.py
+      - name: Write FINRA success checkpoint
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p marathon-checkpoints
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("marathon-checkpoints/finra.json").write_text(json.dumps({
+              "stage": "finra",
+              "status": "success",
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "research_only": True,
+              "production_changed": False,
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload FINRA evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -178,6 +215,7 @@ jobs:
           path: |
             data/research/finra_short_sale.json
             data/research/finra_short_sale_ablation.json
+            marathon-checkpoints/finra.json
 
   treasury:
     needs: finra
@@ -245,6 +283,24 @@ jobs:
         run: python scripts/collect_treasury_research.py
       - name: Run Treasury OOS ablation
         run: python scripts/run_treasury_ablation.py
+      - name: Write Treasury success checkpoint
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p marathon-checkpoints
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("marathon-checkpoints/treasury.json").write_text(json.dumps({
+              "stage": "treasury",
+              "status": "success",
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "research_only": True,
+              "production_changed": False,
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload Treasury evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -255,6 +311,7 @@ jobs:
           path: |
             data/research/treasury_curve.json
             data/research/treasury_ablation.json
+            marathon-checkpoints/treasury.json
 
   audits:
     needs: treasury
@@ -302,6 +359,24 @@ jobs:
         run: python scripts/sec_filings_research.py
       - name: SEC filing OOS challenger
         run: python scripts/run_sec_filing_ablation.py
+      - name: Write audits success checkpoint
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p marathon-checkpoints
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          Path("marathon-checkpoints/audits.json").write_text(json.dumps({
+              "stage": "audits",
+              "status": "success",
+              "workflow_run_id": int(os.environ["GITHUB_RUN_ID"]),
+              "head_sha": os.environ["GITHUB_SHA"],
+              "research_only": True,
+              "production_changed": False,
+          }, indent=2) + "\n", encoding="utf-8")
+          PY
       - name: Upload audit evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -316,6 +391,7 @@ jobs:
             data/research/sec_filings_research.json
             data/research/sec_filing_ablation.json
             data/research/ultimate_v13/**
+            marathon-checkpoints/audits.json
 
   finalize:
     needs: [core_oos, finra, treasury, audits]
@@ -355,19 +431,23 @@ jobs:
                   "data/research/data_quality.json",
                   "data/research/universe_quality.json",
                   "data/research/market_context_quality.json",
+                  "marathon-checkpoints/core_oos.json",
               ],
               "finra":[
                   "data/research/finra_short_sale.json",
                   "data/research/finra_short_sale_ablation.json",
+                  "marathon-checkpoints/finra.json",
               ],
               "treasury":[
                   "data/research/treasury_curve.json",
                   "data/research/treasury_ablation.json",
+                  "marathon-checkpoints/treasury.json",
               ],
               "audits":[
                   "data/research/independent_leakage_audit.json",
                   "data/research/v13_meta_leakage_audit.json",
                   "data/research/cpcv_validation_audit.json",
+                  "marathon-checkpoints/audits.json",
               ],
           }
           missing=[]
@@ -378,6 +458,23 @@ jobs:
                   p=root/rel
                   if not p.is_file() or p.stat().st_size <= 0:
                       missing.append(f"{lane}:{rel}")
+                      continue
+                  if rel.startswith("marathon-checkpoints/"):
+                      try:
+                          checkpoint=json.loads(p.read_text(encoding="utf-8"))
+                      except Exception:
+                          missing.append(f"{lane}:{rel}:invalid_json")
+                          continue
+                      if checkpoint.get("status") != "success":
+                          missing.append(f"{lane}:{rel}:status_not_success")
+                      if checkpoint.get("research_only") is not True:
+                          missing.append(f"{lane}:{rel}:research_only_contract")
+                      if checkpoint.get("production_changed") is not False:
+                          missing.append(f"{lane}:{rel}:production_changed_contract")
+                      if str(checkpoint.get("workflow_run_id")) != str(os.environ.get("GITHUB_RUN_ID")):
+                          missing.append(f"{lane}:{rel}:run_id_mismatch")
+                      if checkpoint.get("head_sha") != os.environ.get("GITHUB_SHA"):
+                          missing.append(f"{lane}:{rel}:sha_mismatch")
 
           mutation_files=[]
           for p in sorted(root.rglob("*.json")) if root.exists() else []:
