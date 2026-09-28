@@ -75,9 +75,9 @@ def validate_split(
 
 
 def main() -> int:
+    out = Path("data/research/cpcv_validation_audit.json")
     out.parent.mkdir(parents=True, exist_ok=True)
     price = Path("data/prices/canonical.parquet")
-    out = Path("data/research/cpcv_validation_audit.json")
     if not price.exists():
         raise SystemExit("DEFERRED: canonical price dataset is absent")
 
