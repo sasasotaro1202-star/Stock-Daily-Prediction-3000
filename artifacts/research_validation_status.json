@@ -1,16 +1,16 @@
 {
   "artifact_lookup_error": null,
-  "cpcv_step": "pending",
-  "evidence_artifact_present": false,
-  "generated_at_utc": "2026-09-28T08:05:37.329506+00:00",
-  "job_status": "in_progress",
-  "research_step": "pending",
-  "sec_ablation_step": "pending",
-  "sec_research_step": "pending",
+  "cpcv_step": "skipped",
+  "evidence_artifact_present": true,
+  "generated_at_utc": "2026-09-28T14:05:51.971367+00:00",
+  "job_status": "cancelled",
+  "research_step": "cancelled",
+  "sec_ablation_step": "skipped",
+  "sec_research_step": "skipped",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": null,
+  "workflow_conclusion": "cancelled",
   "workflow_run_id": "36394737397",
   "workflow_sha": "86fb8738e3b6a94759ec3ad974233ec8bafaca82",
-  "workflow_status": "in_progress"
+  "workflow_status": "completed"
 }
