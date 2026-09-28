@@ -28,3 +28,10 @@ def test_validate_split_accepts_clean_split():
         embargo=1,
     )
     assert not violations
+
+
+def test_main_initializes_output_path_before_use():
+    import inspect
+
+    source = inspect.getsource(cpcv.main)
+    assert source.index('out = Path("data/research/cpcv_validation_audit.json")') < source.index("out.parent.mkdir")
