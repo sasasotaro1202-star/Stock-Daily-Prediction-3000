@@ -56,7 +56,7 @@ jobs:
               age=(now-parse_ts(r, "run_started_at" if status=="in_progress" else "updated_at")).total_seconds()/60
               if status in {"queued","pending"} and age >= 30:
                   stale.append((r,age,"queue"))
-              elif status=="in_progress" and age >= 1450:
+              elif status=="in_progress" and age >= 350:
                   stale.append((r,age,"active"))
 
           if stale:
