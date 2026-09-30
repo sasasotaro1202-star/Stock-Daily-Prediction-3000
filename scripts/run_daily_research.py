@@ -289,8 +289,9 @@ def _adaptive_data_snapshot(
         snapshot["reasons"].append("insufficient_price_rows")
     if snapshot["oos_folds"] < int(min_oos_folds):
         snapshot["reasons"].append("insufficient_chronological_oos_folds")
-    if snapshot["shallow_history_symbols"] > 0:
-        snapshot["reasons"].append("shallow_symbol_history")
+    # Shallow symbols remain acquisition targets but do not block global OOS.
+    # This avoids starving an otherwise valid research run because of a small number
+    # of newly-listed securities while the price updater keeps warming them.
     if not snapshot["market_context"]:
         snapshot["reasons"].append("market_context_missing")
     snapshot["status"] = "READY" if not snapshot["reasons"] else "SEARCHING"
