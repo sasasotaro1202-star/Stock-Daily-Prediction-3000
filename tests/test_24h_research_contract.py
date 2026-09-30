@@ -83,7 +83,7 @@ def test_research_has_bounded_adaptive_data_acquisition_loop():
     prices = (ROOT / "scripts" / "update_prices.py").read_text(encoding="utf-8")
     assert "def _ensure_adaptive_research_data()" in text
     assert "_run_acquisition_once(cfg, iteration)" in text
-    assert '"max_acquisition_iterations": 3' in pipeline
+    assert "max_acquisition_iterations: 3" in pipeline
     assert '"selected_at_each_iteration": True' in text
     assert '"refresh_official_universe_every_iteration"' in text
     assert 'PRICE_MIN_HISTORY_SESSIONS' in prices
