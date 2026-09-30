@@ -104,6 +104,19 @@ automation:
   asia_prediction_time_jst: "18:17"
   us_prediction_time_jst: "07:17"
 
+adaptive_data:
+  enabled: true
+  min_price_rows: 2000
+  min_oos_folds: 5
+  min_history_sessions: 360
+  max_acquisition_iterations: 3
+  price_shards: 4
+  price_max_workers: 1
+  discovery_policy: "refresh_official_universe_every_iteration"
+  selection_policy: "rank_missing_and_shallow_history_then_requery"
+  research_only: true
+  production_changed: false
+
 sequential_selection_research:
   research_only: true
   min_history_folds: 3
