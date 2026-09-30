@@ -40,9 +40,10 @@ def test_watchdog_has_bounded_recovery_and_failure_cooldown():
     assert "MAIN_SHA=" in text
     assert "SELF_RUN_ID=" in text
     assert "age >= 30" in text
-    assert "age >= 1450" in text
+    assert "timeout-minutes: 360" in MARATHON.read_text(encoding="utf-8")
+    assert "age >= 350" in text
+    assert "age >= 1450" not in text
     assert "len(recent_failures) < 3" in text
-    assert 'age >= 350' in text
     assert "three_recent_failures_cooldown" in text
     assert "bounded dispatch retries exhausted" in text
 
