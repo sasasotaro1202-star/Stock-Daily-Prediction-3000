@@ -1,3 +1,3 @@
-base_code_commit=12ac54cfefa430137877a4b0ec62f8ed31a989f0
-purpose=rerun latest-head v13 validation after workflow status and score-summary hardening; validate explicit PIT, leakage, meta-leakage, chronological OOS, ablation, robustness, artifact integrity, statistical evidence, and promotion safety without automatic promotion
-trigger_reason=post_24h_price_guard_and_cpcv_audit_fail_closed_fix
+base_code_commit=22a25e05163b273c1f58cc52ee7bba2ca3ef8bc1
+purpose=rerun latest-head validation after verified chronological OOS aggregation defect fix; validate explicit PIT, leakage, meta-leakage, chronological OOS, ablation, robustness, artifact integrity, statistical evidence, calibration, and promotion safety without automatic promotion
+trigger_reason=post_run_36646242746_oos_numeric_aggregation_fix
