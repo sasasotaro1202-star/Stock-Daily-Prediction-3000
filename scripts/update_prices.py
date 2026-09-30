@@ -15,6 +15,7 @@ ROOT=Path("data/prices")
 SHARD_INDEX=int(os.getenv("PRICE_SHARD_INDEX","0"))
 SHARD_COUNT=max(1,int(os.getenv("PRICE_SHARD_COUNT","1")))
 MAX_WORKERS=max(1,int(os.getenv("PRICE_MAX_WORKERS","2")))
+MIN_HISTORY_SESSIONS=max(1,int(os.getenv("PRICE_MIN_HISTORY_SESSIONS","360")))
 ASSET_SCOPE={
     x.strip()
     for x in os.getenv("PRICE_ASSET_CLASSES","").split(",")
@@ -55,6 +56,38 @@ def prune_price_batch_to_current_universe(
     return removed
 
 
+
+
+def history_session_counts(frame: pd.DataFrame) -> dict[tuple[str,str], int]:
+    """Count distinct usable sessions per security for adaptive warm-up."""
+    required={"asset_class","symbol","session_date"}
+    if frame.empty or not required.issubset(frame.columns):
+        return {}
+    dates=pd.to_datetime(frame["session_date"],errors="coerce").dt.date
+    work=frame.loc[dates.notna(),["asset_class","symbol"]].copy()
+    work["session_date"]=dates.loc[work.index]
+    grouped=work.drop_duplicates().groupby(
+        ["asset_class","symbol"],sort=False
+    )["session_date"].nunique()
+    return {
+        (str(asset_class),str(symbol)):int(count)
+        for (asset_class,symbol),count in grouped.items()
+    }
+
+
+def select_history_warmup_targets(
+    batch: list[dict],
+    existing: pd.DataFrame,
+    min_history_sessions: int = MIN_HISTORY_SESSIONS,
+) -> list[dict]:
+    """Re-acquire full history for existing symbols below the OOS history floor."""
+    counts=history_session_counts(existing)
+    return [
+        record for record in batch
+        if counts.get(
+            (str(record["asset_class"]),str(record["symbol"])),0
+        ) < int(min_history_sessions)
+    ]
 
 
 def fetch_resilient(
@@ -165,7 +198,7 @@ def validate_unique_universe_records(records: list[dict]) -> list[dict]:
         unique[key] = record
     return list(unique.values())
 
-def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
+def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]],list[tuple[str,str]]]:
     path=ROOT/f"batch_{i:03d}.parquet"
     ROOT.mkdir(parents=True,exist_ok=True)
 
@@ -179,8 +212,8 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
         (str(r["asset_class"]),str(r["symbol"])) for r in batch
     }
 
-    # Dynamic PayPay universes can add/remove/reorder names. Existing keys
-    # only need incremental pull; new product keys require full warm-up history.
+    # Dynamic universe: new keys and shallow histories get a full 5y warm-up;
+    # healthy existing keys receive a recent incremental refresh.
     existing=[
         r for r in batch
         if (str(r["asset_class"]),str(r["symbol"])) in old_keys
@@ -189,11 +222,28 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
         r for r in batch
         if (str(r["asset_class"]),str(r["symbol"])) not in old_keys
     ]
-
+    warmup=select_history_warmup_targets(
+        existing,old,min_history_sessions=MIN_HISTORY_SESSIONS
+    )
+    warmup_keys={
+        (str(r["asset_class"]),str(r["symbol"])) for r in warmup
+    }
+    incremental=[
+        r for r in existing
+        if (str(r["asset_class"]),str(r["symbol"])) not in warmup_keys
+    ]
 
     frames=[]
-    if existing:
-        data=fetch_resilient(existing,period="10d")
+    if incremental:
+        data=fetch_resilient(incremental,period="10d")
+        if not data.empty:
+            frames.append(data)
+    if warmup:
+        print(
+            f"price-history-warmup batch={i:03d} targets={len(warmup)} "
+            f"min_sessions={MIN_HISTORY_SESSIONS}"
+        )
+        data=fetch_resilient(warmup,period="5y")
         if not data.empty:
             frames.append(data)
     if new:
@@ -211,7 +261,7 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
                 f"price-batch-pruned={i:03d} stale_symbol_rows={removed} "
                 f"reason=dynamic_universe_reorder"
             )
-        return i,0,"DEFERRED",sorted(current_keys)
+        return i,0,"DEFERRED",sorted(current_keys),sorted(warmup_keys)
 
     data=pd.concat(frames,ignore_index=True)
     upsert_batch_parquet(data,str(path))
@@ -233,8 +283,14 @@ def one(i:int,batch:list[dict])->tuple[int,int,str,list[tuple[str,str]]]:
         )
     )
     missing_keys=sorted(current_keys-stored_keys)
+    remaining_warmup_keys=sorted(
+        (str(r["asset_class"]),str(r["symbol"]))
+        for r in select_history_warmup_targets(
+            batch,stored,min_history_sessions=MIN_HISTORY_SESSIONS
+        )
+    )
     status="PASS" if not missing_keys else "DEFERRED"
-    return i,rows,status,missing_keys
+    return i,rows,status,missing_keys,remaining_warmup_keys
 
 
 if __name__=="__main__":
@@ -269,7 +325,7 @@ if __name__=="__main__":
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as pool:
         futures=[pool.submit(one,i,b) for i,b in selected]
         for fut in as_completed(futures):
-            i,rows,status,missing_keys=fut.result()
+            i,rows,status,missing_keys,warmup_remaining=fut.result()
             for asset_class, symbol in missing_keys:
                 unresolved.append({
                     "asset_class": asset_class,
@@ -278,10 +334,20 @@ if __name__=="__main__":
                     "reason": "no_price_rows_after_bounded_recovery",
                     "retrieval_run_id": os.getenv("GITHUB_RUN_ID"),
                 })
+            for asset_class, symbol in warmup_remaining:
+                unresolved.append({
+                    "asset_class": asset_class,
+                    "symbol": symbol,
+                    "batch": i,
+                    "reason": "history_below_oos_minimum_after_warmup",
+                    "min_history_sessions": MIN_HISTORY_SESSIONS,
+                    "retrieval_run_id": os.getenv("GITHUB_RUN_ID"),
+                })
             print(
                 f"price-batch={i:03d} "
                 f"shard={SHARD_INDEX}/{SHARD_COUNT} "
-                f"status={status} rows={rows}"
+                f"status={status} rows={rows} "
+                f"warmup_remaining={len(warmup_remaining)}"
             )
             if status=="PASS":
                 completed+=1
@@ -295,6 +361,7 @@ if __name__=="__main__":
                 "shard": SHARD_INDEX,
                 "shard_count": SHARD_COUNT,
                 "retrieval_run_id": os.getenv("GITHUB_RUN_ID"),
+                "min_history_sessions": MIN_HISTORY_SESSIONS,
                 "deferred": sorted(
                     unresolved,
                     key=lambda x: (x["asset_class"], x["symbol"]),
