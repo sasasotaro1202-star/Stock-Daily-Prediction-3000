@@ -42,6 +42,7 @@ def test_watchdog_has_bounded_recovery_and_failure_cooldown():
     assert "age >= 30" in text
     assert "age >= 1450" in text
     assert "len(recent_failures) < 3" in text
+    assert 'age >= 350' in text
     assert "three_recent_failures_cooldown" in text
     assert "bounded dispatch retries exhausted" in text
 
