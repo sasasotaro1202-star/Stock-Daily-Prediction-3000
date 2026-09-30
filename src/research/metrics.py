@@ -1,4 +1,6 @@
 from __future__ import annotations
+from numbers import Real
+
 import numpy as np
 from sklearn.metrics import accuracy_score,brier_score_loss,log_loss,roc_auc_score
 
@@ -31,9 +33,33 @@ def classification_metrics(y_true,p)->dict[str,float]:
     out["roc_auc"]=float(roc_auc_score(y,prob)) if len(np.unique(y))==2 else float("nan")
     return out
 
-def aggregate_metric_rows(rows:list[dict[str,float]])->dict[str,float]:
-    if not rows:return {}
-    return {k:float(np.nanmean([row.get(k,np.nan) for row in rows])) for k in sorted({k for row in rows for k in row})}
+def aggregate_metric_rows(rows:list[dict[str,object]])->dict[str,float]:
+    """Average numeric metrics while ignoring row-level metadata.
+
+    OOS research rows may carry categorical fields such as calibration
+    method/model/regime alongside numeric metrics. Aggregation must never
+    attempt numeric reduction over those descriptive fields.
+    """
+    if not rows:
+        return {}
+
+    numeric_values: dict[str, list[float]] = {}
+    for row in rows:
+        for key, value in row.items():
+            if isinstance(value, (bool, np.bool_)) or not isinstance(value, Real):
+                continue
+            numeric_values.setdefault(key, []).append(float(value))
+
+    aggregated: dict[str, float] = {}
+    for key in sorted(numeric_values):
+        values = np.asarray(numeric_values[key], dtype=float)
+        finite = values[np.isfinite(values)]
+        aggregated[key] = (
+            float(np.mean(finite))
+            if finite.size
+            else float("nan")
+        )
+    return aggregated
 
 
 def cross_sectional_rank_ic(
