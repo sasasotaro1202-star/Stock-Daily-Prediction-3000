@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 import numpy as np
@@ -86,7 +89,6 @@ PRICE_DIR = Path("data/prices/canonical.parquet")
 OUT = Path("data/research/latest_metrics.json")
 AUDIT = Path("data/research/leakage_audit.json")
 
-
 def make_models():
     """Return only model candidates explicitly enabled in pipeline.yml.
 
@@ -133,7 +135,6 @@ def make_models():
         )
     return selected
 
-
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
     payload = aggregate_metric_rows(rows)
     payload["folds"] = float(len(rows))
@@ -173,7 +174,6 @@ def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
         payload["selection_logloss"] = float(payload["logloss"])
     return payload
 
-
 def aggregate_model_rows(
     rows: list[tuple[str, dict[str, float]]],
 ) -> dict[str, dict[str, float]]:
@@ -181,7 +181,6 @@ def aggregate_model_rows(
     for model_name, row in rows:
         grouped.setdefault(model_name, []).append(row)
     return {model: aggregate_group(rs) for model, rs in grouped.items()}
-
 
 def _self_validate_conformal_research():
     """Fail fast on conformal research primitive corruption before expensive OOS work."""
@@ -204,9 +203,229 @@ def _self_validate_conformal_research():
     if not np.isfinite(result["predicted_class_pvalue"]).all():
         raise SystemExit("FAIL: group conformal self-check produced non-finite p-values")
 
+ADAPTIVE_DATA_DEFAULTS = {
+    "enabled": True,
+    "min_price_rows": 2000,
+    "min_oos_folds": 5,
+    "min_history_sessions": 360,
+    "max_acquisition_iterations": 3,
+    "price_shards": 4,
+    "price_max_workers": 1,
+}
+
+
+def _adaptive_data_config() -> dict:
+    cfg = {}
+    pipeline_path = Path("config/pipeline.yml")
+    if pipeline_path.exists():
+        loaded = yaml.safe_load(pipeline_path.read_text(encoding="utf-8")) or {}
+        cfg.update((loaded.get("adaptive_data") or {}))
+    merged = dict(ADAPTIVE_DATA_DEFAULTS)
+    merged.update(cfg)
+    return merged
+
+
+def _adaptive_data_snapshot(
+    *,
+    min_price_rows: int,
+    min_oos_folds: int,
+    min_history_sessions: int,
+) -> dict:
+    snapshot = {
+        "price_exists": PRICE_DIR.exists(),
+        "rows": 0,
+        "unique_symbols": 0,
+        "unique_sessions": 0,
+        "oos_folds": 0,
+        "shallow_history_symbols": 0,
+        "market_context": Path("data/market_context.parquet").exists(),
+        "status": "MISSING",
+        "reasons": [],
+    }
+    if not PRICE_DIR.exists():
+        snapshot["reasons"].append("canonical_price_missing")
+        snapshot["market_context"] = False
+        return snapshot
+
+    frame = pd.read_parquet(PRICE_DIR)
+    snapshot["rows"] = int(len(frame))
+    if {"asset_class", "symbol"}.issubset(frame.columns):
+        snapshot["unique_symbols"] = int(
+            frame[["asset_class", "symbol"]].drop_duplicates().shape[0]
+        )
+
+    if "session_date" in frame.columns:
+        normalized = pd.to_datetime(
+            frame["session_date"], errors="coerce"
+        ).dt.date
+        dates = sorted(normalized.dropna().unique())
+        snapshot["unique_sessions"] = int(len(dates))
+        if len(dates) >= 252:
+            snapshot["oos_folds"] = int(
+                len(
+                    make_date_folds(
+                        dates,
+                        min_train=252,
+                        test_size=21,
+                        step=21,
+                        embargo=1,
+                        purge=1,
+                    )
+                )
+            )
+        if {"asset_class", "symbol"}.issubset(frame.columns):
+            counts = (
+                frame.assign(session_date=normalized)
+                .dropna(subset=["session_date"])
+                .drop_duplicates(["asset_class", "symbol", "session_date"])
+                .groupby(["asset_class", "symbol"])["session_date"]
+                .nunique()
+            )
+            snapshot["shallow_history_symbols"] = int(
+                (counts < int(min_history_sessions)).sum()
+            )
+
+    if snapshot["rows"] < int(min_price_rows):
+        snapshot["reasons"].append("insufficient_price_rows")
+    if snapshot["oos_folds"] < int(min_oos_folds):
+        snapshot["reasons"].append("insufficient_chronological_oos_folds")
+    # Shallow symbols remain acquisition targets but do not block global OOS.
+    # This avoids starving an otherwise valid research run because of a small number
+    # of newly-listed securities while the price updater keeps warming them.
+    if not snapshot["market_context"]:
+        snapshot["reasons"].append("market_context_missing")
+    snapshot["status"] = "READY" if not snapshot["reasons"] else "SEARCHING"
+    return snapshot
+
+def _run_acquisition_once(cfg: dict, iteration: int) -> None:
+    print(
+        "ADAPTIVE_DATA_ACQUIRE "
+        f"iteration={iteration} min_history_sessions={cfg['min_history_sessions']}",
+        flush=True,
+    )
+
+    # Re-discover the current official universe every iteration. This is
+    # research-only state in the runner and is never promoted directly.
+    subprocess.run(
+        ["python", "scripts/refresh_universe.py"],
+        check=True,
+        timeout=120,
+    )
+    subprocess.run(
+        ["python", "scripts/universe_quality_gate.py"],
+        check=True,
+        timeout=120,
+    )
+
+    env_base = os.environ.copy()
+    env_base["PRICE_SHARD_COUNT"] = str(cfg["price_shards"])
+    env_base["PRICE_MAX_WORKERS"] = str(cfg["price_max_workers"])
+    env_base["PRICE_MIN_HISTORY_SESSIONS"] = str(cfg["min_history_sessions"])
+
+    def run_shard(shard: int):
+        env = dict(env_base)
+        env["PRICE_SHARD_INDEX"] = str(shard)
+        return subprocess.run(
+            ["python", "scripts/update_prices.py"],
+            check=True,
+            env=env,
+            timeout=1800,
+        )
+
+    with ThreadPoolExecutor(max_workers=cfg["price_shards"]) as pool:
+        futures = [pool.submit(run_shard, shard) for shard in range(cfg["price_shards"])]
+        for future in as_completed(futures):
+            future.result()
+
+    subprocess.run(
+        ["python", "scripts/normalize_price_store.py"],
+        check=True,
+        timeout=300,
+    )
+    subprocess.run(
+        ["python", "scripts/update_market_context.py"],
+        check=True,
+        timeout=300,
+    )
+
+
+def _ensure_adaptive_research_data() -> dict:
+    cfg = _adaptive_data_config()
+    state_path = Path("data/research/adaptive_data_state.json")
+    state_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if not bool(cfg.get("enabled", True)):
+        result = {
+            "status": "DISABLED",
+            "research_only": True,
+            "production_changed": False,
+        }
+        state_path.write_text(
+            json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return result
+
+    min_price_rows = max(1, int(cfg["min_price_rows"]))
+    min_oos_folds = max(3, int(cfg["min_oos_folds"]))
+    min_history_sessions = max(1, int(cfg["min_history_sessions"]))
+    max_iterations = max(1, int(cfg["max_acquisition_iterations"]))
+
+    history = []
+    snapshot = _adaptive_data_snapshot(
+        min_price_rows=min_price_rows,
+        min_oos_folds=min_oos_folds,
+        min_history_sessions=min_history_sessions,
+    )
+    history.append(snapshot)
+
+    for iteration in range(1, max_iterations + 1):
+        if not snapshot["reasons"]:
+            break
+        _run_acquisition_once(cfg, iteration)
+        snapshot = _adaptive_data_snapshot(
+            min_price_rows=min_price_rows,
+            min_oos_folds=min_oos_folds,
+            min_history_sessions=min_history_sessions,
+        )
+        history.append(snapshot)
+        print(
+            "ADAPTIVE_DATA_STATE "
+            + json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
+            flush=True,
+        )
+
+    result = {
+        "status": "READY" if not snapshot["reasons"] else "DEFERRED",
+        "iterations": len(history) - 1,
+        "config": cfg,
+        "history": history,
+        "selection": {
+            "policy": "rank_missing_and_shallow_history_then_requery",
+            "selected_at_each_iteration": True,
+        },
+        "discovery": {
+            "policy": "refresh_official_universe_every_iteration",
+            "unresolved_revisited_next_iteration": True,
+        },
+        "research_only": True,
+        "production_changed": False,
+    }
+    state_path.write_text(
+        json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    if snapshot["reasons"]:
+        raise SystemExit(
+            "DEFERRED: adaptive data acquisition exhausted its bounded iterations: "
+            + ",".join(snapshot["reasons"])
+        )
+    return result
 
 def main():
     _self_validate_conformal_research()
+
+    _ensure_adaptive_research_data()
 
     if not PRICE_DIR.exists():
         raise SystemExit("DEFERRED: canonical price dataset is absent")
@@ -217,8 +436,6 @@ def main():
         raise SystemExit("DEFERRED: market context is absent")
     market_context = pd.read_parquet(context_path)
     df["session_date"] = pd.to_datetime(df["session_date"], errors="coerce").dt.date
-    if len(df) < 2000:
-        raise SystemExit(f"DEFERRED: insufficient price rows ({len(df)})")
 
     df = add_technical_features(df)
     df = add_market_context(df, market_context)
@@ -1660,8 +1877,6 @@ def main():
             ):
                 asset_regime_selected[key] = plan.names[0]
 
-
-
     # Situation specialists are selected strictly from chronological OOS slices.
     # Global situation routes must beat the global model on the same situation
     # slice; asset+situation routes must beat the best non-situation parent on
@@ -1746,7 +1961,6 @@ def main():
             )
         ):
             asset_situation_selected[key] = plan.names[0]
-
 
     # Security-level routes are selected only when each candidate has enough
     # chronological OOS evidence and clears the same minimum stable edge as
@@ -2738,7 +2952,6 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     print(json.dumps(payload, indent=2))
-
 
 if __name__ == "__main__":
     main()

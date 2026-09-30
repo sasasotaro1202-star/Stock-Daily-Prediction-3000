@@ -76,3 +76,17 @@ def test_metric_aggregation_ignores_non_numeric_metadata():
         "fold": 1.5,
         "logloss": 0.9,
     }
+
+def test_research_has_bounded_adaptive_data_acquisition_loop():
+    text = (ROOT / "scripts" / "run_daily_research.py").read_text(encoding="utf-8")
+    pipeline = (ROOT / "config" / "pipeline.yml").read_text(encoding="utf-8")
+    prices = (ROOT / "scripts" / "update_prices.py").read_text(encoding="utf-8")
+    assert "def _ensure_adaptive_research_data()" in text
+    assert "_run_acquisition_once(cfg, iteration)" in text
+    assert "max_acquisition_iterations: 3" in pipeline
+    assert '"selected_at_each_iteration": True' in text
+    assert '"refresh_official_universe_every_iteration"' in text
+    assert 'PRICE_MIN_HISTORY_SESSIONS' in prices
+    assert 'select_history_warmup_targets' in prices
+    assert 'history_below_oos_minimum_after_warmup' in prices
+    assert 'snapshot["reasons"].append("shallow_symbol_history")' not in text
