@@ -51,3 +51,20 @@ def test_marathon_price_guard_is_statement_based():
     assert 'raise SystemExit("FAIL: provider deferred ratio over 5%") if ratio>0.05 else None' not in text
     assert text.count("if ratio > 0.05:") == 3
     assert text.count("FAIL: universe record count is zero") == 3
+
+
+def test_metric_aggregation_ignores_non_numeric_metadata():
+    from src.research.metrics import aggregate_metric_rows
+
+    rows = [
+        {"logloss": 1.0, "brier": 0.60, "method": "platt", "fold": 1.0},
+        {"logloss": 0.8, "brier": 0.50, "method": "isotonic", "fold": 2.0},
+    ]
+
+    aggregated = aggregate_metric_rows(rows)
+
+    assert aggregated == {
+        "brier": 0.55,
+        "fold": 1.5,
+        "logloss": 0.9,
+    }
