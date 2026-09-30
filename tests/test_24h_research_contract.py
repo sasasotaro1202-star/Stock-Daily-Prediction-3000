@@ -48,6 +48,12 @@ def test_watchdog_has_bounded_recovery_and_failure_cooldown():
     assert "bounded dispatch retries exhausted" in text
 
 
+def test_watchdog_does_not_cancel_itself_on_next_scheduled_tick():
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert "group: research-marathon-watchdog" in text
+    assert "cancel-in-progress: false" in text
+
+
 def test_marathon_price_guard_is_statement_based():
     text = MARATHON.read_text(encoding="utf-8")
     assert 'raise SystemExit("FAIL: provider deferred ratio over 5%") if ratio>0.05 else None' not in text
