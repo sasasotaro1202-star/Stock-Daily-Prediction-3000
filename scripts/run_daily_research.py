@@ -225,19 +225,26 @@ def _adaptive_data_config() -> dict:
     return merged
 
 
-def _adaptive_data_snapshot(min_oos_folds: int) -> dict:
+def _adaptive_data_snapshot(
+    *,
+    min_price_rows: int,
+    min_oos_folds: int,
+    min_history_sessions: int,
+) -> dict:
     snapshot = {
         "price_exists": PRICE_DIR.exists(),
         "rows": 0,
         "unique_symbols": 0,
         "unique_sessions": 0,
         "oos_folds": 0,
-        "short_history_symbols": 0,
+        "shallow_history_symbols": 0,
+        "market_context": Path("data/market_context.parquet").exists(),
         "status": "MISSING",
         "reasons": [],
     }
     if not PRICE_DIR.exists():
         snapshot["reasons"].append("canonical_price_missing")
+        snapshot["market_context"] = False
         return snapshot
 
     frame = pd.read_parquet(PRICE_DIR)
@@ -246,44 +253,48 @@ def _adaptive_data_snapshot(min_oos_folds: int) -> dict:
         snapshot["unique_symbols"] = int(
             frame[["asset_class", "symbol"]].drop_duplicates().shape[0]
         )
+
     if "session_date" in frame.columns:
-        dates = sorted(pd.to_datetime(frame["session_date"], errors="coerce").dt.date.dropna().unique())
+        normalized = pd.to_datetime(
+            frame["session_date"], errors="coerce"
+        ).dt.date
+        dates = sorted(normalized.dropna().unique())
         snapshot["unique_sessions"] = int(len(dates))
         if len(dates) >= 252:
-            try:
-                snapshot["oos_folds"] = int(
-                    len(make_date_folds(
+            snapshot["oos_folds"] = int(
+                len(
+                    make_date_folds(
                         dates,
                         min_train=252,
                         test_size=21,
                         step=21,
                         embargo=1,
                         purge=1,
-                    ))
+                    )
                 )
-            except Exception:
-                snapshot["oos_folds"] = 0
-        if {"asset_class", "symbol", "session_date"}.issubset(frame.columns):
+            )
+        if {"asset_class", "symbol"}.issubset(frame.columns):
             counts = (
-                frame.assign(
-                    session_date=pd.to_datetime(frame["session_date"], errors="coerce").dt.date
-                )
+                frame.assign(session_date=normalized)
                 .dropna(subset=["session_date"])
                 .drop_duplicates(["asset_class", "symbol", "session_date"])
                 .groupby(["asset_class", "symbol"])["session_date"]
                 .nunique()
             )
-            snapshot["short_history_symbols"] = int((counts < min_oos_folds * 21).sum())
+            snapshot["shallow_history_symbols"] = int(
+                (counts < int(min_history_sessions)).sum()
+            )
 
-    if snapshot["rows"] < 2000:
+    if snapshot["rows"] < int(min_price_rows):
         snapshot["reasons"].append("insufficient_price_rows")
-    if snapshot["oos_folds"] < min_oos_folds:
+    if snapshot["oos_folds"] < int(min_oos_folds):
         snapshot["reasons"].append("insufficient_chronological_oos_folds")
-    if snapshot["short_history_symbols"] > 0:
+    if snapshot["shallow_history_symbols"] > 0:
         snapshot["reasons"].append("shallow_symbol_history")
+    if not snapshot["market_context"]:
+        snapshot["reasons"].append("market_context_missing")
     snapshot["status"] = "READY" if not snapshot["reasons"] else "SEARCHING"
     return snapshot
-
 
 def _run_acquisition_once(cfg: dict, iteration: int) -> None:
     print(
@@ -340,29 +351,48 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> None:
 def _ensure_adaptive_research_data() -> dict:
     cfg = _adaptive_data_config()
     state_path = Path("data/research/adaptive_data_state.json")
-    if not bool(cfg.get("enabled", True)):
-        return {"status": "DISABLED"}
-
     state_path.parent.mkdir(parents=True, exist_ok=True)
-    history = []
-    max_iterations = max(1, int(cfg.get("max_acquisition_iterations", 3)))
-    min_oos_folds = max(3, int(cfg.get("min_oos_folds", 5)))
 
-    snapshot = _adaptive_data_snapshot(min_oos_folds)
+    if not bool(cfg.get("enabled", True)):
+        result = {
+            "status": "DISABLED",
+            "research_only": True,
+            "production_changed": False,
+        }
+        state_path.write_text(
+            json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+            encoding="utf-8",
+        )
+        return result
+
+    min_price_rows = max(1, int(cfg["min_price_rows"]))
+    min_oos_folds = max(3, int(cfg["min_oos_folds"]))
+    min_history_sessions = max(1, int(cfg["min_history_sessions"]))
+    max_iterations = max(1, int(cfg["max_acquisition_iterations"]))
+
+    history = []
+    snapshot = _adaptive_data_snapshot(
+        min_price_rows=min_price_rows,
+        min_oos_folds=min_oos_folds,
+        min_history_sessions=min_history_sessions,
+    )
     history.append(snapshot)
+
     for iteration in range(1, max_iterations + 1):
         if not snapshot["reasons"]:
             break
         _run_acquisition_once(cfg, iteration)
-        snapshot = _adaptive_data_snapshot(min_oos_folds)
+        snapshot = _adaptive_data_snapshot(
+            min_price_rows=min_price_rows,
+            min_oos_folds=min_oos_folds,
+            min_history_sessions=min_history_sessions,
+        )
         history.append(snapshot)
         print(
             "ADAPTIVE_DATA_STATE "
             + json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
             flush=True,
         )
-        if not snapshot["reasons"]:
-            break
 
     result = {
         "status": "READY" if not snapshot["reasons"] else "DEFERRED",
@@ -371,20 +401,25 @@ def _ensure_adaptive_research_data() -> dict:
         "history": history,
         "selection": {
             "policy": "rank_missing_and_shallow_history_then_requery",
-            "min_oos_folds": min_oos_folds,
-            "selected_at_final_iteration": True,
+            "selected_at_each_iteration": True,
+        },
+        "discovery": {
+            "policy": "refresh_official_universe_every_iteration",
+            "unresolved_revisited_next_iteration": True,
         },
         "research_only": True,
         "production_changed": False,
     }
-    state_path.write_text(json.dumps(result, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    state_path.write_text(
+        json.dumps(result, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
     if snapshot["reasons"]:
         raise SystemExit(
             "DEFERRED: adaptive data acquisition exhausted its bounded iterations: "
             + ",".join(snapshot["reasons"])
         )
     return result
-
 
 def main():
     _self_validate_conformal_research()
