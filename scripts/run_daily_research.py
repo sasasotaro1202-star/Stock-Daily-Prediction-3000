@@ -100,6 +100,10 @@ def make_models():
     pipeline_path = Path("config/pipeline.yml")
     pipeline_cfg = yaml.safe_load(pipeline_path.read_text(encoding="utf-8")) or {}
     model_cfg = pipeline_cfg.get("models", {}) or {}
+    online_research_cfg = pipeline_cfg.get("online_ensemble_research", {}) or {}
+    outcome_delay_sessions = int(online_research_cfg.get("outcome_delay_sessions", 1))
+    if outcome_delay_sessions < 0:
+        raise SystemExit("FAIL: online ensemble outcome delay must be non-negative")
     configured_names: list[str] = []
     for key in ("primary_candidates", "optional_challengers"):
         for name in model_cfg.get(key, []) or []:
@@ -1602,6 +1606,7 @@ def main():
                         bank["session_dates"],
                         learning_rate=learning_rate,
                         share_rate=share_rate,
+                        outcome_delay_sessions=outcome_delay_sessions,
                     )
                 except ValueError as exc:
                     raise SystemExit(
@@ -1708,6 +1713,7 @@ def main():
                     learning_rate=learning_rate,
                     share_rate=0.05,
                     update_group_keys=groups,
+                    outcome_delay_sessions=outcome_delay_sessions,
                 )
             except ValueError as exc:
                 raise SystemExit(
