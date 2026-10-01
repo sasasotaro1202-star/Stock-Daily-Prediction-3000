@@ -45,8 +45,11 @@ def test_candidate_plan_is_research_only_and_deterministic():
 
 
 def test_candidate_plan_skips_weak_evidence_and_deduplicates():
+    # Keep aggregate maturity consistent with the segment evidence below.
+    # A mature candidate plan requires at least MIN_OBSERVATIONS resolved
+    # outcomes overall; segment counts cannot exceed the total history.
     memory = {
-        "total_resolved": 20,
+        "total_resolved": 40,
         "research_priority": [
             {
                 "dimension": "by_regime",
@@ -57,7 +60,7 @@ def test_candidate_plan_skips_weak_evidence_and_deduplicates():
             {
                 "dimension": "by_regime",
                 "segment": "improving",
-                "n": 100,
+                "n": 20,
                 "impact_vs_global_logloss": -0.2,
             },
             {
@@ -80,7 +83,6 @@ def test_candidate_plan_skips_weak_evidence_and_deduplicates():
     assert plan["status"] == "READY"
     assert len(plan["candidates"]) == 1
     assert plan["candidates"][0]["source_segment"] == "high_vol"
-
 
 
 def test_mature_experience_without_degradation_is_not_warmup():
