@@ -127,6 +127,21 @@ jobs:
         run: python scripts/run_v13_adversarial_robustness.py
 
 
+      - name: Generate experience-driven research candidate plan
+        run: python scripts/generate_experience_candidates.py
+      - name: Validate experience-driven research candidate plan
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/experience_candidates.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d.get("schema_version") == 1
+          assert d.get("safety_contract", {}).get("research_only") is True
+          assert d.get("safety_contract", {}).get("production_changed") is False
+          assert d.get("safety_contract", {}).get("frozen_holdout_allowed") is False
+          print("experience_candidate_plan=PASS candidates=", len(d.get("candidates", [])))
+          PY
       - name: Chronological OOS research
         id: research_oos
         run: python scripts/run_daily_research.py
@@ -309,6 +324,7 @@ jobs:
             data/research/sec_filing_ablation.json
             data/research/cpcv_validation_audit.json
             data/research/universe_quality.json
+            data/research/experience_candidates.json
             data/research/ultimate_v13/**
           retention-days: 14
 

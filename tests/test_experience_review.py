@@ -45,6 +45,8 @@ def test_experience_review_warmup_is_safe(tmp_path: Path, monkeypatch):
     payload = json.loads(out_path.read_text(encoding="utf-8"))
     assert payload["status"] == "WARMUP"
     assert payload["total_resolved"] == 0
+    assert payload["experience_candidate_plan"]["status"] == "WARMUP"
+    assert out_path.with_name("experience_candidates.json").exists()
 
 
 def test_review_script_does_not_require_prediction_data(tmp_path: Path, monkeypatch):
