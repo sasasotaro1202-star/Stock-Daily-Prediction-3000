@@ -105,6 +105,9 @@ def test_research_status_workflow_has_heartbeat_schedule() -> None:
 def test_resolve_context_reuses_workflow_run_environment(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "777")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "sha777")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "in_progress")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "")
     env_path = tmp_path / "github_env"
     monkeypatch.setenv("GITHUB_ENV", str(env_path))
 
@@ -183,8 +186,8 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert "types: [completed, in_progress]" in text
     assert "group: research-validation-status" in text
     assert "python scripts/persist_research_validation_status.py" in text
-    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" not in text
-    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" not in text
+    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" in text
+    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" in text
     assert "name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
     assert "run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
     assert "github.event_name == 'workflow_run'" in text
