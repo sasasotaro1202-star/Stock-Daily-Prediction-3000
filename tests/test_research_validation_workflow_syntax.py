@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from scripts import persist_research_validation_status as status
+from scripts import resolve_research_status_context as context
 
 
 ROOT = Path(__file__).parents[1]
@@ -90,6 +91,85 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
                 f"workflow embedded Python block {index} has invalid syntax: {exc}\nSCRIPT:\n{script}"
             ) from exc
 
+
+def test_research_status_workflow_has_heartbeat_schedule() -> None:
+    text = STATUS_WORKFLOW.read_text(encoding="utf-8")
+    assert 'schedule:\n    - cron: "*/30 * * * *"' in text
+    assert "workflow_dispatch:" in text
+    assert "python scripts/resolve_research_status_context.py" in text
+    assert "RESEARCH_STATUS_CONTEXT_FOUND" in text
+    assert "if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true'" in text
+
+
+def test_resolve_context_reuses_workflow_run_environment(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "777")
+    env_path = tmp_path / "github_env"
+    monkeypatch.setenv("GITHUB_ENV", str(env_path))
+
+    assert context.main() == 0
+    assert env_path.read_text(encoding="utf-8") == "RESEARCH_STATUS_CONTEXT_FOUND=true\n"
+
+
+def test_resolve_context_discovers_latest_active_research(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("RESEARCH_WORKFLOW_RUN_ID", raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_API_URL", "https://api.github.test")
+    env_path = tmp_path / "github_env"
+    monkeypatch.setenv("GITHUB_ENV", str(env_path))
+    captured = {}
+
+    def urlopen(request, timeout):
+        captured["url"] = request.full_url
+        return _Response({
+            "workflow_runs": [
+                {"id": 10, "run_number": 10, "name": "Other", "status": "in_progress", "head_sha": "x"},
+                {"id": 20, "run_number": 20, "name": "Research validation", "status": "in_progress", "head_sha": "old"},
+                {"id": 21, "run_number": 21, "name": "Research validation", "status": "in_progress", "head_sha": "new"},
+            ]
+        })
+
+    monkeypatch.setattr(context.urllib.request, "urlopen", urlopen)
+    assert context.main() == 0
+    assert "status=in_progress" in captured["url"]
+    output = env_path.read_text(encoding="utf-8")
+    assert "RESEARCH_WORKFLOW_RUN_ID=21\n" in output
+    assert "RESEARCH_WORKFLOW_SHA=new\n" in output
+    assert "RESEARCH_WORKFLOW_STATUS=in_progress\n" in output
+    assert "RESEARCH_WORKFLOW_CONCLUSION=\n" in output
+    assert "RESEARCH_STATUS_CONTEXT_FOUND=true\n" in output
+
+
+def test_resolve_context_no_active_research_is_noop(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("RESEARCH_WORKFLOW_RUN_ID", raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_API_URL", "https://api.github.test")
+    env_path = tmp_path / "github_env"
+    monkeypatch.setenv("GITHUB_ENV", str(env_path))
+
+    monkeypatch.setattr(context.urllib.request, "urlopen", lambda request, timeout: _Response({"workflow_runs": []}))
+    assert context.main() == 0
+    assert env_path.read_text(encoding="utf-8") == "RESEARCH_STATUS_CONTEXT_FOUND=false\n"
+
+
+def test_resolve_context_fails_closed_on_lookup_error(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.delenv("RESEARCH_WORKFLOW_RUN_ID", raising=False)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    env_path = tmp_path / "github_env"
+    monkeypatch.setenv("GITHUB_ENV", str(env_path))
+
+    def fail(request, timeout):
+        raise context.urllib.error.URLError("network failure")
+
+    monkeypatch.setattr(context.urllib.request, "urlopen", fail)
+    with pytest.raises(SystemExit, match="heartbeat run lookup"):
+        context.main()
 
 def test_research_validation_has_external_status_workflow() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
@@ -244,6 +324,26 @@ def test_status_script_retries_transient_research_job_visibility(monkeypatch, tm
     assert payload["status_lookup_ok"] is True
     assert payload["job_status"] == "in_progress"
     assert payload["research_step"] == "in_progress"
+
+def test_status_script_does_not_overwrite_newer_research_run(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "199")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "old-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "success")
+    artifact_dir = Path("artifacts")
+    artifact_dir.mkdir()
+    status_path = artifact_dir / "research_validation_status.json"
+    existing = {"workflow_run_id": "200", "workflow_sha": "new-sha", "job_status": "success"}
+    status_path.write_text(json.dumps(existing), encoding="utf-8")
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", lambda request, timeout: _Response({"jobs": [], "artifacts": []}))
+    assert status.main() == 0
+    assert json.loads(status_path.read_text(encoding="utf-8")) == existing
+
 
 def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
