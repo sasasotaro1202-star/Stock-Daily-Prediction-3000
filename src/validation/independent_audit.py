@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -46,6 +46,7 @@ class IndependentAuditResult:
     ok: bool
     violations: tuple[str, ...]
     checks: dict[str, int]
+    provenance: dict[str, object] = field(default_factory=dict)
 
 
 def _forbidden(columns: list[str]) -> list[str]:
@@ -54,6 +55,52 @@ def _forbidden(columns: list[str]) -> list[str]:
         for name in columns
         if any(token in name.lower() for token in FORBIDDEN_TOKENS)
     )
+
+
+def _provenance_coverage(
+    frame: pd.DataFrame,
+    *,
+    group_column: str,
+) -> dict[str, object]:
+    """Summarize PIT timestamp completeness and ordering by source/family."""
+    if group_column not in frame.columns:
+        return {"group_column": group_column, "available": False, "groups": {}}
+    available = pd.to_datetime(frame.get("available_at"), utc=True, errors="coerce")
+    retrieved = (
+        pd.to_datetime(frame.get("retrieved_at"), utc=True, errors="coerce")
+        if "retrieved_at" in frame.columns
+        else pd.Series(pd.NaT, index=frame.index, dtype="datetime64[ns, UTC]")
+    )
+    groups: dict[str, object] = {}
+    for raw_group, group in frame.groupby(group_column, dropna=False, sort=True):
+        name = "<NA>" if pd.isna(raw_group) else str(raw_group)
+        idx = group.index
+        group_available = available.loc[idx]
+        group_retrieved = retrieved.loc[idx]
+        rows = len(group)
+        available_present = int(group_available.notna().sum())
+        retrieved_present = int(group_retrieved.notna().sum())
+        consistent = int(
+            (
+                group_available.notna()
+                & group_retrieved.notna()
+                & group_available.le(group_retrieved)
+            ).sum()
+        )
+        groups[name] = {
+            "rows": int(rows),
+            "available_at_coverage": float(available_present / rows) if rows else 0.0,
+            "retrieved_at_coverage": float(retrieved_present / rows) if rows else 0.0,
+            "available_at_le_retrieved_at_coverage": (
+                float(consistent / min(available_present, retrieved_present))
+                if min(available_present, retrieved_present) else None
+            ),
+        }
+    return {
+        "group_column": group_column,
+        "available": True,
+        "groups": groups,
+    }
 
 
 def _audit_temporal_frame(
@@ -253,8 +300,16 @@ def audit_raw_inputs(
         ),
     }
 
+    provenance = {
+        "prices_by_source": _provenance_coverage(prices, group_column="source"),
+        "market_context_by_family": _provenance_coverage(
+            market_context,
+            group_column="family",
+        ),
+    }
     return IndependentAuditResult(
         ok=not violations,
         violations=tuple(sorted(set(violations))),
         checks=checks,
+        provenance=provenance,
     )
