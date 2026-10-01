@@ -155,9 +155,10 @@ def _lifecycle(candidate: dict) -> dict:
     """Return fail-closed discovery lifecycle metadata without claiming adoption."""
     blocked = bool(candidate.get("blocked"))
     free_status = str(candidate.get("free_status") or "").strip().lower()
+    source_url = str(candidate.get("url") or candidate.get("html_url") or "").strip()
     if blocked:
         eligibility = "REJECTED_BLOCKED_PROVIDER"
-    elif not str(candidate.get("url") or "").startswith("https://"):
+    elif not source_url.startswith("https://"):
         eligibility = "REJECTED_NON_HTTPS"
     else:
         eligibility = "ELIGIBLE_FOR_RESEARCH_REVIEW"
