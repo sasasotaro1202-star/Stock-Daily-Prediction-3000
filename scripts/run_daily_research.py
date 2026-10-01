@@ -240,11 +240,14 @@ def _adaptive_data_snapshot(
         "shallow_history_symbols": 0,
         "market_context": Path("data/market_context.parquet").exists(),
         "status": "MISSING",
+        "blocking_reasons": [],
+        "acquisition_reasons": [],
         "reasons": [],
     }
     if not PRICE_DIR.exists():
-        snapshot["reasons"].append("canonical_price_missing")
+        snapshot["blocking_reasons"].append("canonical_price_missing")
         snapshot["market_context"] = False
+        snapshot["reasons"] = list(snapshot["blocking_reasons"])
         return snapshot
 
     frame = pd.read_parquet(PRICE_DIR)
@@ -286,15 +289,25 @@ def _adaptive_data_snapshot(
             )
 
     if snapshot["rows"] < int(min_price_rows):
-        snapshot["reasons"].append("insufficient_price_rows")
+        snapshot["blocking_reasons"].append("insufficient_price_rows")
     if snapshot["oos_folds"] < int(min_oos_folds):
-        snapshot["reasons"].append("insufficient_chronological_oos_folds")
-    # Shallow symbols remain acquisition targets but do not block global OOS.
-    # This avoids starving an otherwise valid research run because of a small number
-    # of newly-listed securities while the price updater keeps warming them.
+        snapshot["blocking_reasons"].append("insufficient_chronological_oos_folds")
+    if snapshot["shallow_history_symbols"] > 0:
+        snapshot["acquisition_reasons"].append("shallow_symbol_history")
     if not snapshot["market_context"]:
-        snapshot["reasons"].append("market_context_missing")
-    snapshot["status"] = "READY" if not snapshot["reasons"] else "SEARCHING"
+        snapshot["blocking_reasons"].append("market_context_missing")
+
+    snapshot["blocking_reasons"] = sorted(set(snapshot["blocking_reasons"]))
+    snapshot["acquisition_reasons"] = sorted(set(snapshot["acquisition_reasons"]))
+    snapshot["reasons"] = sorted(
+        set(snapshot["blocking_reasons"]) | set(snapshot["acquisition_reasons"])
+    )
+    if snapshot["blocking_reasons"]:
+        snapshot["status"] = "SEARCHING"
+    elif snapshot["acquisition_reasons"]:
+        snapshot["status"] = "READY_WITH_PENDING_ACQUISITION"
+    else:
+        snapshot["status"] = "READY"
     return snapshot
 
 def _run_acquisition_once(cfg: dict, iteration: int) -> None:
@@ -403,14 +416,28 @@ def _ensure_adaptive_research_data() -> dict:
             flush=True,
         )
 
+    blocking = list(snapshot.get("blocking_reasons") or [])
+    acquisition_pending = list(snapshot.get("acquisition_reasons") or [])
+    terminal_status = (
+        "DEFERRED"
+        if blocking
+        else "READY_WITH_PENDING_ACQUISITION"
+        if acquisition_pending
+        else "READY"
+    )
     result = {
-        "status": "READY" if not snapshot["reasons"] else "DEFERRED",
+        "status": terminal_status,
         "iterations": len(history) - 1,
         "config": cfg,
         "history": history,
+        "remaining_gaps": {
+            "blocking": blocking,
+            "acquisition_pending": acquisition_pending,
+        },
         "selection": {
             "policy": "rank_missing_and_shallow_history_then_requery",
             "selected_at_each_iteration": True,
+            "model_candidates_reselected_after_data_loop": True,
         },
         "discovery": {
             "policy": "refresh_official_universe_every_iteration",
@@ -423,10 +450,10 @@ def _ensure_adaptive_research_data() -> dict:
         json.dumps(result, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
-    if snapshot["reasons"]:
+    if blocking:
         raise SystemExit(
             "DEFERRED: adaptive data acquisition exhausted its bounded iterations: "
-            + ",".join(snapshot["reasons"])
+            + ",".join(blocking)
         )
     return result
 
