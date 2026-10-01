@@ -31,6 +31,17 @@ def _write_env(name: str, value: str) -> None:
 def main() -> int:
     existing_run = os.environ.get("RESEARCH_WORKFLOW_RUN_ID", "").strip()
     if existing_run:
+        for name in (
+            "RESEARCH_WORKFLOW_RUN_ID",
+            "RESEARCH_WORKFLOW_SHA",
+            "RESEARCH_WORKFLOW_STATUS",
+            "RESEARCH_WORKFLOW_CONCLUSION",
+        ):
+            value = os.environ.get(name, "").strip()
+            if value:
+                _write_env(name, value)
+            elif name == "RESEARCH_WORKFLOW_CONCLUSION":
+                _write_env(name, "")
         _write_env("RESEARCH_STATUS_CONTEXT_FOUND", "true")
         return 0
 
