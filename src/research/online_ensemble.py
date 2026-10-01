@@ -11,19 +11,23 @@ def online_expert_average(
     learning_rate: float,
     share_rate: float = 0.0,
     update_group_keys=None,
+    outcome_delay_sessions: int = 0,
 ):
     """Chronological online expert mixture with optional fixed-share recovery.
 
     Predictions for session t use weights learned strictly before that session.
-    After the whole session t is observed, each expert receives its log-loss
-    update. A positive share_rate returns a small fraction of post-loss
-    weight mass to the uniform prior, limiting expert lock-in after regime shifts.
+    Outcomes are queued until they are causally eligible for a future
+    prediction session. A positive share_rate returns a small fraction of
+    post-update weight mass to the uniform prior, limiting expert lock-in.
     """
     if not predictions_by_model:
         raise ValueError("at least one expert is required")
     eta = float(learning_rate)
+    delay = int(outcome_delay_sessions)
     if not np.isfinite(eta) or eta < 0.0:
         raise ValueError("learning_rate must be finite and non-negative")
+    if delay < 0 or delay != outcome_delay_sessions:
+        raise ValueError("outcome_delay_sessions must be a non-negative integer")
     share = float(share_rate)
     if not np.isfinite(share) or not 0.0 <= share <= 1.0:
         raise ValueError("share_rate must be finite and in [0, 1]")
@@ -61,8 +65,17 @@ def online_expert_average(
     log_weights = np.zeros(len(names), dtype=float)
     ensemble = np.empty(len(y), dtype=float)
     history = []
+    pending_updates: dict[int, list[np.ndarray]] = {}
 
-    for date in unique_dates:
+    for date_index, date in enumerate(unique_dates):
+        due = pending_updates.pop(date_index, [])
+        for update in due:
+            log_weights -= eta * update
+        if due and share > 0.0:
+            next_weights = np.exp(log_weights - np.max(log_weights))
+            next_weights /= next_weights.sum()
+            next_weights = (1.0 - share) * next_weights + share / len(names)
+            log_weights = np.log(np.clip(next_weights, 1e-300, 1.0))
         mask = dates == date
         current_weights = np.exp(log_weights - np.max(log_weights))
         current_weights /= current_weights.sum()
@@ -92,19 +105,30 @@ def online_expert_average(
                         group_losses.append(float(np.mean(loss[group_mask])))
                 row_losses.append(float(np.mean(group_losses)))
         row_losses_arr = np.asarray(row_losses, dtype=float)
-        log_weights -= eta * row_losses_arr
+        release_index = date_index + delay + 1
+        if release_index < len(unique_dates):
+            pending_updates.setdefault(release_index, []).append(row_losses_arr.copy())
 
-        next_weights = np.exp(log_weights - np.max(log_weights))
-        next_weights /= next_weights.sum()
+        # Diagnostic-only view of the outcome update that will be eligible at
+        # release_index. It never affects the current prediction.
+        outcome_log_weights = log_weights - eta * row_losses_arr
+        outcome_weights = np.exp(
+            outcome_log_weights - np.max(outcome_log_weights)
+        )
+        outcome_weights /= outcome_weights.sum()
         if share > 0.0:
-            next_weights = (1.0 - share) * next_weights + share / len(names)
-            log_weights = np.log(np.clip(next_weights, 1e-300, 1.0))
+            outcome_weights = (1.0 - share) * outcome_weights + share / len(names)
+            outcome_weights /= outcome_weights.sum()
+
         history.append({
             "session_date": str(date),
             "share_rate": share,
+            "outcome_delay_sessions": delay,
+            "outcomes_released_before_prediction": len(due),
             "update_grouped": groups is not None,
             "weights_before": current_weights.tolist(),
-            "weights_after": next_weights.tolist(),
+            "weights_after": current_weights.tolist(),
+            "weights_after_outcome": outcome_weights.tolist(),
             "expert_logloss": {
                 name: float(row_losses_arr[j])
                 for j, name in enumerate(names)

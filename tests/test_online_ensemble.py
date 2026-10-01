@@ -57,7 +57,7 @@ def test_fixed_share_recovers_switching_expert_on_future_sessions():
 
     assert fixed[2] > plain[2]
     assert history[0]["share_rate"] == pytest.approx(0.20)
-    assert min(history[0]["weights_after"]) >= 0.10
+    assert min(history[0]["weights_after_outcome"]) >= 0.10
 
 
 def test_input_validation():
@@ -115,4 +115,58 @@ def test_group_balanced_updates_do_not_follow_large_group_size():
         predictions, y, dates, learning_rate=2.0, update_group_keys=groups
     )
     assert balanced_history[0]["update_grouped"] is True
-    assert balanced_history[0]["weights_after"][1] > plain_history[0]["weights_after"][1]
+    assert balanced_history[0]["weights_after_outcome"][1] > plain_history[0]["weights_after_outcome"][1]
+
+
+def test_delayed_outcome_waits_one_full_session_before_weight_update():
+    dates = np.array(
+        ["2026-01-02"] * 2 + ["2026-01-05"] * 2 + ["2026-01-06"] * 2
+    )
+    predictions = {
+        "a": np.array([0.9, 0.9, 0.9, 0.9, 0.9, 0.9]),
+        "b": np.array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1]),
+    }
+    y_bad_then_good = np.array([0, 0, 1, 1, 1, 1], dtype=int)
+
+    immediate, _, immediate_history = online_expert_average(
+        predictions,
+        y_bad_then_good,
+        dates,
+        learning_rate=2.0,
+        outcome_delay_sessions=0,
+    )
+    delayed, _, delayed_history = online_expert_average(
+        predictions,
+        y_bad_then_good,
+        dates,
+        learning_rate=2.0,
+        outcome_delay_sessions=1,
+    )
+
+    assert immediate[2] < delayed[2]
+    assert delayed[2] == pytest.approx(0.5)
+    assert delayed[4] < 0.5
+    assert immediate_history[1]["outcomes_released_before_prediction"] == 1
+    assert delayed_history[1]["outcomes_released_before_prediction"] == 0
+    assert delayed_history[2]["outcomes_released_before_prediction"] == 1
+    assert delayed_history[1]["weights_after"] == pytest.approx([0.5, 0.5])
+
+
+def test_outcome_delay_requires_nonnegative_integer():
+    predictions = {"a": [0.5, 0.5], "b": [0.5, 0.5]}
+    with pytest.raises(ValueError):
+        online_expert_average(
+            predictions,
+            [0, 1],
+            ["a", "b"],
+            learning_rate=1.0,
+            outcome_delay_sessions=-1,
+        )
+    with pytest.raises(ValueError):
+        online_expert_average(
+            predictions,
+            [0, 1],
+            ["a", "b"],
+            learning_rate=1.0,
+            outcome_delay_sessions=0.5,
+        )
