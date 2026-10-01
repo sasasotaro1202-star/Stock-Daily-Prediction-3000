@@ -180,6 +180,7 @@ def make_models():
 def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
     """Return a deterministic identity for the exact chronological OOS windows."""
     identities: list[tuple[int, str, str]] = []
+    fold_windows: dict[int, tuple[str, str]] = {}
     for row in rows:
         try:
             fold_value = float(row.get("fold"))
@@ -198,7 +199,13 @@ def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
             return None
         if start_date > end_date:
             return None
-        identities.append((int(fold_value), start, end))
+        fold_id = int(fold_value)
+        window = (start, end)
+        previous_window = fold_windows.get(fold_id)
+        if previous_window is not None and previous_window != window:
+            return None
+        fold_windows[fold_id] = window
+        identities.append((fold_id, start, end))
     if not identities:
         return None
     canonical = "|".join(
