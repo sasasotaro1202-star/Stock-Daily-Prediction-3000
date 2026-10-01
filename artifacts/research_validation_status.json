@@ -4,8 +4,8 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": false,
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-01T20:49:37.800739+00:00",
-  "job_status": "completed",
+  "generated_at_utc": "2026-10-01T22:41:56.903808+00:00",
+  "job_status": "unknown",
   "research_step": "unknown",
   "runtime_health": {
     "active_step": null,
@@ -20,10 +20,10 @@
   },
   "sec_ablation_step": "unknown",
   "sec_research_step": "unknown",
-  "status_lookup_error": null,
-  "status_lookup_ok": true,
-  "workflow_conclusion": "cancelled",
-  "workflow_run_id": "36921339999",
-  "workflow_sha": "b1d67f193438fe7ed279ce41e4e5a5b4d9a8f8dd",
-  "workflow_status": "completed"
+  "status_lookup_error": "research_job_not_found",
+  "status_lookup_ok": false,
+  "workflow_conclusion": null,
+  "workflow_run_id": "36936603828",
+  "workflow_sha": "b6cc518175561fc1c7fc9f01466fe637050a0b32",
+  "workflow_status": "unknown"
 }
