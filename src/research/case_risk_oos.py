@@ -106,6 +106,32 @@ def _binary_metrics(y: Sequence[int], probabilities: Sequence[float]) -> dict[st
     }
 
 
+
+
+def _pit_ready(row: Mapping[str, Any]) -> bool:
+    """Require explicit, timezone-aware prediction and availability timestamps."""
+    if row.get("pit_status") != "PASS":
+        return False
+    prediction_time = row.get("prediction_time")
+    available_at = row.get("available_at")
+    if not isinstance(prediction_time, str) or not isinstance(available_at, str):
+        return False
+    def _parse(value: str):
+        raw = value.strip()
+        if raw.endswith("Z"):
+            raw = raw[:-1] + "+00:00"
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(raw)
+        except ValueError:
+            return None
+        if dt.tzinfo is None or dt.utcoffset() is None:
+            return None
+        return dt
+    available = _parse(available_at)
+    prediction = _parse(prediction_time)
+    return available is not None and prediction is not None and available <= prediction
+
 def _percentile(values: Sequence[float], quantile: float) -> float | None:
     x = np.asarray(list(values), dtype=float)
     if x.size == 0 or not np.isfinite(x).all():
@@ -147,9 +173,8 @@ def analyze_case_risk(
     )
 
     # Build the score history over every chronological OOS fold, but evaluate
-    # risk concentration only on the frozen/locked suffix. This gives the first
-    # locked fold a meaningful prediction-time threshold without using any
-    # outcome to define that threshold.
+    # risk concentration only on the frozen/locked suffix. PIT lineage is a
+    # hard precondition: unknown prediction/availability timestamps fail closed.
     for fold in sorted({int(row.get("fold", 0) or 0) for row in ordered}):
         fold_rows = [
             row for row in ordered if int(row.get("fold", 0) or 0) == fold
@@ -157,7 +182,7 @@ def analyze_case_risk(
         current_scores = [
             score
             for row in fold_rows
-            if (score := case_risk_score(row)) is not None
+            if _pit_ready(row) and (score := case_risk_score(row)) is not None
         ]
 
         locked = [row for row in fold_rows if bool(row.get("is_locked"))]
@@ -171,7 +196,7 @@ def analyze_case_risk(
 
             for row in locked:
                 score = case_risk_score(row)
-                if score is None:
+                if score is None or not _pit_ready(row):
                     fold_invalid += 1
                     continue
                 try:
@@ -240,9 +265,18 @@ def analyze_case_risk(
         prior_scores.extend(current_scores)
 
     if not scored_rows:
+        pit_blocked = any(
+            bool(row.get("is_locked"))
+            and not _pit_ready(row)
+            for row in ordered
+        )
         return {
             "schema_version": SCHEMA_VERSION,
-            "status": "NO_VALID_LOCKED_CASES",
+            "status": "BLOCKED_PIT_LINEAGE" if pit_blocked else "NO_VALID_LOCKED_CASES",
+            "block_reason": (
+                "explicit timezone-aware available_at <= prediction_time and pit_status=PASS are required"
+                if pit_blocked else None
+            ),
             "research_only": True,
             "production_changed": False,
             "promotion_allowed": False,
