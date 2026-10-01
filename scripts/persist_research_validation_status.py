@@ -96,6 +96,23 @@ def main() -> int:
         # than converting a transient race into a false failure.
         effective_lookup_error = None
     evidence_name = f"research-validation-evidence-{os.environ.get('RESEARCH_WORKFLOW_RUN_ID') or os.environ.get('GITHUB_RUN_ID', '')}"
+    evidence_artifact_raw_present = any(
+        str(item.get("name", "")) == evidence_name and not item.get("expired", False)
+        for item in artifacts
+    )
+    research_job_success = str(job.get("conclusion") or "").strip() == "success"
+    workflow_success = workflow_conclusion == "success"
+    evidence_artifact_present = (
+        evidence_artifact_raw_present
+        and workflow_success
+        and research_job_success
+    )
+    if evidence_artifact_present:
+        evidence_state = "COMPLETE"
+    elif evidence_artifact_raw_present:
+        evidence_state = "PARTIAL"
+    else:
+        evidence_state = "MISSING"
     status = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", ""),
@@ -107,10 +124,9 @@ def main() -> int:
         "sec_research_step": _step_conclusion(job, "Collect free SEC filing research inputs"),
         "sec_ablation_step": _step_conclusion(job, "Run SEC filing OOS challenger ablation"),
         "cpcv_step": _step_conclusion(job, "CPCV leakage-boundary research audit"),
-        "evidence_artifact_present": any(
-            str(item.get("name", "")) == evidence_name and not item.get("expired", False)
-            for item in artifacts
-        ),
+        "evidence_artifact_present": evidence_artifact_present,
+        "evidence_artifact_raw_present": evidence_artifact_raw_present,
+        "evidence_state": evidence_state,
         "status_lookup_ok": effective_lookup_error is None and artifact_error is None,
         "status_lookup_error": effective_lookup_error,
         "artifact_lookup_error": artifact_error,

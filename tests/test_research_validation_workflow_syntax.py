@@ -379,6 +379,8 @@ def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
     monkeypatch.setenv("GITHUB_RUN_ID", "123")
     monkeypatch.setenv("GITHUB_SHA", "abc")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "success")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
     monkeypatch.setattr(
         status.urllib.request,
         "urlopen",
@@ -400,6 +402,31 @@ def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
         )
     )
     assert payload["evidence_artifact_present"] is True
+
+
+def test_status_script_marks_cancelled_artifact_as_partial(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "105")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "cancelled-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "cancelled")
+
+    def urlopen(request, timeout):
+        if "/artifacts?" in request.full_url:
+            return _Response({"artifacts": [{"name": "research-validation-evidence-105", "expired": False}]})
+        return _Response({
+            "jobs": [{"name": "research", "status": "completed", "conclusion": "cancelled", "steps": []}]
+        })
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", urlopen)
+    assert status.main() == 0
+    payload = json.loads((Path("artifacts") / "research_validation_status.json").read_text(encoding="utf-8"))
+    assert payload["evidence_artifact_raw_present"] is True
+    assert payload["evidence_artifact_present"] is False
+    assert payload["evidence_state"] == "PARTIAL"
 
 
 def test_status_script_fails_closed_on_api_lookup_error(monkeypatch, tmp_path) -> None:
