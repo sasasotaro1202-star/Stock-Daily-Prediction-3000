@@ -7,6 +7,8 @@ import json
 
 import pandas as pd
 
+from src.validation.leakage import audit_prediction_snapshot_timestamps
+
 REQUIRED={
     "symbol","asset_class","session_date","available_at",
     "source","provider_symbol",
@@ -107,6 +109,16 @@ def main():
                 .groupby(["asset_class","symbol"])["session_date"].idxmax()
             )
             latest_retrieval_missing=int(retrieved.loc[latest_idx].isna().sum())
+            latest_snapshot = df.loc[latest_idx].copy()
+            latest_pit = audit_prediction_snapshot_timestamps(
+                latest_snapshot,
+                pd.Timestamp.now(tz="UTC"),
+            )
+            if not latest_pit.ok:
+                reasons.append(
+                    "latest_pit_timestamp_failures:"
+                    + "|".join(latest_pit.violations)
+                )
             retrieved_before_available=int(
                 avail.gt(retrieved).fillna(False).sum()
             )
@@ -196,6 +208,7 @@ def main():
         "missing_columns","empty_dataset","duplicates","numeric_invalid","missing_source_provenance","invalid_session_date","bad_ohlc",
         "available_at_before_session_date",
         "latest_retrieval_at_missing",
+        "latest_pit_timestamp_failures",
         "available_at_after_retrieved_at",
         "universe_symbols_missing_from_price_history",
         "universe_symbols_without_current_pit_row",
