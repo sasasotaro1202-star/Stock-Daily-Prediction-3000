@@ -68,6 +68,36 @@ def _prediction_snapshot_digest(fold: Mapping[str, Any]) -> str:
         "symbols": np.asarray(fold.get("symbols", [])).astype(str).tolist(),
         "asset_classes": np.asarray(fold.get("asset_classes", [])).astype(str).tolist(),
         "regimes": np.asarray(fold.get("regimes", fold.get("situations", []))).astype(str).tolist(),
+        "prediction_time": np.asarray(
+            fold.get("prediction_time", []), dtype=object
+        ).astype(str).tolist(),
+        "prediction_time_source": np.asarray(
+            fold.get("prediction_time_source", []), dtype=object
+        ).astype(str).tolist(),
+        "available_at": np.asarray(
+            fold.get("available_at", []), dtype=object
+        ).astype(str).tolist(),
+        "retrieved_at": np.asarray(
+            fold.get("retrieved_at", []), dtype=object
+        ).astype(str).tolist(),
+        "available_at_method": np.asarray(
+            fold.get("available_at_method", []), dtype=object
+        ).astype(str).tolist(),
+        "source": np.asarray(
+            fold.get("source", []), dtype=object
+        ).astype(str).tolist(),
+        "provider_symbol": np.asarray(
+            fold.get("provider_symbol", []), dtype=object
+        ).astype(str).tolist(),
+        "retrieval_run_id": np.asarray(
+            fold.get("retrieval_run_id", []), dtype=object
+        ).astype(str).tolist(),
+        "pit_status": np.asarray(
+            fold.get("pit_status", []), dtype=object
+        ).astype(str).tolist(),
+        "lineage_sha256": np.asarray(
+            fold.get("lineage_sha256", []), dtype=object
+        ).astype(str).tolist(),
         "predictions": {
             str(k): np.asarray(v, dtype=float).tolist()
             for k, v in sorted((fold.get("predictions") or {}).items())
@@ -354,6 +384,37 @@ def augment_v13_result(
 
         fold_result = result.get("fold_results", [])[t] if t < len(result.get("fold_results", [])) else {}
         case_predictability = np.asarray(
+        prediction_times = np.asarray(
+            fold.get("prediction_time", [None] * len(y)), dtype=object
+        )
+        available_at_values = np.asarray(
+            fold.get("available_at", [None] * len(y)), dtype=object
+        )
+        retrieved_at_values = np.asarray(
+            fold.get("retrieved_at", [None] * len(y)), dtype=object
+        )
+        prediction_time_sources = np.asarray(
+            fold.get("prediction_time_source", [""] * len(y)), dtype=object
+        )
+        pit_status_values = np.asarray(
+            fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"] * len(y)),
+            dtype=object,
+        )
+        available_at_methods = np.asarray(
+            fold.get("available_at_method", [None] * len(y)), dtype=object
+        )
+        source_values = np.asarray(
+            fold.get("source", [None] * len(y)), dtype=object
+        )
+        provider_symbol_values = np.asarray(
+            fold.get("provider_symbol", [None] * len(y)), dtype=object
+        )
+        retrieval_run_ids = np.asarray(
+            fold.get("retrieval_run_id", [None] * len(y)), dtype=object
+        )
+        lineage_hashes = np.asarray(
+            fold.get("lineage_sha256", [None] * len(y)), dtype=object
+        )
             fold_result.get("calibrated_predictability", [float("nan")] * len(y)),
             dtype=float,
         )
@@ -460,7 +521,65 @@ def augment_v13_result(
                 "row": int(i),
                 "is_locked": bool(t >= len(ordered) - locked_folds),
                 "symbol": str(symbol),
-                "prediction_time": None,
+                "prediction_time": (
+                    str(prediction_times[i])
+                    if i < len(prediction_times)
+                    and prediction_times[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "prediction_time_source": (
+                    str(prediction_time_sources[i])
+                    if i < len(prediction_time_sources)
+                    else ""
+                ),
+                "prediction_time_observed": False,
+                "available_at": (
+                    str(available_at_values[i])
+                    if i < len(available_at_values)
+                    and available_at_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "retrieved_at": (
+                    str(retrieved_at_values[i])
+                    if i < len(retrieved_at_values)
+                    and retrieved_at_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "available_at_method": (
+                    str(available_at_methods[i])
+                    if i < len(available_at_methods)
+                    and available_at_methods[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "source": (
+                    str(source_values[i])
+                    if i < len(source_values)
+                    and source_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "provider_symbol": (
+                    str(provider_symbol_values[i])
+                    if i < len(provider_symbol_values)
+                    and provider_symbol_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "retrieval_run_id": (
+                    str(retrieval_run_ids[i])
+                    if i < len(retrieval_run_ids)
+                    and retrieval_run_ids[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "pit_status": (
+                    str(pit_status_values[i])
+                    if i < len(pit_status_values)
+                    else "BLOCKED_MISSING_PIT_LINEAGE"
+                ),
+                "lineage_sha256": (
+                    str(lineage_hashes[i])
+                    if i < len(lineage_hashes)
+                    and lineage_hashes[i] not in (None, "None", "nan")
+                    else None
+                ),
                 "prediction": float(tta_p[i]),
                 "dynamic_prediction": float(dynamic[i]),
                 "strategy": strategy_i,
@@ -520,9 +639,43 @@ def augment_v13_result(
             })
         contracts.append({
             "fold": int(t),
-            "prediction_time": None,
+            "prediction_time_min": (
+                min(
+                    (
+                        str(x)
+                        for x in prediction_times
+                        if x not in (None, "None", "nan")
+                    ),
+                    default=None,
+                )
+            ),
+            "prediction_time_max": (
+                max(
+                    (
+                        str(x)
+                        for x in prediction_times
+                        if x not in (None, "None", "nan")
+                    ),
+                    default=None,
+                )
+            ),
+            "prediction_time_source": sorted(
+                {
+                    str(x)
+                    for x in prediction_time_sources
+                    if x not in (None, "None", "")
+                }
+            ),
+            "exact_prediction_time_observed": False,
             "valid_until": None,
-            "prediction_timestamp_status": "BLOCKED_NO_EXACT_PREDICTION_TIME",
+            "prediction_timestamp_status": (
+                "PASS_SCHEDULED_POLICY"
+                if all(str(x) == "PASS" for x in pit_status_values)
+                else "BLOCKED_PIT_LINEAGE"
+            ),
+            "pit_lineage_policy_version": str(
+                fold.get("pit_lineage_policy_version", "unknown")
+            ),
             "prediction_input_snapshot_sha256": _prediction_snapshot_digest(fold),
             "models": models,
             "strategy_counts": strategies,
