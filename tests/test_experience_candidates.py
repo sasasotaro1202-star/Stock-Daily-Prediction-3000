@@ -82,12 +82,28 @@ def test_candidate_plan_skips_weak_evidence_and_deduplicates():
     assert plan["candidates"][0]["source_segment"] == "high_vol"
 
 
+
+def test_mature_experience_without_degradation_is_not_warmup():
+    plan = build_experience_candidate_plan(
+        {
+            "updated_at": "2026-10-01T00:00:00Z",
+            "total_resolved": 200,
+            "research_priority": [],
+        }
+    )
+
+    assert plan["status"] == "READY"
+    assert plan["signal_status"] == "NO_DEGRADATION_SIGNAL"
+    assert plan["candidates"] == []
+
+
 def test_empty_experience_is_safe_warmup():
     plan = build_experience_candidate_plan(
         {"updated_at": None, "total_resolved": 0, "research_priority": []}
     )
 
     assert plan["status"] == "WARMUP"
+    assert plan["signal_status"] == "INSUFFICIENT_EXPERIENCE"
     assert plan["candidates"] == []
     assert plan["safety_contract"]["promotion_requires_chronological_oos"] is True
 
