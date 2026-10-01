@@ -28,3 +28,13 @@ def test_monitoring_artifacts_include_experience_candidates():
     path = str(upload.get("with", {}).get("path", ""))
     assert "data/research/experience_memory.json" in path
     assert "data/research/experience_candidates.json" in path
+
+
+def test_monitoring_persistence_is_fail_closed_without_generated_files():
+    steps = _steps()
+    persist = next(step for step in steps if step.get("name") == "Persist accumulated experience")
+    script = str(persist.get("run", ""))
+    assert 'added_any=false' in script
+    assert 'if [ -f "$path" ]; then' in script
+    assert 'experience persistence: no generated files to commit' in script
+    assert 'git add "$path"' in script

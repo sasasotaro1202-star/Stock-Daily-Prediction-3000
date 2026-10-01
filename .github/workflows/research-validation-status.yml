@@ -5,7 +5,7 @@ on:
     workflows: ["Research validation"]
     types: [completed, in_progress]
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "13,43 * * * *"
   workflow_dispatch:
 
 permissions:

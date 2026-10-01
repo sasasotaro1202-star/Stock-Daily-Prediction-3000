@@ -95,7 +95,7 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
 
 def test_research_status_workflow_has_heartbeat_schedule() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
-    assert 'schedule:\n    - cron: "*/30 * * * *"' in text
+    assert 'schedule:\n    - cron: "13,43 * * * *"' in text
     assert "workflow_dispatch:" in text
     assert "python scripts/resolve_research_status_context.py" in text
     assert "RESEARCH_STATUS_CONTEXT_FOUND" in text
@@ -504,3 +504,17 @@ def test_status_script_fails_closed_on_api_lookup_error(monkeypatch, tmp_path) -
     )
     assert payload["status_lookup_ok"] is False
     assert "URLError" in payload["status_lookup_error"]
+
+
+def test_research_validation_triggers_on_experience_control_changes() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    expected_paths = (
+        '      - "scripts/experience_*.py"\n',
+        '      - "src/research/experience_*.py"\n',
+        '      - "scripts/monitor_predictions.py"\n',
+        '      - "src/research/ultimate_v13.py"\n',
+        '      - "scripts/run_daily_research.py"\n',
+        '      - "config/pipeline.yml"\n',
+    )
+    for path in expected_paths:
+        assert path in text
