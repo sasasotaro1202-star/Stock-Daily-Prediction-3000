@@ -28,6 +28,10 @@ from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
+from src.research.rolling_residual_conformal import (
+    rolling_residual_conformal_interval,
+    interval_diagnostics,
+)
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
 from src.research.blend_prediction_cache import (
