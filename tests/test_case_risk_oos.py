@@ -12,10 +12,10 @@ def _row(fold: int, row: int, *, locked: bool, risk: float, result: int, p: floa
         "is_locked": locked,
         "prediction": p,
         "result": result,
-        "predictability": 1.0 - risk,
-        "ood": risk,
-        "failure_risk": risk,
-        "disagreement": risk,
+        "case_predictability": 1.0 - risk,
+        "case_ood": risk,
+        "case_failure_risk": risk,
+        "case_disagreement": risk,
     }
 
 
@@ -30,7 +30,20 @@ def test_case_risk_score_is_outcome_free_and_bounded():
 
 def test_case_risk_fails_closed_on_missing_component():
     row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
-    row.pop("ood")
+    row.pop("case_ood")
+    assert case_risk_score(row) is None
+
+
+def test_legacy_fold_level_signals_cannot_substitute_for_case_signals():
+    row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row.update(
+        {
+            "predictability": row.pop("case_predictability"),
+            "ood": row.pop("case_ood"),
+            "failure_risk": row.pop("case_failure_risk"),
+            "disagreement": row.pop("case_disagreement"),
+        }
+    )
     assert case_risk_score(row) is None
 
 
