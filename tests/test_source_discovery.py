@@ -77,6 +77,9 @@ def test_selection_is_deterministic_and_deduplicated():
         {
             "kind": "price_history",
             "full_name": "z/repo",
+            "url": "https://example.org/z",
+            "free_status": "public",
+            "reachable": True,
             "score": 0.8,
             "recent": True,
             "updated_at": "2026-09-30T00:00:00Z",
@@ -84,6 +87,9 @@ def test_selection_is_deterministic_and_deduplicated():
         {
             "kind": "price_history",
             "full_name": "a/repo",
+            "url": "https://example.org/a",
+            "free_status": "public",
+            "reachable": True,
             "score": 0.8,
             "recent": True,
             "updated_at": "2026-09-30T00:00:00Z",
