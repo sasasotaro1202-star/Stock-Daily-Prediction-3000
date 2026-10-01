@@ -100,6 +100,24 @@ def main() -> None:
     if df.loc[ready, "return_training_scope"].astype(str).str.strip().eq("").any():
         raise SystemExit("FAIL: READY rows contain empty return_training_scope")
     production_ready = ready & df["prediction_mode"].eq("PRODUCTION")
+    if production_ready.any():
+        pit_columns = {"available_at", "retrieved_at"}
+        missing_pit = sorted(pit_columns - set(df.columns))
+        if missing_pit:
+            raise SystemExit(
+                f"FAIL: PRODUCTION prediction output missing PIT columns: {missing_pit}"
+            )
+        production_pit = df.loc[production_ready].copy()
+        from src.validation.leakage import audit_prediction_snapshot_timestamps
+        audit = audit_prediction_snapshot_timestamps(
+            production_pit,
+            prediction_time.iloc[production_pit.index].min(),
+        )
+        if not audit.ok:
+            raise SystemExit(
+                "FAIL: PRODUCTION prediction output failed PIT timestamp audit: "
+                + ";".join(audit.violations)
+            )
     disagreement = pd.to_numeric(df.loc[production_ready, "model_disagreement"], errors="coerce").to_numpy(dtype=float)
     if disagreement.size and (not np.isfinite(disagreement).all() or (disagreement < 0.0).any()):
         raise SystemExit("FAIL: PRODUCTION rows contain invalid model_disagreement")

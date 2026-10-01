@@ -16,6 +16,7 @@ from src.prediction.targets import add_targets
 from src.ranking.cross_sectional import cross_sectional_rank
 from src.research.router import regime_for_row, route_plan, situation_for_row
 from src.validation.code_fingerprint import fingerprint_sha256
+from src.validation.leakage import audit_prediction_snapshot_timestamps
 
 PRICE = Path("data/prices/canonical.parquet")
 GATE = Path("data/research/release_gate.json")
@@ -107,6 +108,16 @@ def main():
     latest = latest.reset_index(drop=True)
     if latest.empty:
         raise SystemExit("DEFERRED: no latest PIT-safe session rows")
+
+    latest_pit = audit_prediction_snapshot_timestamps(
+        latest,
+        prediction_time,
+    )
+    if not latest_pit.ok:
+        raise SystemExit(
+            "DEFERRED: latest production snapshot failed PIT timestamp audit: "
+            + ";".join(latest_pit.violations)
+        )
 
     threshold = float(artifact["metadata"]["regime_vol_threshold"])
 
@@ -312,6 +323,8 @@ def main():
         "asset_class",
         "session_date",
         "close",
+        "available_at",
+        "retrieved_at",
         "prediction_time",
         "prediction_date",
         "model_version",
