@@ -54,6 +54,12 @@ def test_candidate_plan_skips_weak_evidence_and_deduplicates():
             },
             {
                 "dimension": "by_regime",
+                "segment": "improving",
+                "n": 100,
+                "impact_vs_global_logloss": -0.2,
+            },
+            {
+                "dimension": "by_regime",
                 "segment": "high_vol",
                 "n": 40,
                 "impact_vs_global_logloss": 0.1,
