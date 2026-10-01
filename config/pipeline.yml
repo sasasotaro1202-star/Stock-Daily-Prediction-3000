@@ -119,7 +119,8 @@ adaptive_data:
 
 online_ensemble_research:
   research_only: true
-  outcome_delay_sessions: 1
+  # Target t (t+1 close) is available before prediction t+1 because live predictions run after the session close.
+  outcome_delay_sessions: 0
   production_changed: false
 
 sequential_selection_research:
