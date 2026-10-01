@@ -40,11 +40,46 @@ def test_official_sources_have_explicit_free_status():
     assert all(row["free_status"] in {"public", "public_web"} for row in OFFICIAL_SOURCES)
 
 
+def test_discovery_lifecycle_is_fail_closed():
+    from scripts.discover_free_data_sources import _lifecycle, select_for_research
+
+    verified = {
+        "kind": "macro",
+        "name": "Public Source",
+        "url": "https://example.org/data",
+        "free_status": "public",
+        "reachable": True,
+        "has_tabular_hint": True,
+        "pit_hint": True,
+        "blocked": False,
+    }
+    lifecycle = _lifecycle(verified)
+    assert lifecycle["stage"] == "DISCOVERED"
+    assert lifecycle["eligibility"] == "ELIGIBLE_FOR_RESEARCH_REVIEW"
+    assert lifecycle["cost_status"] == "VERIFIED_BY_DECLARATION"
+    assert lifecycle["data_feasibility"] == "METADATA_SUPPORTED"
+    assert lifecycle["pit_status"] == "UNVERIFIED"
+    assert lifecycle["adoption_status"] == "RESEARCH_CANDIDATE_ONLY"
+
+    unknown_cost = dict(verified)
+    unknown_cost.pop("free_status")
+    unknown_lifecycle = _lifecycle(unknown_cost)
+    assert unknown_lifecycle["cost_status"] == "UNCONFIRMED"
+    selected = select_for_research(
+        [verified, {**unknown_cost, "name": "Unknown Cost"}],
+        max_per_kind=5,
+    )
+    assert [row["name"] for row in selected["macro"]] == ["Public Source"]
+
+
 def test_selection_is_deterministic_and_deduplicated():
     rows = [
         {
             "kind": "price_history",
             "full_name": "z/repo",
+            "url": "https://example.org/z",
+            "free_status": "public",
+            "reachable": True,
             "score": 0.8,
             "recent": True,
             "updated_at": "2026-09-30T00:00:00Z",
@@ -52,6 +87,9 @@ def test_selection_is_deterministic_and_deduplicated():
         {
             "kind": "price_history",
             "full_name": "a/repo",
+            "url": "https://example.org/a",
+            "free_status": "public",
+            "reachable": True,
             "score": 0.8,
             "recent": True,
             "updated_at": "2026-09-30T00:00:00Z",
