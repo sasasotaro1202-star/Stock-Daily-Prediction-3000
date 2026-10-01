@@ -11,6 +11,7 @@ def online_expert_average(
     learning_rate: float,
     share_rate: float = 0.0,
     update_group_keys=None,
+    outcome_delay_sessions: int = 0,
 ):
     """Chronological online expert mixture with optional fixed-share recovery.
 
@@ -22,8 +23,11 @@ def online_expert_average(
     if not predictions_by_model:
         raise ValueError("at least one expert is required")
     eta = float(learning_rate)
+    delay = int(outcome_delay_sessions)
     if not np.isfinite(eta) or eta < 0.0:
         raise ValueError("learning_rate must be finite and non-negative")
+    if delay < 0 or delay != outcome_delay_sessions:
+        raise ValueError("outcome_delay_sessions must be a non-negative integer")
     share = float(share_rate)
     if not np.isfinite(share) or not 0.0 <= share <= 1.0:
         raise ValueError("share_rate must be finite and in [0, 1]")
@@ -61,8 +65,12 @@ def online_expert_average(
     log_weights = np.zeros(len(names), dtype=float)
     ensemble = np.empty(len(y), dtype=float)
     history = []
+    pending_updates = {}
 
-    for date in unique_dates:
+    for date_index, date in enumerate(unique_dates):
+        due = pending_updates.pop(date_index, [])
+        for update in due:
+            log_weights -= eta * update
         mask = dates == date
         current_weights = np.exp(log_weights - np.max(log_weights))
         current_weights /= current_weights.sum()
@@ -92,7 +100,10 @@ def online_expert_average(
                         group_losses.append(float(np.mean(loss[group_mask])))
                 row_losses.append(float(np.mean(group_losses)))
         row_losses_arr = np.asarray(row_losses, dtype=float)
-        log_weights -= eta * row_losses_arr
+        release_index = date_index + delay + 1
+        if release_index < len(unique_dates):
+            pending_updates.setdefault(release_index, np.zeros(len(names), dtype=float))
+            pending_updates[release_index] += row_losses_arr
 
         next_weights = np.exp(log_weights - np.max(log_weights))
         next_weights /= next_weights.sum()
@@ -102,6 +113,8 @@ def online_expert_average(
         history.append({
             "session_date": str(date),
             "share_rate": share,
+            "outcome_delay_sessions": delay,
+            "outcomes_released_before_prediction": len(due),
             "update_grouped": groups is not None,
             "weights_before": current_weights.tolist(),
             "weights_after": next_weights.tolist(),
