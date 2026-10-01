@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.research.experience_candidates import build_experience_candidate_plan
 from src.research.experience_memory import compact_view, load_experience_memory
 
 MEMORY = Path("data/research/experience_memory.json")
@@ -33,9 +34,14 @@ def main() -> None:
         "top_hard_cases": view.get("top_hard_cases", [])[:50],
         "recent_hard_cases": view.get("recent_hard_cases", [])[:50],
         "anomalies": view.get("anomalies", [])[-20:],
+        "experience_candidate_plan": candidate_plan,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, indent=2, default=str), encoding="utf-8")
+    (OUT.parent / "experience_candidates.json").write_text(
+        json.dumps(candidate_plan, indent=2, sort_keys=True, default=str),
+        encoding="utf-8",
+    )
     print(json.dumps(payload, indent=2, default=str))
 
 
