@@ -28,6 +28,10 @@ from src.research.return_selection import choose_return_estimator
 from src.research.online_ensemble import online_expert_average
 from src.research.selection_evidence import paired_logloss_selection_evidence
 from src.research.statistics import moving_block_bootstrap_mean
+from src.research.rolling_residual_conformal import (
+    rolling_residual_conformal_interval,
+    interval_diagnostics,
+)
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
 from src.research.blend_prediction_cache import (
@@ -635,8 +639,11 @@ def main():
         "q50": [],
         "blend_mean_q50": [],
     }
+    return_predictions_by_fold: dict[int, dict[str, dict[str, np.ndarray]]] = {
+        int(fold_idx): {} for fold_idx in range(len(folds))
+    }
 
-    for fold in folds:
+    for fold_idx, fold in enumerate(folds):
         train_dates = dates[: fold.train_end]
         cal_n = max(20, int(len(train_dates) * 0.2))
         core_dates = set(train_dates[:-cal_n])
@@ -660,6 +667,11 @@ def main():
         q50_pred = q50.predict(test[FEATURE_COLUMNS])
         blend_pred = 0.5 * mean_pred + 0.5 * q50_pred
         y_ret = test["target_ret_1d"].to_numpy(dtype=float)
+        return_predictions_by_fold[int(fold_idx)] = {
+            "mean": {"y": y_ret.copy(), "pred": np.asarray(mean_pred, dtype=float).copy()},
+            "q50": {"y": y_ret.copy(), "pred": np.asarray(q50_pred, dtype=float).copy()},
+            "blend_mean_q50": {"y": y_ret.copy(), "pred": np.asarray(blend_pred, dtype=float).copy()},
+        }
         group_keys = (
             test["session_date"].astype(str)
             + "::"
@@ -719,6 +731,10 @@ def main():
         ):
             lo = np.minimum(lo_base, pred)
             hi = np.maximum(hi_base, pred)
+            return_predictions_by_fold[int(fold_idx)][name]["interval"] = np.column_stack([
+                np.minimum(lo, hi),
+                np.maximum(lo, hi),
+            ]).copy()
             interval_estimators[name].append({
                 "mae": float(mean_absolute_error(y_ret, pred)),
                 "rmse": float(mean_squared_error(y_ret, pred) ** 0.5),
@@ -768,6 +784,102 @@ def main():
         },
         "status": "OOS_COMPLETE" if len(selected_interval_rows) >= 3 else "DEFERRED",
     }
+
+    rolling_residual_conformal_research = {
+        "research_only": True,
+        "production_changed": False,
+        "promotion_allowed": False,
+        "method": "rolling_prior_pseudo_oos_absolute_residual_conformal",
+        "alpha": 0.10,
+        "history_window_rows": 252,
+        "min_history_rows": 200,
+        "selection": "diagnostic_only_fixed_window; no same-OOS parameter tuning",
+        "models": {},
+    }
+    for estimator_name in ("mean", "q50", "blend_mean_q50"):
+        rows = []
+        all_y_hist: list[float] = []
+        all_pred_hist: list[float] = []
+        for fold_idx in sorted(return_predictions_by_fold):
+            current = return_predictions_by_fold[fold_idx].get(estimator_name)
+            if not current:
+                continue
+            current_y = np.asarray(current["y"], dtype=float)
+            current_pred = np.asarray(current["pred"], dtype=float)
+            if len(all_y_hist) >= 200:
+                interval, diag = rolling_residual_conformal_interval(
+                    all_y_hist,
+                    all_pred_hist,
+                    current_pred,
+                    alpha=0.10,
+                    min_history=200,
+                    window=252,
+                )
+                if diag["status"] == "EXECUTED_PRIOR_OOS":
+                    current_diag = interval_diagnostics(
+                        current_y,
+                        interval,
+                        alpha=0.10,
+                    )
+                    baseline_interval = current.get("interval")
+                    baseline_diag = (
+                        interval_diagnostics(
+                            current_y,
+                            np.asarray(baseline_interval, dtype=float),
+                            alpha=0.10,
+                        )
+                        if baseline_interval is not None and np.isfinite(baseline_interval).all()
+                        else {}
+                    )
+                    rows.append({
+                        "fold": float(fold_idx),
+                        "history_rows": float(diag["history_rows"]),
+                        "window_rows": float(diag["window_rows"]),
+                        "radius": float(diag["radius"]),
+                        "rolling_coverage": float(current_diag["coverage"]),
+                        "rolling_mean_width": float(current_diag["mean_width"]),
+                        "rolling_interval_score": float(current_diag["interval_score"]),
+                        "rolling_severe_miss_rate_ge_5pct": float(
+                            current_diag["severe_miss_rate_ge_5pct"]
+                        ),
+                        "baseline_coverage": float(baseline_diag.get("coverage", np.nan)),
+                        "baseline_mean_width": float(baseline_diag.get("mean_width", np.nan)),
+                        "baseline_interval_score": float(
+                            baseline_diag.get("interval_score", np.nan)
+                        ),
+                        "baseline_severe_miss_rate_ge_5pct": float(
+                            baseline_diag.get("severe_miss_rate_ge_5pct", np.nan)
+                        ),
+                        "n_test": float(current_diag["n_test"]),
+                    })
+            # Append only after scoring the current fold. This creates a
+            # delayed/prequential calibration history with no current leakage.
+            finite_current = np.isfinite(current_y) & np.isfinite(current_pred)
+            all_y_hist.extend(current_y[finite_current].tolist())
+            all_pred_hist.extend(current_pred[finite_current].tolist())
+
+        if rows:
+            weights = np.asarray([r["n_test"] for r in rows], dtype=float)
+            def weighted(key: str) -> float:
+                values = np.asarray([r[key] for r in rows], dtype=float)
+                mask = np.isfinite(values) & np.isfinite(weights)
+                return float(np.average(values[mask], weights=weights[mask])) if mask.any() else float("nan")
+            rolling_residual_conformal_research["models"][estimator_name] = {
+                "status": "EVALUATED_PRIOR_OOS",
+                "folds": int(len(rows)),
+                "coverage": weighted("rolling_coverage"),
+                "mean_width": weighted("rolling_mean_width"),
+                "interval_score": weighted("rolling_interval_score"),
+                "baseline_coverage": weighted("baseline_coverage"),
+                "baseline_mean_width": weighted("baseline_mean_width"),
+                "baseline_interval_score": weighted("baseline_interval_score"),
+                "metrics_by_fold": rows,
+            }
+        else:
+            rolling_residual_conformal_research["models"][estimator_name] = {
+                "status": "INSUFFICIENT_PRIOR_OOS_HISTORY",
+                "folds": 0,
+            }
 
     model_results = {}
     regime_rows = {reg.value: [] for reg in Regime if reg is not Regime.DATA_STRESSED}
@@ -3008,6 +3120,7 @@ def main():
         "results": model_results,
         "ultimate_v13": ultimate_v13,
         "return_oos": return_oos,
+        "rolling_residual_conformal_research": rolling_residual_conformal_research,
         "adaptive_conformal_prediction_research": adaptive_conformal_prediction_research,
         "group_conformal_prediction_research": group_conformal_prediction_research,
         "conformal_prediction_research": conformal_prediction_research,
