@@ -402,3 +402,27 @@ def test_v13_build_emits_governance_and_experiment_registry(tmp_path, monkeypatc
     assert len(registry["rows"][0]["record_sha256"]) == 64
     assert (tmp_path / "governance.json").exists()
     assert (tmp_path / "experiment_registry.json").exists()
+
+
+def test_predictability_calibrator_is_frozen_before_locked_suffix(tmp_path):
+    baseline = build_ultimate_intelligence(_bank(), out_dir=tmp_path / "a")
+    altered = _bank()
+    altered[5]["y"] = np.ones(6, dtype=int)
+    changed = build_ultimate_intelligence(altered, out_dir=tmp_path / "b")
+
+    cal_a = baseline["predictability"]["fold_metrics"]
+    cal_b = changed["predictability"]["fold_metrics"]
+    assert all(row["is_locked"] == 1.0 for row in cal_a[-2:])
+    assert all(row["is_locked"] == 1.0 for row in cal_b[-2:])
+    assert [row["calibrated_brier"] for row in cal_a[-2:]] == [row["calibrated_brier"] for row in cal_b[-2:]]
+    assert [row["calibrated_ece"] for row in cal_a[-2:]] == [row["calibrated_ece"] for row in cal_b[-2:]]
+    assert baseline["predictability"]["calibrator_frozen_before_locked"] is True
+    assert baseline["predictability"]["locked_outcomes_update_calibrator"] is False
+
+
+def test_predictability_calibration_remains_research_only(tmp_path):
+    result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
+    assert result["predictability"]["calibration_status"] == "EXECUTED_DEV_ONLY_FROZEN"
+    assert result["production_changed"] is False
+    assert result["promotion_allowed"] is False
+    assert result["predictability"]["calibrator_frozen_before_locked"] is True
