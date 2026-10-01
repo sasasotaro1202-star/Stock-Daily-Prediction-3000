@@ -145,6 +145,10 @@ def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path
         fold["prediction_timestamp_status"] == "PASS_SCHEDULED_POLICY"
         for fold in result["prediction_contracts"]["folds"]
     )
+    assert result["prediction_contracts"]["scheduled_timestamp_lineage"] is True
+    assert result["prediction_contracts"]["exact_prediction_time_observed"] is False
+    assert result["audits"]["PIT"] == "PASS_DECLARED_SCHEDULE"
+    assert result["audits"]["PIT_Row_Lineage"]["available_at_le_prediction_time"] is True
 
     case_risk = analyze_case_risk(rows)
     assert case_risk["status"] == "EVALUATED"
