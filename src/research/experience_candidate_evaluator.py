@@ -30,9 +30,15 @@ def _score(metric: Mapping[str, Any]) -> float:
 
 def _eligible(metric: Mapping[str, Any], *, min_folds: int, min_rows_per_fold: int) -> bool:
     folds = int(metric.get("folds", 0) or 0)
-    rows = metric.get("n_test_min", min_rows_per_fold)
+    fold_count = metric.get("oos_fold_count")
+    rows = metric.get("n_test_min")
+    signature = metric.get("oos_fold_signature")
     return (
         folds >= min_folds
+        and _finite(fold_count)
+        and int(float(fold_count)) >= min_folds
+        and isinstance(signature, str)
+        and bool(signature.strip())
         and _finite(metric.get("logloss"))
         and _finite(rows)
         and float(rows) >= min_rows_per_fold
@@ -131,11 +137,12 @@ def evaluate_experience_candidates(
             rows.append(base)
             continue
 
-        ranked = sorted(eligible.items(), key=lambda item: (_score(item[1]), item[0]))
-        best_model, best_metric = ranked[0]
         parent_model = selected_parent or str(latest_metrics.get("selected_model", ""))
         parent_metric = eligible.get(parent_model)
         if parent_metric is None:
+            best_model, best_metric = min(
+                eligible.items(), key=lambda item: (_score(item[1]), item[0])
+            )
             base.update({
                 "status": "NO_COMPARABLE_PARENT",
                 "scope_type": label,
@@ -148,6 +155,37 @@ def evaluate_experience_candidates(
             rows.append(base)
             continue
 
+        parent_signature = parent_metric.get("oos_fold_signature")
+        comparable = {
+            name: metric
+            for name, metric in eligible.items()
+            if metric.get("oos_fold_signature") == parent_signature
+        }
+        if not isinstance(parent_signature, str) or not parent_signature.strip():
+            base.update({
+                "status": "NO_OOS_FOLD_SIGNATURE",
+                "scope_type": label,
+                "scope": segment,
+                "parent_model": parent_model,
+                "reason": "scoped chronological OOS evidence lacks an explicit fold identity",
+            })
+            rows.append(base)
+            continue
+        if len(comparable) < 1:
+            base.update({
+                "status": "NO_COMPARABLE_OOS_FOLDS",
+                "scope_type": label,
+                "scope": segment,
+                "parent_model": parent_model,
+                "parent_oos_fold_signature": parent_signature,
+                "reason": "no candidate shares the locked parent's exact chronological OOS fold identity",
+            })
+            rows.append(base)
+            continue
+
+        ranked = sorted(comparable.items(), key=lambda item: (_score(item[1]), item[0]))
+        best_model, best_metric = ranked[0]
+
         parent_score = _score(parent_metric)
         best_score = _score(best_metric)
         improvement = parent_score - best_score
@@ -159,6 +197,8 @@ def evaluate_experience_candidates(
             "scope": segment,
             "best_model": best_model,
             "parent_model": parent_model,
+            "oos_fold_signature": str(parent_signature),
+            "oos_fold_count": int(float(parent_metric.get("oos_fold_count", 0))),
             "parent_score": float(parent_score),
             "best_score": float(best_score),
             "score_improvement": float(improvement),

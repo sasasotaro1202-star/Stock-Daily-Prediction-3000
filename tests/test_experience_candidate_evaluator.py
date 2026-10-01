@@ -37,6 +37,8 @@ def test_evaluates_asset_candidate_against_same_scope_parent():
             "us_stock": {
                 "hgb": {
                     "folds": 5,
+                    "oos_fold_count": 5,
+                    "oos_fold_signature": "folds:shared",
                     "n_test_min": 100,
                     "logloss": 0.70,
                     "logloss_std": 0.04,
@@ -46,6 +48,8 @@ def test_evaluates_asset_candidate_against_same_scope_parent():
                 },
                 "extra_trees": {
                     "folds": 5,
+                    "oos_fold_count": 5,
+                    "oos_fold_signature": "folds:shared",
                     "n_test_min": 100,
                     "logloss": 0.67,
                     "logloss_std": 0.03,
@@ -96,6 +100,8 @@ def test_requires_comparable_parent_on_same_scope():
                 "high_vol": {
                     "hgb": {
                         "folds": 5,
+                        "oos_fold_count": 5,
+                        "oos_fold_signature": "folds:shared",
                         "n_test_min": 100,
                         "logloss": 0.70,
                         "logloss_std": 0.04,
@@ -106,6 +112,88 @@ def test_requires_comparable_parent_on_same_scope():
     )
 
     assert result["evaluations"][0]["status"] == "NO_COMPARABLE_PARENT"
+
+
+def test_blocks_incomparable_oos_fold_identity():
+    plan = _plan(_candidate("by_asset_class", "us_stock", "c6"))
+    result = evaluate_experience_candidates(
+        plan,
+        {
+            "selected_model": "hgb",
+            "asset_class_selected_models": {"us_stock": "hgb"},
+            "asset_class_metrics": {
+                "us_stock": {
+                    "hgb": {
+                        "folds": 5,
+                        "oos_fold_count": 5,
+                        "oos_fold_signature": "folds:parent",
+                        "n_test_min": 100,
+                        "logloss": 0.70,
+                        "logloss_std": 0.04,
+                    },
+                    "extra_trees": {
+                        "folds": 5,
+                        "oos_fold_count": 5,
+                        "oos_fold_signature": "folds:different",
+                        "n_test_min": 100,
+                        "logloss": 0.60,
+                        "logloss_std": 0.03,
+                    },
+                }
+            },
+        },
+    )
+
+    row = result["evaluations"][0]
+    assert row["status"] == "EVALUATED"
+    assert row["best_model"] == "hgb"
+    assert row["candidate_passes_screen"] is False
+    assert row["oos_fold_signature"] == "folds:parent"
+
+
+def test_missing_oos_fold_identity_fails_closed():
+    plan = _plan(_candidate("by_asset_class", "us_stock", "c7"))
+    result = evaluate_experience_candidates(
+        plan,
+        {
+            "selected_model": "hgb",
+            "asset_class_selected_models": {"us_stock": "hgb"},
+            "asset_class_metrics": {
+                "us_stock": {
+                    "hgb": {
+                        "folds": 5,
+                        "n_test_min": 100,
+                        "logloss": 0.70,
+                        "logloss_std": 0.04,
+                    }
+                }
+            },
+        },
+    )
+    assert result["evaluations"][0]["status"] == "INSUFFICIENT_OOS_EVIDENCE"
+
+
+def test_missing_minimum_test_rows_fails_closed():
+    plan = _plan(_candidate("by_asset_class", "us_stock", "c8"))
+    result = evaluate_experience_candidates(
+        plan,
+        {
+            "selected_model": "hgb",
+            "asset_class_selected_models": {"us_stock": "hgb"},
+            "asset_class_metrics": {
+                "us_stock": {
+                    "hgb": {
+                        "folds": 5,
+                        "oos_fold_count": 5,
+                        "oos_fold_signature": "folds:shared",
+                        "logloss": 0.70,
+                        "logloss_std": 0.04,
+                    }
+                }
+            },
+        },
+    )
+    assert result["evaluations"][0]["status"] == "INSUFFICIENT_OOS_EVIDENCE"
 
 
 def test_rejects_unsafe_candidate_plan():
