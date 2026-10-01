@@ -269,6 +269,8 @@ def _rebuild_priority(memory: dict[str, Any]) -> None:
         "by_model_id",
         "by_regime",
         "by_market_situation",
+        "by_direction_confidence",
+        "by_model_disagreement",
         "error_types",
         "by_error_bucket",
     ):
