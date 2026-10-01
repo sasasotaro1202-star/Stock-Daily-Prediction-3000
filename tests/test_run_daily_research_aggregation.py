@@ -47,3 +47,26 @@ def test_same_fold_ids_with_different_date_windows_have_different_signatures():
         {"fold": 1.0, "test_start_date": "2025-02-22", "test_end_date": "2025-03-14", "n_test": 120.0, "logloss": 0.68},
     ])
     assert first["oos_fold_signature"] != second["oos_fold_signature"]
+
+
+
+def test_invalid_oos_window_date_format_fails_closed():
+    result = aggregate_group([
+        {"fold": 0.0, "test_start_date": "not-a-date", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
+    ])
+    assert result["oos_fold_signature"] is None
+
+
+def test_reversed_oos_window_fails_closed():
+    result = aggregate_group([
+        {"fold": 0.0, "test_start_date": "2025-02-21", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
+    ])
+    assert result["oos_fold_signature"] is None
+
+
+def test_conflicting_oos_windows_for_same_fold_fail_closed():
+    result = aggregate_group([
+        {"fold": 0.0, "test_start_date": "2025-01-01", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
+        {"fold": 0.0, "test_start_date": "2025-01-22", "test_end_date": "2025-02-11", "n_test": 100.0, "logloss": 0.70},
+    ])
+    assert result["oos_fold_signature"] is None

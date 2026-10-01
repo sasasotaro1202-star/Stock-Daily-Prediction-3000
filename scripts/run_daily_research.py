@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -179,6 +180,7 @@ def make_models():
 def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
     """Return a deterministic identity for the exact chronological OOS windows."""
     identities: list[tuple[int, str, str]] = []
+    fold_windows: dict[int, tuple[str, str]] = {}
     for row in rows:
         try:
             fold_value = float(row.get("fold"))
@@ -190,7 +192,20 @@ def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
         end = str(row.get("test_end_date", "")).strip()
         if not start or not end:
             return None
-        identities.append((int(fold_value), start, end))
+        try:
+            start_date = date.fromisoformat(start)
+            end_date = date.fromisoformat(end)
+        except ValueError:
+            return None
+        if start_date > end_date:
+            return None
+        fold_id = int(fold_value)
+        window = (start, end)
+        previous_window = fold_windows.get(fold_id)
+        if previous_window is not None and previous_window != window:
+            return None
+        fold_windows[fold_id] = window
+        identities.append((fold_id, start, end))
     if not identities:
         return None
     canonical = "|".join(
