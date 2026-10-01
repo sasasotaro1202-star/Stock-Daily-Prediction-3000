@@ -16,6 +16,7 @@ def main() -> None:
     priority = view.get("research_priority", [])
     errors = view.get("error_types", {})
     high_conf = errors.get("high_confidence_wrong", {})
+    candidate_plan = build_experience_candidate_plan(memory)
     high_disagreement = view.get("by_model_disagreement", {}).get(
         "disagreement>=0.06", {}
     )
