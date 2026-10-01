@@ -34,20 +34,23 @@ def test_case_risk_fails_closed_on_missing_component():
     assert case_risk_score(row) is None
 
 
-def test_threshold_uses_strictly_prior_locked_scores():
+def test_threshold_uses_all_strictly_prior_oos_scores():
     rows = [
-        _row(0, 0, locked=True, risk=0.1, result=0, p=0.9),
-        _row(0, 1, locked=True, risk=0.1, result=0, p=0.1),
-        _row(1, 0, locked=True, risk=0.05, result=0, p=0.9),
-        _row(1, 1, locked=True, risk=0.9, result=1, p=0.9),
+        _row(0, 0, locked=False, risk=0.1, result=0, p=0.9),
+        _row(0, 1, locked=False, risk=0.2, result=0, p=0.1),
+        _row(1, 0, locked=False, risk=0.2, result=0, p=0.9),
+        _row(1, 1, locked=False, risk=0.3, result=1, p=0.1),
+        _row(2, 0, locked=True, risk=0.05, result=0, p=0.9),
+        _row(2, 1, locked=True, risk=0.9, result=1, p=0.9),
     ]
     result = analyze_case_risk(rows, risk_quantile=0.75)
     assert result["status"] == "EVALUATED"
-    assert result["per_fold"][0]["status"] == "WARMUP_NO_PRIOR_THRESHOLD"
-    assert result["per_fold"][1]["threshold_source"] == "strictly_prior_locked_scores"
-    # The second fold threshold comes from fold 0 only, so neither current
-    # fold outcome can affect which rows are classified as high risk.
-    assert result["per_fold"][1]["high_risk_coverage"] == 0.5
+    assert len(result["per_fold"]) == 1
+    fold = result["per_fold"][0]
+    assert fold["threshold_source"] == "strictly_prior_oos_scores"
+    assert fold["prior_score_count"] == 4
+    assert math.isclose(fold["high_risk_threshold"], 0.225)
+    assert fold["high_risk_coverage"] == 0.5
 
 
 def test_only_locked_rows_are_evaluated_and_contracts_are_explicit():
@@ -61,5 +64,6 @@ def test_only_locked_rows_are_evaluated_and_contracts_are_explicit():
     assert result["locked_rows"] == 3
     assert result["scored_rows"] == 3
     assert result["contracts"]["only_locked_oos_rows_evaluated"] is True
+    assert result["contracts"]["threshold_uses_strictly_prior_oos_scores"] is True
     assert result["contracts"]["outcomes_used_for_threshold"] is False
     assert result["promotion_allowed"] is False
