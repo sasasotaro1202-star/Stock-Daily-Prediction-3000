@@ -461,6 +461,29 @@ def augment_v13_result(
                 "predictability": fold_predictability,
                 "ood": fold_ood,
                 "failure_risk": fold_failure_risk,
+                # Per-case signals are persisted separately from legacy fold-level
+                # summaries so downstream case-risk audits cannot mistake fold
+                # aggregates for heterogeneous case intelligence.
+                "case_predictability": (
+                    float(calibrated_predictability[i])
+                    if i < len(calibrated_predictability) and np.isfinite(calibrated_predictability[i])
+                    else float("nan")
+                ),
+                "case_ood": (
+                    float(ood[i])
+                    if i < len(ood) and np.isfinite(ood[i])
+                    else float("nan")
+                ),
+                "case_failure_risk": (
+                    float(1.0 - meta_scores[i])
+                    if i < len(meta_scores) and np.isfinite(meta_scores[i])
+                    else float("nan")
+                ),
+                "case_disagreement": (
+                    float(np.clip(2.0 * np.std(p_matrix[i]), 0.0, 1.0))
+                    if i < len(p_matrix) and np.isfinite(p_matrix[i]).all()
+                    else float("nan")
+                ),
                 "meta_label_probability": (
                     float(meta_scores[i]) if i < len(meta_scores) else float("nan")
                 ),
