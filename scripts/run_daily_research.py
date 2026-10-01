@@ -88,6 +88,7 @@ from src.validation.walk_forward import make_date_folds
 PRICE_DIR = Path("data/prices/canonical.parquet")
 OUT = Path("data/research/latest_metrics.json")
 AUDIT = Path("data/research/leakage_audit.json")
+SOURCE_DISCOVERY_REPORT = Path("data/research/source_discovery.json")
 
 def make_models():
     """Return only model candidates explicitly enabled in pipeline.yml.
@@ -225,6 +226,76 @@ def _adaptive_data_config() -> dict:
     return merged
 
 
+def _source_discovery_summary() -> dict:
+    """Summarize discovery metadata without treating it as an input source.
+
+    Discovery is advisory metadata only. Unknown cost or PIT lineage never
+    becomes acquisition or production input through this summary.
+    """
+    base = {
+        "status": "NOT_RUN",
+        "checked_at_utc": None,
+        "selected_for_research_count": 0,
+        "selected_kinds": [],
+        "eligible_candidates": 0,
+        "rejected_candidates": 0,
+        "cost_unconfirmed": 0,
+        "pit_unverified": 0,
+        "research_candidates_only": 0,
+        "selection_is_advisory_only": True,
+        "production_adoption": False,
+        "next_best_action": "run_discovery",
+    }
+    if not SOURCE_DISCOVERY_REPORT.exists():
+        return base
+    try:
+        payload = json.loads(SOURCE_DISCOVERY_REPORT.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            **base,
+            "status": "INVALID",
+            "next_best_action": "rerun_discovery_fail_closed",
+        }
+
+    selected = payload.get("selected_for_research") or {}
+    selected_count = sum(
+        len(rows) for rows in selected.values() if isinstance(rows, list)
+    )
+    metrics = payload.get("discovery_metrics") or {}
+    status = str(payload.get("status") or "UNKNOWN")
+    if status == "FAILED":
+        next_action = "repeat_discovery"
+    elif int(metrics.get("cost_unconfirmed", 0)) > 0 or int(
+        metrics.get("pit_unverified", 0)
+    ) > 0:
+        next_action = "validate_frontier_sources_before_any_adapter"
+    elif selected_count:
+        next_action = "evaluate_selected_sources_in_research_only"
+    else:
+        next_action = "expand_discovery_queries"
+
+    return {
+        "status": status,
+        "checked_at_utc": payload.get("checked_at_utc"),
+        "selected_for_research_count": int(selected_count),
+        "selected_kinds": sorted(
+            str(kind) for kind, rows in selected.items() if rows
+        ),
+        "eligible_candidates": int(metrics.get("eligible_candidates", 0)),
+        "rejected_candidates": int(metrics.get("rejected_candidates", 0)),
+        "cost_unconfirmed": int(metrics.get("cost_unconfirmed", 0)),
+        "pit_unverified": int(metrics.get("pit_unverified", 0)),
+        "research_candidates_only": int(
+            metrics.get("research_candidates_only", 0)
+        ),
+        "selection_is_advisory_only": bool(
+            payload.get("discovery_does_not_adopt", True)
+        ),
+        "production_adoption": bool(payload.get("production_changed", False)),
+        "next_best_action": next_action,
+    }
+
+
 def _adaptive_data_snapshot(
     *,
     min_price_rows: int,
@@ -310,7 +381,7 @@ def _adaptive_data_snapshot(
         snapshot["status"] = "READY"
     return snapshot
 
-def _run_acquisition_once(cfg: dict, iteration: int) -> None:
+def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
     print(
         "ADAPTIVE_DATA_ACQUIRE "
         f"iteration={iteration} min_history_sessions={cfg['min_history_sessions']}",
@@ -323,6 +394,12 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> None:
         ["python", "scripts/discover_free_data_sources.py"],
         check=True,
         timeout=180,
+    )
+    discovery_summary = _source_discovery_summary()
+    print(
+        "SOURCE_DISCOVERY_LINK "
+        + json.dumps(discovery_summary, ensure_ascii=False, sort_keys=True),
+        flush=True,
     )
 
     # Re-discover the current official universe every iteration. This is
@@ -368,6 +445,7 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> None:
         check=True,
         timeout=300,
     )
+    return discovery_summary
 
 
 def _ensure_adaptive_research_data() -> dict:
@@ -393,6 +471,7 @@ def _ensure_adaptive_research_data() -> dict:
     max_iterations = max(1, int(cfg["max_acquisition_iterations"]))
 
     history = []
+    discovery_history = []
     snapshot = _adaptive_data_snapshot(
         min_price_rows=min_price_rows,
         min_oos_folds=min_oos_folds,
@@ -403,12 +482,14 @@ def _ensure_adaptive_research_data() -> dict:
     for iteration in range(1, max_iterations + 1):
         if not snapshot["reasons"]:
             break
-        _run_acquisition_once(cfg, iteration)
+        discovery_summary = _run_acquisition_once(cfg, iteration)
+        discovery_history.append(discovery_summary)
         snapshot = _adaptive_data_snapshot(
             min_price_rows=min_price_rows,
             min_oos_folds=min_oos_folds,
             min_history_sessions=min_history_sessions,
         )
+        snapshot["source_discovery"] = discovery_summary
         history.append(snapshot)
         print(
             "ADAPTIVE_DATA_STATE "
@@ -442,6 +523,12 @@ def _ensure_adaptive_research_data() -> dict:
         "discovery": {
             "policy": "refresh_official_universe_every_iteration",
             "unresolved_revisited_next_iteration": True,
+            "linkage": {
+                "runs_in_adaptive_loop": True,
+                "selected_sources_are_advisory_only": True,
+                "production_adoption": False,
+                "history": discovery_history,
+            },
         },
         "research_only": True,
         "production_changed": False,
