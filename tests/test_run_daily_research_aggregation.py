@@ -62,3 +62,11 @@ def test_reversed_oos_window_fails_closed():
         {"fold": 0.0, "test_start_date": "2025-02-21", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
     ])
     assert result["oos_fold_signature"] is None
+
+
+def test_conflicting_oos_windows_for_same_fold_fail_closed():
+    result = aggregate_group([
+        {"fold": 0.0, "test_start_date": "2025-01-01", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
+        {"fold": 0.0, "test_start_date": "2025-01-22", "test_end_date": "2025-02-11", "n_test": 100.0, "logloss": 0.70},
+    ])
+    assert result["oos_fold_signature"] is None
