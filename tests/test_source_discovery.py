@@ -72,6 +72,63 @@ def test_discovery_lifecycle_is_fail_closed():
     assert [row["name"] for row in selected["macro"]] == ["Public Source"]
 
 
+
+def test_source_discovery_summary_links_frontier_without_adoption(tmp_path, monkeypatch):
+    from scripts import run_daily_research as research
+
+    report = tmp_path / "source_discovery.json"
+    report.write_text(
+        json.dumps(
+            {
+                "status": "EVALUATED",
+                "checked_at_utc": "2026-10-01T04:00:00+00:00",
+                "production_changed": False,
+                "discovery_does_not_adopt": True,
+                "selected_for_research": {
+                    "macro": [{"name": "Public Source"}],
+                    "rates": [],
+                },
+                "discovery_metrics": {
+                    "eligible_candidates": 3,
+                    "rejected_candidates": 1,
+                    "cost_unconfirmed": 2,
+                    "pit_unverified": 3,
+                    "research_candidates_only": 3,
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(research, "SOURCE_DISCOVERY_REPORT", report)
+
+    summary = research._source_discovery_summary()
+    assert summary["status"] == "EVALUATED"
+    assert summary["selected_for_research_count"] == 1
+    assert summary["selected_kinds"] == ["macro"]
+    assert summary["cost_unconfirmed"] == 2
+    assert summary["pit_unverified"] == 3
+    assert summary["selection_is_advisory_only"] is True
+    assert summary["production_adoption"] is False
+    assert summary["next_best_action"] == "validate_frontier_sources_before_any_adapter"
+
+
+def test_source_discovery_summary_is_fail_closed_when_missing_or_invalid(tmp_path, monkeypatch):
+    from scripts import run_daily_research as research
+
+    report = tmp_path / "source_discovery.json"
+    monkeypatch.setattr(research, "SOURCE_DISCOVERY_REPORT", report)
+
+    missing = research._source_discovery_summary()
+    assert missing["status"] == "NOT_RUN"
+    assert missing["production_adoption"] is False
+
+    report.write_text("{not-json", encoding="utf-8")
+    invalid = research._source_discovery_summary()
+    assert invalid["status"] == "INVALID"
+    assert invalid["next_best_action"] == "rerun_discovery_fail_closed"
+    assert invalid["selection_is_advisory_only"] is True
+
+
 def test_selection_is_deterministic_and_deduplicated():
     rows = [
         {
