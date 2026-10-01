@@ -304,6 +304,14 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> None:
         flush=True,
     )
 
+    # Discover free research sources before expanding data. Discovery is
+    # evidence collection only and never auto-adopts a new production source.
+    subprocess.run(
+        ["python", "scripts/discover_free_data_sources.py"],
+        check=True,
+        timeout=180,
+    )
+
     # Re-discover the current official universe every iteration. This is
     # research-only state in the runner and is never promoted directly.
     subprocess.run(
