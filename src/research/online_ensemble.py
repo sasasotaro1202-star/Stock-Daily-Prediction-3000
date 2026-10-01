@@ -109,6 +109,17 @@ def online_expert_average(
         if release_index < len(unique_dates):
             pending_updates.setdefault(release_index, []).append(row_losses_arr.copy())
 
+        # Diagnostic-only view of the outcome update that will be eligible at
+        # release_index. It never affects the current prediction.
+        outcome_log_weights = log_weights - eta * row_losses_arr
+        outcome_weights = np.exp(
+            outcome_log_weights - np.max(outcome_log_weights)
+        )
+        outcome_weights /= outcome_weights.sum()
+        if share > 0.0:
+            outcome_weights = (1.0 - share) * outcome_weights + share / len(names)
+            outcome_weights /= outcome_weights.sum()
+
         history.append({
             "session_date": str(date),
             "share_rate": share,
@@ -117,6 +128,7 @@ def online_expert_average(
             "update_grouped": groups is not None,
             "weights_before": current_weights.tolist(),
             "weights_after": current_weights.tolist(),
+            "weights_after_outcome": outcome_weights.tolist(),
             "expert_logloss": {
                 name: float(row_losses_arr[j])
                 for j, name in enumerate(names)
