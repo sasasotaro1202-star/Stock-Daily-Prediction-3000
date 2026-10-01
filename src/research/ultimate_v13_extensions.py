@@ -353,6 +353,14 @@ def augment_v13_result(
         })
 
         fold_result = result.get("fold_results", [])[t] if t < len(result.get("fold_results", [])) else {}
+        case_predictability = np.asarray(
+            fold_result.get("calibrated_predictability", [float("nan")] * len(y)),
+            dtype=float,
+        )
+        case_ood = np.asarray(
+            fold_result.get("ood_by_case", [float("nan")] * len(y)),
+            dtype=float,
+        )
         mean_p = float(np.mean(dynamic))
         dispersion = float(np.mean(np.std(p_matrix, axis=1)))
         ood = float(fold_result.get("ood_mean", 0.0))
@@ -465,13 +473,13 @@ def augment_v13_result(
                 # summaries so downstream case-risk audits cannot mistake fold
                 # aggregates for heterogeneous case intelligence.
                 "case_predictability": (
-                    float(calibrated_predictability[i])
-                    if i < len(calibrated_predictability) and np.isfinite(calibrated_predictability[i])
+                    float(case_predictability[i])
+                    if i < len(case_predictability) and np.isfinite(case_predictability[i])
                     else float("nan")
                 ),
                 "case_ood": (
-                    float(ood[i])
-                    if i < len(ood) and np.isfinite(ood[i])
+                    float(case_ood[i])
+                    if i < len(case_ood) and np.isfinite(case_ood[i])
                     else float("nan")
                 ),
                 "case_failure_risk": (
