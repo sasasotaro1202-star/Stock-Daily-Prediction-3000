@@ -8,10 +8,10 @@ import numpy as np
 SCHEMA_VERSION = 1
 RISK_QUANTILE = 0.75
 REQUIRED_COMPONENTS = (
-    "predictability",
-    "ood",
-    "failure_risk",
-    "disagreement",
+    "case_predictability",
+    "case_ood",
+    "case_failure_risk",
+    "case_disagreement",
 )
 
 
@@ -31,14 +31,15 @@ def _clip01(value: Any) -> float | None:
 def case_risk_score(row: Mapping[str, Any]) -> float | None:
     """Build a fixed, research-only case-risk score from prediction-time signals.
 
-    The score intentionally uses no outcome-derived quantity. All four signals
-    are required; missing/invalid state fails closed instead of silently
-    imputing a risk level.
+    The score intentionally uses no outcome-derived quantity. All four
+    per-case signals are required; missing/invalid state fails closed instead
+    of silently imputing a risk level. Legacy fold-level summary fields are
+    deliberately ignored so a fold aggregate cannot masquerade as case risk.
     """
-    predictability = _clip01(row.get("predictability"))
-    ood = _clip01(row.get("ood"))
-    failure_risk = _clip01(row.get("failure_risk"))
-    disagreement = _clip01(row.get("disagreement"))
+    predictability = _clip01(row.get("case_predictability"))
+    ood = _clip01(row.get("case_ood"))
+    failure_risk = _clip01(row.get("case_failure_risk"))
+    disagreement = _clip01(row.get("case_disagreement"))
     values = (predictability, ood, failure_risk, disagreement)
     if any(value is None for value in values):
         return None
