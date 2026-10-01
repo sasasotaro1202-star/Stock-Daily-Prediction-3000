@@ -96,6 +96,13 @@ BLOCKED_PROVIDER_TERMS = {
     "quandl",
 }
 
+# Discovery is deliberately weaker than adoption. A candidate can be useful
+# enough to investigate while still having unresolved cost, access, or PIT
+# evidence. These states are persisted so downstream research cannot silently
+# promote a discovery result into an input source.
+FREE_STATUS_VALUES = {"public", "public_web", "free", "free_registration"}
+CONDITIONAL_FREE_STATUS_VALUES = {"free_noncommercial", "optional"}
+
 
 def _utc() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -142,6 +149,56 @@ def _health(url: str) -> dict:
 def _blocked(text: str) -> bool:
     normalized = str(text or "").lower()
     return any(term in normalized for term in BLOCKED_PROVIDER_TERMS)
+
+
+def _lifecycle(candidate: dict) -> dict:
+    """Return fail-closed discovery lifecycle metadata without claiming adoption."""
+    blocked = bool(candidate.get("blocked"))
+    free_status = str(candidate.get("free_status") or "").strip().lower()
+    if blocked:
+        eligibility = "REJECTED_BLOCKED_PROVIDER"
+    elif not str(candidate.get("url") or "").startswith("https://"):
+        eligibility = "REJECTED_NON_HTTPS"
+    else:
+        eligibility = "ELIGIBLE_FOR_RESEARCH_REVIEW"
+
+    if free_status in FREE_STATUS_VALUES:
+        cost_status = "VERIFIED_BY_DECLARATION"
+    elif free_status in CONDITIONAL_FREE_STATUS_VALUES:
+        cost_status = "CONDITIONALLY_FREE_REQUIRES_POLICY_REVIEW"
+    else:
+        cost_status = "UNCONFIRMED"
+
+    data_status = (
+        "METADATA_SUPPORTED"
+        if candidate.get("reachable") and candidate.get("has_tabular_hint")
+        else "UNVERIFIED"
+    )
+
+    # Discovery does not retrieve historical release/availability lineage.
+    # Therefore PIT remains explicitly unverified and cannot advance the stage.
+    pit_status = "UNVERIFIED"
+    stage = "REJECTED" if blocked else "DISCOVERED"
+
+    return {
+        "stage": stage,
+        "eligibility": eligibility,
+        "cost_status": cost_status,
+        "data_feasibility": data_status,
+        "pit_status": pit_status,
+        "adoption_status": "RESEARCH_CANDIDATE_ONLY",
+        "next_test": (
+            "verify_license_cost_access_and_pit_lineage"
+            if not blocked
+            else "no_further_research_unless_policy_changes"
+        ),
+    }
+
+
+def _decorate_candidate(candidate: dict) -> dict:
+    row = dict(candidate)
+    row["lifecycle"] = _lifecycle(row)
+    return row
 
 
 def source_score(candidate: dict, *, now: datetime | None = None) -> float:
@@ -246,6 +303,9 @@ def select_for_research(candidates: list[dict], max_per_kind: int = 5) -> dict[s
             continue
         if candidate.get("blocked"):
             continue
+        lifecycle = candidate.get("lifecycle") or _lifecycle(candidate)
+        if lifecycle.get("eligibility") != "ELIGIBLE_FOR_RESEARCH_REVIEW":
+            continue
         grouped.setdefault(str(candidate.get("kind", "unknown")), []).append(candidate)
 
     selected = {}
@@ -292,7 +352,7 @@ def main() -> int:
         official.append(candidate)
 
     github = _github_repo_leads()
-    all_candidates = official + github
+    all_candidates = [_decorate_candidate(row) for row in (official + github)]
     selected = select_for_research(all_candidates)
 
     failed = sum(1 for row in github if row.get("status") == "SEARCH_FAILED")
@@ -313,9 +373,52 @@ def main() -> int:
         "discovery_does_not_adopt": True,
         "retrieval_is_not_historical_pit": True,
         "commercial_sources_require_explicit_review": True,
-        "official_sources": official,
-        "github_repository_leads": github,
+        "official_sources": [
+            _decorate_candidate(row) for row in official
+        ],
+        "github_repository_leads": [
+            _decorate_candidate(row) for row in github
+        ],
         "selected_for_research": selected,
+        "discovery_metrics": {
+            "total_candidates": len(all_candidates),
+            "eligible_candidates": sum(
+                1
+                for row in all_candidates
+                if row["lifecycle"]["eligibility"] == "ELIGIBLE_FOR_RESEARCH_REVIEW"
+            ),
+            "rejected_candidates": sum(
+                1 for row in all_candidates if row["lifecycle"]["stage"] == "REJECTED"
+            ),
+            "cost_unconfirmed": sum(
+                1 for row in all_candidates
+                if row["lifecycle"]["cost_status"] == "UNCONFIRMED"
+            ),
+            "pit_unverified": sum(
+                1 for row in all_candidates
+                if row["lifecycle"]["pit_status"] == "UNVERIFIED"
+            ),
+            "research_candidates_only": sum(
+                1
+                for row in all_candidates
+                if row["lifecycle"]["adoption_status"] == "RESEARCH_CANDIDATE_ONLY"
+            ),
+        },
+        "lifecycle_policy": {
+            "ladder": [
+                "DISCOVERED",
+                "METADATA_CHECKED",
+                "DATA_FEASIBLE",
+                "PIT_VALIDATED",
+                "SHADOW",
+                "OOS_ROBUSTNESS_VALIDATED",
+                "LIMITED_PRODUCTION",
+                "STABLE_PRODUCTION",
+            ],
+            "discovery_never_adopts": True,
+            "pit_unverified_is_fail_closed": True,
+            "cost_unconfirmed_is_not_free_verified": True,
+        },
         "selection_policy": {
             "max_per_kind": 5,
             "sort": ["score", "recent", "updated_at", "full_name"],
