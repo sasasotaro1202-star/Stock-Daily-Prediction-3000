@@ -34,6 +34,10 @@ def main() -> int:
     heartbeat = _read("heartbeat.yml")
     recovery = _read("bounded-production-recovery.yml")
     price_restore = str((WORKFLOWS.parent.parent / "scripts" / "restore_latest_price_state.py").read_text(encoding="utf-8"))
+    source_discovery = _read("free-data-source-discovery.yml")
+    source_discovery_script = str(
+        (ROOT / "scripts" / "discover_free_data_sources.py").read_text(encoding="utf-8")
+    )
 
     # One canonical schedule per expensive/critical daily workflow. Missed
     # schedules are recovered by the watchdog rather than by duplicate cron
@@ -78,6 +82,48 @@ def main() -> int:
         '    - cron: "17 */6 * * *"',
         "heartbeat_6h_schedule",
     )
+
+    _assert_once(
+        source_discovery,
+        '    - cron: "17 5,17 * * *"',
+        "free_source_discovery_twice_daily",
+    )
+    _assert_once(
+        source_discovery,
+        "cancel-in-progress: true",
+        "source_discovery_latest_run_wins",
+    )
+    _assert_once(
+        source_discovery_script,
+        '"free_only": True',
+        "source_discovery_free_only",
+    )
+    _assert_once(
+        source_discovery_script,
+        '"research_only": True',
+        "source_discovery_research_only",
+    )
+    _assert_once(
+        source_discovery_script,
+        '"production_changed": False',
+        "source_discovery_no_production_mutation",
+    )
+    _assert_once(
+        source_discovery_script,
+        "discovery_does_not_adopt",
+        "source_discovery_never_auto_adopts",
+    )
+    _assert_once(
+        source_discovery_script,
+        "retrieval_is_not_historical_pit",
+        "source_discovery_separates_retrieval_from_pit",
+    )
+    _assert_once(
+        source_discovery_script,
+        "BLOCKED_PROVIDER_TERMS",
+        "source_discovery_blocks_uncertain_commercial_providers",
+    )
+
 
     _assert_once(
         watchdog,
