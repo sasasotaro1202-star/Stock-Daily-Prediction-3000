@@ -1,3 +1,3 @@
-base_code_commit=22a25e05163b273c1f58cc52ee7bba2ca3ef8bc1
-purpose=rerun latest-head validation after verified chronological OOS aggregation defect fix; validate explicit PIT, leakage, meta-leakage, chronological OOS, ablation, robustness, artifact integrity, statistical evidence, calibration, and promotion safety without automatic promotion
-trigger_reason=post_run_36646242746_oos_numeric_aggregation_fix
+base_code_commit=bc4f256644b61506f2d6ca910d07ce8f87fd1d7e
+purpose=rerun latest-head validation after continuous data acquisition and free-source discovery improvements; validate PIT, leakage, chronological OOS, calibration, robustness, source provenance, adaptive data expansion, model selection, and promotion safety without automatic promotion
+trigger_reason=post_pr_130_continuous_data_and_source_discovery_validation
