@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import date
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -189,6 +190,13 @@ def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
         start = str(row.get("test_start_date", "")).strip()
         end = str(row.get("test_end_date", "")).strip()
         if not start or not end:
+            return None
+        try:
+            start_date = date.fromisoformat(start)
+            end_date = date.fromisoformat(end)
+        except ValueError:
+            return None
+        if start_date > end_date:
             return None
         identities.append((int(fold_value), start, end))
     if not identities:
