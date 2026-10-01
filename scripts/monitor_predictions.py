@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 
 from src.research.metrics import classification_metrics
+from src.research.experience_candidates import build_experience_candidate_plan
 from src.research.experience_memory import (
     compact_view,
     load_experience_memory,
@@ -211,11 +212,17 @@ def main():
             }
 
     experience_view = compact_view(experience)
+    candidate_plan = build_experience_candidate_plan(experience)
     payload["experience"] = experience_view
+    payload["experience_candidate_plan"] = candidate_plan
 
     OUT.parent.mkdir(parents=True,exist_ok=True)
     EXPERIENCE_REPORT.write_text(
         json.dumps(experience_view, indent=2, default=str),
+        encoding="utf-8",
+    )
+    (OUT.parent / "experience_candidates.json").write_text(
+        json.dumps(candidate_plan, indent=2, sort_keys=True, default=str),
         encoding="utf-8",
     )
     OUT.write_text(
