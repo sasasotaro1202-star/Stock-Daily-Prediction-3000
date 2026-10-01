@@ -181,6 +181,7 @@ def test_status_script_accepts_in_progress_workflow_before_research_job_exists(m
     monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "active-sha")
     monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "in_progress")
     monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "")
+    monkeypatch.setenv("RESEARCH_STATUS_JOB_LOOKUP_RETRIES", "0")
 
     def urlopen(request, timeout):
         if "/artifacts?" in request.full_url:
@@ -201,6 +202,48 @@ def test_status_script_accepts_in_progress_workflow_before_research_job_exists(m
     assert payload["job_status"] == "in_progress"
     assert payload["status_lookup_error"] is None
 
+
+def test_status_script_retries_transient_research_job_visibility(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "125")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "retry-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "in_progress")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "")
+    monkeypatch.setenv("RESEARCH_STATUS_JOB_LOOKUP_RETRIES", "2")
+    sleeps = []
+    monkeypatch.setattr(status.time, "sleep", sleeps.append)
+    calls = {"jobs": 0}
+
+    def urlopen(request, timeout):
+        if "/artifacts?" in request.full_url:
+            return _Response({"artifacts": []})
+        calls["jobs"] += 1
+        if calls["jobs"] < 3:
+            return _Response({"jobs": []})
+        return _Response({
+            "jobs": [{
+                "name": "research",
+                "status": "in_progress",
+                "conclusion": None,
+                "steps": [{
+                    "name": "Chronological OOS research",
+                    "status": "in_progress",
+                    "conclusion": None,
+                }],
+            }]
+        })
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", urlopen)
+    assert status.main() == 0
+    payload = json.loads((Path("artifacts") / "research_validation_status.json").read_text(encoding="utf-8"))
+    assert calls["jobs"] == 3
+    assert sleeps == [2, 2]
+    assert payload["status_lookup_ok"] is True
+    assert payload["job_status"] == "in_progress"
+    assert payload["research_step"] == "in_progress"
 
 def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)

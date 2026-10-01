@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -25,14 +26,22 @@ def _lookup_research_job() -> tuple[dict, str | None]:
             "User-Agent": "Stock-Daily-Prediction-3000",
         },
     )
-    try:
-        with urllib.request.urlopen(request, timeout=15) as response:
-            payload = json.load(response)
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
-        return {}, f"{type(exc).__name__}:{exc}"
-    for job in payload.get("jobs", []):
-        if job.get("name") == "research":
-            return job, None
+    workflow_status = str(os.environ.get("RESEARCH_WORKFLOW_STATUS", "")).strip()
+    retries = 0
+    if workflow_status in {"requested", "queued", "in_progress"}:
+        retries = max(0, min(5, int(os.environ.get("RESEARCH_STATUS_JOB_LOOKUP_RETRIES", "4"))))
+
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=15) as response:
+                payload = json.load(response)
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            return {}, f"{type(exc).__name__}:{exc}"
+        for job in payload.get("jobs", []):
+            if job.get("name") == "research":
+                return job, None
+        if attempt < retries:
+            time.sleep(2)
     return {}, "research_job_not_found"
 
 
