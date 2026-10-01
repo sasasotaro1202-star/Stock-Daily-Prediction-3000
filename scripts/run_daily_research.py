@@ -1602,6 +1602,7 @@ def main():
                         bank["session_dates"],
                         learning_rate=learning_rate,
                         share_rate=share_rate,
+                        outcome_delay_sessions=1,
                     )
                 except ValueError as exc:
                     raise SystemExit(
@@ -1708,6 +1709,7 @@ def main():
                     learning_rate=learning_rate,
                     share_rate=0.05,
                     update_group_keys=groups,
+                    outcome_delay_sessions=1,
                 )
             except ValueError as exc:
                 raise SystemExit(
