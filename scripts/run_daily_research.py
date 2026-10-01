@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -171,9 +172,37 @@ def make_models():
         )
     return selected
 
-def aggregate_group(rows: list[dict[str, float]]) -> dict[str, float]:
+def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
+    """Return a deterministic identity for the chronological OOS folds in rows."""
+    fold_ids: set[int] = set()
+    for row in rows:
+        try:
+            fold_value = float(row.get("fold"))
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(fold_value) and fold_value.is_integer():
+            fold_ids.add(int(fold_value))
+    if not fold_ids:
+        return None
+    canonical = ",".join(str(value) for value in sorted(fold_ids))
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
+    return f"folds:{digest}"
+
+
+def aggregate_group(rows: list[dict[str, float]]) -> dict[str, object]:
     payload = aggregate_metric_rows(rows)
     payload["folds"] = float(len(rows))
+    fold_ids = []
+    for row in rows:
+        try:
+            fold_value = float(row.get("fold"))
+        except (TypeError, ValueError):
+            continue
+        if np.isfinite(fold_value) and fold_value.is_integer():
+            fold_ids.append(int(fold_value))
+    unique_fold_ids = sorted(set(fold_ids))
+    payload["oos_fold_count"] = float(len(unique_fold_ids))
+    payload["oos_fold_signature"] = _oos_fold_signature(rows)
     n_tests = [
         float(row["n_test"])
         for row in rows
