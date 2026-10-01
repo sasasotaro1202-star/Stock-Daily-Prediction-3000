@@ -166,9 +166,14 @@ def build_experience_candidate_plan(
         if len(rows) >= int(max_candidates):
             break
 
+    total_resolved = int(memory.get("total_resolved", 0) or 0)
+    matured = total_resolved >= MIN_OBSERVATIONS
     return {
         "schema_version": SCHEMA_VERSION,
-        "status": "READY" if rows else "WARMUP",
+        "status": "READY" if matured else "WARMUP",
+        "signal_status": "CANDIDATES_FOUND" if rows else (
+            "NO_DEGRADATION_SIGNAL" if matured else "INSUFFICIENT_EXPERIENCE"
+        ),
         "source": "experience_memory",
         "memory_updated_at": memory.get("updated_at"),
         "total_resolved": int(memory.get("total_resolved", 0) or 0),
