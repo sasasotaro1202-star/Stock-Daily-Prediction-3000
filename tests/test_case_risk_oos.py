@@ -38,8 +38,8 @@ def test_threshold_uses_strictly_prior_locked_scores():
     rows = [
         _row(0, 0, locked=True, risk=0.1, result=0, p=0.9),
         _row(0, 1, locked=True, risk=0.1, result=0, p=0.1),
-        _row(1, 0, locked=True, risk=0.9, result=0, p=0.9),
-        _row(1, 1, locked=True, risk=0.8, result=1, p=0.9),
+        _row(1, 0, locked=True, risk=0.05, result=0, p=0.9),
+        _row(1, 1, locked=True, risk=0.9, result=1, p=0.9),
     ]
     result = analyze_case_risk(rows, risk_quantile=0.75)
     assert result["status"] == "EVALUATED"
