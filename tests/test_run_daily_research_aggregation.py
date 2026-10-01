@@ -13,7 +13,7 @@ def test_aggregate_group_records_exact_oos_fold_identity():
     result = aggregate_group(rows)
 
     assert result["oos_fold_count"] == 3.0
-    assert result["oos_fold_signature"].startswith("folds:")
+    assert result["oos_fold_signature"].startswith("oos:")
 
 
 def test_aggregate_group_fold_signature_changes_when_fold_set_changes():
