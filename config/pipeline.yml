@@ -117,6 +117,11 @@ adaptive_data:
   research_only: true
   production_changed: false
 
+online_ensemble_research:
+  research_only: true
+  outcome_delay_sessions: 1
+  production_changed: false
+
 sequential_selection_research:
   research_only: true
   min_history_folds: 3
