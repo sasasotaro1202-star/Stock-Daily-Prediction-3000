@@ -414,8 +414,8 @@ def test_predictability_calibrator_is_frozen_before_locked_suffix(tmp_path):
     cal_b = changed["predictability"]["fold_metrics"]
     assert all(row["is_locked"] == 1.0 for row in cal_a[-2:])
     assert all(row["is_locked"] == 1.0 for row in cal_b[-2:])
-    assert [row["calibrated_brier"] for row in cal_a[-2:]] == [row["calibrated_brier"] for row in cal_b[-2:]]
-    assert [row["calibrated_ece"] for row in cal_a[-2:]] == [row["calibrated_ece"] for row in cal_b[-2:]]
+    assert [row["calibrated_predictability_mean"] for row in cal_a[-2:]] == [row["calibrated_predictability_mean"] for row in cal_b[-2:]]
+    assert [row["raw_predictability_mean"] for row in cal_a[-2:]] == [row["raw_predictability_mean"] for row in cal_b[-2:]]
     assert baseline["predictability"]["calibrator_frozen_before_locked"] is True
     assert baseline["predictability"]["locked_outcomes_update_calibrator"] is False
 
