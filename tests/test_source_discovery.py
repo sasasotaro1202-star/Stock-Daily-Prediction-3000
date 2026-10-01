@@ -90,6 +90,7 @@ def test_github_discovery_uses_html_url_for_https_lifecycle():
     assert lifecycle["cost_status"] == "VERIFIED_BY_DECLARATION"
     assert lifecycle["stage"] == "DISCOVERED"
 
+    assert source_score(github_candidate) == 0.30
     selected = select_for_research([github_candidate], max_per_kind=5)
     assert [row["full_name"] for row in selected["macro"]] == ["example/public-data"]
 
