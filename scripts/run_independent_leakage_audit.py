@@ -34,7 +34,8 @@ def main() -> int:
         "ok": result.ok,
         "violations": list(result.violations),
         "checks": result.checks,
-        "auditor": "independent_raw_input_temporal_audit_v1",
+        "provenance_coverage": result.provenance,
+        "auditor": "independent_raw_input_temporal_audit_v2",
         "audited_at": pd.Timestamp.now(tz="UTC").isoformat(),
     }
 
