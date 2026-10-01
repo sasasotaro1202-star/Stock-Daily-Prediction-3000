@@ -89,7 +89,7 @@ def test_missing_pit_lineage_blocks_case_risk_evaluation():
     rows = [_row(0, 0, locked=False, risk=0.2, result=0, p=0.9)]
     rows.append({**_row(1, 0, locked=True, risk=0.8, result=0, p=0.9), "pit_status": "BLOCKED"})
     result = analyze_case_risk(rows, risk_quantile=0.75)
-    assert result["status"] == "BLOCKED_PIT_LINEAGE"
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
     assert result["scored_rows"] == 0
     assert result["promotion_allowed"] is False
 
@@ -97,4 +97,16 @@ def test_missing_pit_lineage_blocks_case_risk_evaluation():
 def test_future_availability_timestamp_blocks_case_risk_evaluation():
     row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
     row["available_at"] = "2026-01-02T01:00:00+00:00"
-    assert analyze_case_risk([row], risk_quantile=0.75)["status"] == "BLOCKED_PIT_LINEAGE"
+    assert analyze_case_risk([row], risk_quantile=0.75)["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_partial_locked_case_validity_cannot_create_selective_aggregate():
+    rows = [
+        _row(0, 0, locked=False, risk=0.2, result=0, p=0.9),
+        _row(1, 0, locked=True, risk=0.8, result=0, p=0.9),
+        {**_row(1, 1, locked=True, risk=0.2, result=0, p=0.9), "case_ood": None},
+    ]
+    result = analyze_case_risk(rows, risk_quantile=0.75)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+    assert result["scored_rows"] == 0
+    assert result["invalid_rows"] == 1
