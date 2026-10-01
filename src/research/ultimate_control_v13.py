@@ -323,6 +323,7 @@ def _fit_predictability_calibrator(
         "status": "FITTED_PRIOR_ONLY_LOGISTIC",
         "training_rows": int(len(history_y)),
         "method": "prior_only_logistic_predictability_calibration",
+        "fitted_model": model,
     }
 
 
@@ -757,8 +758,12 @@ def evaluate_v13(
                 predictability_correctness_history,
                 predictability,
             )
-            predictability_calibrator = cal_status
-            predictability_calibrator_status = str(cal_status["status"])
+            predictability_calibrator = {
+                "model": cal_status.get("fitted_model"),
+                "training_rows": int(cal_status["training_rows"]),
+                "method": str(cal_status.get("method", "")),
+            }
+            predictability_calibrator_status = "FROZEN_PRIOR_ONLY_LOGISTIC"
             predictability_calibrator_training_rows = int(cal_status["training_rows"])
             calibrated_predictability = calibrated_fit
         elif t < dev_end:
@@ -770,16 +775,32 @@ def evaluate_v13(
             predictability_calibrator_status = str(cal_status["status"])
             predictability_calibrator_training_rows = int(cal_status["training_rows"])
         else:
-            calibrated_predictability, cal_status = _fit_predictability_calibrator(
-                predictability_raw_history,
-                predictability_correctness_history,
-                predictability,
-            )
-            # This branch is defensive: a frozen marker should exist before
-            # applying a locked-fold calibration, otherwise we fail closed to
-            # a prior-mean result rather than fitting on locked outcomes.
-            predictability_calibrator_status = "FALLBACK_NO_FROZEN_CALIBRATOR"
-            predictability_calibrator_training_rows = int(cal_status["training_rows"])
+            if (
+                isinstance(predictability_calibrator, dict)
+                and predictability_calibrator.get("model") is not None
+            ):
+                frozen_model = predictability_calibrator["model"]
+                calibrated_predictability = np.clip(
+                    frozen_model.predict_proba(
+                        predictability.reshape(-1, 1)
+                    )[:, 1],
+                    0.01,
+                    0.99,
+                )
+                predictability_calibrator_status = "FROZEN_PRIOR_ONLY_LOGISTIC_APPLIED"
+                predictability_calibrator_training_rows = int(
+                    predictability_calibrator["training_rows"]
+                )
+            else:
+                # Defensive fail-closed path: a locked fold may use only a
+                # prior-mean fallback when no frozen development calibrator exists.
+                calibrated_predictability, cal_status = _fit_predictability_calibrator(
+                    predictability_raw_history,
+                    predictability_correctness_history,
+                    predictability,
+                )
+                predictability_calibrator_status = "FALLBACK_NO_FROZEN_CALIBRATOR"
+                predictability_calibrator_training_rows = int(cal_status["training_rows"])
 
         calibration_target = ((np.mean(p_matrix, axis=1) >= 0.5) == y).astype(int)
         predictability_calibration_rows.append({
@@ -789,6 +810,8 @@ def evaluate_v13(
             "raw_ece": float(metrics(calibration_target, predictability)["ece"]),
             "calibrated_brier": float(metrics(calibration_target, calibrated_predictability)["brier"]),
             "calibrated_ece": float(metrics(calibration_target, calibrated_predictability)["ece"]),
+            "raw_predictability_mean": float(np.mean(predictability)),
+            "calibrated_predictability_mean": float(np.mean(calibrated_predictability)),
             "training_rows": float(predictability_calibrator_training_rows),
         })
 
