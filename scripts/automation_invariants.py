@@ -378,3 +378,31 @@ def main() -> int:
     _assert_once(
         validation_workflow,
         '      - ".github/research_validation.trigger"',
+        "research_validation_explicit_trigger",
+    )
+    _assert_absent(
+        validation_workflow,
+        "build_production_artifact.py",
+        "research_validation_no_production_artifact_build",
+    )
+    _assert_absent(
+        validation_workflow,
+        "lock_frozen_model.py",
+        "research_validation_no_model_lock",
+    )
+
+    # Guard against silently masking automation failures in the critical lane.
+    for name, source in {
+        "market-cycle": market,
+        "prediction-monitoring": monitoring,
+        "watchdog": watchdog,
+        "recovery": recovery,
+    }.items():
+        _assert_absent(source, "|| true", f"{name}_no_failure_mask")
+
+    print("automation-invariants: PASS")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
