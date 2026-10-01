@@ -1229,9 +1229,26 @@ def evaluate_v13(
         ),
     }
 
-    # Provenance is intentionally strict: this bank does not carry full event/publication/
-    # retrieval timestamps, so v13 does not upgrade PIT status on its own.
-    pit_status = "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE"
+    # Historical OOS has an explicit, deterministic prediction clock from the
+    # declared production schedule. It is not an observed runner wall-clock, so
+    # provenance remains explicit about that limitation while row-level PIT can
+    # be evaluated safely.
+    pit_lineage_statuses = [
+        str(status)
+        for fold in ordered
+        for status in np.asarray(
+            fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"]),
+            dtype=object,
+        )
+    ]
+    has_pit_lineage = bool(pit_lineage_statuses) and all(
+        status == "PASS" for status in pit_lineage_statuses
+    )
+    pit_status = (
+        "PASS_DECLARED_SCHEDULE"
+        if has_pit_lineage
+        else "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE"
+    )
     leakage_status = "BLOCKED_V13_LAYER_REQUIRES_UPSTREAM_INDEPENDENT_AUDIT"
     meta_status = "BLOCKED_INDEPENDENT_META_LEAKAGE_AUDIT_REQUIRED"
 
@@ -1386,6 +1403,13 @@ def evaluate_v13(
         "fold_results": fold_results,
         "audits": {
             "PIT": pit_status,
+            "PIT_Row_Lineage": {
+                "status": "PASS" if has_pit_lineage else "BLOCKED",
+                "policy": "historical_scheduled_prediction_clock_v1",
+                "prediction_time_observed": False,
+                "available_at_le_prediction_time": has_pit_lineage,
+                "rows": len(pit_lineage_statuses),
+            },
             "Leakage": leakage_status,
             "Meta-Leakage": meta_status,
             "OOS": "PASS",
@@ -1398,6 +1422,10 @@ def evaluate_v13(
         "decision": {
             "candidate": True,
             "promotion_allowed": False,
-            "reason": "v13 is research-only; full PIT lineage, shadow, and production challenger evidence are still required",
+            "reason": (
+                "v13 is research-only; declared-schedule PIT lineage is present only "
+                "when every row passes, while observed runner execution timestamps, "
+                "shadow, and production challenger evidence remain unavailable"
+            ),
         },
     }
