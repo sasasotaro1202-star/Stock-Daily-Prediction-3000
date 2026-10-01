@@ -13,7 +13,7 @@ def test_aggregate_group_records_exact_oos_fold_identity():
     result = aggregate_group(rows)
 
     assert result["oos_fold_count"] == 3.0
-    assert result["oos_fold_signature"].startswith("folds:")
+    assert result["oos_fold_signature"].startswith("oos:")
 
 
 def test_aggregate_group_fold_signature_changes_when_fold_set_changes():
@@ -27,3 +27,23 @@ def test_aggregate_group_fold_signature_changes_when_fold_set_changes():
     ])
 
     assert base["oos_fold_signature"] != changed["oos_fold_signature"]
+
+
+def test_missing_oos_window_boundaries_fail_closed():
+    result = aggregate_group([
+        {"fold": 0.0, "n_test": 100.0, "logloss": 0.70},
+        {"fold": 1.0, "n_test": 120.0, "logloss": 0.68},
+    ])
+    assert result["oos_fold_signature"] is None
+
+
+def test_same_fold_ids_with_different_date_windows_have_different_signatures():
+    first = aggregate_group([
+        {"fold": 0.0, "test_start_date": "2025-01-01", "test_end_date": "2025-01-21", "n_test": 100.0, "logloss": 0.70},
+        {"fold": 1.0, "test_start_date": "2025-01-22", "test_end_date": "2025-02-11", "n_test": 120.0, "logloss": 0.68},
+    ])
+    second = aggregate_group([
+        {"fold": 0.0, "test_start_date": "2025-02-01", "test_end_date": "2025-02-21", "n_test": 100.0, "logloss": 0.70},
+        {"fold": 1.0, "test_start_date": "2025-02-22", "test_end_date": "2025-03-14", "n_test": 120.0, "logloss": 0.68},
+    ])
+    assert first["oos_fold_signature"] != second["oos_fold_signature"]
