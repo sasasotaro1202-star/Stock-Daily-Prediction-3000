@@ -208,7 +208,8 @@ def source_score(candidate: dict, *, now: datetime | None = None) -> float:
         score += 0.65
     if candidate.get("reachable"):
         score += 0.15
-    if str(candidate.get("url", "")).startswith("https://"):
+    source_url = str(candidate.get("url") or candidate.get("html_url") or "")
+    if source_url.startswith("https://"):
         score += 0.05
     if candidate.get("has_tabular_hint"):
         score += 0.05
