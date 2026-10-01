@@ -30,3 +30,12 @@ def test_automation_uses_single_daily_schedule_and_failure_only_recovery():
 
     assert "github.event.workflow_run.conclusion == 'failure'" in recovery
     assert "github.event.workflow_run.conclusion == 'cancelled'" not in recovery
+
+
+def test_24h_marathon_refresh_uses_bounded_retry_on_all_lanes():
+    workflow = (ROOT / ".github/workflows/24h-research-marathon.yml").read_text(encoding="utf-8")
+
+    assert workflow.count("timeouts = (120, 240)") == 4
+    assert workflow.count('["python", "scripts/refresh_universe.py"]') == 4
+    assert workflow.count("subprocess.TimeoutExpired") == 4
+    assert "python scripts/refresh_universe.py" not in workflow

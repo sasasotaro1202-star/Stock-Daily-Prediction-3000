@@ -35,10 +35,30 @@ jobs:
           for shard in 0 1 2 3; do
             PRICE_SHARD_INDEX="${shard}" python scripts/restore_latest_price_state.py
           done
-      - name: Refresh official universe
+      - name: Refresh official universe with bounded retry
         run: |
           set -euo pipefail
-          python scripts/refresh_universe.py
+          python - <<'PY'
+          import subprocess
+
+          timeouts = (120, 240)
+          for attempt, timeout in enumerate(timeouts, start=1):
+              try:
+                  subprocess.run(
+                      ["python", "scripts/refresh_universe.py"],
+                      check=True,
+                      timeout=timeout,
+                  )
+                  break
+              except subprocess.TimeoutExpired:
+                  if attempt == len(timeouts):
+                      raise
+                  print(
+                      "REFRESH_TIMEOUT retrying once "
+                      f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                      flush=True,
+                  )
+          PY
           python scripts/universe_quality_gate.py
       - name: Update price shards
         env:
@@ -154,10 +174,30 @@ jobs:
           for shard in 0 1 2 3; do
             PRICE_SHARD_INDEX="${shard}" python scripts/restore_latest_price_state.py
           done
-      - name: Refresh official universe
+      - name: Refresh official universe with bounded retry
         run: |
           set -euo pipefail
-          python scripts/refresh_universe.py
+          python - <<'PY'
+          import subprocess
+
+          timeouts = (120, 240)
+          for attempt, timeout in enumerate(timeouts, start=1):
+              try:
+                  subprocess.run(
+                      ["python", "scripts/refresh_universe.py"],
+                      check=True,
+                      timeout=timeout,
+                  )
+                  break
+              except subprocess.TimeoutExpired:
+                  if attempt == len(timeouts):
+                      raise
+                  print(
+                      "REFRESH_TIMEOUT retrying once "
+                      f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                      flush=True,
+                  )
+          PY
           python scripts/universe_quality_gate.py
       - name: Update price shards
         env:
@@ -260,10 +300,30 @@ jobs:
           for shard in 0 1 2 3; do
             PRICE_SHARD_INDEX="${shard}" python scripts/restore_latest_price_state.py
           done
-      - name: Refresh official universe
+      - name: Refresh official universe with bounded retry
         run: |
           set -euo pipefail
-          python scripts/refresh_universe.py
+          python - <<'PY'
+          import subprocess
+
+          timeouts = (120, 240)
+          for attempt, timeout in enumerate(timeouts, start=1):
+              try:
+                  subprocess.run(
+                      ["python", "scripts/refresh_universe.py"],
+                      check=True,
+                      timeout=timeout,
+                  )
+                  break
+              except subprocess.TimeoutExpired:
+                  if attempt == len(timeouts):
+                      raise
+                  print(
+                      "REFRESH_TIMEOUT retrying once "
+                      f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                      flush=True,
+                  )
+          PY
           python scripts/universe_quality_gate.py
       - name: Update price shards
         env:
@@ -370,10 +430,30 @@ jobs:
           for shard in 0 1 2 3; do
             PRICE_SHARD_INDEX="${shard}" python scripts/restore_latest_price_state.py
           done
-      - name: Refresh official universe and market context
+      - name: Refresh official universe with bounded retry and update market context
         run: |
           set -euo pipefail
-          python scripts/refresh_universe.py
+          python - <<'PY'
+          import subprocess
+
+          timeouts = (120, 240)
+          for attempt, timeout in enumerate(timeouts, start=1):
+              try:
+                  subprocess.run(
+                      ["python", "scripts/refresh_universe.py"],
+                      check=True,
+                      timeout=timeout,
+                  )
+                  break
+              except subprocess.TimeoutExpired:
+                  if attempt == len(timeouts):
+                      raise
+                  print(
+                      "REFRESH_TIMEOUT retrying once "
+                      f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                      flush=True,
+                  )
+          PY
           python scripts/universe_quality_gate.py
           python scripts/update_market_context.py
           python scripts/normalize_price_store.py
