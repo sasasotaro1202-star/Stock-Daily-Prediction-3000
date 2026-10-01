@@ -384,6 +384,13 @@ def augment_v13_result(
 
         fold_result = result.get("fold_results", [])[t] if t < len(result.get("fold_results", [])) else {}
         case_predictability = np.asarray(
+            fold_result.get("calibrated_predictability", [float("nan")] * len(y)),
+            dtype=float,
+        )
+        case_ood = np.asarray(
+            fold_result.get("ood_by_case", [float("nan")] * len(y)),
+            dtype=float,
+        )
         prediction_times = np.asarray(
             fold.get("prediction_time", [None] * len(y)), dtype=object
         )
@@ -395,6 +402,9 @@ def augment_v13_result(
         )
         prediction_time_sources = np.asarray(
             fold.get("prediction_time_source", [""] * len(y)), dtype=object
+        )
+        prediction_time_observed = np.asarray(
+            fold.get("prediction_time_observed", [False] * len(y)), dtype=bool
         )
         pit_status_values = np.asarray(
             fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"] * len(y)),
@@ -414,13 +424,6 @@ def augment_v13_result(
         )
         lineage_hashes = np.asarray(
             fold.get("lineage_sha256", [None] * len(y)), dtype=object
-        )
-            fold_result.get("calibrated_predictability", [float("nan")] * len(y)),
-            dtype=float,
-        )
-        case_ood = np.asarray(
-            fold_result.get("ood_by_case", [float("nan")] * len(y)),
-            dtype=float,
         )
         mean_p = float(np.mean(dynamic))
         dispersion = float(np.mean(np.std(p_matrix, axis=1)))
@@ -614,7 +617,6 @@ def augment_v13_result(
                 "meta_label_probability": (
                     float(meta_scores[i]) if i < len(meta_scores) else float("nan")
                 ),
-                "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
                 "result": int(y[i]),
                 "failed": failed,
                 "failure_type": failure_type,
