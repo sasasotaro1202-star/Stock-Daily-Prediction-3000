@@ -1,3 +1,5 @@
+import pytest
+
 from __future__ import annotations
 
 from src.research.experience_candidates import build_experience_candidate_plan
@@ -88,3 +90,29 @@ def test_empty_experience_is_safe_warmup():
     assert plan["status"] == "WARMUP"
     assert plan["candidates"] == []
     assert plan["safety_contract"]["promotion_requires_chronological_oos"] is True
+
+
+def test_research_runner_accepts_missing_candidate_plan_as_warmup(tmp_path, monkeypatch):
+    from scripts import run_daily_research
+
+    monkeypatch.setattr(
+        run_daily_research,
+        "EXPERIENCE_CANDIDATES",
+        tmp_path / "missing.json",
+    )
+    plan = run_daily_research._load_experience_candidate_plan()
+    assert plan["status"] == "WARMUP"
+    assert plan["candidates"] == []
+
+
+def test_research_runner_rejects_unsafe_candidate_plan(tmp_path, monkeypatch):
+    from scripts import run_daily_research
+
+    path = tmp_path / "experience_candidates.json"
+    path.write_text(
+        '{"schema_version":1,"safety_contract":{"research_only":true,"production_changed":true,"frozen_holdout_allowed":false}}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(run_daily_research, "EXPERIENCE_CANDIDATES", path)
+    with pytest.raises(SystemExit, match="claims production mutation"):
+        run_daily_research._load_experience_candidate_plan()
