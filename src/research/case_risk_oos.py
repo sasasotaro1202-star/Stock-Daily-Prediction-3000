@@ -153,11 +153,11 @@ def analyze_case_risk(
         fold_rows = [
             row for row in ordered if int(row.get("fold", 0) or 0) == fold
         ]
-        scores_by_row: list[tuple[Mapping[str, Any], float]] = []
-        for row in fold_rows:
-            score = case_risk_score(row)
-            if score is not None:
-                scores_by_row.append((row, score))
+        current_scores = [
+            score
+            for row in fold_rows
+            if (score := case_risk_score(row)) is not None
+        ]
 
         locked = [row for row in fold_rows if bool(row.get("is_locked"))]
         if locked:
@@ -196,47 +196,47 @@ def analyze_case_risk(
 
             high_mask = np.asarray(fold_high, dtype=bool)
             low_mask = ~high_mask
-        fold_metrics: dict[str, Any] = {
-            "fold": fold,
-            "locked_rows": int(len(current)),
-            "scored_rows": int(len(fold_scores)),
-            "invalid_rows": int(fold_invalid),
-            "prior_score_count": int(len(prior_scores)),
-            "threshold_source": (
-                "strictly_prior_oos_scores"
-                if threshold is not None
-                else "NO_PRIOR_SCORE_THRESHOLD"
-            ),
-            "high_risk_threshold": threshold,
-            "high_risk_coverage": (
-                float(high_mask.mean()) if len(high_mask) else None
-            ),
-        }
-        if fold_scores:
-            fold_metrics["risk_score_mean"] = float(np.mean(fold_scores))
-            fold_metrics["risk_score_std"] = float(np.std(fold_scores))
+            fold_metrics: dict[str, Any] = {
+                "fold": fold,
+                "locked_rows": int(len(locked)),
+                "scored_rows": int(len(fold_scores)),
+                "invalid_rows": int(fold_invalid),
+                "prior_score_count": int(len(prior_scores)),
+                "threshold_source": (
+                    "strictly_prior_oos_scores"
+                    if threshold is not None
+                    else "NO_PRIOR_SCORE_THRESHOLD"
+                ),
+                "high_risk_threshold": threshold,
+                "high_risk_coverage": (
+                    float(high_mask.mean()) if len(high_mask) else None
+                ),
+            }
+            if fold_scores:
+                fold_metrics["risk_score_mean"] = float(np.mean(fold_scores))
+                fold_metrics["risk_score_std"] = float(np.std(fold_scores))
 
-        if len(fold_scores):
-            fold_metrics["all"] = _binary_metrics(fold_y, fold_p)
-        else:
-            fold_metrics["all"] = _binary_metrics([], [])
+            if len(fold_scores):
+                fold_metrics["all"] = _binary_metrics(fold_y, fold_p)
+            else:
+                fold_metrics["all"] = _binary_metrics([], [])
 
-        fold_metrics["high_risk"] = _binary_metrics(
-            np.asarray(fold_y)[high_mask],
-            np.asarray(fold_p)[high_mask],
-        )
-        fold_metrics["low_risk"] = _binary_metrics(
-            np.asarray(fold_y)[low_mask],
-            np.asarray(fold_p)[low_mask],
-        )
-        fold_metrics["status"] = (
-            "EVALUATED" if threshold is not None else "WARMUP_NO_PRIOR_THRESHOLD"
-        )
-        per_fold.append(fold_metrics)
+            fold_metrics["high_risk"] = _binary_metrics(
+                np.asarray(fold_y)[high_mask],
+                np.asarray(fold_p)[high_mask],
+            )
+            fold_metrics["low_risk"] = _binary_metrics(
+                np.asarray(fold_y)[low_mask],
+                np.asarray(fold_p)[low_mask],
+            )
+            fold_metrics["status"] = (
+                "EVALUATED" if threshold is not None else "WARMUP_NO_PRIOR_THRESHOLD"
+            )
+            per_fold.append(fold_metrics)
 
         # Scores from the current fold become available only after its outcome
         # evaluation has finished; they can define the next fold's threshold.
-        prior_scores.extend(fold_scores)
+        prior_scores.extend(current_scores)
 
     if not scored_rows:
         return {
