@@ -88,6 +88,38 @@ from src.validation.walk_forward import make_date_folds
 PRICE_DIR = Path("data/prices/canonical.parquet")
 OUT = Path("data/research/latest_metrics.json")
 AUDIT = Path("data/research/leakage_audit.json")
+EXPERIENCE_CANDIDATES = Path("data/research/experience_candidates.json")
+
+
+
+def _load_experience_candidate_plan() -> dict[str, object]:
+    if not EXPERIENCE_CANDIDATES.exists():
+        return {
+            "status": "WARMUP",
+            "schema_version": 1,
+            "source": "experience_memory",
+            "candidates": [],
+            "safety_contract": {
+                "research_only": True,
+                "production_changed": False,
+                "frozen_holdout_allowed": False,
+            },
+        }
+    try:
+        payload = json.loads(EXPERIENCE_CANDIDATES.read_text(encoding="utf-8"))
+    except Exception as exc:
+        raise SystemExit(
+            f"FAIL: experience candidate plan is unreadable: {type(exc).__name__}:{exc}"
+        ) from exc
+    if payload.get("schema_version") != 1:
+        raise SystemExit("FAIL: experience candidate plan schema mismatch")
+    if payload.get("safety_contract", {}).get("research_only") is not True:
+        raise SystemExit("FAIL: experience candidate plan must be research_only")
+    if payload.get("safety_contract", {}).get("production_changed") is not False:
+        raise SystemExit("FAIL: experience candidate plan claims production mutation")
+    if payload.get("safety_contract", {}).get("frozen_holdout_allowed") is not False:
+        raise SystemExit("FAIL: experience candidate plan cannot use frozen holdout")
+    return payload
 
 def make_models():
     """Return only model candidates explicitly enabled in pipeline.yml.
@@ -2924,6 +2956,7 @@ def main():
     # v13 is research-only and consumes the already-computed chronological
     # OOS prediction bank. No additional model fitting or production state is used.
     ultimate_v13 = build_ultimate_intelligence(online_prediction_by_fold)
+    experience_candidate_plan = _load_experience_candidate_plan()
 
     payload = {
         "results": model_results,
@@ -2948,6 +2981,7 @@ def main():
         "symbol_regime_selected_models": symbol_regime_selected,
         "security_route_summary": security_route_summary,
         "selected_model": global_selected,
+        "experience_candidate_plan": experience_candidate_plan,
         "global_selection_evidence": global_selection_evidence,
         "sequential_selection_research": sequential_selection_research,
         "nested_sequential_selection_research": nested_selection_research,
