@@ -736,10 +736,29 @@ def augment_v13_result(
             "normal",
         ) if any(r["is_locked"] for r in scenario_rows) else float("nan"),
     }
+    lineage_rows = [
+        row
+        for fold in ordered
+        for row in (
+            np.asarray(
+                fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"]),
+                dtype=object,
+            ).tolist()
+        )
+    ]
+    lineage_complete = bool(lineage_rows) and all(
+        str(status) == "PASS" for status in lineage_rows
+    )
     result["prediction_contracts"] = {
-        "status": "EXECUTED_RESEARCH_CONTRACT_WITH_PIT_BLOCK",
+        "status": (
+            "EXECUTED_RESEARCH_CONTRACT_WITH_SCHEDULED_PIT_LINEAGE"
+            if lineage_complete
+            else "EXECUTED_RESEARCH_CONTRACT_WITH_PIT_BLOCK"
+        ),
         "folds": contracts,
+        "scheduled_timestamp_lineage": lineage_complete,
         "exact_timestamp_lineage": False,
+        "exact_prediction_time_observed": False,
         "production_changed": False,
     }
     locked_memory = [
