@@ -20,7 +20,7 @@ def _candidate_for_priority(row: Mapping[str, Any]) -> dict[str, Any] | None:
     segment = str(row.get("segment", "")).strip()
     n = int(row.get("n", 0) or 0)
     impact = float(row.get("impact_vs_global_logloss", 0.0) or 0.0)
-    if not dimension or not segment or n < MIN_OBSERVATIONS:
+    if not dimension or not segment or n < MIN_OBSERVATIONS or impact <= 0.0:
         return None
 
     common = {
