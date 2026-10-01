@@ -37,17 +37,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
-          RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
-          RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
-          RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}
-          RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
         run: python scripts/resolve_research_status_context.py
       - name: Download completed OOS evidence
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event.workflow_run.conclusion == 'success'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         uses: actions/download-artifact@v7
         continue-on-error: true
         with:
-          name: research-validation-evidence-${{ github.event.workflow_run.id }}
+          name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}
           path: research-evidence
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
