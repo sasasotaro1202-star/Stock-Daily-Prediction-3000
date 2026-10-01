@@ -90,3 +90,35 @@ def test_independent_audit_reports_missing_group_column_without_failure() -> Non
     )
     assert result.provenance["market_context_by_family"]["available"] is True
     assert result.provenance["prices_by_source"]["available"] is True
+
+
+def test_independent_audit_keeps_missing_pit_timestamp_fail_closed_without_crashing() -> None:
+    prices = pd.DataFrame(
+        {
+            "symbol": ["AAA"],
+            "asset_class": ["stock"],
+            "session_date": pd.to_datetime(["2026-01-02"]),
+            "source": ["alpha"],
+            "provider_symbol": ["AAA"],
+            "open": [1.0],
+            "high": [1.0],
+            "low": [1.0],
+            "close": [1.0],
+            "volume": [1.0],
+        }
+    )
+    context = pd.DataFrame(
+        {
+            "family": ["macro"],
+            "session_date": pd.to_datetime(["2026-01-02"]),
+            "available_at": pd.to_datetime(["2026-01-02T07:00:00Z"], utc=True),
+        }
+    )
+    result = audit_raw_inputs(
+        prices,
+        context,
+        now=pd.Timestamp("2026-01-03T00:00:00Z"),
+    )
+    assert result.ok is False
+    assert any("prices:missing_columns" in violation for violation in result.violations)
+    assert result.provenance["prices_by_source"]["available"] is False
