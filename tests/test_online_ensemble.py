@@ -115,7 +115,7 @@ def test_group_balanced_updates_do_not_follow_large_group_size():
         predictions, y, dates, learning_rate=2.0, update_group_keys=groups
     )
     assert balanced_history[0]["update_grouped"] is True
-    assert balanced_history[0]["weights_after"][1] > plain_history[0]["weights_after"][1]
+    assert balanced_history[0]["weights_after_outcome"][1] > plain_history[0]["weights_after_outcome"][1]
 
 
 def test_delayed_outcome_waits_one_full_session_before_weight_update():
