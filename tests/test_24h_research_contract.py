@@ -90,3 +90,18 @@ def test_research_has_bounded_adaptive_data_acquisition_loop():
     assert 'select_history_warmup_targets' in prices
     assert 'history_below_oos_minimum_after_warmup' in prices
     assert 'snapshot["reasons"].append("shallow_symbol_history")' not in text
+
+def test_adaptive_data_loop_separates_blocking_and_acquisition_debt():
+    text = (ROOT / "scripts" / "run_daily_research.py").read_text(encoding="utf-8")
+    assert '"blocking_reasons": []' in text
+    assert '"acquisition_reasons": []' in text
+    assert '"READY_WITH_PENDING_ACQUISITION"' in text
+    assert '"model_candidates_reselected_after_data_loop": True' in text
+
+
+def test_source_discovery_rechecks_after_research_completion():
+    text = (ROOT / ".github" / "workflows" / "free-data-source-discovery.yml").read_text(encoding="utf-8")
+    assert "workflow_run:" in text
+    assert '"Research validation"' in text
+    assert '"24H Research Marathon"' in text
+    assert "types: [completed]" in text
