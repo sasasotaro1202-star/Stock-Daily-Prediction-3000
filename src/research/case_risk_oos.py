@@ -264,6 +264,25 @@ def analyze_case_risk(
         # evaluation has finished; they can define the next fold's threshold.
         prior_scores.extend(current_scores)
 
+    if invalid_rows:
+        return {
+            "schema_version": SCHEMA_VERSION,
+            "status": "BLOCKED_INVALID_LOCKED_CASES",
+            "block_reason": (
+                "locked case aggregation is fail-closed: every locked row must "
+                "have valid per-case signals and explicit PIT lineage"
+            ),
+            "research_only": True,
+            "production_changed": False,
+            "promotion_allowed": False,
+            "frozen_holdout_used": False,
+            "locked_rows": int(locked_rows),
+            "scored_rows": 0,
+            "invalid_rows": int(invalid_rows),
+            "per_fold": per_fold,
+            "aggregate": {},
+        }
+
     if not scored_rows:
         pit_blocked = any(
             bool(row.get("is_locked"))
