@@ -7,6 +7,16 @@ on:
     paths:
       - ".github/research_validation.trigger"
       - ".github/workflows/research-validation.yml"
+      - ".github/workflows/experience-review.yml"
+      - ".github/workflows/prediction-monitoring.yml"
+      - "scripts/experience_*.py"
+      - "scripts/monitor_predictions.py"
+      - "src/research/experience_*.py"
+      - "src/research/ultimate_v13.py"
+      - "src/research/ultimate_v13_extensions.py"
+      - "src/research/v13_governance.py"
+      - "scripts/run_daily_research.py"
+      - "config/pipeline.yml"
 
 permissions:
   actions: read
