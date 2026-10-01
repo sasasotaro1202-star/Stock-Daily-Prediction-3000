@@ -90,6 +90,9 @@ def test_github_discovery_uses_html_url_for_https_lifecycle():
     assert lifecycle["cost_status"] == "VERIFIED_BY_DECLARATION"
     assert lifecycle["stage"] == "DISCOVERED"
 
+    selected = select_for_research([github_candidate], max_per_kind=5)
+    assert [row["full_name"] for row in selected["macro"]] == ["example/public-data"]
+
 
 def test_selection_is_deterministic_and_deduplicated():
     rows = [
