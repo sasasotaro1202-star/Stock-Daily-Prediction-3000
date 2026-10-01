@@ -340,7 +340,7 @@ def test_status_script_does_not_overwrite_newer_research_run(monkeypatch, tmp_pa
     existing = {"workflow_run_id": "200", "workflow_sha": "new-sha", "job_status": "success"}
     status_path.write_text(json.dumps(existing), encoding="utf-8")
 
-    monkeypatch.setattr("status.urllib.request.urlopen", lambda request, timeout: _Response({"jobs": [], "artifacts": []}))
+    monkeypatch.setattr(status.urllib.request, "urlopen", lambda request, timeout: _Response({"jobs": [], "artifacts": []}))
     assert status.main() == 0
     assert json.loads(status_path.read_text(encoding="utf-8")) == existing
 
