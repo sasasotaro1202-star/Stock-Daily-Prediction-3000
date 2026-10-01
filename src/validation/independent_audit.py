@@ -63,9 +63,13 @@ def _provenance_coverage(
     group_column: str,
 ) -> dict[str, object]:
     """Summarize PIT timestamp completeness and ordering by source/family."""
-    if group_column not in frame.columns:
-        return {"group_column": group_column, "available": False, "groups": {}}
-    available = pd.to_datetime(frame.get("available_at"), utc=True, errors="coerce")
+    if group_column not in frame.columns or "available_at" not in frame.columns:
+        return {
+            "group_column": group_column,
+            "available": False,
+            "groups": {},
+        }
+    available = pd.to_datetime(frame["available_at"], utc=True, errors="coerce")
     retrieved = (
         pd.to_datetime(frame.get("retrieved_at"), utc=True, errors="coerce")
         if "retrieved_at" in frame.columns
