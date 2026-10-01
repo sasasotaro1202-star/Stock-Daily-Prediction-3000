@@ -155,9 +155,10 @@ def _lifecycle(candidate: dict) -> dict:
     """Return fail-closed discovery lifecycle metadata without claiming adoption."""
     blocked = bool(candidate.get("blocked"))
     free_status = str(candidate.get("free_status") or "").strip().lower()
+    source_url = str(candidate.get("url") or candidate.get("html_url") or "").strip()
     if blocked:
         eligibility = "REJECTED_BLOCKED_PROVIDER"
-    elif not str(candidate.get("url") or "").startswith("https://"):
+    elif not source_url.startswith("https://"):
         eligibility = "REJECTED_NON_HTTPS"
     else:
         eligibility = "ELIGIBLE_FOR_RESEARCH_REVIEW"
@@ -207,7 +208,8 @@ def source_score(candidate: dict, *, now: datetime | None = None) -> float:
         score += 0.65
     if candidate.get("reachable"):
         score += 0.15
-    if str(candidate.get("url", "")).startswith("https://"):
+    source_url = str(candidate.get("url") or candidate.get("html_url") or "")
+    if source_url.startswith("https://"):
         score += 0.05
     if candidate.get("has_tabular_hint"):
         score += 0.05

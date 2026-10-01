@@ -72,6 +72,29 @@ def test_discovery_lifecycle_is_fail_closed():
     assert [row["name"] for row in selected["macro"]] == ["Public Source"]
 
 
+def test_github_discovery_uses_html_url_for_https_lifecycle():
+    from scripts.discover_free_data_sources import _lifecycle
+
+    github_candidate = {
+        "kind": "macro",
+        "full_name": "example/public-data",
+        "html_url": "https://github.com/example/public-data",
+        "free_status": "public",
+        "reachable": True,
+        "has_tabular_hint": True,
+        "pit_hint": True,
+        "blocked": False,
+    }
+    lifecycle = _lifecycle(github_candidate)
+    assert lifecycle["eligibility"] == "ELIGIBLE_FOR_RESEARCH_REVIEW"
+    assert lifecycle["cost_status"] == "VERIFIED_BY_DECLARATION"
+    assert lifecycle["stage"] == "DISCOVERED"
+
+    assert source_score(github_candidate) == 0.30
+    selected = select_for_research([github_candidate], max_per_kind=5)
+    assert [row["full_name"] for row in selected["macro"]] == ["example/public-data"]
+
+
 def test_selection_is_deterministic_and_deduplicated():
     rows = [
         {
