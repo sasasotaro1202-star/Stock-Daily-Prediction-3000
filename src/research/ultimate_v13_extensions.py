@@ -438,6 +438,9 @@ def augment_v13_result(
         })
 
         symbols = np.asarray(fold.get("symbols", [""] * len(y))).astype(str)
+        asset_classes = np.asarray(
+            fold.get("asset_classes", ["unknown"] * len(y)), dtype=object
+        ).astype(str)
         regimes = np.asarray(
             fold.get("regimes", fold.get("situations", ["unknown"] * len(y)))
         ).astype(str)
@@ -524,6 +527,11 @@ def augment_v13_result(
                 "row": int(i),
                 "is_locked": bool(t >= len(ordered) - locked_folds),
                 "symbol": str(symbol),
+                "asset_class": (
+                    str(asset_classes[i])
+                    if i < len(asset_classes)
+                    else "unknown"
+                ),
                 "prediction_time": (
                     str(prediction_times[i])
                     if i < len(prediction_times)
@@ -689,7 +697,6 @@ def augment_v13_result(
             "uncertainty_model": float(
                 fold_result.get("uncertainty", {}).get("model", float("nan"))
             ),
-            "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
         })
 
         # Current outcomes enter history only after current-fold evaluation.
@@ -803,7 +810,11 @@ def augment_v13_result(
     }
 
     result["prediction_ledger"] = {
-        "status": "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK",
+        "status": (
+            "EXECUTED_ROW_LEVEL_LEDGER_WITH_SCHEDULED_PIT_LINEAGE"
+            if lineage_complete
+            else "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK"
+        ),
         "scope": "v13_control_plane_summary",
         "total_predictions": total_predictions,
         "action_counts": ledger_actions,
