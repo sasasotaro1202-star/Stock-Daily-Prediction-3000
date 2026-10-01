@@ -173,20 +173,30 @@ def make_models():
     return selected
 
 def _oos_fold_signature(rows: list[dict[str, float]]) -> str | None:
-    """Return a deterministic identity for the chronological OOS folds in rows."""
-    fold_ids: set[int] = set()
+    """Return a deterministic identity for the exact chronological OOS windows."""
+    identities: list[tuple[int, str, str]] = []
     for row in rows:
         try:
             fold_value = float(row.get("fold"))
         except (TypeError, ValueError):
             continue
-        if np.isfinite(fold_value) and fold_value.is_integer():
-            fold_ids.add(int(fold_value))
-    if not fold_ids:
+        if not (np.isfinite(fold_value) and fold_value.is_integer()):
+            continue
+        start = str(row.get("test_start_date", "")).strip()
+        end = str(row.get("test_end_date", "")).strip()
+        if not start or not end:
+            # A fold without explicit chronological boundaries cannot establish
+            # exact comparability; callers must fail closed on this signature.
+            return None
+        identities.append((int(fold_value), start, end))
+    if not identities:
         return None
-    canonical = ",".join(str(value) for value in sorted(fold_ids))
+    canonical = "|".join(
+        f"{fold}:{start}:{end}"
+        for fold, start, end in sorted(set(identities))
+    )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:16]
-    return f"folds:{digest}"
+    return f"oos:{digest}"
 
 
 def aggregate_group(rows: list[dict[str, float]]) -> dict[str, object]:
@@ -1066,6 +1076,8 @@ def main():
             )
             row["n_test"] = float(len(test))
             row["fold"] = float(fold_idx)
+            row["test_start_date"] = str(min(test_dates))
+            row["test_end_date"] = str(max(test_dates))
             fold_rows.append(row)
 
             regime = pd.Series(
