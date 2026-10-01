@@ -101,7 +101,7 @@ def make_models():
     pipeline_cfg = yaml.safe_load(pipeline_path.read_text(encoding="utf-8")) or {}
     model_cfg = pipeline_cfg.get("models", {}) or {}
     online_research_cfg = pipeline_cfg.get("online_ensemble_research", {}) or {}
-    outcome_delay_sessions = int(online_research_cfg.get("outcome_delay_sessions", 1))
+    outcome_delay_sessions = int(online_research_cfg.get("outcome_delay_sessions", 0))
     if outcome_delay_sessions < 0:
         raise SystemExit("FAIL: online ensemble outcome delay must be non-negative")
     configured_names: list[str] = []
