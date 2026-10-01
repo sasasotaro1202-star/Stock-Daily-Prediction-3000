@@ -109,7 +109,12 @@ def test_resolve_context_reuses_workflow_run_environment(monkeypatch, tmp_path) 
     monkeypatch.setenv("GITHUB_ENV", str(env_path))
 
     assert context.main() == 0
-    assert env_path.read_text(encoding="utf-8") == "RESEARCH_STATUS_CONTEXT_FOUND=true\n"
+    output = env_path.read_text(encoding="utf-8")
+    assert "RESEARCH_WORKFLOW_RUN_ID=777\n" in output
+    assert "RESEARCH_WORKFLOW_SHA=sha777\n" in output
+    assert "RESEARCH_WORKFLOW_STATUS=in_progress\n" in output
+    assert "RESEARCH_WORKFLOW_CONCLUSION=\n" in output
+    assert "RESEARCH_STATUS_CONTEXT_FOUND=true\n" in output
 
 
 def test_resolve_context_discovers_latest_active_research(monkeypatch, tmp_path) -> None:
@@ -178,8 +183,11 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert "types: [completed, in_progress]" in text
     assert "group: research-validation-status" in text
     assert "python scripts/persist_research_validation_status.py" in text
-    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" in text
-    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" in text
+    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" not in text
+    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" not in text
+    assert "name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
+    assert "run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
+    assert "github.event_name == 'workflow_run'" in text
     assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in text
     assert "ref: main" in text
     assert "github.event.workflow_run.head_sha" in text
