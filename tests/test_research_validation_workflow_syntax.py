@@ -379,6 +379,8 @@ def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
     monkeypatch.setenv("GITHUB_RUN_ID", "123")
     monkeypatch.setenv("GITHUB_SHA", "abc")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "success")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
     monkeypatch.setattr(
         status.urllib.request,
         "urlopen",
