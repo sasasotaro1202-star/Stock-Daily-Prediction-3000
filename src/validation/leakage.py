@@ -29,6 +29,56 @@ def audit_target_separation(feature_columns:Iterable[str],target_columns:Iterabl
     return LeakageAudit(not overlap,tuple(f"feature_target_overlap:{x}" for x in overlap))
 
 
+
+def audit_prediction_snapshot_timestamps(
+    df: pd.DataFrame,
+    prediction_time: pd.Timestamp,
+) -> LeakageAudit:
+    """Fail closed on timestamp provenance for rows eligible for live prediction."""
+    if "available_at" not in df.columns:
+        return LeakageAudit(False, ("missing:available_at",))
+    prediction = pd.Timestamp(prediction_time)
+    if prediction.tzinfo is None:
+        prediction = prediction.tz_localize("UTC")
+    else:
+        prediction = prediction.tz_convert("UTC")
+    available = pd.to_datetime(df["available_at"], utc=True, errors="coerce")
+    violations: list[str] = []
+    invalid_available = int(available.isna().sum())
+    if invalid_available:
+        violations.append(f"invalid_available_at:{invalid_available}")
+    future_available = int((available.notna() & available.gt(prediction)).sum())
+    if future_available:
+        violations.append(f"available_at_after_prediction_time:{future_available}")
+
+    if "retrieved_at" not in df.columns:
+        violations.append("missing:retrieved_at")
+        return LeakageAudit(False, tuple(sorted(set(violations))))
+
+    retrieved = pd.to_datetime(df["retrieved_at"], utc=True, errors="coerce")
+    invalid_retrieved = int(retrieved.isna().sum())
+    if invalid_retrieved:
+        violations.append(f"invalid_retrieved_at:{invalid_retrieved}")
+    future_retrieved = int(
+        (retrieved.notna() & retrieved.gt(prediction)).sum()
+    )
+    if future_retrieved:
+        violations.append(
+            f"retrieved_at_after_prediction_time:{future_retrieved}"
+        )
+    impossible_order = int(
+        (
+            available.notna()
+            & retrieved.notna()
+            & available.gt(retrieved)
+        ).sum()
+    )
+    if impossible_order:
+        violations.append(
+            f"available_at_after_retrieved_at:{impossible_order}"
+        )
+    return LeakageAudit(not violations, tuple(sorted(set(violations))))
+
 def audit_retrieval_provenance(df):
     import pandas as pd
 
