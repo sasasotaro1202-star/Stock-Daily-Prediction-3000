@@ -26,6 +26,48 @@ def _write_prediction(path: Path, p: float, expected: float, realized: float) ->
     frame.to_parquet(path, index=False)
 
 
+def test_research_priority_includes_confidence_and_disagreement():
+    from src.research.experience_memory import _rebuild_priority
+
+    memory = {
+        "total_resolved": 100,
+        "by_regime": {
+            "normal": {
+                "n": 100,
+                "logloss_sum": 50.0,
+                "correct": 50,
+                "abs_return_error_sum": 1.0,
+            }
+        },
+        "by_asset_class": {},
+        "by_model_id": {},
+        "by_market_situation": {},
+        "by_direction_confidence": {
+            "p>=0.75": {
+                "n": 50,
+                "logloss_sum": 40.0,
+                "correct": 10,
+                "abs_return_error_sum": 2.0,
+            }
+        },
+        "by_model_disagreement": {
+            "disagreement>=0.06": {
+                "n": 50,
+                "logloss_sum": 35.0,
+                "correct": 15,
+                "abs_return_error_sum": 1.5,
+            }
+        },
+        "error_types": {},
+        "by_error_bucket": {},
+    }
+
+    _rebuild_priority(memory)
+    dimensions = {(row["dimension"], row["segment"]) for row in memory["research_priority"]}
+    assert ("by_direction_confidence", "p>=0.75") in dimensions
+    assert ("by_model_disagreement", "disagreement>=0.06") in dimensions
+
+
 def test_experience_memory_accumulates_and_is_idempotent(tmp_path: Path):
     pred_dir = tmp_path / "predictions"
     pred_dir.mkdir()
