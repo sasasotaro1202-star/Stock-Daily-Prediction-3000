@@ -149,6 +149,7 @@ def test_delayed_outcome_waits_one_full_session_before_weight_update():
     assert immediate_history[1]["outcomes_released_before_prediction"] == 1
     assert delayed_history[1]["outcomes_released_before_prediction"] == 0
     assert delayed_history[2]["outcomes_released_before_prediction"] == 1
+    assert delayed_history[1]["weights_after"] == pytest.approx([0.5, 0.5])
 
 
 def test_outcome_delay_requires_nonnegative_integer():
