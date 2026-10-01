@@ -95,7 +95,7 @@ def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
 
 def test_research_status_workflow_has_heartbeat_schedule() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
-    assert 'schedule:\n    - cron: "*/30 * * * *"' in text
+    assert 'schedule:\n    - cron: "13,43 * * * *"' in text
     assert "workflow_dispatch:" in text
     assert "python scripts/resolve_research_status_context.py" in text
     assert "RESEARCH_STATUS_CONTEXT_FOUND" in text
