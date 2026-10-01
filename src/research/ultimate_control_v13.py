@@ -281,6 +281,52 @@ def _fit_failure_predictor(
 
 
 
+def _fit_predictability_calibrator(
+    raw_history: list[float],
+    correctness_history: list[int],
+    raw_current: np.ndarray,
+    *,
+    min_rows: int = 120,
+) -> tuple[np.ndarray, dict[str, object]]:
+    """Calibrate the target-free predictability score using prior outcomes only."""
+    current = np.asarray(raw_current, dtype=float)
+    if current.ndim != 1:
+        raise ValueError("invalid predictability current vector")
+    history_x = np.asarray(raw_history, dtype=float)
+    history_y = np.asarray(correctness_history, dtype=int)
+    if history_x.ndim != 1 or len(history_x) != len(history_y):
+        return np.full(len(current), 0.5), {
+            "status": "FALLBACK_INVALID_HISTORY",
+            "training_rows": 0,
+            "method": "prior_mean",
+        }
+    if len(history_y) < int(min_rows) or len(np.unique(history_y)) < 2:
+        prior = float(np.mean(history_y)) if len(history_y) else 0.5
+        return np.full(len(current), np.clip(prior, 0.01, 0.99)), {
+            "status": "FALLBACK_INSUFFICIENT_HISTORY",
+            "training_rows": int(len(history_y)),
+            "method": "prior_mean",
+        }
+    if not np.isfinite(history_x).all() or not np.isfinite(current).all():
+        return np.full(len(current), float(np.mean(history_y))), {
+            "status": "FALLBACK_NONFINITE_HISTORY",
+            "training_rows": int(len(history_y)),
+            "method": "prior_mean",
+        }
+    model = Pipeline([
+        ("scale", StandardScaler()),
+        ("logistic", LogisticRegression(C=0.50, max_iter=2000, random_state=13013)),
+    ])
+    model.fit(history_x.reshape(-1, 1), history_y)
+    calibrated = np.clip(model.predict_proba(current.reshape(-1, 1))[:, 1], 0.01, 0.99)
+    return calibrated, {
+        "status": "FITTED_PRIOR_ONLY_LOGISTIC",
+        "training_rows": int(len(history_y)),
+        "method": "prior_only_logistic_predictability_calibration",
+        "fitted_model": model,
+    }
+
+
 def _fit_meta_label_predictor(
     x_hist: list[np.ndarray],
     y_hist: list[np.ndarray],
@@ -646,6 +692,16 @@ def evaluate_v13(
     previous_selected: dict[str, float] = {}
     revision_rows = []
 
+    # Development-only calibration of the target-free predictability score.
+    # The calibrator is trained on prior development outcomes and frozen before
+    # the locked evaluation suffix. Locked outcomes are never fed back into it.
+    predictability_raw_history: list[float] = []
+    predictability_correctness_history: list[int] = []
+    predictability_calibration_rows: list[dict[str, float]] = []
+    predictability_calibrator_status = "NOT_FROZEN"
+    predictability_calibrator_training_rows = 0
+    predictability_calibrator = None
+
     for t, fold in enumerate(ordered):
         y = np.asarray(fold["y"], dtype=int)
         p_matrix = np.column_stack([
@@ -691,6 +747,74 @@ def evaluate_v13(
             1.0,
         )
 
+        # Predictability calibration is diagnostic-only in v13. It estimates
+        # P(direction-correct | raw predictability) from prior equal-weight
+        # ensemble outcomes. Before the locked suffix the history expands
+        # chronologically; at dev_end the calibration is frozen and never
+        # updated with locked outcomes.
+        if t >= dev_end and predictability_calibrator is None:
+            calibrated_fit, cal_status = _fit_predictability_calibrator(
+                predictability_raw_history,
+                predictability_correctness_history,
+                predictability,
+            )
+            predictability_calibrator = {
+                "model": cal_status.get("fitted_model"),
+                "training_rows": int(cal_status["training_rows"]),
+                "method": str(cal_status.get("method", "")),
+            }
+            predictability_calibrator_status = "FROZEN_PRIOR_ONLY_LOGISTIC"
+            predictability_calibrator_training_rows = int(cal_status["training_rows"])
+            calibrated_predictability = calibrated_fit
+        elif t < dev_end:
+            calibrated_predictability, cal_status = _fit_predictability_calibrator(
+                predictability_raw_history,
+                predictability_correctness_history,
+                predictability,
+            )
+            predictability_calibrator_status = str(cal_status["status"])
+            predictability_calibrator_training_rows = int(cal_status["training_rows"])
+        else:
+            if (
+                isinstance(predictability_calibrator, dict)
+                and predictability_calibrator.get("model") is not None
+            ):
+                frozen_model = predictability_calibrator["model"]
+                calibrated_predictability = np.clip(
+                    frozen_model.predict_proba(
+                        predictability.reshape(-1, 1)
+                    )[:, 1],
+                    0.01,
+                    0.99,
+                )
+                predictability_calibrator_status = "FROZEN_PRIOR_ONLY_LOGISTIC_APPLIED"
+                predictability_calibrator_training_rows = int(
+                    predictability_calibrator["training_rows"]
+                )
+            else:
+                # Defensive fail-closed path: a locked fold may use only a
+                # prior-mean fallback when no frozen development calibrator exists.
+                calibrated_predictability, cal_status = _fit_predictability_calibrator(
+                    predictability_raw_history,
+                    predictability_correctness_history,
+                    predictability,
+                )
+                predictability_calibrator_status = "FALLBACK_NO_FROZEN_CALIBRATOR"
+                predictability_calibrator_training_rows = int(cal_status["training_rows"])
+
+        calibration_target = ((np.mean(p_matrix, axis=1) >= 0.5) == y).astype(int)
+        predictability_calibration_rows.append({
+            "fold": float(t),
+            "is_locked": float(t >= dev_end),
+            "raw_brier": float(metrics(calibration_target, predictability)["brier"]),
+            "raw_ece": float(metrics(calibration_target, predictability)["ece"]),
+            "calibrated_brier": float(metrics(calibration_target, calibrated_predictability)["brier"]),
+            "calibrated_ece": float(metrics(calibration_target, calibrated_predictability)["ece"]),
+            "raw_predictability_mean": float(np.mean(predictability)),
+            "calibrated_predictability_mean": float(np.mean(calibrated_predictability)),
+            "training_rows": float(predictability_calibrator_training_rows),
+        })
+
         current_regime = str(pd.Series(fold["frame"]["regime"]).mode().iloc[0]) if "regime" in fold["frame"] else "unknown"
         regimes = sorted({
             str(x)
@@ -712,6 +836,7 @@ def evaluate_v13(
         )
 
         state["_predictability"] = predictability
+        state["_predictability_calibrated"] = calibrated_predictability
         state["ood"] = ood
         failure_feature = state[
             [
@@ -909,6 +1034,9 @@ def evaluate_v13(
         }
 
         # Persist row-level state for history-only retrieval/failure modeling.
+        if t < dev_end:
+            predictability_raw_history.extend(predictability.tolist())
+            predictability_correctness_history.extend(calibration_target.tolist())
         history_states.append(state.copy())
         history_success.append(((baseline >= 0.5) == y).astype(int))
         meta_features_history.append(meta_features.copy())
@@ -973,6 +1101,7 @@ def evaluate_v13(
             "revision_accuracy": revision_accuracy,
             "false_revision": false_revision,
             "predictability_mean": float(np.mean(predictability)),
+            "predictability_calibrated_mean": float(np.mean(calibrated_predictability)),
             "future_predictability_mean": float(np.mean(future_predictability)),
             "ood_mean": float(np.mean(ood)),
             "max_failure_risk": float(max_failure),
@@ -1121,7 +1250,14 @@ def evaluate_v13(
         "predictability": {
             "status": "EXECUTED",
             "future_proxy": True,
-            "calibration_status": "PENDING_OUTCOME_STREAM",
+            "calibration_status": "EXECUTED_DEV_ONLY_FROZEN",
+            "calibration_method": "prior_only_logistic_predictability_calibration",
+            "calibration_target": "equal_weight_direction_correctness",
+            "calibrator_frozen_before_locked": True,
+            "locked_outcomes_update_calibrator": False,
+            "calibrator_training_rows": int(predictability_calibrator_training_rows),
+            "latest_calibrator_status": str(predictability_calibrator_status),
+            "fold_metrics": predictability_calibration_rows,
         },
         "future_failure": {
             "status": "EXECUTED",
