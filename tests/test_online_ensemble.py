@@ -57,7 +57,7 @@ def test_fixed_share_recovers_switching_expert_on_future_sessions():
 
     assert fixed[2] > plain[2]
     assert history[0]["share_rate"] == pytest.approx(0.20)
-    assert min(history[0]["weights_after"]) >= 0.10
+    assert min(history[0]["weights_after_outcome"]) >= 0.10
 
 
 def test_input_validation():
