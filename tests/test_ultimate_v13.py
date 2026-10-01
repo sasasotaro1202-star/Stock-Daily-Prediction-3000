@@ -303,6 +303,9 @@ def test_v13_meta_label_is_prior_only_and_ledgered(tmp_path):
     rows = result["prediction_ledger"]["row_level"]
     assert len(rows) == 36
     assert all(0.0 <= float(row["meta_label_probability"]) <= 1.0 for row in rows)
+    for fold in result["fold_results"]:
+        assert len(fold["calibrated_predictability"]) == 6
+        assert len(fold["ood_by_case"]) == 6
 
     altered = _bank()
     altered[5]["y"] = np.ones(6, dtype=int)

@@ -14,8 +14,11 @@ on:
       - "src/research/experience_*.py"
       - "src/research/ultimate_v13.py"
       - "src/research/ultimate_v13_extensions.py"
+      - "src/research/case_risk_oos.py"
       - "src/research/v13_governance.py"
       - "scripts/run_daily_research.py"
+      - "scripts/run_case_risk_oos_audit.py"
+      - "tests/test_case_risk_oos.py"
       - "config/pipeline.yml"
 
 permissions:
@@ -261,6 +264,10 @@ jobs:
           print("ULTIMATE_V13_EQUAL_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("equal_weight", {}).get("logloss"))
           PY
 
+      - name: Run prequential case-risk OOS audit
+        if: steps.research_oos.outcome == 'success'
+        run: python scripts/run_case_risk_oos_audit.py
+
       - name: Publish Ultimate v13 score summary
         if: always() && steps.research_oos.outcome == 'success'
         shell: bash
@@ -299,6 +306,11 @@ jobs:
           print(f"- Meta-label coverage: {(v.get('meta_label') or {}).get('locked_summary', {}).get('coverage', 'n/a')}")
           print(f"- Error attribution: {(v.get('error_attribution') or {}).get('status', 'n/a')}")
           print(f"- Failure memory rows: {(v.get('failure_memory') or {}).get('total_rows', 'n/a')}")
+          case_risk = json.loads(Path("data/research/case_risk_oos.json").read_text(encoding="utf-8"))
+          print(f"- Case-risk OOS status: {case_risk.get('status', 'n/a')}")
+          print(f"- Case-risk high-risk coverage: {(case_risk.get('risk_score') or {}).get('high_risk_coverage', 'n/a')}")
+          print(f"- Case-risk error capture: {(case_risk.get('aggregate') or {}).get('error_capture_rate', 'n/a')}")
+          print(f"- Case-risk high-vs-low failure lift: {(case_risk.get('aggregate') or {}).get('failure_rate_lift_high_vs_low', 'n/a')}")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
           if adv.exists():
               print(f"- Adversarial structural audit: {json.loads(adv.read_text(encoding='utf-8')).get('status', 'n/a')}")
@@ -358,6 +370,7 @@ jobs:
             data/research/universe_quality.json
             data/research/experience_candidates.json
             data/research/experience_candidate_evaluation.json
+            data/research/case_risk_oos.json
             data/research/ultimate_v13/**
           retention-days: 14
 

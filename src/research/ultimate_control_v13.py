@@ -1102,6 +1102,10 @@ def evaluate_v13(
             "false_revision": false_revision,
             "predictability_mean": float(np.mean(predictability)),
             "predictability_calibrated_mean": float(np.mean(calibrated_predictability)),
+            # Persist row-level calibrated predictability so downstream case-risk audits
+            # consume the same frozen, prior-only signal that was evaluated here.
+            "calibrated_predictability": calibrated_predictability.astype(float).tolist(),
+            "ood_by_case": ood.astype(float).tolist(),
             "future_predictability_mean": float(np.mean(future_predictability)),
             "ood_mean": float(np.mean(ood)),
             "max_failure_risk": float(max_failure),

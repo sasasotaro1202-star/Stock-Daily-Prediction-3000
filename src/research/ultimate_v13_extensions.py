@@ -353,6 +353,14 @@ def augment_v13_result(
         })
 
         fold_result = result.get("fold_results", [])[t] if t < len(result.get("fold_results", [])) else {}
+        case_predictability = np.asarray(
+            fold_result.get("calibrated_predictability", [float("nan")] * len(y)),
+            dtype=float,
+        )
+        case_ood = np.asarray(
+            fold_result.get("ood_by_case", [float("nan")] * len(y)),
+            dtype=float,
+        )
         mean_p = float(np.mean(dynamic))
         dispersion = float(np.mean(np.std(p_matrix, axis=1)))
         ood = float(fold_result.get("ood_mean", 0.0))
@@ -461,6 +469,29 @@ def augment_v13_result(
                 "predictability": fold_predictability,
                 "ood": fold_ood,
                 "failure_risk": fold_failure_risk,
+                # Per-case signals are persisted separately from legacy fold-level
+                # summaries so downstream case-risk audits cannot mistake fold
+                # aggregates for heterogeneous case intelligence.
+                "case_predictability": (
+                    float(case_predictability[i])
+                    if i < len(case_predictability) and np.isfinite(case_predictability[i])
+                    else float("nan")
+                ),
+                "case_ood": (
+                    float(case_ood[i])
+                    if i < len(case_ood) and np.isfinite(case_ood[i])
+                    else float("nan")
+                ),
+                "case_failure_risk": (
+                    float(1.0 - meta_scores[i])
+                    if i < len(meta_scores) and np.isfinite(meta_scores[i])
+                    else float("nan")
+                ),
+                "case_disagreement": (
+                    float(np.clip(2.0 * np.std(p_matrix[i]), 0.0, 1.0))
+                    if i < len(p_matrix) and np.isfinite(p_matrix[i]).all()
+                    else float("nan")
+                ),
                 "meta_label_probability": (
                     float(meta_scores[i]) if i < len(meta_scores) else float("nan")
                 ),
