@@ -16,9 +16,9 @@ def online_expert_average(
     """Chronological online expert mixture with optional fixed-share recovery.
 
     Predictions for session t use weights learned strictly before that session.
-    After the whole session t is observed, each expert receives its log-loss
-    update. A positive share_rate returns a small fraction of post-loss
-    weight mass to the uniform prior, limiting expert lock-in after regime shifts.
+    Outcomes are queued until they are causally eligible for a future
+    prediction session. A positive share_rate returns a small fraction of
+    post-update weight mass to the uniform prior, limiting expert lock-in.
     """
     if not predictions_by_model:
         raise ValueError("at least one expert is required")
@@ -71,6 +71,11 @@ def online_expert_average(
         due = pending_updates.pop(date_index, [])
         for update in due:
             log_weights -= eta * update
+        if due and share > 0.0:
+            next_weights = np.exp(log_weights - np.max(log_weights))
+            next_weights /= next_weights.sum()
+            next_weights = (1.0 - share) * next_weights + share / len(names)
+            log_weights = np.log(np.clip(next_weights, 1e-300, 1.0))
         mask = dates == date
         current_weights = np.exp(log_weights - np.max(log_weights))
         current_weights /= current_weights.sum()
@@ -105,11 +110,6 @@ def online_expert_average(
             pending_updates.setdefault(release_index, np.zeros(len(names), dtype=float))
             pending_updates[release_index] += row_losses_arr
 
-        next_weights = np.exp(log_weights - np.max(log_weights))
-        next_weights /= next_weights.sum()
-        if share > 0.0:
-            next_weights = (1.0 - share) * next_weights + share / len(names)
-            log_weights = np.log(np.clip(next_weights, 1e-300, 1.0))
         history.append({
             "session_date": str(date),
             "share_rate": share,
@@ -117,7 +117,7 @@ def online_expert_average(
             "outcomes_released_before_prediction": len(due),
             "update_grouped": groups is not None,
             "weights_before": current_weights.tolist(),
-            "weights_after": next_weights.tolist(),
+            "weights_after": current_weights.tolist(),
             "expert_logloss": {
                 name: float(row_losses_arr[j])
                 for j, name in enumerate(names)
