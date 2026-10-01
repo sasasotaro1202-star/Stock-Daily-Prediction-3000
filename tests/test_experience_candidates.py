@@ -1,6 +1,6 @@
-import pytest
-
 from __future__ import annotations
+
+import pytest
 
 from src.research.experience_candidates import build_experience_candidate_plan
 
