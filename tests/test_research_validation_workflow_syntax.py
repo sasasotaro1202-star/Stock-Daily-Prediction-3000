@@ -325,6 +325,26 @@ def test_status_script_retries_transient_research_job_visibility(monkeypatch, tm
     assert payload["job_status"] == "in_progress"
     assert payload["research_step"] == "in_progress"
 
+def test_status_script_does_not_overwrite_newer_research_run(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "199")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "old-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "success")
+    artifact_dir = Path("artifacts")
+    artifact_dir.mkdir()
+    status_path = artifact_dir / "research_validation_status.json"
+    existing = {"workflow_run_id": "200", "workflow_sha": "new-sha", "job_status": "success"}
+    status_path.write_text(json.dumps(existing), encoding="utf-8")
+
+    monkeypatch.setattr("status.urllib.request.urlopen", lambda request, timeout: _Response({"jobs": [], "artifacts": []}))
+    assert status.main() == 0
+    assert json.loads(status_path.read_text(encoding="utf-8")) == existing
+
+
 def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypatch, tmp_path) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("GITHUB_TOKEN", "token")
