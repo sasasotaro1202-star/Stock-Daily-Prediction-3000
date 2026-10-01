@@ -65,7 +65,7 @@ def online_expert_average(
     log_weights = np.zeros(len(names), dtype=float)
     ensemble = np.empty(len(y), dtype=float)
     history = []
-    pending_updates = {}
+    pending_updates: dict[int, list[np.ndarray]] = {}
 
     for date_index, date in enumerate(unique_dates):
         due = pending_updates.pop(date_index, [])
@@ -107,8 +107,7 @@ def online_expert_average(
         row_losses_arr = np.asarray(row_losses, dtype=float)
         release_index = date_index + delay + 1
         if release_index < len(unique_dates):
-            pending_updates.setdefault(release_index, np.zeros(len(names), dtype=float))
-            pending_updates[release_index] += row_losses_arr
+            pending_updates.setdefault(release_index, []).append(row_losses_arr.copy())
 
         history.append({
             "session_date": str(date),
