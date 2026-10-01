@@ -70,6 +70,75 @@ def _lookup_run_artifacts() -> tuple[list[dict], str | None]:
     return payload.get("artifacts", []) or [], None
 
 
+def _runtime_health(job: dict) -> dict:
+    """Summarize active research runtime without treating long duration as failure."""
+    status = str(job.get("status") or "unknown").strip()
+    started_at = str(job.get("started_at") or "").strip() or None
+    active_step = next(
+        (
+            step
+            for step in reversed(job.get("steps", []) or [])
+            if str(step.get("status") or "").strip() == "in_progress"
+        ),
+        None,
+    )
+    active_step_name = (
+        str(active_step.get("name") or "").strip() if active_step else None
+    )
+    active_step_started_at = (
+        str(active_step.get("started_at") or "").strip() or None
+        if active_step
+        else None
+    )
+
+    now = datetime.now(timezone.utc)
+    def elapsed_minutes(value: str | None) -> float | None:
+        if not value:
+            return None
+        try:
+            ts = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return max(0.0, (now - ts).total_seconds() / 60.0)
+
+    job_elapsed = elapsed_minutes(started_at)
+    step_elapsed = elapsed_minutes(active_step_started_at)
+    long_running_minutes = max(
+        1,
+        int(os.environ.get("RESEARCH_STATUS_LONG_RUNNING_MINUTES", "60")),
+    )
+    stale_risk_minutes = max(
+        long_running_minutes + 1,
+        int(os.environ.get("RESEARCH_STATUS_STALE_RISK_MINUTES", "240")),
+    )
+
+    if status == "in_progress" and job_elapsed is not None:
+        if job_elapsed >= stale_risk_minutes:
+            state = "STALE_RISK"
+        elif job_elapsed >= long_running_minutes:
+            state = "LONG_RUNNING"
+        else:
+            state = "RUNNING"
+    elif status in {"completed", "cancelled", "failure", "failed", "skipped"}:
+        state = "TERMINAL"
+    else:
+        state = "UNKNOWN"
+
+    return {
+        "state": state,
+        "job_status": status,
+        "job_started_at_utc": started_at,
+        "job_elapsed_minutes": job_elapsed,
+        "active_step": active_step_name,
+        "active_step_started_at_utc": active_step_started_at,
+        "active_step_elapsed_minutes": step_elapsed,
+        "long_running_threshold_minutes": long_running_minutes,
+        "stale_risk_threshold_minutes": stale_risk_minutes,
+    }
+
+
 def _step_conclusion(job: dict, needle: str) -> str:
     for step in job.get("steps", []) or []:
         if str(step.get("name", "")).strip() == needle:
@@ -124,6 +193,7 @@ def main() -> int:
         "sec_research_step": _step_conclusion(job, "Collect free SEC filing research inputs"),
         "sec_ablation_step": _step_conclusion(job, "Run SEC filing OOS challenger ablation"),
         "cpcv_step": _step_conclusion(job, "CPCV leakage-boundary research audit"),
+        "runtime_health": _runtime_health(job),
         "evidence_artifact_present": evidence_artifact_present,
         "evidence_artifact_raw_present": evidence_artifact_raw_present,
         "evidence_state": evidence_state,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 import subprocess
 import textwrap
 from pathlib import Path
@@ -371,6 +372,46 @@ def test_status_script_accepts_cancelled_workflow_without_research_job(monkeypat
     assert payload["status_lookup_ok"] is True
     assert payload["job_status"] == "cancelled"
     assert payload["status_lookup_error"] is None
+
+
+def test_status_script_records_long_running_runtime_health(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_RUN_ID", "999")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "126")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "runtime-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "in_progress")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "")
+    started = (datetime.now(timezone.utc) - timedelta(minutes=90)).isoformat()
+
+    def urlopen(request, timeout):
+        if "/artifacts?" in request.full_url:
+            return _Response({"artifacts": []})
+        return _Response({
+            "jobs": [{
+                "name": "research",
+                "status": "in_progress",
+                "conclusion": None,
+                "started_at": started,
+                "steps": [{
+                    "name": "Chronological OOS research",
+                    "status": "in_progress",
+                    "conclusion": None,
+                    "started_at": started,
+                }],
+            }]
+        })
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", urlopen)
+    assert status.main() == 0
+    payload = json.loads((Path("artifacts") / "research_validation_status.json").read_text(encoding="utf-8"))
+    health = payload["runtime_health"]
+    assert health["state"] == "LONG_RUNNING"
+    assert health["active_step"] == "Chronological OOS research"
+    assert health["job_elapsed_minutes"] >= 89.0
+    assert health["active_step_elapsed_minutes"] >= 89.0
+    assert health["stale_risk_threshold_minutes"] == 240
 
 
 def test_status_script_detects_evidence_artifact(monkeypatch, tmp_path) -> None:
