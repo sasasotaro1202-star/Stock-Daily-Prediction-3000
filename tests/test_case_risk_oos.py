@@ -12,6 +12,9 @@ def _row(fold: int, row: int, *, locked: bool, risk: float, result: int, p: floa
         "is_locked": locked,
         "prediction": p,
         "result": result,
+        "prediction_time": "2026-01-02T00:00:00+00:00",
+        "available_at": "2026-01-01T23:00:00+00:00",
+        "pit_status": "PASS",
         "case_predictability": 1.0 - risk,
         "case_ood": risk,
         "case_failure_risk": risk,
@@ -80,3 +83,18 @@ def test_only_locked_rows_are_evaluated_and_contracts_are_explicit():
     assert result["contracts"]["threshold_uses_strictly_prior_oos_scores"] is True
     assert result["contracts"]["outcomes_used_for_threshold"] is False
     assert result["promotion_allowed"] is False
+
+
+def test_missing_pit_lineage_blocks_case_risk_evaluation():
+    rows = [_row(0, 0, locked=False, risk=0.2, result=0, p=0.9)]
+    rows.append({**_row(1, 0, locked=True, risk=0.8, result=0, p=0.9), "pit_status": "BLOCKED"})
+    result = analyze_case_risk(rows, risk_quantile=0.75)
+    assert result["status"] == "BLOCKED_PIT_LINEAGE"
+    assert result["scored_rows"] == 0
+    assert result["promotion_allowed"] is False
+
+
+def test_future_availability_timestamp_blocks_case_risk_evaluation():
+    row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row["available_at"] = "2026-01-02T01:00:00+00:00"
+    assert analyze_case_risk([row], risk_quantile=0.75)["status"] == "BLOCKED_PIT_LINEAGE"
