@@ -346,9 +346,30 @@ def _adaptive_data_snapshot(
         snapshot["status"] = "READY"
     return snapshot
 
+def _refresh_universe_with_bounded_retry() -> None:
+    """Refresh the universe with a bounded retry for transient timeouts only."""
+    timeouts = (120, 240)
+    for attempt, timeout in enumerate(timeouts, start=1):
+        try:
+            subprocess.run(
+                ["python", "scripts/refresh_universe.py"],
+                check=True,
+                timeout=timeout,
+            )
+            return
+        except subprocess.TimeoutExpired:
+            if attempt == len(timeouts):
+                raise
+            print(
+                "ADAPTIVE_DATA_REFRESH timeout; retrying once with extended timeout "
+                f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                flush=True,
+            )
+
+
 def _run_acquisition_once(cfg: dict, iteration: int) -> None:
     print(
-        "ADAPTIVE_DATA_ACQUIRE "
+        "ADAPTIVE_DATA_ACQUIRE " 
         f"iteration={iteration} min_history_sessions={cfg['min_history_sessions']}",
         flush=True,
     )
@@ -363,11 +384,7 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> None:
 
     # Re-discover the current official universe every iteration. This is
     # research-only state in the runner and is never promoted directly.
-    subprocess.run(
-        ["python", "scripts/refresh_universe.py"],
-        check=True,
-        timeout=120,
-    )
+    _refresh_universe_with_bounded_retry()
     subprocess.run(
         ["python", "scripts/universe_quality_gate.py"],
         check=True,
