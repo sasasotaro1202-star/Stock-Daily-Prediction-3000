@@ -145,56 +145,57 @@ def analyze_case_risk(
         ),
     )
 
-    for fold in sorted(
-        {
-            int(row.get("fold", 0) or 0)
-            for row in ordered
-            if bool(row.get("is_locked"))
-        }
-    ):
-        current = [
-            row
-            for row in ordered
-            if bool(row.get("is_locked"))
-            and int(row.get("fold", 0) or 0) == fold
+    # Build the score history over every chronological OOS fold, but evaluate
+    # risk concentration only on the frozen/locked suffix. This gives the first
+    # locked fold a meaningful prediction-time threshold without using any
+    # outcome to define that threshold.
+    for fold in sorted({int(row.get("fold", 0) or 0) for row in ordered}):
+        fold_rows = [
+            row for row in ordered if int(row.get("fold", 0) or 0) == fold
         ]
-        if not current:
-            continue
-        threshold = _percentile(prior_scores, risk_quantile)
-        fold_scores: list[float] = []
-        fold_y: list[int] = []
-        fold_p: list[float] = []
-        fold_high: list[bool] = []
-        fold_invalid = 0
-
-        for row in current:
+        scores_by_row: list[tuple[Mapping[str, Any], float]] = []
+        for row in fold_rows:
             score = case_risk_score(row)
-            if score is None:
-                fold_invalid += 1
-                continue
-            try:
-                outcome = int(row["result"])
-                probability = float(row["prediction"])
-            except (KeyError, TypeError, ValueError):
-                fold_invalid += 1
-                continue
-            if outcome not in (0, 1) or not _finite(probability):
-                fold_invalid += 1
-                continue
+            if score is not None:
+                scores_by_row.append((row, score))
 
-            high = bool(threshold is not None and score >= threshold)
-            fold_scores.append(score)
-            fold_y.append(outcome)
-            fold_p.append(float(np.clip(probability, 0.0, 1.0)))
-            fold_high.append(high)
-            pooled.append((fold, score, outcome, probability, high))
+        locked = [row for row in fold_rows if bool(row.get("is_locked"))]
+        if locked:
+            threshold = _percentile(prior_scores, risk_quantile)
+            fold_scores: list[float] = []
+            fold_y: list[int] = []
+            fold_p: list[float] = []
+            fold_high: list[bool] = []
+            fold_invalid = 0
 
-        locked_rows += len(current)
-        scored_rows += len(fold_scores)
-        invalid_rows += fold_invalid
+            for row in locked:
+                score = case_risk_score(row)
+                if score is None:
+                    fold_invalid += 1
+                    continue
+                try:
+                    outcome = int(row["result"])
+                    probability = float(row["prediction"])
+                except (KeyError, TypeError, ValueError):
+                    fold_invalid += 1
+                    continue
+                if outcome not in (0, 1) or not _finite(probability):
+                    fold_invalid += 1
+                    continue
 
-        high_mask = np.asarray(fold_high, dtype=bool)
-        low_mask = ~high_mask
+                high = bool(threshold is not None and score >= threshold)
+                fold_scores.append(score)
+                fold_y.append(outcome)
+                fold_p.append(float(np.clip(probability, 0.0, 1.0)))
+                fold_high.append(high)
+                pooled.append((fold, score, outcome, probability, high))
+
+            locked_rows += len(locked)
+            scored_rows += len(fold_scores)
+            invalid_rows += fold_invalid
+
+            high_mask = np.asarray(fold_high, dtype=bool)
+            low_mask = ~high_mask
         fold_metrics: dict[str, Any] = {
             "fold": fold,
             "locked_rows": int(len(current)),
@@ -202,7 +203,7 @@ def analyze_case_risk(
             "invalid_rows": int(fold_invalid),
             "prior_score_count": int(len(prior_scores)),
             "threshold_source": (
-                "strictly_prior_locked_scores"
+                "strictly_prior_oos_scores"
                 if threshold is not None
                 else "NO_PRIOR_SCORE_THRESHOLD"
             ),
@@ -295,7 +296,7 @@ def analyze_case_risk(
             "risk_score": (
                 "mean(1-predictability, ood, failure_risk, disagreement)"
             ),
-            "threshold": "prior_locked_score_quantile",
+            "threshold": "strictly_prior_oos_score_quantile",
             "risk_quantile": float(risk_quantile),
             "outcomes_used_for_threshold": False,
         },
@@ -336,7 +337,7 @@ def analyze_case_risk(
         "per_fold": per_fold,
         "contracts": {
             "only_locked_oos_rows_evaluated": True,
-            "threshold_uses_strictly_prior_scores": True,
+            "threshold_uses_strictly_prior_oos_scores": True,
             "current_fold_scores_added_after_evaluation": True,
             "outcomes_used_for_threshold": False,
             "production_changed": False,
