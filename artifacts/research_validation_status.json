@@ -4,7 +4,7 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": false,
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-01T22:41:56.903808+00:00",
+  "generated_at_utc": "2026-10-02T01:49:59.708427+00:00",
   "job_status": "unknown",
   "research_step": "unknown",
   "runtime_health": {
@@ -23,7 +23,7 @@
   "status_lookup_error": "research_job_not_found",
   "status_lookup_ok": false,
   "workflow_conclusion": null,
-  "workflow_run_id": "36936603828",
+  "workflow_run_id": "36952787724",
   "workflow_sha": "b6cc518175561fc1c7fc9f01466fe637050a0b32",
   "workflow_status": "unknown"
 }
