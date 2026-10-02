@@ -38,7 +38,7 @@ jobs:
   price-shards:
     needs: restore-universe
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -75,7 +75,7 @@ jobs:
   predict:
     needs: price-shards
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
