@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scripts.run_daily_research import aggregate_group
+from scripts.run_daily_research import aggregate_group, _online_outcome_delay_sessions
 
 
 def test_aggregate_group_records_exact_oos_fold_identity():
@@ -70,3 +70,18 @@ def test_conflicting_oos_windows_for_same_fold_fail_closed():
         {"fold": 0.0, "test_start_date": "2025-01-22", "test_end_date": "2025-02-11", "n_test": 100.0, "logloss": 0.70},
     ])
     assert result["oos_fold_signature"] is None
+
+
+def test_online_outcome_delay_sessions_reads_and_validates_config():
+    assert _online_outcome_delay_sessions({
+        "online_ensemble_research": {"outcome_delay_sessions": 2}
+    }) == 2
+    assert _online_outcome_delay_sessions({}) == 0
+    try:
+        _online_outcome_delay_sessions({
+            "online_ensemble_research": {"outcome_delay_sessions": -1}
+        })
+    except ValueError as exc:
+        assert ">= 0" in str(exc)
+    else:
+        raise AssertionError("negative outcome delay must fail closed")
