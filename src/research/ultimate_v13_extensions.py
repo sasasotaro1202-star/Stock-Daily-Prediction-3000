@@ -419,6 +419,10 @@ def augment_v13_result(
         provider_symbol_values = np.asarray(
             fold.get("provider_symbol", [None] * len(y)), dtype=object
         )
+        session_date_values = np.asarray(
+            fold.get("session_dates", fold.get("market_dates", [None] * len(y))),
+            dtype=object,
+        )
         retrieval_run_ids = np.asarray(
             fold.get("retrieval_run_id", [None] * len(y)), dtype=object
         )
@@ -527,6 +531,12 @@ def augment_v13_result(
                 "row": int(i),
                 "is_locked": bool(t >= len(ordered) - locked_folds),
                 "symbol": str(symbol),
+                "session_date": (
+                    str(session_date_values[i])
+                    if i < len(session_date_values)
+                    and session_date_values[i] not in (None, "None", "nan")
+                    else None
+                ),
                 "asset_class": (
                     str(asset_classes[i])
                     if i < len(asset_classes)
