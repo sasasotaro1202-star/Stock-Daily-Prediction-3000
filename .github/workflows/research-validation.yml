@@ -21,7 +21,6 @@ on:
       - "scripts/run_daily_research.py"
       - "scripts/run_case_risk_oos_audit.py"
       - "scripts/run_learned_case_risk_oos.py"
-      - "scripts/run_expert_loss_routing_oos.py"
       - "tests/test_case_risk_oos.py"
       - "tests/test_learned_case_risk_oos.py"
       - "tests/test_expert_loss_routing_oos.py"
@@ -278,17 +277,13 @@ jobs:
         if: steps.research_oos.outcome == 'success'
         run: python scripts/run_learned_case_risk_oos.py
 
-      - name: Run prequential expert-loss routing OOS audit
-        if: steps.research_oos.outcome == 'success'
-        run: python scripts/run_expert_loss_routing_oos.py
-
       - name: Validate expert-loss routing safety
         if: steps.research_oos.outcome == 'success'
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          path = Path("data/research/expert_loss_routing_oos.json")
+          path = Path("data/research/ultimate_v13/expert_loss_routing_oos.json")
           data = json.loads(path.read_text(encoding="utf-8"))
           assert data.get("schema_version") == 1
           assert data.get("research_only") is True
@@ -306,6 +301,7 @@ jobs:
           assert paired.get("same_oos_cases") is True
           if paired.get("status") == "EXECUTED_PAIRED_BOOTSTRAP":
               assert paired.get("ci_95_low") <= paired.get("observed_delta_candidate_minus_dynamic") <= paired.get("ci_95_high")
+          assert data.get("status") in {"EVALUATED", "INSUFFICIENT_FOLDS", "BLOCKED_LOCKED_FLAG_MISMATCH"}
           print("EXPERT_LOSS_ROUTING_SAFETY=PASS")
           PY
 
@@ -361,7 +357,7 @@ jobs:
               print(f"- Learned case-risk failure-lift delta: {(learned_data.get('delta_learned_minus_fixed') or {}).get('failure_rate_lift', 'n/a')}")
           else:
               print("- Learned case-risk status: missing")
-          expert_loss_path = Path("data/research/expert_loss_routing_oos.json")
+          expert_loss_path = Path("data/research/ultimate_v13/expert_loss_routing_oos.json")
           if expert_loss_path.exists():
               expert_loss = json.loads(expert_loss_path.read_text(encoding="utf-8"))
               print(f"- Expert-loss routing status: {expert_loss.get('status', 'n/a')}")
