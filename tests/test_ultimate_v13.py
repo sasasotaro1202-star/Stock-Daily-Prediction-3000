@@ -129,6 +129,19 @@ def _bank(folds: int = 6, with_lineage: bool = False):
     return out
 
 
+def test_v13_embeds_expert_loss_oos_audit_and_artifact(tmp_path):
+    result = build_ultimate_intelligence(
+        _bank(with_lineage=True),
+        out_dir=tmp_path,
+    )
+    audit = result["expert_loss_routing_oos"]
+    assert audit["research_only"] is True
+    assert audit["production_changed"] is False
+    assert audit["promotion_allowed"] is False
+    assert audit["frozen_holdout_used"] is False
+    assert (tmp_path / "expert_loss_routing_oos.json").exists()
+
+
 def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path):
     result = build_ultimate_intelligence(
         _bank(with_lineage=True),
