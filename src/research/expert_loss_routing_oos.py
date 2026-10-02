@@ -458,23 +458,23 @@ def analyze_expert_loss_routing(
         if fold_index < expected_locked_start:
             for row_index, meta in enumerate(current_rows):
                 for model_index, model in enumerate(model_names):
-                feature = _case_features(
-                    meta,
-                    float(p_matrix[row_index, model_index]),
-                )
-                if feature is None:
-                    return {
-                        **base,
-                        "status": "BLOCKED_MISSING_CASE_FEATURES_AFTER_EVALUATION",
-                        "fold": int(fold_index),
-                        "row": int(row_index),
-                        "model": model,
-                    }
-                failed = int(
-                    (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
-                )
-                expert_history[model].append((feature, failed))
-                expert_global_failures[model].append(failed)
+                    feature = _case_features(
+                        meta,
+                        float(p_matrix[row_index, model_index]),
+                    )
+                    if feature is None:
+                        return {
+                            **base,
+                            "status": "BLOCKED_MISSING_CASE_FEATURES_AFTER_EVALUATION",
+                            "fold": int(fold_index),
+                            "row": int(row_index),
+                            "model": model,
+                        }
+                    failed = int(
+                        (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
+                    )
+                    expert_history[model].append((feature, failed))
+                    expert_global_failures[model].append(failed)
 
     locked_candidate = [r["candidate"] for r in fold_rows if r["is_locked"]]
     locked_dynamic = [r["dynamic"] for r in fold_rows if r["is_locked"]]
