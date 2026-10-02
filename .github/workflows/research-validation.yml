@@ -218,6 +218,7 @@ jobs:
           v13_strategy_failure = Path("data/research/ultimate_v13/strategy_failure.json")
           v13_governance = Path("data/research/ultimate_v13/governance.json")
           v13_registry = Path("data/research/ultimate_v13/experiment_registry.json")
+          v13_expert_loss = Path("data/research/ultimate_v13/expert_loss_routing_oos.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -234,6 +235,7 @@ jobs:
               or not v13_strategy_failure.exists()
               or not v13_governance.exists()
               or not v13_registry.exists()
+              or not v13_expert_loss.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
@@ -248,6 +250,7 @@ jobs:
               "strategy_failure.json",
               "governance.json",
               "experiment_registry.json",
+              "expert_loss_routing_oos.json",
           }
           if not required_artifacts.issubset(set(manifest_data.get("artifacts") or [])):
               raise SystemExit("FAIL: v13 manifest missing required governance/history artifacts")
