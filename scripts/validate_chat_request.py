@@ -48,15 +48,8 @@ def validate(path: Path) -> dict:
     if not isinstance(max_runtime, int) or not 1 <= max_runtime <= 50:
         fail("max_runtime_minutes must be an integer between 1 and 50")
     arguments = data.get("arguments", {})
-    if not isinstance(arguments, dict):
-        fail("arguments must be an object")
-    allowed_keys = {
-        "repository_ref",
-        "extra_script_args",
-    }
-    unknown = sorted(set(arguments) - allowed_keys)
-    if unknown:
-        fail(f"unsupported argument keys: {unknown}")
+    if arguments != {}:
+        fail("arguments must be an empty object; task commands are fixed allowlist entries")
     return data
 
 
