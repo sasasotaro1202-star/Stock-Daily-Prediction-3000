@@ -8,6 +8,9 @@ import os
 import pandas as pd
 import yfinance as yf
 
+YF_CONTEXT_TIMEOUT_SECONDS = int(os.getenv("YF_CONTEXT_TIMEOUT_SECONDS", "60"))
+YF_CONTEXT_RETRY_ATTEMPTS = max(1, int(os.getenv("YF_CONTEXT_RETRY_ATTEMPTS", "3")))
+
 CONTEXT_SYMBOLS={
     "nikkei":"^N225",
     # Yahoo Finance index endpoint is not reliably available to yfinance
@@ -58,14 +61,36 @@ def _available_at(session_date, family: str) -> pd.Timestamp:
 
 def download_market_context(period: str="5y") -> pd.DataFrame:
     symbols=list(CONTEXT_SYMBOLS.values())
-    raw=yf.download(
-        symbols,
-        period=period,
-        auto_adjust=False,
-        progress=False,
-        group_by="ticker",
-        threads=False,
-    )
+    raw = None
+    last_error = None
+    for attempt in range(YF_CONTEXT_RETRY_ATTEMPTS):
+        try:
+            raw = yf.download(
+                symbols,
+                period=period,
+                auto_adjust=False,
+                progress=False,
+                group_by="ticker",
+                threads=False,
+                timeout=YF_CONTEXT_TIMEOUT_SECONDS,
+            )
+            break
+        except Exception as exc:
+            last_error = exc
+            print(
+                f"market-context-yfinance-retry attempt={attempt + 1}/"
+                f"{YF_CONTEXT_RETRY_ATTEMPTS} error={type(exc).__name__}"
+            )
+            if attempt < YF_CONTEXT_RETRY_ATTEMPTS - 1:
+                import time
+                time.sleep(min(15, 2 ** attempt))
+    if raw is None:
+        if last_error is not None:
+            raise RuntimeError(
+                f"market context yfinance request failed after "
+                f"{YF_CONTEXT_RETRY_ATTEMPTS} attempts"
+            ) from last_error
+        return pd.DataFrame()
     frames=[]
     retrieved_at=pd.Timestamp(datetime.now(timezone.utc))
     retrieval_run_id=os.getenv("GITHUB_RUN_ID")
