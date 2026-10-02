@@ -31,15 +31,12 @@ def _make_data(locked_outcomes: list[int], *, locked_folds: int = 1):
             y = locked_outcomes
         else:
             y = [i % 2 for i in range(n)]
-        p_good = []
-        p_bad = []
-        for i, outcome in enumerate(y):
-            # Two experts have complementary, deterministic error structure.
-            good_wrong = (i % 10) >= 8
-            bad_wrong = (i % 10) < 8
-            p_good.append(0.9 if ((outcome == 1) != good_wrong) else 0.1)
-            p_bad.append(0.9 if ((outcome == 1) != bad_wrong) else 0.1)
-            ledger.append(_case_row(fold, i, locked=(fold == 3)))
+        # Keep expert predictions independent of the locked outcomes so tests
+        # isolate PIT/freeze behavior rather than changing the prediction inputs.
+        p_good = [0.9 if (i % 10) < 8 else 0.1 for i in range(n)]
+        p_bad = [0.1 if (i % 10) < 8 else 0.9 for i in range(n)]
+        for i, _outcome in enumerate(y):
+            ledger.append(_case_row(fold, i, locked=is_locked))
         folds.append(
             {
                 "y": y,
