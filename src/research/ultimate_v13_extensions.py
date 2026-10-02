@@ -21,6 +21,7 @@ from src.research.ultimate_control_v13 import (
     metrics,
     safe_probability,
 )
+from src.research.expert_loss_routing_oos import analyze_expert_loss_routing
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
@@ -419,6 +420,10 @@ def augment_v13_result(
         provider_symbol_values = np.asarray(
             fold.get("provider_symbol", [None] * len(y)), dtype=object
         )
+        session_date_values = np.asarray(
+            fold.get("session_dates", fold.get("market_dates", [None] * len(y))),
+            dtype=object,
+        )
         retrieval_run_ids = np.asarray(
             fold.get("retrieval_run_id", [None] * len(y)), dtype=object
         )
@@ -527,6 +532,12 @@ def augment_v13_result(
                 "row": int(i),
                 "is_locked": bool(t >= len(ordered) - locked_folds),
                 "symbol": str(symbol),
+                "session_date": (
+                    str(session_date_values[i])
+                    if i < len(session_date_values)
+                    and session_date_values[i] not in (None, "None", "nan")
+                    else None
+                ),
                 "asset_class": (
                     str(asset_classes[i])
                     if i < len(asset_classes)
@@ -828,6 +839,14 @@ def augment_v13_result(
         result.get("fold_results", []), models
     )
     result["active_information"] = _active_information_contract(bank)
+
+    expert_loss_oos = analyze_expert_loss_routing(
+        ledger_rows,
+        ordered,
+        models=models,
+        locked_folds=locked_folds,
+    )
+    result["expert_loss_routing_oos"] = expert_loss_oos
     result.setdefault("prediction_output", {})["scenario_proxy"] = True
     result.setdefault("prediction_output", {})["forecast_contract"] = True
     result.setdefault("prediction_output", {})["ledger"] = True

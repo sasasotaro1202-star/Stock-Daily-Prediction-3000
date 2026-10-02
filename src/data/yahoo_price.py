@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
-YF_TIMEOUT_SECONDS = int(os.getenv("YF_TIMEOUT_SECONDS", "60"))
+YF_TIMEOUT_SECONDS = 60
 YF_SINGLE_RETRY_ATTEMPTS = max(1, int(os.getenv("YF_SINGLE_RETRY_ATTEMPTS", "3")))
 YF_RETRY_BACKOFF_SECONDS = max(1, int(os.getenv("YF_RETRY_BACKOFF_SECONDS", "2")))
 
