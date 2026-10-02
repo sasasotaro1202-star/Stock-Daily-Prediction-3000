@@ -73,12 +73,33 @@ def build_ultimate_intelligence(
         y = np.asarray(fold.get("y", []), dtype=int)
         if len(y) != len(frame) or any(len(p) != len(y) for p in predictions.values()):
             raise ValueError(f"invalid OOS bank lengths for fold {key}")
-        ordered.append({
+        normalized = {
             "y": y,
             "predictions": predictions,
             "frame": frame,
             "risk_matrix": risk,
-        })
+        }
+        # Preserve PIT/provenance fields through the normalized v13 bank so
+        # evaluate_v13 can audit the same row-level lineage that the OOS runner
+        # attached before model outputs were assembled.
+        lineage_keys = (
+            "pit_lineage_policy_version",
+            "prediction_time",
+            "prediction_time_source",
+            "prediction_time_observed",
+            "available_at",
+            "retrieved_at",
+            "available_at_method",
+            "source",
+            "provider_symbol",
+            "retrieval_run_id",
+            "pit_status",
+            "lineage_sha256",
+        )
+        for lineage_key in lineage_keys:
+            if lineage_key in fold:
+                normalized[lineage_key] = fold[lineage_key]
+        ordered.append(normalized)
 
     result = evaluate_v13(
         ordered,

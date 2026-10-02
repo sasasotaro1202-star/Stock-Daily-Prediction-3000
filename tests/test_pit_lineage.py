@@ -1,0 +1,74 @@
+from __future__ import annotations
+
+import pandas as pd
+
+from src.research.pit_lineage import build_research_pit_lineage, scheduled_prediction_time
+
+
+CFG = {
+    "asia_prediction_time_jst": "18:17",
+    "us_prediction_time_jst": "07:17",
+}
+
+
+def _frame(*, session_date="2026-10-01", asset_class="jp_stock", available_at="2026-10-01T07:00:00+00:00"):
+    return pd.DataFrame(
+        {
+            "session_date": [session_date],
+            "asset_class": [asset_class],
+            "available_at": [available_at],
+            "retrieved_at": ["2026-10-02T00:00:00+00:00"],
+            "available_at_method": ["conservative_post_close_inferred"],
+            "source": ["yfinance"],
+            "provider_symbol": ["TEST"],
+            "retrieval_run_id": ["unit-test"],
+        }
+    )
+
+
+def test_scheduled_prediction_time_is_exactly_derived_from_declared_schedule():
+    prediction, source = scheduled_prediction_time(
+        "2026-10-01",
+        "jp_stock",
+        CFG,
+    )
+    assert prediction is not None
+    assert prediction.isoformat() == "2026-10-01T09:17:00+00:00"
+    assert source == "DECLARED_CONFIG_SCHEDULE:asia_prediction_time_jst"
+
+
+def test_us_session_uses_next_configured_weekday_prediction_clock():
+    prediction, source = scheduled_prediction_time(
+        "2026-10-02",  # Friday U.S. session
+        "us_stock",
+        CFG,
+    )
+    assert prediction is not None
+    assert prediction.isoformat() == "2026-10-04T22:17:00+00:00"
+    assert source == "DECLARED_CONFIG_SCHEDULE:us_prediction_time_jst"
+
+
+def test_row_lineage_passes_pit_even_when_research_acquisition_happens_later():
+    lineage = build_research_pit_lineage(_frame(), CFG)
+    assert lineage["pit_status"] == ["PASS"]
+    assert lineage["prediction_time"] == ["2026-10-01T09:17:00+00:00"]
+    assert lineage["available_at"] == ["2026-10-01T07:00:00+00:00"]
+    assert lineage["retrieved_at"] == ["2026-10-02T00:00:00+00:00"]
+    assert lineage["prediction_time_observed"] == [False]
+    assert len(lineage["lineage_sha256"][0]) == 64
+
+
+def test_row_lineage_fails_closed_when_available_after_prediction():
+    lineage = build_research_pit_lineage(
+        _frame(available_at="2026-10-01T10:00:00+00:00"),
+        CFG,
+    )
+    assert lineage["pit_status"] == ["BLOCKED_AVAILABLE_AFTER_PREDICTION"]
+
+
+def test_row_lineage_fails_closed_for_unknown_asset_class():
+    lineage = build_research_pit_lineage(
+        _frame(asset_class="unknown_asset"),
+        CFG,
+    )
+    assert lineage["pit_status"] == ["BLOCKED_UNKNOWN_ASSET_CLASS"]

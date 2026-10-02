@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from src.research.case_risk_oos import analyze_case_risk
 from src.research.v13_governance import (
     experiment_record,
     safety_governance,
@@ -75,7 +76,7 @@ import numpy as np
 from src.research.ultimate_v13 import build_ultimate_intelligence
 
 
-def _bank(folds: int = 6):
+def _bank(folds: int = 6, with_lineage: bool = False):
     out = {}
     for fold in range(folds):
         y = np.array([0, 1, 0, 1, 1, 0], dtype=int)
@@ -95,7 +96,64 @@ def _bank(folds: int = 6):
                 np.array([0.01, 0.00, 0.02, -0.01, 0.01, 0.00], dtype=float),
             ]),
         }
+        if with_lineage:
+            out[fold].update({
+                "pit_lineage_policy_version": "historical_scheduled_prediction_clock_v1",
+                "prediction_time": np.array(
+                    [f"2026-01-{fold + 1:02d}T09:17:00+00:00"] * len(y),
+                    dtype=object,
+                ),
+                "prediction_time_source": np.array(
+                    ["DECLARED_CONFIG_SCHEDULE:asia_prediction_time_jst"] * len(y),
+                    dtype=object,
+                ),
+                "prediction_time_observed": np.array([False] * len(y), dtype=bool),
+                "available_at": np.array(
+                    [f"2026-01-{fold + 1:02d}T07:00:00+00:00"] * len(y),
+                    dtype=object,
+                ),
+                "retrieved_at": np.array(
+                    [f"2026-01-{fold + 1:02d}T12:00:00+00:00"] * len(y),
+                    dtype=object,
+                ),
+                "available_at_method": np.array(
+                    ["conservative_post_close_inferred"] * len(y),
+                    dtype=object,
+                ),
+                "source": np.array(["yfinance"] * len(y), dtype=object),
+                "provider_symbol": np.array(["TEST"] * len(y), dtype=object),
+                "retrieval_run_id": np.array([f"test-{fold}"] * len(y), dtype=object),
+                "pit_status": np.array(["PASS"] * len(y), dtype=object),
+                "lineage_sha256": np.array(["x" * 64] * len(y), dtype=object),
+            })
     return out
+
+
+def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path):
+    result = build_ultimate_intelligence(
+        _bank(with_lineage=True),
+        out_dir=tmp_path,
+    )
+    rows = result["prediction_ledger"]["row_level"]
+    assert len(rows) == 36
+    assert all(row["pit_status"] == "PASS" for row in rows)
+    assert all(row["prediction_time"] for row in rows)
+    assert all(row["available_at"] for row in rows)
+    assert all(row["prediction_time_observed"] is False for row in rows)
+    assert all(len(row["lineage_sha256"]) == 64 for row in rows)
+    assert all(
+        fold["prediction_timestamp_status"] == "PASS_SCHEDULED_POLICY"
+        for fold in result["prediction_contracts"]["folds"]
+    )
+    assert result["prediction_contracts"]["scheduled_timestamp_lineage"] is True
+    assert result["prediction_contracts"]["exact_prediction_time_observed"] is False
+    assert result["audits"]["PIT"] == "PASS_DECLARED_SCHEDULE"
+    assert result["audits"]["PIT_Row_Lineage"]["available_at_le_prediction_time"] is True
+
+    case_risk = analyze_case_risk(rows)
+    assert case_risk["status"] == "EVALUATED"
+    assert case_risk["locked_rows"] == 12
+    assert case_risk["scored_rows"] == 12
 
 
 def test_v13_builds_and_blocks_promotion(tmp_path):
@@ -184,7 +242,7 @@ def test_v13_prior_only_tta_scenario_contract_and_ledger(tmp_path):
     assert result["prediction_ledger"]["total_predictions"] == 36
     assert result["prediction_ledger"]["status"] == "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK"
     assert len(result["prediction_ledger"]["row_level"]) == 36
-    assert all(row["pit_status"] == "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE" for row in result["prediction_ledger"]["row_level"])
+    assert all(row["pit_status"] != "PASS" for row in result["prediction_ledger"]["row_level"])
     assert all(row["strategy"] != "unknown" for row in result["prediction_ledger"]["row_level"])
     assert all(row["action"] != "unknown" for row in result["prediction_ledger"]["row_level"])
     assert result["router_stability"]["status"] == "EXECUTED_DESCRIPTIVE_ROUTER_MONITOR"

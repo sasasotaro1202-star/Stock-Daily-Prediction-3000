@@ -68,6 +68,36 @@ def _prediction_snapshot_digest(fold: Mapping[str, Any]) -> str:
         "symbols": np.asarray(fold.get("symbols", [])).astype(str).tolist(),
         "asset_classes": np.asarray(fold.get("asset_classes", [])).astype(str).tolist(),
         "regimes": np.asarray(fold.get("regimes", fold.get("situations", []))).astype(str).tolist(),
+        "prediction_time": np.asarray(
+            fold.get("prediction_time", []), dtype=object
+        ).astype(str).tolist(),
+        "prediction_time_source": np.asarray(
+            fold.get("prediction_time_source", []), dtype=object
+        ).astype(str).tolist(),
+        "available_at": np.asarray(
+            fold.get("available_at", []), dtype=object
+        ).astype(str).tolist(),
+        "retrieved_at": np.asarray(
+            fold.get("retrieved_at", []), dtype=object
+        ).astype(str).tolist(),
+        "available_at_method": np.asarray(
+            fold.get("available_at_method", []), dtype=object
+        ).astype(str).tolist(),
+        "source": np.asarray(
+            fold.get("source", []), dtype=object
+        ).astype(str).tolist(),
+        "provider_symbol": np.asarray(
+            fold.get("provider_symbol", []), dtype=object
+        ).astype(str).tolist(),
+        "retrieval_run_id": np.asarray(
+            fold.get("retrieval_run_id", []), dtype=object
+        ).astype(str).tolist(),
+        "pit_status": np.asarray(
+            fold.get("pit_status", []), dtype=object
+        ).astype(str).tolist(),
+        "lineage_sha256": np.asarray(
+            fold.get("lineage_sha256", []), dtype=object
+        ).astype(str).tolist(),
         "predictions": {
             str(k): np.asarray(v, dtype=float).tolist()
             for k, v in sorted((fold.get("predictions") or {}).items())
@@ -361,6 +391,40 @@ def augment_v13_result(
             fold_result.get("ood_by_case", [float("nan")] * len(y)),
             dtype=float,
         )
+        prediction_times = np.asarray(
+            fold.get("prediction_time", [None] * len(y)), dtype=object
+        )
+        available_at_values = np.asarray(
+            fold.get("available_at", [None] * len(y)), dtype=object
+        )
+        retrieved_at_values = np.asarray(
+            fold.get("retrieved_at", [None] * len(y)), dtype=object
+        )
+        prediction_time_sources = np.asarray(
+            fold.get("prediction_time_source", [""] * len(y)), dtype=object
+        )
+        prediction_time_observed = np.asarray(
+            fold.get("prediction_time_observed", [False] * len(y)), dtype=bool
+        )
+        pit_status_values = np.asarray(
+            fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"] * len(y)),
+            dtype=object,
+        )
+        available_at_methods = np.asarray(
+            fold.get("available_at_method", [None] * len(y)), dtype=object
+        )
+        source_values = np.asarray(
+            fold.get("source", [None] * len(y)), dtype=object
+        )
+        provider_symbol_values = np.asarray(
+            fold.get("provider_symbol", [None] * len(y)), dtype=object
+        )
+        retrieval_run_ids = np.asarray(
+            fold.get("retrieval_run_id", [None] * len(y)), dtype=object
+        )
+        lineage_hashes = np.asarray(
+            fold.get("lineage_sha256", [None] * len(y)), dtype=object
+        )
         mean_p = float(np.mean(dynamic))
         dispersion = float(np.mean(np.std(p_matrix, axis=1)))
         ood = float(fold_result.get("ood_mean", 0.0))
@@ -374,6 +438,9 @@ def augment_v13_result(
         })
 
         symbols = np.asarray(fold.get("symbols", [""] * len(y))).astype(str)
+        asset_classes = np.asarray(
+            fold.get("asset_classes", ["unknown"] * len(y)), dtype=object
+        ).astype(str)
         regimes = np.asarray(
             fold.get("regimes", fold.get("situations", ["unknown"] * len(y)))
         ).astype(str)
@@ -460,7 +527,70 @@ def augment_v13_result(
                 "row": int(i),
                 "is_locked": bool(t >= len(ordered) - locked_folds),
                 "symbol": str(symbol),
-                "prediction_time": None,
+                "asset_class": (
+                    str(asset_classes[i])
+                    if i < len(asset_classes)
+                    else "unknown"
+                ),
+                "prediction_time": (
+                    str(prediction_times[i])
+                    if i < len(prediction_times)
+                    and prediction_times[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "prediction_time_source": (
+                    str(prediction_time_sources[i])
+                    if i < len(prediction_time_sources)
+                    else ""
+                ),
+                "prediction_time_observed": False,
+                "available_at": (
+                    str(available_at_values[i])
+                    if i < len(available_at_values)
+                    and available_at_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "retrieved_at": (
+                    str(retrieved_at_values[i])
+                    if i < len(retrieved_at_values)
+                    and retrieved_at_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "available_at_method": (
+                    str(available_at_methods[i])
+                    if i < len(available_at_methods)
+                    and available_at_methods[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "source": (
+                    str(source_values[i])
+                    if i < len(source_values)
+                    and source_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "provider_symbol": (
+                    str(provider_symbol_values[i])
+                    if i < len(provider_symbol_values)
+                    and provider_symbol_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "retrieval_run_id": (
+                    str(retrieval_run_ids[i])
+                    if i < len(retrieval_run_ids)
+                    and retrieval_run_ids[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "pit_status": (
+                    str(pit_status_values[i])
+                    if i < len(pit_status_values)
+                    else "BLOCKED_MISSING_PIT_LINEAGE"
+                ),
+                "lineage_sha256": (
+                    str(lineage_hashes[i])
+                    if i < len(lineage_hashes)
+                    and lineage_hashes[i] not in (None, "None", "nan")
+                    else None
+                ),
                 "prediction": float(tta_p[i]),
                 "dynamic_prediction": float(dynamic[i]),
                 "strategy": strategy_i,
@@ -495,7 +625,6 @@ def augment_v13_result(
                 "meta_label_probability": (
                     float(meta_scores[i]) if i < len(meta_scores) else float("nan")
                 ),
-                "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
                 "result": int(y[i]),
                 "failed": failed,
                 "failure_type": failure_type,
@@ -520,9 +649,43 @@ def augment_v13_result(
             })
         contracts.append({
             "fold": int(t),
-            "prediction_time": None,
+            "prediction_time_min": (
+                min(
+                    (
+                        str(x)
+                        for x in prediction_times
+                        if x not in (None, "None", "nan")
+                    ),
+                    default=None,
+                )
+            ),
+            "prediction_time_max": (
+                max(
+                    (
+                        str(x)
+                        for x in prediction_times
+                        if x not in (None, "None", "nan")
+                    ),
+                    default=None,
+                )
+            ),
+            "prediction_time_source": sorted(
+                {
+                    str(x)
+                    for x in prediction_time_sources
+                    if x not in (None, "None", "")
+                }
+            ),
+            "exact_prediction_time_observed": False,
             "valid_until": None,
-            "prediction_timestamp_status": "BLOCKED_NO_EXACT_PREDICTION_TIME",
+            "prediction_timestamp_status": (
+                "PASS_SCHEDULED_POLICY"
+                if all(str(x) == "PASS" for x in pit_status_values)
+                else "BLOCKED_PIT_LINEAGE"
+            ),
+            "pit_lineage_policy_version": str(
+                fold.get("pit_lineage_policy_version", "unknown")
+            ),
             "prediction_input_snapshot_sha256": _prediction_snapshot_digest(fold),
             "models": models,
             "strategy_counts": strategies,
@@ -534,7 +697,6 @@ def augment_v13_result(
             "uncertainty_model": float(
                 fold_result.get("uncertainty", {}).get("model", float("nan"))
             ),
-            "pit_status": "BLOCKED_NO_FULL_TIMESTAMP_LINEAGE",
         })
 
         # Current outcomes enter history only after current-fold evaluation.
@@ -583,10 +745,29 @@ def augment_v13_result(
             "normal",
         ) if any(r["is_locked"] for r in scenario_rows) else float("nan"),
     }
+    lineage_rows = [
+        row
+        for fold in ordered
+        for row in (
+            np.asarray(
+                fold.get("pit_status", ["BLOCKED_MISSING_PIT_LINEAGE"]),
+                dtype=object,
+            ).tolist()
+        )
+    ]
+    lineage_complete = bool(lineage_rows) and all(
+        str(status) == "PASS" for status in lineage_rows
+    )
     result["prediction_contracts"] = {
-        "status": "EXECUTED_RESEARCH_CONTRACT_WITH_PIT_BLOCK",
+        "status": (
+            "EXECUTED_RESEARCH_CONTRACT_WITH_SCHEDULED_PIT_LINEAGE"
+            if lineage_complete
+            else "EXECUTED_RESEARCH_CONTRACT_WITH_PIT_BLOCK"
+        ),
         "folds": contracts,
+        "scheduled_timestamp_lineage": lineage_complete,
         "exact_timestamp_lineage": False,
+        "exact_prediction_time_observed": False,
         "production_changed": False,
     }
     locked_memory = [
@@ -629,7 +810,11 @@ def augment_v13_result(
     }
 
     result["prediction_ledger"] = {
-        "status": "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK",
+        "status": (
+            "EXECUTED_ROW_LEVEL_LEDGER_WITH_SCHEDULED_PIT_LINEAGE"
+            if lineage_complete
+            else "EXECUTED_ROW_LEVEL_LEDGER_WITH_PIT_BLOCK"
+        ),
         "scope": "v13_control_plane_summary",
         "total_predictions": total_predictions,
         "action_counts": ledger_actions,

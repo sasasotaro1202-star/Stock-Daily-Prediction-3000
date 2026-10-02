@@ -84,6 +84,7 @@ from src.research.drift_window import (
     select_drift_aware_window,
 )
 from src.research.ultimate_v13 import build_ultimate_intelligence
+from src.research.pit_lineage import build_research_pit_lineage
 from src.research.regime_threshold import (
     aggregate_oos_training_thresholds,
     volatility_threshold_from_training,
@@ -1129,6 +1130,7 @@ def main():
                 adaptive_conformal_diag
             )
 
+            pit_lineage = build_research_pit_lineage(test, pipeline_cfg)
             online_bank = online_prediction_by_fold.setdefault(
                 fold_idx,
                 {
@@ -1140,6 +1142,47 @@ def main():
                     "asset_classes": None,
                     "symbols": None,
                     "regimes": None,
+                    "conformal_pred_pvalues": {},
+                    "group_conformal_pred_pvalues": {},
+                    "group_conformal_set_size": {},
+                    "adaptive_conformal_pred_pvalues": {},
+                    "adaptive_conformal_set_size": {},
+                    "adaptive_conformal_alpha_used": {},
+                    # Row-level PIT clock and source provenance. Historical OOS
+                    # uses the declared prediction schedule rather than an
+                    # unobserved runner wall-clock.
+                    "pit_lineage_policy_version": pit_lineage["policy_version"],
+                    "prediction_time": np.asarray(
+                        pit_lineage["prediction_time"], dtype=object
+                    ),
+                    "prediction_time_source": np.asarray(
+                        pit_lineage["prediction_time_source"], dtype=object
+                    ),
+                    "prediction_time_observed": np.asarray(
+                        pit_lineage["prediction_time_observed"], dtype=bool
+                    ),
+                    "available_at": np.asarray(
+                        pit_lineage["available_at"], dtype=object
+                    ),
+                    "retrieved_at": np.asarray(
+                        pit_lineage["retrieved_at"], dtype=object
+                    ),
+                    "available_at_method": np.asarray(
+                        pit_lineage["available_at_method"], dtype=object
+                    ),
+                    "source": np.asarray(pit_lineage["source"], dtype=object),
+                    "provider_symbol": np.asarray(
+                        pit_lineage["provider_symbol"], dtype=object
+                    ),
+                    "retrieval_run_id": np.asarray(
+                        pit_lineage["retrieval_run_id"], dtype=object
+                    ),
+                    "pit_status": np.asarray(
+                        pit_lineage["pit_status"], dtype=object
+                    ),
+                    "lineage_sha256": np.asarray(
+                        pit_lineage["lineage_sha256"], dtype=object
+                    ),
                     "conformal_pred_pvalues": {},
                     "group_conformal_pred_pvalues": {},
                     "group_conformal_set_size": {},
