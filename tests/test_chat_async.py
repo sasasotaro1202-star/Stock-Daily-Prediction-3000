@@ -1,4 +1,5 @@
 import json
+import sys
 from pathlib import Path
 
 from scripts.validate_chat_request import validate
@@ -35,10 +36,7 @@ def test_chat_task_commands_are_fixed_not_shell_strings():
             "experience_review",
         }
         assert all(isinstance(command, list) for command in commands)
-        assert all(
-            command and (command[0].endswith("python") or command[0] == "python")
-            for command in commands
-        )
+        assert all(command and command[0] in {sys.executable, "python"} for command in commands)
 
 
 def test_async_chat_worker_has_total_deadline_and_artifact_read_scope():
@@ -50,3 +48,27 @@ def test_async_chat_worker_has_total_deadline_and_artifact_read_scope():
     assert "timeout=remaining" in runner
     assert workflow["permissions"] == {"actions": "read", "contents": "read"}
     assert workflow["jobs"]["execute"]["timeout-minutes"] == 55
+
+
+def test_async_chat_request_rejects_ignored_arguments(tmp_path):
+    path = tmp_path / "bad.request.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "task_id": "bad-001",
+                "task_type": "research_smoke",
+                "requested_at": "2026-10-02T07:00:00+00:00",
+                "mode": "async",
+                "max_runtime_minutes": 50,
+                "arguments": {"unexpected": "value"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    try:
+        validate(path)
+    except SystemExit as exc:
+        assert "arguments must be an empty object" in str(exc)
+    else:
+        raise AssertionError("unexpected arguments must be rejected")
