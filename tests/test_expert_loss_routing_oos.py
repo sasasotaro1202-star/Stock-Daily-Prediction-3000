@@ -1,0 +1,122 @@
+from __future__ import annotations
+
+from src.research.expert_loss_routing_oos import analyze_expert_loss_routing
+
+
+MODELS = ["expert_good", "expert_bad"]
+
+
+def _case_row(fold: int, row: int, *, locked: bool) -> dict:
+    return {
+        "fold": fold,
+        "row": row,
+        "is_locked": locked,
+        "prediction_time": "2026-01-02T00:00:00+00:00",
+        "available_at": "2026-01-01T23:00:00+00:00",
+        "pit_status": "PASS",
+        "case_predictability": 0.15 + 0.70 * ((row % 10) / 9.0),
+        "case_ood": 0.05 + 0.80 * ((row % 8) / 7.0),
+        "case_failure_risk": 0.10 + 0.70 * ((row % 6) / 5.0),
+        "case_disagreement": 0.05 + 0.40 * ((row % 5) / 4.0),
+    }
+
+
+def _make_data(locked_outcomes: list[int]):
+    ledger = []
+    folds = []
+    for fold in range(4):
+        n = 80
+        if fold == 3:
+            y = locked_outcomes
+        else:
+            y = [i % 2 for i in range(n)]
+        p_good = []
+        p_bad = []
+        for i, outcome in enumerate(y):
+            # Two experts have complementary, deterministic error structure.
+            good_wrong = (i % 10) >= 8
+            bad_wrong = (i % 10) < 8
+            p_good.append(0.9 if ((outcome == 1) != good_wrong) else 0.1)
+            p_bad.append(0.9 if ((outcome == 1) != bad_wrong) else 0.1)
+            ledger.append(_case_row(fold, i, locked=(fold == 3)))
+        folds.append(
+            {
+                "y": y,
+                "predictions": {
+                    "expert_good": p_good,
+                    "expert_bad": p_bad,
+                },
+            }
+        )
+    return ledger, folds
+
+
+def test_expert_loss_routing_is_research_only_and_causal():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "EVALUATED"
+    assert result["research_only"] is True
+    assert result["production_changed"] is False
+    assert result["promotion_allowed"] is False
+    assert result["frozen_holdout_used"] is False
+    assert result["contracts"]["current_fold_outcomes_used_for_routing"] is False
+    assert result["contracts"]["current_fold_outcomes_used_for_expert_loss_fit"] is False
+    assert result["contracts"]["all_expert_loss_models_fit_only_on_prior_folds"] is True
+    assert result["locked_metrics"]["expert_loss_routing"]["n"] > 0
+
+
+def test_locked_outcomes_do_not_change_locked_routing_weights():
+    ledger_a, folds_a = _make_data([i % 2 for i in range(80)])
+    ledger_b, folds_b = _make_data([1 - (i % 2) for i in range(80)])
+    result_a = analyze_expert_loss_routing(
+        ledger_a,
+        folds_a,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    result_b = analyze_expert_loss_routing(
+        ledger_b,
+        folds_b,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result_a["status"] == "EVALUATED"
+    assert result_b["status"] == "EVALUATED"
+    a = result_a["fold_results"][-1]
+    b = result_b["fold_results"][-1]
+    assert a["predicted_loss_mean"] == b["predicted_loss_mean"]
+    assert a["weight_means"] == b["weight_means"]
+
+
+def test_missing_case_lineage_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    ledger[0]["available_at"] = "2026-01-03T00:00:00+00:00"
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_INVALID_CASE_LINEAGE"
+
+
+def test_missing_expert_prediction_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    del folds[2]["predictions"]["expert_bad"]
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_MISSING_EXPERT_PREDICTION"
