@@ -189,3 +189,16 @@ def test_locked_suffix_is_frozen_across_multiple_locked_folds():
     b_second = result_b["fold_results"][-1]
     assert a_second["predicted_loss_mean"] == b_second["predicted_loss_mean"]
     assert a_second["weight_means"] == b_second["weight_means"]
+
+
+def test_locked_flag_mismatch_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)], locked_folds=2)
+    ledger[160]["is_locked"] = False
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_LOCKED_FLAG_MISMATCH"
