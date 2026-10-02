@@ -35,4 +35,18 @@ def test_chat_task_commands_are_fixed_not_shell_strings():
             "experience_review",
         }
         assert all(isinstance(command, list) for command in commands)
-        assert all(command and command[0].endswith("python") or command[0] == "python" for command in commands)
+        assert all(
+            command and (command[0].endswith("python") or command[0] == "python")
+            for command in commands
+        )
+
+
+def test_async_chat_worker_has_total_deadline_and_artifact_read_scope():
+    runner = Path("scripts/run_chat_task.py").read_text(encoding="utf-8")
+    workflow = __import__("yaml").safe_load(
+        Path(".github/workflows/chat-request-worker.yml").read_text(encoding="utf-8")
+    )
+    assert "deadline = time.monotonic()" in runner
+    assert "timeout=remaining" in runner
+    assert workflow["permissions"] == {"actions": "read", "contents": "read"}
+    assert workflow["jobs"]["execute"]["timeout-minutes"] == 55
