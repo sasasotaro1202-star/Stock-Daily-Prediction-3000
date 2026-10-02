@@ -58,6 +58,21 @@ def test_row_lineage_passes_pit_even_when_research_acquisition_happens_later():
     assert len(lineage["lineage_sha256"][0]) == 64
 
 
+def test_row_lineage_accepts_canonical_nested_pipeline_config():
+    pipeline_cfg = {
+        "automation": {
+            "asia_prediction_time_jst": "18:17",
+            "us_prediction_time_jst": "07:17",
+        }
+    }
+    lineage = build_research_pit_lineage(_frame(), pipeline_cfg)
+    assert lineage["pit_status"] == ["PASS"]
+    assert lineage["prediction_time"] == ["2026-10-01T09:17:00+00:00"]
+    assert lineage["prediction_time_source"] == [
+        "DECLARED_CONFIG_SCHEDULE:asia_prediction_time_jst"
+    ]
+
+
 def test_row_lineage_fails_closed_when_available_after_prediction():
     lineage = build_research_pit_lineage(
         _frame(available_at="2026-10-01T10:00:00+00:00"),
