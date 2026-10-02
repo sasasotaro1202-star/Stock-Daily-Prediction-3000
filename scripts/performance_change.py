@@ -253,10 +253,12 @@ def _append_summary(
     if changes:
         lines.append(f"- **Metric changes vs previous snapshot: {len(changes)}**")
         for change in changes:
+            relative = change.get("relative_delta")
+            relative_text = "n/a" if relative is None else f"{relative:+.4%}"
             lines.append(
                 f"  - `{change['scope']}` `{change['metric']}`: "
                 f"{change['previous']} → {change['current']} "
-                f"(Δ {change['delta']:+g}, {change.get('relative_delta', 0):+.4%} relative, "
+                f"(Δ {change['delta']:+g}, {relative_text} relative, "
                 f"{change['direction']}, n={change.get('sample_size', 'n/a')})"
             )
     else:
