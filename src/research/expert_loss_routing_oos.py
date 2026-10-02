@@ -457,7 +457,7 @@ def analyze_expert_loss_routing(
         # expert-loss models used by any later locked fold.
         if fold_index < expected_locked_start:
             for row_index, meta in enumerate(current_rows):
-            for model_index, model in enumerate(model_names):
+                for model_index, model in enumerate(model_names):
                 feature = _case_features(
                     meta,
                     float(p_matrix[row_index, model_index]),
