@@ -25,6 +25,17 @@ def _parse_hhmm(value: Any, *, key: str) -> time:
     return parsed
 
 
+def _schedule_value(pipeline_cfg: Mapping[str, Any], key: str) -> Any:
+    """Read schedule from the canonical full pipeline config or legacy flat config."""
+    value = pipeline_cfg.get(key)
+    if value is not None:
+        return value
+    automation = pipeline_cfg.get("automation")
+    if isinstance(automation, Mapping):
+        return automation.get(key)
+    return None
+
+
 def _next_weekday(day: date) -> date:
     candidate = day
     while candidate.weekday() >= 5:
@@ -55,7 +66,7 @@ def scheduled_prediction_time(
     asset = str(asset_class)
     if asset.startswith("jp_"):
         schedule_key = "asia_prediction_time_jst"
-        clock = _parse_hhmm(pipeline_cfg.get(schedule_key), key=schedule_key)
+        clock = _parse_hhmm(_schedule_value(pipeline_cfg, schedule_key), key=schedule_key)
         local = datetime.combine(
             session_day,
             clock,
@@ -63,7 +74,7 @@ def scheduled_prediction_time(
         )
     elif asset.startswith("us_"):
         schedule_key = "us_prediction_time_jst"
-        clock = _parse_hhmm(pipeline_cfg.get(schedule_key), key=schedule_key)
+        clock = _parse_hhmm(_schedule_value(pipeline_cfg, schedule_key), key=schedule_key)
         # U.S. daily bars close on the prior U.S. session and become the input
         # to the next configured weekday's 07:17 JST prediction run.
         prediction_day = _next_weekday(session_day + timedelta(days=1))
