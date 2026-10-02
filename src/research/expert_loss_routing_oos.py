@@ -234,6 +234,98 @@ def _paired_bootstrap(
     }
 
 
+def _cluster_paired_bootstrap(
+    y: np.ndarray,
+    candidate_probability: np.ndarray,
+    baseline_probability: np.ndarray,
+    cluster_ids: Sequence[Any],
+    *,
+    n_resamples: int = 2000,
+    seed: int = 20261002,
+    min_clusters: int = 5,
+) -> dict[str, Any]:
+    """Cluster bootstrap the paired locked-OOS LogLoss delta by time group."""
+    y = np.asarray(y, dtype=int)
+    candidate = np.clip(np.asarray(candidate_probability, dtype=float), 1e-6, 1.0 - 1e-6)
+    baseline = np.clip(np.asarray(baseline_probability, dtype=float), 1e-6, 1.0 - 1e-6)
+    clusters = np.asarray(list(cluster_ids), dtype=object)
+    if len(y) != len(candidate) or len(y) != len(baseline) or len(y) != len(clusters):
+        raise ValueError("cluster bootstrap inputs must be aligned")
+    if len(y) == 0:
+        return {
+            "status": "INSUFFICIENT_LOCKED_CASES",
+            "n": 0,
+            "clusters": 0,
+            "metric": "logloss",
+            "same_oos_cases": True,
+            "research_only": True,
+            "selection_allowed": False,
+        }
+    if any(value is None or str(value) in {"", "None", "nan"} for value in clusters):
+        return {
+            "status": "BLOCKED_MISSING_CLUSTER_KEYS",
+            "n": int(len(y)),
+            "clusters": 0,
+            "metric": "logloss",
+            "same_oos_cases": True,
+            "research_only": True,
+            "selection_allowed": False,
+        }
+    unique_clusters, inverse = np.unique(clusters.astype(str), return_inverse=True)
+    cluster_count = int(len(unique_clusters))
+    if cluster_count < int(min_clusters):
+        return {
+            "status": "INSUFFICIENT_LOCKED_CLUSTERS",
+            "n": int(len(y)),
+            "clusters": cluster_count,
+            "min_clusters": int(min_clusters),
+            "metric": "logloss",
+            "same_oos_cases": True,
+            "research_only": True,
+            "selection_allowed": False,
+            "reason": "At least five independent time groups are required for the dependence-aware interval.",
+        }
+    candidate_loss = -(y * np.log(candidate) + (1 - y) * np.log(1.0 - candidate))
+    baseline_loss = -(y * np.log(baseline) + (1 - y) * np.log(1.0 - baseline))
+    deltas = candidate_loss - baseline_loss
+    cluster_rows = [np.flatnonzero(inverse == idx) for idx in range(cluster_count)]
+    cluster_sums = np.asarray([float(np.sum(deltas[idx])) for idx in cluster_rows], dtype=float)
+    cluster_sizes = np.asarray([int(len(idx)) for idx in cluster_rows], dtype=int)
+    observed = float(np.sum(cluster_sums) / np.sum(cluster_sizes))
+
+    rng = np.random.default_rng(int(seed))
+    sampled_cluster_indices = rng.integers(0, cluster_count, size=(int(n_resamples), cluster_count))
+    sampled_sums = cluster_sums[sampled_cluster_indices].sum(axis=1)
+    sampled_sizes = cluster_sizes[sampled_cluster_indices].sum(axis=1)
+    sampled = sampled_sums / np.maximum(sampled_sizes, 1)
+    low, high = np.quantile(sampled, [0.025, 0.975])
+    p_two_sided = float(np.clip(
+        2.0 * min(float(np.mean(sampled <= 0.0)), float(np.mean(sampled >= 0.0))),
+        0.0,
+        1.0,
+    ))
+    return {
+        "status": "EXECUTED_CLUSTER_PAIRED_BOOTSTRAP",
+        "n": int(len(y)),
+        "clusters": cluster_count,
+        "metric": "logloss",
+        "observed_delta_candidate_minus_dynamic": observed,
+        "ci_95_low": float(low),
+        "ci_95_high": float(high),
+        "p_two_sided": p_two_sided,
+        "n_resamples": int(n_resamples),
+        "seed": int(seed),
+        "cluster_unit": "session_date",
+        "same_oos_cases": True,
+        "research_only": True,
+        "selection_allowed": False,
+        "dependence_note": (
+            "Whole session_date clusters are resampled to preserve within-session "
+            "cross-sectional dependence. The interval is descriptive only."
+        ),
+    }
+
+
 def analyze_expert_loss_routing(
     ledger_rows: Sequence[Mapping[str, Any]],
     fold_results: Sequence[Mapping[str, Any]],
@@ -296,6 +388,7 @@ def analyze_expert_loss_routing(
     locked_oos_y: list[int] = []
     locked_candidate_predictions: list[float] = []
     locked_dynamic_predictions: list[float] = []
+    locked_cluster_ids: list[str] = []
     fold_rows: list[dict[str, Any]] = []
     fitted_models = 0
 
@@ -442,6 +535,11 @@ def analyze_expert_loss_routing(
                 locked_oos_y.append(int(y[row_index]))
                 locked_candidate_predictions.append(float(candidate_prediction[row_index]))
                 locked_dynamic_predictions.append(float(dynamic_prediction[row_index]))
+                locked_cluster_ids.append(str(
+                    current_rows[row_index].get("session_date")
+                    or current_rows[row_index].get("market_date")
+                    or f"fold:{fold_index}"
+                ))
                 for model_index, model in enumerate(model_names):
                     actual_failed = int(
                         (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
@@ -570,6 +668,12 @@ def analyze_expert_loss_routing(
             np.asarray(locked_oos_y, dtype=int),
             np.asarray(locked_candidate_predictions, dtype=float),
             np.asarray(locked_dynamic_predictions, dtype=float),
+        ),
+        "cluster_paired_bootstrap": _cluster_paired_bootstrap(
+            np.asarray(locked_oos_y, dtype=int),
+            np.asarray(locked_candidate_predictions, dtype=float),
+            np.asarray(locked_dynamic_predictions, dtype=float),
+            locked_cluster_ids,
         ),
         "routing_stability": {
             "locked_mean_weight_concentration": float(np.mean(locked_concentration)),
