@@ -301,6 +301,12 @@ jobs:
           assert paired.get("same_oos_cases") is True
           if paired.get("status") == "EXECUTED_PAIRED_BOOTSTRAP":
               assert paired.get("ci_95_low") <= paired.get("observed_delta_candidate_minus_dynamic") <= paired.get("ci_95_high")
+          cluster = data.get("cluster_paired_bootstrap") or {}
+          assert cluster.get("research_only") is True
+          assert cluster.get("selection_allowed") is False
+          assert cluster.get("same_oos_cases") is True
+          if cluster.get("status") == "EXECUTED_CLUSTER_PAIRED_BOOTSTRAP":
+              assert cluster.get("ci_95_low") <= cluster.get("observed_delta_candidate_minus_dynamic") <= cluster.get("ci_95_high")
           assert data.get("status") in {"EVALUATED", "INSUFFICIENT_FOLDS", "BLOCKED_LOCKED_FLAG_MISMATCH"}
           print("EXPERT_LOSS_ROUTING_SAFETY=PASS")
           PY
@@ -370,6 +376,10 @@ jobs:
               print(f"- Expert-loss paired bootstrap ΔLogLoss: {pb.get('observed_delta_candidate_minus_dynamic', 'n/a')}")
               print(f"- Expert-loss paired bootstrap 95% CI: [{pb.get('ci_95_low', 'n/a')}, {pb.get('ci_95_high', 'n/a')}]")
               print(f"- Expert-loss paired bootstrap descriptive p-value: {pb.get('p_two_sided', 'n/a')}")
+              cb = expert_loss.get("cluster_paired_bootstrap") or {}
+              print(f"- Expert-loss session-cluster bootstrap status: {cb.get('status', 'n/a')}")
+              print(f"- Expert-loss session-cluster bootstrap ΔLogLoss: {cb.get('observed_delta_candidate_minus_dynamic', 'n/a')}")
+              print(f"- Expert-loss session-cluster bootstrap 95% CI: [{cb.get('ci_95_low', 'n/a')}, {cb.get('ci_95_high', 'n/a')}]")
           else:
               print("- Expert-loss routing status: missing")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
