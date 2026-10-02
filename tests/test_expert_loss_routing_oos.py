@@ -144,3 +144,20 @@ def test_expert_loss_routing_reports_deterministic_paired_bootstrap():
     assert bootstrap["selection_allowed"] is False
     assert bootstrap["same_oos_cases"] is True
     assert bootstrap["ci_95_low"] <= bootstrap["observed_delta_candidate_minus_dynamic"] <= bootstrap["ci_95_high"]
+
+
+def test_paired_bootstrap_is_deterministic_and_fail_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    bootstrap = result["paired_bootstrap"]
+    assert bootstrap["status"] == "EXECUTED_PAIRED_BOOTSTRAP"
+    assert bootstrap["research_only"] is True
+    assert bootstrap["selection_allowed"] is False
+    assert bootstrap["same_oos_cases"] is True
+    assert bootstrap["ci_95_low"] <= bootstrap["observed_delta_candidate_minus_dynamic"] <= bootstrap["ci_95_high"]
