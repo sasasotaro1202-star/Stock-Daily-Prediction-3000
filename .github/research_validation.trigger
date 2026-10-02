@@ -1,3 +1,3 @@
-base_code_commit=bc4f256644b61506f2d6ca910d07ce8f87fd1d7e
-purpose=rerun latest-head validation after continuous data acquisition and free-source discovery improvements; validate PIT, leakage, chronological OOS, calibration, robustness, source provenance, adaptive data expansion, model selection, and promotion safety without automatic promotion
-trigger_reason=post_pr_130_continuous_data_and_source_discovery_validation
+base_code_commit=c139bdfb4d9ed5bfe4dbd79219482ef4385245e4
+purpose=rerun latest-head validation after PIT schedule and exchange-calendar hardening; validate PIT, leakage, chronological WFO/OOS, calibration, robustness, source provenance, adaptive data expansion, model selection, and promotion safety without automatic promotion
+trigger_reason=post_pr_180_exchange_calendar_pit_hardening
