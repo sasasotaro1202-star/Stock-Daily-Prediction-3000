@@ -9,6 +9,9 @@ from typing import Any
 MONITOR = Path("data/research/monitor_latest.json")
 SNAPSHOT = Path("data/research/performance_snapshot.json")
 CHANGE = Path("data/research/performance_change.json")
+RELEASE_GATE = Path("data/research/release_gate.json")
+HOLDOUT = Path("data/research/frozen_holdout_result.json")
+FROZEN_MODEL = Path("config/frozen_holdout.json")
 
 SCOPES = ("overall", "recent_20_sessions")
 LOWER_IS_BETTER = {"logloss", "brier", "ece", "return_mae", "return_rmse"}
@@ -54,12 +57,100 @@ def build_snapshot(payload: dict[str, Any]) -> dict[str, Any]:
         "status": str(payload.get("status", "UNKNOWN")),
         "evaluated": int(payload.get("evaluated", 0) or 0),
         "latest_outcome_date": payload.get("latest_outcome_date"),
+        "evaluation_period": {
+            "start": payload.get("evaluation_start_date"),
+            "end": payload.get("latest_outcome_date"),
+        },
+        "sample_size": {
+            "evaluated": int(payload.get("evaluated", 0) or 0),
+            "overall": int(((payload.get("overall") or {}).get("rows", 0) or 0)),
+            "recent_20_sessions": int(
+                ((payload.get("recent_20_sessions") or {}).get("rows", 0) or 0)
+            ),
+        },
+        "context": _report_context(payload),
         "scopes": {
             scope: snapshot
             for scope in SCOPES
             if (snapshot := _scope_snapshot(payload, scope))
         },
     }
+
+
+def _report_context(payload: dict[str, Any]) -> dict[str, Any]:
+    context = {
+        "champion": payload.get("champion")
+        or payload.get("current_champion")
+        or payload.get("production_model_id"),
+        "prior_champion": payload.get("prior_champion"),
+        "candidate": payload.get("candidate")
+        or payload.get("challenger")
+        or payload.get("candidate_model"),
+        "decision": payload.get("decision"),
+        "production_status": payload.get("production_status"),
+        "pit_status": payload.get("pit_status"),
+        "latest_holdout": payload.get("latest_holdout"),
+        "robustness": payload.get("robustness"),
+        "benchmark": payload.get("benchmark"),
+        "cost": payload.get("cost"),
+    }
+
+    # Optional artifacts are evidence only. Never infer a production/model state
+    # from the mere existence of a file.
+    release = _load_json(RELEASE_GATE)
+    holdout = _load_json(HOLDOUT)
+    frozen = _load_json(FROZEN_MODEL)
+
+    if context["decision"] is None and release:
+        if isinstance(release.get("decision"), str):
+            context["decision"] = release["decision"]
+        elif isinstance(release.get("approved"), bool):
+            context["decision"] = "APPROVED" if release["approved"] else "NOT_APPROVED"
+
+    if context["production_status"] is None and isinstance(
+        frozen.get("production_status"), str
+    ):
+        context["production_status"] = frozen["production_status"]
+
+    if context["latest_holdout"] is None and holdout:
+        context["latest_holdout"] = {
+            "status": holdout.get("status", "UNVERIFIABLE"),
+            "evidence": holdout.get("metrics")
+            or holdout.get("overall")
+            or holdout.get("evaluation"),
+        }
+
+    def state(value: Any, default: str) -> str:
+        if isinstance(value, str) and value:
+            return value
+        return default
+
+    holdout_status = (
+        context["latest_holdout"].get("status")
+        if isinstance(context["latest_holdout"], dict)
+        else context["latest_holdout"]
+    )
+    robustness_status = (
+        context["robustness"].get("status")
+        if isinstance(context["robustness"], dict)
+        else context["robustness"]
+    )
+
+    for key in ("champion", "prior_champion", "candidate"):
+        if context[key] is None:
+            context[key] = "UNVERIFIABLE"
+
+    context["decision"] = state(context["decision"], "UNKNOWN")
+    context["production_status"] = state(context["production_status"], "UNVERIFIABLE")
+    context["pit_status"] = state(context["pit_status"], "UNVERIFIABLE")
+    context["latest_holdout_status"] = state(holdout_status, "UNVERIFIABLE")
+    context["robustness_status"] = state(robustness_status, "UNVERIFIABLE")
+    context["evidence_sources"] = {
+        "release_gate": "AVAILABLE" if release else "UNVERIFIABLE",
+        "frozen_holdout": "AVAILABLE" if holdout else "UNVERIFIABLE",
+        "frozen_model": "AVAILABLE" if frozen else "UNVERIFIABLE",
+    }
+    return context
 
 
 def compare_snapshots(previous: dict[str, Any], current: dict[str, Any]) -> list[dict[str, Any]]:
@@ -78,6 +169,8 @@ def compare_snapshots(previous: dict[str, Any], current: dict[str, Any]) -> list
                 continue
             delta = float(nv) - float(ov)
             improved = delta < 0 if metric in LOWER_IS_BETTER else delta > 0
+            relative_delta = delta / abs(float(ov)) if float(ov) != 0.0 else None
+            row_sample = new.get("rows") or old.get("rows")
             changes.append(
                 {
                     "scope": scope,
@@ -85,7 +178,17 @@ def compare_snapshots(previous: dict[str, Any], current: dict[str, Any]) -> list
                     "previous": float(ov),
                     "current": float(nv),
                     "delta": round(delta, 10),
+                    "relative_delta": (
+                        round(relative_delta, 10)
+                        if relative_delta is not None
+                        else None
+                    ),
                     "direction": "improved" if improved else "worsened",
+                    "sample_size": (
+                        int(row_sample)
+                        if _finite_number(row_sample)
+                        else None
+                    ),
                 }
             )
     return changes
@@ -114,6 +217,29 @@ def _append_summary(
         lines.append(f"- State: `{reason}`")
     lines.append(f"- Monitor status: `{snapshot.get('status', 'UNKNOWN')}`")
     lines.append(f"- Evaluated outcomes: `{snapshot.get('evaluated', 0)}`")
+    period = snapshot.get("evaluation_period") or {}
+    lines.append(
+        f"- Evaluation period: `{period.get('start', 'UNKNOWN')}` → "
+        f"`{period.get('end', 'UNKNOWN')}`"
+    )
+    context = snapshot.get("context") or {}
+    lines.append(f"- Champion: `{context.get('champion', 'UNVERIFIABLE')}`")
+    lines.append(f"- Prior champion: `{context.get('prior_champion', 'UNVERIFIABLE')}`")
+    lines.append(f"- Candidate: `{context.get('candidate', 'UNVERIFIABLE')}`")
+    lines.append(f"- Decision: `{context.get('decision', 'UNKNOWN')}`")
+    lines.append(
+        f"- Production status: `{context.get('production_status', 'UNVERIFIABLE')}`"
+    )
+    lines.append(f"- Latest holdout: `{context.get('latest_holdout_status', 'UNVERIFIABLE')}`")
+    lines.append(f"- Robustness: `{context.get('robustness_status', 'UNVERIFIABLE')}`")
+    lines.append(f"- PIT: `{context.get('pit_status', 'UNVERIFIABLE')}`")
+    evidence = context.get("evidence_sources") or {}
+    lines.append(
+        "- Evidence files: "
+        f"release_gate={evidence.get('release_gate', 'UNVERIFIABLE')}, "
+        f"frozen_holdout={evidence.get('frozen_holdout', 'UNVERIFIABLE')}, "
+        f"frozen_model={evidence.get('frozen_model', 'UNVERIFIABLE')}"
+    )
     for scope in SCOPES:
         row = (snapshot.get("scopes") or {}).get(scope)
         if not isinstance(row, dict):
@@ -127,10 +253,13 @@ def _append_summary(
     if changes:
         lines.append(f"- **Metric changes vs previous snapshot: {len(changes)}**")
         for change in changes:
+            relative = change.get("relative_delta")
+            relative_text = "n/a" if relative is None else f"{relative:+.4%}"
             lines.append(
                 f"  - `{change['scope']}` `{change['metric']}`: "
                 f"{change['previous']} → {change['current']} "
-                f"(Δ {change['delta']:+g}, {change['direction']})"
+                f"(Δ {change['delta']:+g}, {relative_text} relative, "
+                f"{change['direction']}, n={change.get('sample_size', 'n/a')})"
             )
     else:
         lines.append("- **No numeric metric change vs previous snapshot detected.**")
@@ -140,10 +269,37 @@ def _append_summary(
 
 def main() -> int:
     if not MONITOR.is_file():
-        change = {"schema_version": 1, "changed": False, "reason": "monitor_missing", "changes": []}
+        context = _report_context({})
+        change = {
+            "schema_version": 1,
+            "changed": False,
+            "reason": "monitor_missing",
+            "changes": [],
+            "champion": context["champion"],
+            "prior_champion": context["prior_champion"],
+            "candidate": context["candidate"],
+            "decision": context["decision"],
+            "production_status": context["production_status"],
+            "latest_holdout_status": context["latest_holdout_status"],
+            "robustness_status": context["robustness_status"],
+            "pit_status": context["pit_status"],
+            "sample_size": {"evaluated": 0},
+            "evaluation_period": {"start": None, "end": None},
+            "report_context": context,
+        }
         CHANGE.parent.mkdir(parents=True, exist_ok=True)
         CHANGE.write_text(json.dumps(change, indent=2, sort_keys=True), encoding="utf-8")
-        _append_summary({}, [], "monitor_missing")
+        _append_summary(
+            {
+                "status": "UNKNOWN",
+                "evaluated": 0,
+                "evaluation_period": {"start": None, "end": None},
+                "context": context,
+                "scopes": {},
+            },
+            [],
+            "monitor_missing",
+        )
         return 0
 
     payload = _load_json(MONITOR)
@@ -152,11 +308,23 @@ def main() -> int:
     changes = compare_snapshots(previous, current) if previous else []
     has_metrics = bool(current.get("scopes"))
 
+    context = current.get("context") or {}
     change = {
         "schema_version": 1,
         "changed": bool(changes),
         "reason": "metric_change" if changes else "no_change",
         "changes": changes,
+        "champion": context.get("champion"),
+        "prior_champion": context.get("prior_champion"),
+        "candidate": context.get("candidate"),
+        "decision": context.get("decision"),
+        "production_status": context.get("production_status"),
+        "latest_holdout_status": context.get("latest_holdout_status"),
+        "robustness_status": context.get("robustness_status"),
+        "pit_status": context.get("pit_status"),
+        "sample_size": current.get("sample_size"),
+        "evaluation_period": current.get("evaluation_period"),
+        "report_context": context,
     }
     CHANGE.parent.mkdir(parents=True, exist_ok=True)
     CHANGE.write_text(json.dumps(change, indent=2, sort_keys=True), encoding="utf-8")

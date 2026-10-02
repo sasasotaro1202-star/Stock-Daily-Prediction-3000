@@ -3,11 +3,20 @@ from __future__ import annotations
 from scripts.performance_change import build_snapshot, compare_snapshots
 
 
-def test_build_snapshot_extracts_monitor_metrics():
+def test_build_snapshot_extracts_monitor_metrics_and_reporting_context():
     payload = {
         "status": "PASS",
         "evaluated": 400,
+        "evaluation_start_date": "2026-09-01",
         "latest_outcome_date": "2026-09-25",
+        "champion": "hgb-v3",
+        "prior_champion": "logistic-v2",
+        "candidate": "lgbm-v1",
+        "decision": "HOLD",
+        "production_status": "PRODUCTION",
+        "pit_status": "PASS",
+        "latest_holdout": {"status": "VERIFIED"},
+        "robustness": {"status": "VERIFIED"},
         "overall": {
             "rows": 400,
             "metrics": {
@@ -33,6 +42,18 @@ def test_build_snapshot_extracts_monitor_metrics():
     snapshot = build_snapshot(payload)
     assert snapshot["status"] == "PASS"
     assert snapshot["evaluated"] == 400
+    assert snapshot["evaluation_period"] == {
+        "start": "2026-09-01",
+        "end": "2026-09-25",
+    }
+    assert snapshot["sample_size"]["evaluated"] == 400
+    assert snapshot["context"]["champion"] == "hgb-v3"
+    assert snapshot["context"]["prior_champion"] == "logistic-v2"
+    assert snapshot["context"]["candidate"] == "lgbm-v1"
+    assert snapshot["context"]["decision"] == "HOLD"
+    assert snapshot["context"]["pit_status"] == "PASS"
+    assert snapshot["context"]["latest_holdout_status"] == "VERIFIED"
+    assert snapshot["context"]["robustness_status"] == "VERIFIED"
     assert snapshot["scopes"]["overall"]["logloss"] == 0.70
     assert snapshot["scopes"]["overall"]["return_mae"] == 0.031
     assert snapshot["scopes"]["recent_20_sessions"]["roc_auc"] == 0.70
@@ -43,12 +64,14 @@ def test_compare_snapshots_reports_directional_changes():
     previous = {
         "scopes": {
             "overall": {
+                "rows": 400,
                 "logloss": 0.70,
                 "brier": 0.24,
                 "ece": 0.08,
                 "accuracy": 0.66,
             },
             "recent_20_sessions": {
+                "rows": 250,
                 "logloss": 0.75,
                 "accuracy": 0.64,
             },
@@ -57,12 +80,14 @@ def test_compare_snapshots_reports_directional_changes():
     current = {
         "scopes": {
             "overall": {
+                "rows": 400,
                 "logloss": 0.69,
                 "brier": 0.241,
                 "ece": 0.09,
                 "accuracy": 0.67,
             },
             "recent_20_sessions": {
+                "rows": 250,
                 "logloss": 0.77,
                 "accuracy": 0.63,
             },
@@ -70,6 +95,12 @@ def test_compare_snapshots_reports_directional_changes():
     }
     changes = compare_snapshots(previous, current)
     assert len(changes) == 6
+    logloss = next(
+        row for row in changes
+        if row["scope"] == "overall" and row["metric"] == "logloss"
+    )
+    assert logloss["relative_delta"] == -0.0142857143
+    assert logloss["sample_size"] == 400
     assert {
         (row["scope"], row["metric"], row["direction"])
         for row in changes
@@ -103,3 +134,22 @@ def test_compare_snapshots_ignores_non_numeric_or_unchanged_values():
         }
     }
     assert compare_snapshots(previous, current) == []
+
+
+def test_reporting_context_is_explicit_when_monitor_does_not_provide_it():
+    snapshot = build_snapshot({"status": "WARMUP", "evaluated": 0})
+    assert snapshot["context"]["champion"] is None
+    assert snapshot["context"]["prior_champion"] is None
+    assert snapshot["context"]["candidate"] is None
+    assert snapshot["context"]["decision"] is None
+    assert snapshot["context"]["production_status"] is None
+    assert snapshot["context"]["pit_status"] is None
+
+
+def test_compare_snapshots_handles_zero_baseline_without_division_error():
+    changes = compare_snapshots(
+        {"scopes": {"overall": {"rows": 10, "logloss": 0.0}}},
+        {"scopes": {"overall": {"rows": 10, "logloss": 0.1}}},
+    )
+    assert len(changes) == 1
+    assert changes[0]["relative_delta"] is None
