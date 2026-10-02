@@ -144,3 +144,12 @@ def test_reporting_context_is_explicit_when_monitor_does_not_provide_it():
     assert snapshot["context"]["decision"] is None
     assert snapshot["context"]["production_status"] is None
     assert snapshot["context"]["pit_status"] is None
+
+
+def test_compare_snapshots_handles_zero_baseline_without_division_error():
+    changes = compare_snapshots(
+        {"scopes": {"overall": {"rows": 10, "logloss": 0.0}}},
+        {"scopes": {"overall": {"rows": 10, "logloss": 0.1}}},
+    )
+    assert len(changes) == 1
+    assert changes[0]["relative_delta"] is None
