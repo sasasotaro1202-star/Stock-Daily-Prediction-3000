@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from functools import lru_cache
 from datetime import date, datetime, time, timedelta
 from typing import Any, Mapping
 from zoneinfo import ZoneInfo
@@ -36,11 +37,38 @@ def _schedule_value(pipeline_cfg: Mapping[str, Any], key: str) -> Any:
     return None
 
 
-def _next_weekday(day: date) -> date:
-    candidate = day
-    while candidate.weekday() >= 5:
-        candidate += timedelta(days=1)
-    return candidate
+@lru_cache(maxsize=2)
+def _market_calendar(asset_class: str):
+    """Return the exchange calendar used to derive the next market session."""
+    try:
+        import exchange_calendars as xcals
+    except ImportError as exc:
+        raise ValueError(
+            "missing_market_calendar_dependency:exchange-calendars"
+        ) from exc
+
+    if asset_class.startswith("jp_"):
+        return xcals.get_calendar("XTKS")
+    if asset_class.startswith("us_"):
+        return xcals.get_calendar("XNYS")
+    raise ValueError(f"unsupported_market_calendar_asset_class:{asset_class}")
+
+
+@lru_cache(maxsize=8192)
+def _is_market_session(day: date, asset_class: str) -> bool:
+    calendar = _market_calendar(asset_class)
+    return bool(calendar.is_session(pd.Timestamp(day)))
+
+
+@lru_cache(maxsize=8192)
+def _next_market_session(day: date, asset_class: str) -> date:
+    calendar = _market_calendar(asset_class)
+    session = pd.Timestamp(day)
+    if not _is_market_session(day, asset_class):
+        raise ValueError(
+            f"invalid_market_session:{asset_class}:{day.isoformat()}"
+        )
+    return calendar.next_session(session).date()
 
 
 def scheduled_prediction_time(
@@ -67,6 +95,10 @@ def scheduled_prediction_time(
     if asset.startswith("jp_"):
         schedule_key = "asia_prediction_time_jst"
         clock = _parse_hhmm(_schedule_value(pipeline_cfg, schedule_key), key=schedule_key)
+        if not _is_market_session(session_day, asset):
+            raise ValueError(
+                f"invalid_market_session:{asset_class}:{session_day.isoformat()}"
+            )
         local = datetime.combine(
             session_day,
             clock,
@@ -75,9 +107,9 @@ def scheduled_prediction_time(
     elif asset.startswith("us_"):
         schedule_key = "us_prediction_time_jst"
         clock = _parse_hhmm(_schedule_value(pipeline_cfg, schedule_key), key=schedule_key)
-        # U.S. daily bars close on the prior U.S. session and become the input
-        # to the next configured weekday's 07:17 JST prediction run.
-        prediction_day = _next_weekday(session_day + timedelta(days=1))
+        # U.S. daily bars close on this U.S. session and become the input
+        # to the next actual XNYS session's configured 07:17 JST prediction run.
+        prediction_day = _next_market_session(session_day, asset)
         local = datetime.combine(
             prediction_day,
             clock,

@@ -48,6 +48,37 @@ def test_us_session_uses_next_configured_weekday_prediction_clock():
     assert source == "DECLARED_CONFIG_SCHEDULE:us_prediction_time_jst"
 
 
+def test_us_session_skips_exchange_holiday():
+    prediction, source = scheduled_prediction_time(
+        "2026-11-25",  # Wednesday before U.S. Thanksgiving
+        "us_stock",
+        CFG,
+    )
+    assert prediction is not None
+    # XNYS is closed on 2026-11-26; next session is Friday 2026-11-27.
+    assert prediction.isoformat() == "2026-11-26T22:17:00+00:00"
+    assert source == "DECLARED_CONFIG_SCHEDULE:us_prediction_time_jst"
+
+
+def test_jp_session_skips_exchange_holiday():
+    prediction, source = scheduled_prediction_time(
+        "2026-11-20",  # Friday before Labor Thanksgiving Day
+        "jp_stock",
+        CFG,
+    )
+    assert prediction is not None
+    # XTKS is closed on Monday 2026-11-23; next session is Tuesday 2026-11-24.
+    # Prediction remains on the JP session date itself.
+    assert prediction.isoformat() == "2026-11-20T09:17:00+00:00"
+    assert source == "DECLARED_CONFIG_SCHEDULE:asia_prediction_time_jst"
+
+
+def test_invalid_non_session_date_fails_closed():
+    import pytest
+    with pytest.raises(ValueError, match="invalid_market_session:us_stock:2026-11-26"):
+        scheduled_prediction_time("2026-11-26", "us_stock", CFG)
+
+
 def test_row_lineage_passes_pit_even_when_research_acquisition_happens_later():
     lineage = build_research_pit_lineage(_frame(), CFG)
     assert lineage["pit_status"] == ["PASS"]
