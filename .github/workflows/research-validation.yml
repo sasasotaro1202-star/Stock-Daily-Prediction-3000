@@ -299,6 +299,13 @@ jobs:
           assert contracts.get("current_fold_outcomes_used_for_routing") is False
           assert contracts.get("current_fold_outcomes_used_for_expert_loss_fit") is False
           assert contracts.get("all_expert_loss_models_fit_only_on_prior_folds") is True
+          assert contracts.get("locked_suffix_routing_is_frozen_across_all_locked_folds") is True
+          paired = data.get("paired_bootstrap") or {}
+          assert paired.get("research_only") is True
+          assert paired.get("selection_allowed") is False
+          assert paired.get("same_oos_cases") is True
+          if paired.get("status") == "EXECUTED_PAIRED_BOOTSTRAP":
+              assert paired.get("ci_95_low") <= paired.get("observed_delta_candidate_minus_dynamic") <= paired.get("ci_95_high")
           print("EXPERT_LOSS_ROUTING_SAFETY=PASS")
           PY
 
