@@ -52,6 +52,8 @@ def test_build_snapshot_extracts_monitor_metrics_and_reporting_context():
     assert snapshot["context"]["candidate"] == "lgbm-v1"
     assert snapshot["context"]["decision"] == "HOLD"
     assert snapshot["context"]["pit_status"] == "PASS"
+    assert snapshot["context"]["latest_holdout_status"] == "VERIFIED"
+    assert snapshot["context"]["robustness_status"] == "VERIFIED"
     assert snapshot["scopes"]["overall"]["logloss"] == 0.70
     assert snapshot["scopes"]["overall"]["return_mae"] == 0.031
     assert snapshot["scopes"]["recent_20_sessions"]["roc_auc"] == 0.70
@@ -93,6 +95,12 @@ def test_compare_snapshots_reports_directional_changes():
     }
     changes = compare_snapshots(previous, current)
     assert len(changes) == 6
+    logloss = next(
+        row for row in changes
+        if row["scope"] == "overall" and row["metric"] == "logloss"
+    )
+    assert logloss["relative_delta"] == -0.0142857143
+    assert logloss["sample_size"] == 400
     assert {
         (row["scope"], row["metric"], row["direction"])
         for row in changes
