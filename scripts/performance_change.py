@@ -107,8 +107,10 @@ def _report_context(payload: dict[str, Any]) -> dict[str, Any]:
         elif isinstance(release.get("approved"), bool):
             context["decision"] = "APPROVED" if release["approved"] else "NOT_APPROVED"
 
-    if context["production_status"] is None and isinstance(frozen.get("status"), str):
-        context["production_status"] = frozen["status"]
+    if context["production_status"] is None and isinstance(
+        frozen.get("production_status"), str
+    ):
+        context["production_status"] = frozen["production_status"]
 
     if context["latest_holdout"] is None and holdout:
         context["latest_holdout"] = {
@@ -285,7 +287,17 @@ def main() -> int:
         }
         CHANGE.parent.mkdir(parents=True, exist_ok=True)
         CHANGE.write_text(json.dumps(change, indent=2, sort_keys=True), encoding="utf-8")
-        _append_summary({}, [], "monitor_missing")
+        _append_summary(
+            {
+                "status": "UNKNOWN",
+                "evaluated": 0,
+                "evaluation_period": {"start": None, "end": None},
+                "context": context,
+                "scopes": {},
+            },
+            [],
+            "monitor_missing",
+        )
         return 0
 
     payload = _load_json(MONITOR)
