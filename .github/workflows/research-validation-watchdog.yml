@@ -1,0 +1,80 @@
+name: Research validation stale-run watchdog
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+
+permissions:
+  actions: write
+
+concurrency:
+  group: research-validation-watchdog
+  cancel-in-progress: true
+
+jobs:
+  cancel-stale:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Cancel stale Research validation runs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          from datetime import datetime, timedelta, timezone
+
+          repo = os.environ["REPO"]
+          workflow_file = "research-validation.yml"
+          stale_after = timedelta(minutes=90)
+          now = datetime.now(timezone.utc)
+
+          raw = subprocess.check_output(
+              [
+                  "gh", "api",
+                  f"repos/{repo}/actions/workflows/{workflow_file}/runs",
+                  "-f", "status=in_progress",
+                  "-f", "per_page=50",
+              ],
+              text=True,
+          )
+          runs = json.loads(raw).get("workflow_runs", [])
+
+          stale = []
+          for run in runs:
+              updated = datetime.fromisoformat(
+                  str(run["updated_at"]).replace("Z", "+00:00")
+              )
+              age = now - updated
+              if age >= stale_after:
+                  stale.append(
+                      (int(run["id"]), run["run_number"], run["head_sha"], age)
+                  )
+
+          for run_id, run_number, head_sha, age in stale:
+              subprocess.run(
+                  [
+                      "gh", "api",
+                      "--method", "POST",
+                      f"repos/{repo}/actions/runs/{run_id}/cancel",
+                  ],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+              )
+              print(
+                  f"CANCELLED_STALE_RESEARCH_VALIDATION "
+                  f"run={run_number} id={run_id} age_minutes={age.total_seconds()/60:.1f} "
+                  f"head_sha={head_sha}"
+              )
+
+          print(
+              f"RESEARCH_VALIDATION_WATCHDOG "
+              f"observed={len(runs)} stale_cancelled={len(stale)} "
+              f"threshold_minutes={stale_after.total_seconds()/60:.0f}"
+          )
+          PY
