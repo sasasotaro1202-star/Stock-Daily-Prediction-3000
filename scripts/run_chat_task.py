@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import os
 import shlex
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 TASK_COMMANDS = {
@@ -46,7 +46,7 @@ def main() -> int:
     if not commands:
         raise SystemExit(f"UNSUPPORTED_CHAT_TASK: {task_type}")
 
-    timeout_seconds = max_minutes * 60
+    deadline = time.monotonic() + max_minutes * 60
     log_dir = Path("chat_task_results")
     log_dir.mkdir(parents=True, exist_ok=True)
     summary = {
@@ -64,9 +64,12 @@ def main() -> int:
     )
 
     for index, command in enumerate(commands, start=1):
-        remaining = max(1, timeout_seconds - sum(r.get("duration_seconds", 0) for r in summary["results"]))
+        remaining = int(deadline - time.monotonic())
+        if remaining <= 0:
+            summary["status"] = "TIMEOUT"
+            break
+        started = time.monotonic()
         print(f"CHAT_TASK_START task_id={task_id} step={index} command={shlex.join(command)}", flush=True)
-        completed = None
         try:
             completed = subprocess.run(
                 command,
@@ -84,6 +87,7 @@ def main() -> int:
             "command": shlex.join(command),
             "returncode": rc,
             "status": status,
+            "duration_seconds": round(time.monotonic() - started, 3),
         }
         summary["results"].append(result)
         print(json.dumps(result, sort_keys=True), flush=True)
@@ -95,7 +99,8 @@ def main() -> int:
             )
             return rc or 1
 
-    summary["status"] = "COMPLETED"
+    if summary["status"] == "RUNNING":
+        summary["status"] = "COMPLETED"
     (log_dir / "status.json").write_text(
         json.dumps(summary, indent=2, sort_keys=True),
         encoding="utf-8",
