@@ -91,3 +91,58 @@ def test_recent_market_cycle_artifact_lookup_includes_cancelled_runs(monkeypatch
 
     assert [a["id"] for a in artifacts] == [10870717801]
     assert any("actions/runs/36149391445/artifacts" in url for url in calls)
+
+
+def test_fresh_official_fallback_is_opt_in_and_validated(monkeypatch, tmp_path):
+    import scripts.restore_latest_universe_state as restore
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK", "true")
+    monkeypatch.setattr(restore, "_recent_market_cycle_universe_artifacts", lambda repo, token: [])
+
+    now = datetime.now(timezone.utc)
+
+    def fake_build_snapshot(path):
+        payload = {
+            "retrieved_at": now.isoformat(),
+            "record_count": 100,
+            "records": [
+                {
+                    "symbol": str(i),
+                    "asset_class": "us_stock",
+                    "name": f"Name {i}",
+                    "tradeable": True,
+                }
+                for i in range(100)
+            ],
+        }
+        restore.Path(path).parent.mkdir(parents=True, exist_ok=True)
+        restore.Path(path).write_text(json.dumps(payload), encoding="utf-8")
+        return payload
+
+    monkeypatch.setattr(restore, "build_snapshot", fake_build_snapshot)
+
+    restore.main()
+    restored = json.loads((tmp_path / "data/universe/latest.json").read_text(encoding="utf-8"))
+    assert restored["record_count"] == 100
+    assert len(restored["records"]) == 100
+
+
+def test_fresh_official_fallback_remains_disabled_by_default(monkeypatch, tmp_path):
+    import scripts.restore_latest_universe_state as restore
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.delenv("ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK", raising=False)
+    monkeypatch.setattr(restore, "_recent_market_cycle_universe_artifacts", lambda repo, token: [])
+    monkeypatch.setattr(
+        restore,
+        "build_snapshot",
+        lambda path: (_ for _ in ()).throw(AssertionError("fallback must be opt-in")),
+    )
+
+    with pytest.raises(SystemExit, match="no retained market-cycle universe artifact"):
+        restore.main()
