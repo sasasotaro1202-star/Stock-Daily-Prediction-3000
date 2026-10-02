@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "task_id": "chat-e2e-20261002-01",
-  "task_type": "research_smoke",
-  "requested_at": "2026-10-02T07:20:00+00:00",
-  "mode": "async",
-  "max_runtime_minutes": 5,
-  "arguments": {}
-}
