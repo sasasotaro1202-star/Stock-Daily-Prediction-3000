@@ -22,12 +22,12 @@ def _case_row(fold: int, row: int, *, locked: bool) -> dict:
     }
 
 
-def _make_data(locked_outcomes: list[int], *, locked_folds: int = 1):
+def _make_data(locked_outcomes: list[int], *, locked_folds: int = 1, num_folds: int = 4):
     ledger = []
     folds = []
-    for fold in range(4):
+    for fold in range(num_folds):
         n = 80
-        is_locked = fold >= 4 - int(locked_folds)
+        is_locked = fold >= num_folds - int(locked_folds)
         if is_locked:
             y = locked_outcomes
         else:
@@ -217,6 +217,24 @@ def test_cluster_bootstrap_is_declared_insufficient_when_locked_clusters_are_spa
     assert cluster["same_oos_cases"] is True
     assert cluster["research_only"] is True
     assert cluster["selection_allowed"] is False
+
+
+def test_cluster_bootstrap_executes_with_enough_independent_sessions():
+    ledger, folds = _make_data([i % 2 for i in range(80)], locked_folds=5, num_folds=7)
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=5,
+        min_training_rows=60,
+    )
+    cluster = result["cluster_paired_bootstrap"]
+    assert cluster["status"] == "EXECUTED_CLUSTER_PAIRED_BOOTSTRAP"
+    assert cluster["clusters"] == 5
+    assert cluster["same_oos_cases"] is True
+    assert cluster["research_only"] is True
+    assert cluster["selection_allowed"] is False
+    assert cluster["ci_95_low"] <= cluster["observed_delta_candidate_minus_dynamic"] <= cluster["ci_95_high"]
 
 
 def test_cluster_bootstrap_blocks_missing_session_keys():
