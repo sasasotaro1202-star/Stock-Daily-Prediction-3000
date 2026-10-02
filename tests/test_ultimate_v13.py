@@ -140,6 +140,8 @@ def test_v13_embeds_expert_loss_oos_audit_and_artifact(tmp_path):
     assert audit["promotion_allowed"] is False
     assert audit["frozen_holdout_used"] is False
     assert (tmp_path / "expert_loss_routing_oos.json").exists()
+    manifest = json.loads((tmp_path / "artifact_manifest.json").read_text())
+    assert "expert_loss_routing_oos.json" in manifest["artifacts"]
 
 
 def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path):
@@ -500,3 +502,15 @@ def test_predictability_calibration_remains_research_only(tmp_path):
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
     assert result["predictability"]["calibrator_frozen_before_locked"] is True
+
+
+def test_v13_expert_loss_audit_fails_closed_without_pit_lineage(tmp_path):
+    result = build_ultimate_intelligence(
+        _bank(with_lineage=False),
+        out_dir=tmp_path,
+    )
+    audit = result["expert_loss_routing_oos"]
+    assert audit["status"] == "BLOCKED_INVALID_CASE_LINEAGE"
+    assert audit["production_changed"] is False
+    assert audit["promotion_allowed"] is False
+    assert (tmp_path / "expert_loss_routing_oos.json").exists()
