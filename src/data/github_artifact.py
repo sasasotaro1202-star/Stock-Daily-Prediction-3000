@@ -11,7 +11,7 @@ def download_workflow_artifact(
     artifact: dict,
     destination: Path,
     *,
-    timeout_seconds: int = 120,
+    timeout_seconds: int = 240,
 ) -> Path:
     """Download one GitHub Actions artifact using the GitHub CLI.
 

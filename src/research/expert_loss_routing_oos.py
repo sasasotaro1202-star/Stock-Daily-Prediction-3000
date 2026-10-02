@@ -168,6 +168,70 @@ def _binary_metrics(y: np.ndarray, p: np.ndarray) -> dict[str, float]:
     }
 
 
+def _paired_bootstrap(
+    y: np.ndarray,
+    candidate_probability: np.ndarray,
+    baseline_probability: np.ndarray,
+    *,
+    n_resamples: int = 2000,
+    seed: int = 20261002,
+) -> dict[str, Any]:
+    """Descriptive paired bootstrap for locked OOS case-level LogLoss delta."""
+    y = np.asarray(y, dtype=int)
+    candidate = np.clip(np.asarray(candidate_probability, dtype=float), 1e-6, 1.0 - 1e-6)
+    baseline = np.clip(np.asarray(baseline_probability, dtype=float), 1e-6, 1.0 - 1e-6)
+    if y.ndim != 1 or candidate.ndim != 1 or baseline.ndim != 1:
+        raise ValueError("paired bootstrap inputs must be one-dimensional")
+    if len(y) != len(candidate) or len(y) != len(baseline):
+        raise ValueError("paired bootstrap inputs must be aligned")
+    if len(y) < 30:
+        return {
+            "status": "INSUFFICIENT_LOCKED_CASES",
+            "n": int(len(y)),
+            "metric": "logloss",
+            "research_only": True,
+            "selection_allowed": False,
+        }
+    if not np.isfinite(candidate).all() or not np.isfinite(baseline).all():
+        raise ValueError("paired bootstrap probabilities must be finite")
+    if int(n_resamples) < 100:
+        raise ValueError("n_resamples must be >= 100")
+
+    row_index = np.arange(len(y))
+    candidate_loss = -(y * np.log(candidate) + (1 - y) * np.log(1.0 - candidate))
+    baseline_loss = -(y * np.log(baseline) + (1 - y) * np.log(1.0 - baseline))
+    deltas = candidate_loss - baseline_loss
+    observed = float(np.mean(deltas))
+
+    rng = np.random.default_rng(int(seed))
+    indices = rng.integers(0, len(deltas), size=(int(n_resamples), len(deltas)))
+    sampled = deltas[indices].mean(axis=1)
+    low, high = np.quantile(sampled, [0.025, 0.975])
+    p_two_sided = float(np.clip(
+        2.0 * min(float(np.mean(sampled <= 0.0)), float(np.mean(sampled >= 0.0))),
+        0.0,
+        1.0,
+    ))
+    return {
+        "status": "EXECUTED_PAIRED_BOOTSTRAP",
+        "n": int(len(deltas)),
+        "metric": "logloss",
+        "observed_delta_candidate_minus_dynamic": observed,
+        "ci_95_low": float(low),
+        "ci_95_high": float(high),
+        "p_two_sided": p_two_sided,
+        "n_resamples": int(n_resamples),
+        "seed": int(seed),
+        "same_oos_cases": True,
+        "research_only": True,
+        "selection_allowed": False,
+        "row_dependence_note": (
+            "Descriptive case-level bootstrap only; cross-sectional/time dependence "
+            "may make the interval optimistic."
+        ),
+    }
+
+
 def analyze_expert_loss_routing(
     ledger_rows: Sequence[Mapping[str, Any]],
     fold_results: Sequence[Mapping[str, Any]],
@@ -227,8 +291,13 @@ def analyze_expert_loss_routing(
         model: [] for model in model_names
     }
     locked_rows: list[dict[str, Any]] = []
+    locked_oos_y: list[int] = []
+    locked_candidate_predictions: list[float] = []
+    locked_dynamic_predictions: list[float] = []
     fold_rows: list[dict[str, Any]] = []
     fitted_models = 0
+
+    expected_locked_start = len(ordered_folds) - int(locked_folds)
 
     for fold_index, fold in enumerate(ordered_folds):
         y = np.asarray(fold.get("y", []), dtype=int)
@@ -272,6 +341,16 @@ def analyze_expert_loss_routing(
                     "status": "BLOCKED_INVALID_CASE_LINEAGE",
                     "fold": int(fold_index),
                     "row": int(row_index),
+                }
+            expected_locked = bool(fold_index >= expected_locked_start)
+            if bool(meta.get("is_locked")) != expected_locked:
+                return {
+                    **base,
+                    "status": "BLOCKED_LOCKED_FLAG_MISMATCH",
+                    "fold": int(fold_index),
+                    "row": int(row_index),
+                    "expected_is_locked": expected_locked,
+                    "observed_is_locked": bool(meta.get("is_locked")),
                 }
             current_rows.append(meta)
 
@@ -358,6 +437,9 @@ def analyze_expert_loss_routing(
 
         if fold_index >= locked_start:
             for row_index, meta in enumerate(current_rows):
+                locked_oos_y.append(int(y[row_index]))
+                locked_candidate_predictions.append(float(candidate_prediction[row_index]))
+                locked_dynamic_predictions.append(float(dynamic_prediction[row_index]))
                 for model_index, model in enumerate(model_names):
                     actual_failed = int(
                         (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
@@ -370,27 +452,29 @@ def analyze_expert_loss_routing(
                         "failed": actual_failed,
                     })
 
-        # Only after the current fold has been fully evaluated may its outcomes
-        # enter future expert-loss histories.
-        for row_index, meta in enumerate(current_rows):
-            for model_index, model in enumerate(model_names):
-                feature = _case_features(
-                    meta,
-                    float(p_matrix[row_index, model_index]),
-                )
-                if feature is None:
-                    return {
-                        **base,
-                        "status": "BLOCKED_MISSING_CASE_FEATURES_AFTER_EVALUATION",
-                        "fold": int(fold_index),
-                        "row": int(row_index),
-                        "model": model,
-                    }
-                failed = int(
-                    (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
-                )
-                expert_history[model].append((feature, failed))
-                expert_global_failures[model].append(failed)
+        # Only development outcomes may enter future expert-loss histories.
+        # The entire locked suffix is frozen: no locked-fold outcome may update
+        # expert-loss models used by any later locked fold.
+        if fold_index < expected_locked_start:
+            for row_index, meta in enumerate(current_rows):
+                for model_index, model in enumerate(model_names):
+                    feature = _case_features(
+                        meta,
+                        float(p_matrix[row_index, model_index]),
+                    )
+                    if feature is None:
+                        return {
+                            **base,
+                            "status": "BLOCKED_MISSING_CASE_FEATURES_AFTER_EVALUATION",
+                            "fold": int(fold_index),
+                            "row": int(row_index),
+                            "model": model,
+                        }
+                    failed = int(
+                        (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
+                    )
+                    expert_history[model].append((feature, failed))
+                    expert_global_failures[model].append(failed)
 
     locked_candidate = [r["candidate"] for r in fold_rows if r["is_locked"]]
     locked_dynamic = [r["dynamic"] for r in fold_rows if r["is_locked"]]
@@ -480,6 +564,11 @@ def analyze_expert_loss_routing(
             "locked_brier": expert_loss_brier,
             "rows": int(len(loss_y)),
         },
+        "paired_bootstrap": _paired_bootstrap(
+            np.asarray(locked_oos_y, dtype=int),
+            np.asarray(locked_candidate_predictions, dtype=float),
+            np.asarray(locked_dynamic_predictions, dtype=float),
+        ),
         "routing_stability": {
             "locked_mean_weight_concentration": float(np.mean(locked_concentration)),
             "locked_max_weight_concentration": float(np.max(locked_concentration)),
@@ -490,6 +579,7 @@ def analyze_expert_loss_routing(
             "current_fold_outcomes_used_for_expert_loss_fit": False,
             "current_fold_outcomes_used_for_threshold_or_temperature_selection": False,
             "all_expert_loss_models_fit_only_on_prior_folds": True,
+            "locked_suffix_routing_is_frozen_across_all_locked_folds": True,
             "locked_suffix_routing_is_frozen_per_fold": True,
             "pit_requires_timezone_aware_available_at_le_prediction_time": True,
             "frozen_holdout_used": False,

@@ -130,7 +130,7 @@ def test_yfinance_price_paths_have_bounded_timeout():
     from pathlib import Path
 
     source = Path("src/data/yahoo_price.py").read_text(encoding="utf-8")
-    assert "YF_TIMEOUT_SECONDS = 30" in source
+    assert "YF_TIMEOUT_SECONDS = 60" in source
     assert "timeout=YF_TIMEOUT_SECONDS" in source
     assert source.count("timeout=YF_TIMEOUT_SECONDS") >= 2
 

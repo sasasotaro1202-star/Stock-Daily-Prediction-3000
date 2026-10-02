@@ -21,24 +21,22 @@ def _case_row(fold: int, row: int, *, locked: bool) -> dict:
     }
 
 
-def _make_data(locked_outcomes: list[int]):
+def _make_data(locked_outcomes: list[int], *, locked_folds: int = 1):
     ledger = []
     folds = []
     for fold in range(4):
         n = 80
-        if fold == 3:
+        is_locked = fold >= 4 - int(locked_folds)
+        if is_locked:
             y = locked_outcomes
         else:
             y = [i % 2 for i in range(n)]
-        p_good = []
-        p_bad = []
-        for i, outcome in enumerate(y):
-            # Two experts have complementary, deterministic error structure.
-            good_wrong = (i % 10) >= 8
-            bad_wrong = (i % 10) < 8
-            p_good.append(0.9 if ((outcome == 1) != good_wrong) else 0.1)
-            p_bad.append(0.9 if ((outcome == 1) != bad_wrong) else 0.1)
-            ledger.append(_case_row(fold, i, locked=(fold == 3)))
+        # Keep expert predictions independent of the locked outcomes so tests
+        # isolate PIT/freeze behavior rather than changing the prediction inputs.
+        p_good = [0.9 if (i % 10) < 8 else 0.1 for i in range(n)]
+        p_bad = [0.1 if (i % 10) < 8 else 0.9 for i in range(n)]
+        for i, _outcome in enumerate(y):
+            ledger.append(_case_row(fold, i, locked=is_locked))
         folds.append(
             {
                 "y": y,
@@ -120,3 +118,84 @@ def test_missing_expert_prediction_fails_closed():
         min_training_rows=60,
     )
     assert result["status"] == "BLOCKED_MISSING_EXPERT_PREDICTION"
+
+
+def test_expert_loss_routing_reports_deterministic_paired_bootstrap():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    first = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    second = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    bootstrap = first["paired_bootstrap"]
+    assert bootstrap == second["paired_bootstrap"]
+    assert bootstrap["research_only"] is True
+    assert bootstrap["selection_allowed"] is False
+    assert bootstrap["same_oos_cases"] is True
+    assert bootstrap["ci_95_low"] <= bootstrap["observed_delta_candidate_minus_dynamic"] <= bootstrap["ci_95_high"]
+
+
+def test_paired_bootstrap_is_deterministic_and_fail_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    bootstrap = result["paired_bootstrap"]
+    assert bootstrap["status"] == "EXECUTED_PAIRED_BOOTSTRAP"
+    assert bootstrap["research_only"] is True
+    assert bootstrap["selection_allowed"] is False
+    assert bootstrap["same_oos_cases"] is True
+    assert bootstrap["ci_95_low"] <= bootstrap["observed_delta_candidate_minus_dynamic"] <= bootstrap["ci_95_high"]
+
+
+def test_locked_suffix_is_frozen_across_multiple_locked_folds():
+    ledger_a, folds_a = _make_data([i % 2 for i in range(80)], locked_folds=2)
+    ledger_b, folds_b = _make_data([1 - (i % 2) for i in range(80)], locked_folds=2)
+    result_a = analyze_expert_loss_routing(
+        ledger_a,
+        folds_a,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    result_b = analyze_expert_loss_routing(
+        ledger_b,
+        folds_b,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    assert result_a["status"] == "EVALUATED"
+    assert result_b["status"] == "EVALUATED"
+    assert result_a["contracts"]["locked_suffix_routing_is_frozen_across_all_locked_folds"] is True
+    # The second locked fold must not be retrained on the first locked fold's outcome.
+    a_second = result_a["fold_results"][-1]
+    b_second = result_b["fold_results"][-1]
+    assert a_second["predicted_loss_mean"] == b_second["predicted_loss_mean"]
+    assert a_second["weight_means"] == b_second["weight_means"]
+
+
+def test_locked_flag_mismatch_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)], locked_folds=2)
+    ledger[160]["is_locked"] = False
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_LOCKED_FLAG_MISMATCH"
