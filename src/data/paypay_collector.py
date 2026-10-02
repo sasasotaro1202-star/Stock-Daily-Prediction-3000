@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -14,6 +15,9 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 PAYPAY_APP_TOKENS=("trade_on","mini_on")
+PAYPAY_HTTP_TIMEOUT_SECONDS = int(os.getenv("PAYPAY_HTTP_TIMEOUT_SECONDS", "60"))
+PAYPAY_JINA_TIMEOUT_SECONDS = int(os.getenv("PAYPAY_JINA_TIMEOUT_SECONDS", "75"))
+PAYPAY_BROWSER_TIMEOUT_SECONDS = int(os.getenv("PAYPAY_BROWSER_TIMEOUT_SECONDS", "90"))
 
 
 class CellParser(HTMLParser):
@@ -110,7 +114,7 @@ def _official_us_symbol_resource_exists(symbol: str) -> bool:
         response = curl_requests.get(
             url,
             headers={"User-Agent": "Stock-Daily-Prediction-PayPay/1.0"},
-            timeout=10,
+            timeout=PAYPAY_HTTP_TIMEOUT_SECONDS,
             impersonate="chrome",
             allow_redirects=True,
         )
@@ -310,7 +314,7 @@ def _jina_reader(url: str) -> bytes:
             "X-Target-Selector": "main",
         },
     )
-    with urllib.request.urlopen(req, timeout=45) as response:
+    with urllib.request.urlopen(req, timeout=PAYPAY_JINA_TIMEOUT_SECONDS) as response:
         body = response.read()
     if len(body) < 1000:
         raise RuntimeError("Jina Reader response unexpectedly small")
@@ -358,7 +362,7 @@ def _browser_dump_dom(url: str) -> bytes:
             command,
             capture_output=True,
             text=False,
-            timeout=55,
+            timeout=PAYPAY_BROWSER_TIMEOUT_SECONDS,
             check=False,
         )
     except subprocess.TimeoutExpired as exc:
