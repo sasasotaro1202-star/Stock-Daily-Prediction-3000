@@ -54,10 +54,17 @@ def _market_calendar(asset_class: str):
     raise ValueError(f"unsupported_market_calendar_asset_class:{asset_class}")
 
 
+@lru_cache(maxsize=8192)
+def _is_market_session(day: date, asset_class: str) -> bool:
+    calendar = _market_calendar(asset_class)
+    return bool(calendar.is_session(pd.Timestamp(day)))
+
+
+@lru_cache(maxsize=8192)
 def _next_market_session(day: date, asset_class: str) -> date:
     calendar = _market_calendar(asset_class)
     session = pd.Timestamp(day)
-    if not calendar.is_session(session):
+    if not _is_market_session(day, asset_class):
         raise ValueError(
             f"invalid_market_session:{asset_class}:{day.isoformat()}"
         )
@@ -88,7 +95,10 @@ def scheduled_prediction_time(
     if asset.startswith("jp_"):
         schedule_key = "asia_prediction_time_jst"
         clock = _parse_hhmm(_schedule_value(pipeline_cfg, schedule_key), key=schedule_key)
-        _next_market_session(session_day, asset)  # validate that the source date is a real XTKS session
+        if not _is_market_session(session_day, asset):
+            raise ValueError(
+                f"invalid_market_session:{asset_class}:{session_day.isoformat()}"
+            )
         local = datetime.combine(
             session_day,
             clock,
