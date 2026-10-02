@@ -46,21 +46,43 @@ def download_workflow_artifact(
         "--dir",
         str(destination),
     ]
-    completed = subprocess.run(
-        command,
-        env=env,
-        text=True,
-        capture_output=True,
-        timeout=timeout_seconds,
-        check=False,
-    )
-    if completed.returncode != 0:
+    last_error: Exception | None = None
+    for attempt in range(2):
+        try:
+            completed = subprocess.run(
+                command,
+                env=env,
+                text=True,
+                capture_output=True,
+                timeout=timeout_seconds,
+                check=False,
+            )
+        except subprocess.TimeoutExpired as exc:
+            last_error = exc
+            print(
+                f"gh-artifact-download-timeout artifact={name} "
+                f"attempt={attempt + 1}/2 timeout={timeout_seconds}s"
+            )
+            if attempt == 0:
+                continue
+            raise RuntimeError(
+                f"gh run download timed out for artifact {name} run {run_id}"
+            ) from exc
+
+        if completed.returncode == 0:
+            return destination
+
         detail = (completed.stderr or completed.stdout or "").strip()
-        raise RuntimeError(
+        last_error = RuntimeError(
             f"gh run download failed for artifact {name} run {run_id}: "
             f"{detail[:500]}"
         )
-    return destination
+        # A non-timeout process failure is not retried blindly: preserve the
+        # fail-closed behavior for authentication/permission/invalid-artifact errors.
+        raise last_error
+
+    assert last_error is not None
+    raise last_error
 
 
 def validate_extracted_tree(root: Path) -> None:
