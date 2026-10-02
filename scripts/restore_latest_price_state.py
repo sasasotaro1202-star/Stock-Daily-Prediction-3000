@@ -7,21 +7,42 @@ import tempfile
 import urllib.request
 from urllib.error import HTTPError
 from pathlib import Path
+import time
 
 from src.data.github_artifact import download_workflow_artifact, validate_extracted_tree
 
 
+GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "60"))
+GITHUB_API_RETRY_ATTEMPTS = max(1, int(os.getenv("GITHUB_API_RETRY_ATTEMPTS", "3")))
+
+
 def _get_json(url: str, token: str):
-    req = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
-    with urllib.request.urlopen(req, timeout=25) as resp:
-        return json.load(resp)
+    last_error: Exception | None = None
+    for attempt in range(GITHUB_API_RETRY_ATTEMPTS):
+        req = urllib.request.Request(
+            url,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+        try:
+            with urllib.request.urlopen(
+                req,
+                timeout=GITHUB_API_TIMEOUT_SECONDS,
+            ) as resp:
+                return json.load(resp)
+        except Exception as exc:
+            last_error = exc
+            print(
+                f"github-artifact-api-retry attempt={attempt + 1}/"
+                f"{GITHUB_API_RETRY_ATTEMPTS} error={type(exc).__name__}"
+            )
+            if attempt < GITHUB_API_RETRY_ATTEMPTS - 1:
+                time.sleep(min(15, 2 ** attempt))
+    assert last_error is not None
+    raise last_error
 
 
 def main():
