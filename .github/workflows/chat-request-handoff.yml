@@ -5,7 +5,6 @@ on:
     branches: [main]
     paths:
       - "ops/chat_queue/*.request.json"
-  workflow_dispatch:
 
 permissions:
   contents: read
