@@ -9,6 +9,9 @@ from typing import Any
 MONITOR = Path("data/research/monitor_latest.json")
 SNAPSHOT = Path("data/research/performance_snapshot.json")
 CHANGE = Path("data/research/performance_change.json")
+RELEASE_GATE = Path("data/research/release_gate.json")
+HOLDOUT = Path("data/research/frozen_holdout_result.json")
+FROZEN_MODEL = Path("config/frozen_holdout.json")
 
 SCOPES = ("overall", "recent_20_sessions")
 LOWER_IS_BETTER = {"logloss", "brier", "ece", "return_mae", "return_rmse"}
