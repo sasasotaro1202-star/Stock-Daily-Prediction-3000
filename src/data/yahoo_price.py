@@ -10,9 +10,6 @@ import pandas as pd
 import yfinance as yf
 
 YF_TIMEOUT_SECONDS = 60
-YF_CONFIGURED_TIMEOUT_SECONDS = int(
-    os.getenv("YF_TIMEOUT_SECONDS", str(YF_TIMEOUT_SECONDS))
-)
 YF_SINGLE_RETRY_ATTEMPTS = max(1, int(os.getenv("YF_SINGLE_RETRY_ATTEMPTS", "3")))
 YF_RETRY_BACKOFF_SECONDS = max(1, int(os.getenv("YF_RETRY_BACKOFF_SECONDS", "2")))
 
@@ -66,7 +63,7 @@ def download_batch(
         group_by="ticker",
         threads=False,
         actions=True,
-        timeout=YF_CONFIGURED_TIMEOUT_SECONDS,
+        timeout=YF_TIMEOUT_SECONDS,
     )
     retrieved_at = pd.Timestamp.now(tz="UTC")
     retrieval_run_id = os.getenv("GITHUB_RUN_ID")
