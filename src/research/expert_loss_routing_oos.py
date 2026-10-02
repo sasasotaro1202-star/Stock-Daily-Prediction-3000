@@ -297,6 +297,8 @@ def analyze_expert_loss_routing(
     fold_rows: list[dict[str, Any]] = []
     fitted_models = 0
 
+    expected_locked_start = len(ordered_folds) - int(locked_folds)
+
     for fold_index, fold in enumerate(ordered_folds):
         y = np.asarray(fold.get("y", []), dtype=int)
         predictions = fold.get("predictions")
@@ -339,6 +341,16 @@ def analyze_expert_loss_routing(
                     "status": "BLOCKED_INVALID_CASE_LINEAGE",
                     "fold": int(fold_index),
                     "row": int(row_index),
+                }
+            expected_locked = bool(fold_index >= expected_locked_start)
+            if bool(meta.get("is_locked")) != expected_locked:
+                return {
+                    **base,
+                    "status": "BLOCKED_LOCKED_FLAG_MISMATCH",
+                    "fold": int(fold_index),
+                    "row": int(row_index),
+                    "expected_is_locked": expected_locked,
+                    "observed_is_locked": bool(meta.get("is_locked")),
                 }
             current_rows.append(meta)
 
@@ -440,9 +452,11 @@ def analyze_expert_loss_routing(
                         "failed": actual_failed,
                     })
 
-        # Only after the current fold has been fully evaluated may its outcomes
-        # enter future expert-loss histories.
-        for row_index, meta in enumerate(current_rows):
+        # Only development outcomes may enter future expert-loss histories.
+        # The entire locked suffix is frozen: no locked-fold outcome may update
+        # expert-loss models used by any later locked fold.
+        if fold_index < expected_locked_start:
+            for row_index, meta in enumerate(current_rows):
             for model_index, model in enumerate(model_names):
                 feature = _case_features(
                     meta,
@@ -565,6 +579,7 @@ def analyze_expert_loss_routing(
             "current_fold_outcomes_used_for_expert_loss_fit": False,
             "current_fold_outcomes_used_for_threshold_or_temperature_selection": False,
             "all_expert_loss_models_fit_only_on_prior_folds": True,
+            "locked_suffix_routing_is_frozen_across_all_locked_folds": True,
             "locked_suffix_routing_is_frozen_per_fold": True,
             "pit_requires_timezone_aware_available_at_le_prediction_time": True,
             "frozen_holdout_used": False,
