@@ -138,12 +138,12 @@ def test_compare_snapshots_ignores_non_numeric_or_unchanged_values():
 
 def test_reporting_context_is_explicit_when_monitor_does_not_provide_it():
     snapshot = build_snapshot({"status": "WARMUP", "evaluated": 0})
-    assert snapshot["context"]["champion"] is None
-    assert snapshot["context"]["prior_champion"] is None
-    assert snapshot["context"]["candidate"] is None
-    assert snapshot["context"]["decision"] is None
-    assert snapshot["context"]["production_status"] is None
-    assert snapshot["context"]["pit_status"] is None
+    assert snapshot["context"]["champion"] == "UNVERIFIABLE"
+    assert snapshot["context"]["prior_champion"] == "UNVERIFIABLE"
+    assert snapshot["context"]["candidate"] == "UNVERIFIABLE"
+    assert snapshot["context"]["decision"] == "UNKNOWN"
+    assert snapshot["context"]["production_status"] == "UNVERIFIABLE"
+    assert snapshot["context"]["pit_status"] == "UNVERIFIABLE"
 
 
 def test_compare_snapshots_handles_zero_baseline_without_division_error():
