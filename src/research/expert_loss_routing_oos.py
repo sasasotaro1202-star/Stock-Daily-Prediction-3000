@@ -189,8 +189,10 @@ def _paired_bootstrap(
             "status": "INSUFFICIENT_LOCKED_CASES",
             "n": int(len(y)),
             "metric": "logloss",
+            "same_oos_cases": True,
             "research_only": True,
             "selection_allowed": False,
+            "reason": "At least 30 locked cases are required for the descriptive bootstrap interval.",
         }
     if not np.isfinite(candidate).all() or not np.isfinite(baseline).all():
         raise ValueError("paired bootstrap probabilities must be finite")
