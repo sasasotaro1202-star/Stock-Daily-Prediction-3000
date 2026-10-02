@@ -9,7 +9,9 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
-YF_TIMEOUT_SECONDS = 30
+YF_TIMEOUT_SECONDS = int(os.getenv("YF_TIMEOUT_SECONDS", "60"))
+YF_SINGLE_RETRY_ATTEMPTS = max(1, int(os.getenv("YF_SINGLE_RETRY_ATTEMPTS", "3")))
+YF_RETRY_BACKOFF_SECONDS = max(1, int(os.getenv("YF_RETRY_BACKOFF_SECONDS", "2")))
 
 
 def yahoo_symbol(symbol: str, asset_class: str) -> str:
@@ -163,7 +165,7 @@ def download_batch(
         key = (str(rec["asset_class"]), str(rec["symbol"]))
         provider_symbol = yahoo_symbol(rec["symbol"], rec["asset_class"])
         recovered = False
-        for attempt in range(3):
+        for attempt in range(YF_SINGLE_RETRY_ATTEMPTS):
             try:
                 single = yf.Ticker(provider_symbol).history(
                     period=period,
@@ -174,7 +176,7 @@ def download_batch(
             except Exception as exc:
                 print(
                     f"price-single-retry provider_symbol={provider_symbol} "
-                    f"attempt={attempt + 1}/3 error={type(exc).__name__}"
+                    f"attempt={attempt + 1}/{YF_SINGLE_RETRY_ATTEMPTS} error={type(exc).__name__}"
                 )
                 single = pd.DataFrame()
             if isinstance(single, pd.DataFrame) and not single.empty:
@@ -194,8 +196,8 @@ def download_batch(
                         f"rows={len(frames[-1])}"
                     )
                     break
-            if attempt < 2:
-                time.sleep(2 ** attempt)
+            if attempt < YF_SINGLE_RETRY_ATTEMPTS - 1:
+                time.sleep(min(15, YF_RETRY_BACKOFF_SECONDS ** attempt))
         if not recovered:
             print(
                 f"price-single-deferred symbol={rec['symbol']} "
