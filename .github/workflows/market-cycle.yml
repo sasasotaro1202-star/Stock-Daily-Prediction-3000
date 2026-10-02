@@ -136,7 +136,7 @@ jobs:
     if: needs.prepare-cycle.outputs.run_required == 'true'
     needs: [prepare-cycle, refresh-universe]
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
@@ -173,7 +173,7 @@ jobs:
     if: needs.prepare-cycle.outputs.run_required == 'true'
     needs: [prepare-cycle, price-shards]
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
