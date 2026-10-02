@@ -354,6 +354,21 @@ jobs:
               print(f"- Learned case-risk failure-lift delta: {(learned_data.get('delta_learned_minus_fixed') or {}).get('failure_rate_lift', 'n/a')}")
           else:
               print("- Learned case-risk status: missing")
+          expert_loss_path = Path("data/research/expert_loss_routing_oos.json")
+          if expert_loss_path.exists():
+              expert_loss = json.loads(expert_loss_path.read_text(encoding="utf-8"))
+              print(f"- Expert-loss routing status: {expert_loss.get('status', 'n/a')}")
+              em = expert_loss.get("locked_metrics") or {}
+              print(f"- Expert-loss routing LogLoss: {(em.get('expert_loss_routing') or {}).get('logloss', 'n/a')}")
+              print(f"- Existing dynamic LogLoss: {(em.get('existing_dynamic_routing') or {}).get('logloss', 'n/a')}")
+              print(f"- Expert-loss routing ΔLogLoss: {(em.get('delta_candidate_minus_dynamic') or {}).get('logloss', 'n/a')}")
+              pb = expert_loss.get("paired_bootstrap") or {}
+              print(f"- Expert-loss paired bootstrap status: {pb.get('status', 'n/a')}")
+              print(f"- Expert-loss paired bootstrap ΔLogLoss: {pb.get('observed_delta_candidate_minus_dynamic', 'n/a')}")
+              print(f"- Expert-loss paired bootstrap 95% CI: [{pb.get('ci_95_low', 'n/a')}, {pb.get('ci_95_high', 'n/a')}]")
+              print(f"- Expert-loss paired bootstrap descriptive p-value: {pb.get('p_two_sided', 'n/a')}")
+          else:
+              print("- Expert-loss routing status: missing")
           adv = Path("data/research/ultimate_v13/adversarial_robustness.json")
           if adv.exists():
               print(f"- Adversarial structural audit: {json.loads(adv.read_text(encoding='utf-8')).get('status', 'n/a')}")
