@@ -33,8 +33,7 @@ jobs:
           mapfile -t files < <(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" -- 'ops/chat_queue/*.request.json')
           if [ "${#files[@]}" -ne 1 ]; then
             echo "FAIL: expected exactly one new/updated chat request, got ${#files[@]}"
-            printf '%s
-' "${files[@]}"
+            printf '%s\n' "${files[@]}"
             exit 1
           fi
           python scripts/validate_chat_request.py "${files[0]}"
