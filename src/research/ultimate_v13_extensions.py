@@ -21,6 +21,7 @@ from src.research.ultimate_control_v13 import (
     metrics,
     safe_probability,
 )
+from src.research.expert_loss_routing_oos import analyze_expert_loss_routing
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
@@ -828,6 +829,14 @@ def augment_v13_result(
         result.get("fold_results", []), models
     )
     result["active_information"] = _active_information_contract(bank)
+
+    expert_loss_oos = analyze_expert_loss_routing(
+        ledger_rows,
+        ordered,
+        models=models,
+        locked_folds=locked_folds,
+    )
+    result["expert_loss_routing_oos"] = expert_loss_oos
     result.setdefault("prediction_output", {})["scenario_proxy"] = True
     result.setdefault("prediction_output", {})["forecast_contract"] = True
     result.setdefault("prediction_output", {})["ledger"] = True
