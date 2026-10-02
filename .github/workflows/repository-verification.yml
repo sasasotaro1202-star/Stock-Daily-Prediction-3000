@@ -32,7 +32,22 @@ jobs:
       - run: python -m compileall -q src scripts
       - name: Validate workflow YAML
         run: python -c 'from pathlib import Path; import yaml; docs=[yaml.safe_load(p.read_text(encoding="utf-8")) for p in Path(".github/workflows").glob("*.yml")]; assert all(isinstance(d, dict) and "jobs" in d for d in docs); print("workflow_yaml_valid", len(docs))'
-      - run: pytest -q
+      - name: Run pytest with retained failure log
+        shell: bash
+        run: |
+          set +e
+          pytest -q > pytest.log 2>&1
+          rc=$?
+          cat pytest.log
+          set -e
+          exit "$rc"
+      - name: Upload pytest failure log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: pytest-debug-${{ github.run_id }}
+          path: pytest.log
+          if-no-files-found: error
       - run: python scripts/research_smoke.py
       - run: python scripts/automation_invariants.py
       - run: python scripts/production_invariants.py
