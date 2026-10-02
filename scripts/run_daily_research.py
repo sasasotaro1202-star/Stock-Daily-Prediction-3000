@@ -566,6 +566,21 @@ def _ensure_adaptive_research_data() -> dict:
         )
     return result
 
+def _online_outcome_delay_sessions(pipeline_cfg: dict) -> int:
+    online_cfg = pipeline_cfg.get("online_ensemble_research", {}) or {}
+    try:
+        delay = int(online_cfg.get("outcome_delay_sessions", 0))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "online_ensemble_research.outcome_delay_sessions must be an integer"
+        ) from exc
+    if delay < 0:
+        raise ValueError(
+            "online_ensemble_research.outcome_delay_sessions must be >= 0"
+        )
+    return delay
+
+
 def main():
     _self_validate_conformal_research()
 
@@ -920,17 +935,10 @@ def main():
     online_prediction_by_fold: dict[int, dict[str, object]] = {}
     blend_prediction_cache: dict[int, dict[str, tuple[np.ndarray, np.ndarray]]] = {}
 
-    online_cfg = pipeline_cfg.get("online_ensemble_research", {}) or {}
     try:
-        outcome_delay_sessions = int(online_cfg.get("outcome_delay_sessions", 0))
-    except (TypeError, ValueError) as exc:
-        raise SystemExit(
-            "FAIL: online_ensemble_research.outcome_delay_sessions must be an integer"
-        ) from exc
-    if outcome_delay_sessions < 0:
-        raise SystemExit(
-            "FAIL: online_ensemble_research.outcome_delay_sessions must be >= 0"
-        )
+        outcome_delay_sessions = _online_outcome_delay_sessions(pipeline_cfg)
+    except ValueError as exc:
+        raise SystemExit(f"FAIL: {exc}") from exc
 
     # Fold-level context is identical across model candidates. Compute it once
     # per chronological fold instead of repeating two DataFrame.apply(axis=1)
