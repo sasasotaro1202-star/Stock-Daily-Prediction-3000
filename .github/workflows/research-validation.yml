@@ -16,11 +16,14 @@ on:
       - "src/research/ultimate_v13_extensions.py"
       - "src/research/case_risk_oos.py"
       - "src/research/learned_case_risk_oos.py"
+      - "src/research/learned_case_risk_oos.py"
       - "src/research/v13_governance.py"
       - "scripts/run_daily_research.py"
       - "scripts/run_case_risk_oos_audit.py"
       - "scripts/run_learned_case_risk_oos.py"
+      - "scripts/run_learned_case_risk_oos.py"
       - "tests/test_case_risk_oos.py"
+      - "tests/test_learned_case_risk_oos.py"
       - "tests/test_learned_case_risk_oos.py"
       - "config/pipeline.yml"
 
@@ -275,6 +278,10 @@ jobs:
         if: steps.research_oos.outcome == 'success'
         run: python scripts/run_learned_case_risk_oos.py
 
+      - name: Run frozen learned case-risk OOS audit
+        if: steps.research_oos.outcome == 'success'
+        run: python scripts/run_learned_case_risk_oos.py
+
       - name: Publish Ultimate v13 score summary
         if: always() && steps.research_oos.outcome == 'success'
         shell: bash
@@ -318,6 +325,15 @@ jobs:
           print(f"- Case-risk high-risk coverage: {(case_risk.get('risk_score') or {}).get('high_risk_coverage', 'n/a')}")
           print(f"- Case-risk error capture: {(case_risk.get('aggregate') or {}).get('error_capture_rate', 'n/a')}")
           print(f"- Case-risk high-vs-low failure lift: {(case_risk.get('aggregate') or {}).get('failure_rate_lift_high_vs_low', 'n/a')}")
+          learned_case_risk = Path("data/research/learned_case_risk_oos.json")
+          if learned_case_risk.exists():
+              learned_data = json.loads(learned_case_risk.read_text(encoding="utf-8"))
+              print(f"- Learned case-risk status: {learned_data.get('status', 'n/a')}")
+              print(f"- Learned case-risk error capture: {((learned_data.get('learned_case_risk') or {}).get('evaluation') or {}).get('error_capture_rate', 'n/a')}")
+              print(f"- Learned vs fixed error-capture delta: {(learned_data.get('delta_learned_minus_fixed') or {}).get('error_capture_rate', 'n/a')}")
+              print(f"- Learned case-risk failure-lift delta: {(learned_data.get('delta_learned_minus_fixed') or {}).get('failure_rate_lift', 'n/a')}")
+          else:
+              print("- Learned case-risk status: missing")
           learned_case_risk = Path("data/research/learned_case_risk_oos.json")
           if learned_case_risk.exists():
               learned_data = json.loads(learned_case_risk.read_text(encoding="utf-8"))
@@ -387,6 +403,7 @@ jobs:
             data/research/experience_candidates.json
             data/research/experience_candidate_evaluation.json
             data/research/case_risk_oos.json
+            data/research/learned_case_risk_oos.json
             data/research/learned_case_risk_oos.json
             data/research/ultimate_v13/**
           retention-days: 14
