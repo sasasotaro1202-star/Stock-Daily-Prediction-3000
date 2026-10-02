@@ -217,3 +217,19 @@ def test_cluster_bootstrap_is_declared_insufficient_when_locked_clusters_are_spa
     assert cluster["same_oos_cases"] is True
     assert cluster["research_only"] is True
     assert cluster["selection_allowed"] is False
+
+
+def test_cluster_bootstrap_blocks_missing_session_keys():
+    ledger, folds = _make_data([i % 2 for i in range(80)], locked_folds=2)
+    ledger[160]["session_date"] = None
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    cluster = result["cluster_paired_bootstrap"]
+    assert cluster["status"] == "BLOCKED_MISSING_CLUSTER_KEYS"
+    assert cluster["research_only"] is True
+    assert cluster["selection_allowed"] is False
