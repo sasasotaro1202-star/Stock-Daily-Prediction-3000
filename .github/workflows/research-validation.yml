@@ -16,12 +16,15 @@ on:
       - "src/research/ultimate_v13_extensions.py"
       - "src/research/case_risk_oos.py"
       - "src/research/learned_case_risk_oos.py"
+      - "src/research/expert_loss_routing_oos.py"
       - "src/research/v13_governance.py"
       - "scripts/run_daily_research.py"
       - "scripts/run_case_risk_oos_audit.py"
       - "scripts/run_learned_case_risk_oos.py"
+      - "scripts/run_expert_loss_routing_oos.py"
       - "tests/test_case_risk_oos.py"
       - "tests/test_learned_case_risk_oos.py"
+      - "tests/test_expert_loss_routing_oos.py"
       - "config/pipeline.yml"
 
 permissions:
@@ -274,6 +277,30 @@ jobs:
       - name: Run frozen learned case-risk OOS audit
         if: steps.research_oos.outcome == 'success'
         run: python scripts/run_learned_case_risk_oos.py
+
+      - name: Run prequential expert-loss routing OOS audit
+        if: steps.research_oos.outcome == 'success'
+        run: python scripts/run_expert_loss_routing_oos.py
+
+      - name: Validate expert-loss routing safety
+        if: steps.research_oos.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("data/research/expert_loss_routing_oos.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          assert data.get("schema_version") == 1
+          assert data.get("research_only") is True
+          assert data.get("production_changed") is False
+          assert data.get("promotion_allowed") is False
+          assert data.get("frozen_holdout_used") is False
+          contracts = data.get("contracts") or {}
+          assert contracts.get("current_fold_outcomes_used_for_routing") is False
+          assert contracts.get("current_fold_outcomes_used_for_expert_loss_fit") is False
+          assert contracts.get("all_expert_loss_models_fit_only_on_prior_folds") is True
+          print("EXPERT_LOSS_ROUTING_SAFETY=PASS")
+          PY
 
       - name: Publish Ultimate v13 score summary
         if: always() && steps.research_oos.outcome == 'success'
