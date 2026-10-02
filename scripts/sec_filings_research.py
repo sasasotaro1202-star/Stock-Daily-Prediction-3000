@@ -27,10 +27,11 @@ ALLOWED_FORMS = {
     "S-1", "S-3", "S-4", "424B2", "DEF 14A", "SC 13D", "SC 13G",
 }
 USER_AGENT = os.getenv("SEC_USER_AGENT", "Stock-Daily-Prediction-3000/0.1 (+https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000)")
-REQUEST_TIMEOUT = 25
+REQUEST_TIMEOUT = int(os.getenv("SEC_REQUEST_TIMEOUT_SECONDS", "60"))
+JINA_REQUEST_TIMEOUT_SECONDS = int(os.getenv("SEC_JINA_REQUEST_TIMEOUT_SECONDS", "75"))
+MAX_REQUEST_ATTEMPTS = max(1, int(os.getenv("SEC_MAX_REQUEST_ATTEMPTS", "3")))
 RATE_SLEEP_SECONDS = 0.15
 RETRYABLE_HTTP_CODES = {429, 500, 502, 503, 504}
-MAX_REQUEST_ATTEMPTS = 3
 
 
 def _get_json(url: str) -> object:
@@ -116,7 +117,7 @@ def _jina_get_json(url: str) -> object:
             },
         )
         try:
-            with urlopen(req, timeout=45) as response:
+            with urlopen(req, timeout=JINA_REQUEST_TIMEOUT_SECONDS) as response:
                 text_value = response.read().decode("utf-8", errors="replace").strip()
             payload = _parse_json_with_wrappers(text_value)
             if not isinstance(payload, (dict, list)):
@@ -250,7 +251,7 @@ def _get_master_index_text(url: str) -> tuple[str, str]:
             },
         )
         try:
-            with urlopen(req, timeout=45) as response:
+            with urlopen(req, timeout=JINA_REQUEST_TIMEOUT_SECONDS) as response:
                 body = response.read()
             text_value = body.decode("utf-8", errors="replace")
             if len(text_value) < 1000:

@@ -15,6 +15,8 @@ from src.data.github_artifact import (
 
 
 MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+GITHUB_API_TIMEOUT_SECONDS = int(os.getenv("GITHUB_API_TIMEOUT_SECONDS", "60"))
+GITHUB_API_RETRY_ATTEMPTS = max(1, int(os.getenv("GITHUB_API_RETRY_ATTEMPTS", "3")))
 
 
 def _validate_snapshot(path: Path, created_at: str) -> None:
@@ -48,17 +50,31 @@ def _validate_snapshot(path: Path, created_at: str) -> None:
 
 
 def _api_get(url: str, token: str) -> dict:
-    response = requests.get(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2026-03-10",
-        },
-        timeout=25,
-    )
-    response.raise_for_status()
-    return response.json()
+    last_error: Exception | None = None
+    for attempt in range(GITHUB_API_RETRY_ATTEMPTS):
+        try:
+            response = requests.get(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2026-03-10",
+                },
+                timeout=GITHUB_API_TIMEOUT_SECONDS,
+            )
+            response.raise_for_status()
+            return response.json()
+        except Exception as exc:
+            last_error = exc
+            print(
+                f"github-api-retry attempt={attempt + 1}/"
+                f"{GITHUB_API_RETRY_ATTEMPTS} error={type(exc).__name__}"
+            )
+            if attempt < GITHUB_API_RETRY_ATTEMPTS - 1:
+                import time
+                time.sleep(min(15, 2 ** attempt))
+    assert last_error is not None
+    raise last_error
 
 
 def _recent_market_cycle_universe_artifacts(repo: str, token: str) -> list[dict]:
