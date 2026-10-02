@@ -370,14 +370,17 @@ def test_data_quality_gate_handles_retrieved_at_rows_without_unbound_session_dat
             }
         )
     )
+        session_date = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=1)).date()
+        available_at = pd.Timestamp(f"{session_date.isoformat()}T07:00:00Z")
+        retrieved_at = pd.Timestamp(f"{session_date.isoformat()}T07:30:00Z")
     bars = pd.DataFrame(
         [
             {
                 "symbol": "7203",
                 "asset_class": "jp_stock",
-                "session_date": pd.Timestamp("2026-09-22").date(),
-                "available_at": pd.Timestamp("2026-09-22T07:00:00Z"),
-                "retrieved_at": pd.Timestamp("2026-09-22T07:30:00Z"),
+                "session_date": session_date,
+                "available_at": available_at,
+                "retrieved_at": retrieved_at,
                 "source": "yfinance",
                 "provider_symbol": "7203.T",
                 "open": 100.0,
