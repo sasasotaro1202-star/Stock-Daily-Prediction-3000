@@ -404,7 +404,7 @@ def fetch(url: str) -> bytes:
             response = curl_requests.get(
                 candidate,
                 headers=headers,
-                timeout=30,
+                timeout=PAYPAY_HTTP_TIMEOUT_SECONDS,
                 impersonate="chrome",
                 allow_redirects=True,
             )
@@ -421,7 +421,7 @@ def fetch(url: str) -> bytes:
     # Conservative urllib fallback for transient TLS/client failures.
     req = urllib.request.Request(candidate, headers=headers)
     try:
-        with urllib.request.urlopen(req, timeout=30) as response:
+        with urllib.request.urlopen(req, timeout=PAYPAY_HTTP_TIMEOUT_SECONDS) as response:
             body = response.read()
             if len(body) < 10_000:
                 raise RuntimeError(
