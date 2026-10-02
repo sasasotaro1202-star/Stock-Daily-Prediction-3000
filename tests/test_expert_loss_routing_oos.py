@@ -21,12 +21,13 @@ def _case_row(fold: int, row: int, *, locked: bool) -> dict:
     }
 
 
-def _make_data(locked_outcomes: list[int]):
+def _make_data(locked_outcomes: list[int], *, locked_folds: int = 1):
     ledger = []
     folds = []
     for fold in range(4):
         n = 80
-        if fold == 3:
+        is_locked = fold >= 4 - int(locked_folds)
+        if is_locked:
             y = locked_outcomes
         else:
             y = [i % 2 for i in range(n)]
@@ -161,3 +162,30 @@ def test_paired_bootstrap_is_deterministic_and_fail_closed():
     assert bootstrap["selection_allowed"] is False
     assert bootstrap["same_oos_cases"] is True
     assert bootstrap["ci_95_low"] <= bootstrap["observed_delta_candidate_minus_dynamic"] <= bootstrap["ci_95_high"]
+
+
+def test_locked_suffix_is_frozen_across_multiple_locked_folds():
+    ledger_a, folds_a = _make_data([i % 2 for i in range(80)], locked_folds=2)
+    ledger_b, folds_b = _make_data([1 - (i % 2) for i in range(80)], locked_folds=2)
+    result_a = analyze_expert_loss_routing(
+        ledger_a,
+        folds_a,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    result_b = analyze_expert_loss_routing(
+        ledger_b,
+        folds_b,
+        models=MODELS,
+        locked_folds=2,
+        min_training_rows=60,
+    )
+    assert result_a["status"] == "EVALUATED"
+    assert result_b["status"] == "EVALUATED"
+    assert result_a["contracts"]["locked_suffix_routing_is_frozen_across_all_locked_folds"] is True
+    # The second locked fold must not be retrained on the first locked fold's outcome.
+    a_second = result_a["fold_results"][-1]
+    b_second = result_b["fold_results"][-1]
+    assert a_second["predicted_loss_mean"] == b_second["predicted_loss_mean"]
+    assert a_second["weight_means"] == b_second["weight_means"]
