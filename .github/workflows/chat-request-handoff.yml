@@ -1,0 +1,46 @@
+name: Chat request handoff
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "ops/chat_queue/*.request.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: chat-request-handoff
+  cancel-in-progress: false
+
+jobs:
+  handoff:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Validate the new chat request
+        id: validate
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" -- 'ops/chat_queue/*.request.json')
+          if [ "${#files[@]}" -ne 1 ]; then
+            echo "FAIL: expected exactly one new/updated chat request, got ${#files[@]}"
+            printf '%s\n' "${files[@]}"
+            exit 1
+          fi
+          python scripts/validate_chat_request.py "${files[0]}"
+          echo "request_path=${files[0]}" >> "$GITHUB_OUTPUT"
+      - name: Publish handoff artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: chat-request-handoff-${{ github.run_id }}
+          path: ${{ steps.validate.outputs.request_path }}
+          retention-days: 7
