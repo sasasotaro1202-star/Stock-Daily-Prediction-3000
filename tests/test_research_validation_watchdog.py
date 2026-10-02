@@ -5,7 +5,7 @@ import yaml
 
 def test_research_validation_watchdog_is_write_scoped_and_bounded():
     workflow = yaml.safe_load(
-        Path(".github/workflows/research-validation-watchdog.yml").read_text(
+        Path(".github/workflows/research-validation-stale-watchdog.yml").read_text(
             encoding="utf-8"
         )
     )
@@ -15,4 +15,4 @@ def test_research_validation_watchdog_is_write_scoped_and_bounded():
     assert "research-validation.yml" in run
     assert "minutes=90" in run
     assert "actions/runs/" in run
-    assert "--method", "POST"" in run
+    assert '--method", "POST"' in run
