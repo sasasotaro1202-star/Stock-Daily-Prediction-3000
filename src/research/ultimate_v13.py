@@ -236,6 +236,7 @@ def build_ultimate_intelligence(
             "strategy_failure.json",
             "governance.json",
             "experiment_registry.json",
+            "expert_loss_routing_oos.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
