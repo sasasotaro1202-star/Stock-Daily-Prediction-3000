@@ -535,11 +535,11 @@ def analyze_expert_loss_routing(
                 locked_oos_y.append(int(y[row_index]))
                 locked_candidate_predictions.append(float(candidate_prediction[row_index]))
                 locked_dynamic_predictions.append(float(dynamic_prediction[row_index]))
-                locked_cluster_ids.append(str(
-                    current_rows[row_index].get("session_date")
-                    or current_rows[row_index].get("market_date")
-                    or f"fold:{fold_index}"
-                ))
+                cluster_key = current_rows[row_index].get("session_date")
+                locked_cluster_ids.append(
+                    "" if cluster_key in (None, "", "None", "nan")
+                    else str(cluster_key)
+                )
                 for model_index, model in enumerate(model_names):
                     actual_failed = int(
                         (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
