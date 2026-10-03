@@ -133,6 +133,35 @@ def _pit_ready(row: Mapping[str, Any]) -> bool:
         return False
     if retrieved is not None and retrieved < available:
         return False
+
+    # Defense in depth for derived case features: when the ledger carries
+    # explicit feature-level provenance, never let a feature snapshot or
+    # lineage status silently bypass the row-level PIT contract.
+    feature_status_raw = row.get("feature_pit_status")
+    if feature_status_raw is not None and str(feature_status_raw).strip() != "PASS":
+        return False
+    feature_cutoff_raw = row.get("feature_snapshot_cutoff")
+    feature_cutoff = (
+        _parse_pit_timestamp(feature_cutoff_raw)
+        if feature_cutoff_raw is not None
+        else None
+    )
+    if feature_cutoff_raw is not None and feature_cutoff is None:
+        return False
+    if feature_cutoff is not None and feature_cutoff > cutoff:
+        return False
+
+    feature_available_raw = row.get("feature_max_available_at")
+    feature_available = (
+        _parse_pit_timestamp(feature_available_raw)
+        if feature_available_raw is not None
+        else None
+    )
+    if feature_available_raw is not None and feature_available is None:
+        return False
+    if feature_available is not None and feature_available > cutoff:
+        return False
+
     # Retrieval is itself an information-availability event for this
     # prediction path; a post-cutoff retrieval cannot make the row PIT-safe.
     if retrieved is not None and retrieved > cutoff:
