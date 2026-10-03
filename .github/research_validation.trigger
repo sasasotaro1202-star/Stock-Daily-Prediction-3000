@@ -1,3 +1,3 @@
-base_code_commit=7d8a7bc7dbca3d13cf800c9b3bf103209f6ec299
+base_code_commit=ceac08c0deb9eb82a8af7e2df514328c1dc1d5b8
 purpose=validate latest-head learned case-risk prequential fold stability, PIT timestamp guardrails, calibration, leakage, chronological WFO/OOS, robustness, source provenance, adaptive data expansion, model selection, and promotion safety without automatic promotion
-trigger_reason=post_case_risk_prequential_stability_hardening_20261003
+trigger_reason=post_requested_event_heartbeat_hardening_20261004
