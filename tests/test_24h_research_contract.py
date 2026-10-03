@@ -59,7 +59,7 @@ def test_watchdog_does_not_dispatch_until_stale_run_cancellation_settles():
     assert '"action":"CANCEL_AND_WAIT"' in text
     block = text.split("CANCEL_AND_WAIT)", 1)[1].split("DISPATCH)", 1)[0]
     assert "gh run cancel" in block
-    assert "waiting for cancellation to settle before dispatch" in block
+    assert "next tick may dispatch" in block
     assert "dispatch_main" not in block
 
 
