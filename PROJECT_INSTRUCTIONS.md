@@ -25,6 +25,13 @@ Calibrate chronologically. Confidence ≠ predictability. Track disagreement, OO
 ## Research / adoption
 External methods must pass discovery, source verification, PIT/cost checks, local reproduction, chronological OOS, robustness and frozen holdout before adoption. A candidate is never promoted from a single fold or external claim.
 
+## Adoption / experience / cross-project transfer
+Compare candidates against the incumbent on the same chronological OOS observations. Reference gates are: primary relative OOS LogLoss improvement >=3%, auxiliary improvement >=1%, no worsening in >=70% of evaluation periods, no worsening on the newest holdout, no material calibration degradation, and zero PIT violations. Also consider sample size, variance, confidence intervals, cross-sectional/serial dependence, turnover, transaction costs and operational risk; thresholds alone never auto-promote a candidate.
+
+Matured predictions are stored at canonical instrument-date-cutoff granularity. Do not inflate experience weight with duplicate snapshots or revisions. Reconcile prediction -> actual -> metric -> error -> state, and keep current prediction artifacts separate from historical experience.
+
+Transfer from other projects is mechanism-level only: DISCOVER -> ABSTRACT_MECHANISM -> COMPATIBILITY -> ADAPT -> LOCAL_PIT -> LOCAL_OOS -> LOCAL_HOLDOUT -> SHADOW -> PROMOTE. Cross-domain success is never copied directly into stock production.
+
 ## Reliability / cost / security
 Use checkpoint/resume, idempotency, bounded retry/backoff, watchdog/heartbeat, stale-run detection, deterministic writes, artifact preservation, concurrency control, recovery and rollback. Never hide failure. Prefer verified free/OSS/local/cache; unknown-cost or billing-risk services are not automatic dependencies. Never expose credentials.
 
