@@ -159,6 +159,8 @@ jobs:
         run: pytest -q tests/test_ultimate_v13.py
       - name: Ultimate v13 meta-leakage audit
         run: python scripts/run_v13_meta_leakage_audit.py
+      - name: Research validation workflow contract tests
+        run: pytest -q tests/test_research_validation_contract.py
       - name: Ultimate v13 adversarial structural robustness
         run: python scripts/run_v13_adversarial_robustness.py
 
@@ -242,6 +244,8 @@ jobs:
           v13_governance = Path("data/research/ultimate_v13/governance.json")
           v13_registry = Path("data/research/ultimate_v13/experiment_registry.json")
           v13_expert_loss = Path("data/research/ultimate_v13/expert_loss_routing_oos.json")
+          v13_case_risk = Path("data/research/ultimate_v13/case_risk_oos.json")
+          v13_learned_case_risk = Path("data/research/ultimate_v13/learned_case_risk_oos.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -259,6 +263,8 @@ jobs:
               or not v13_governance.exists()
               or not v13_registry.exists()
               or not v13_expert_loss.exists()
+              or not v13_case_risk.exists()
+              or not v13_learned_case_risk.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
@@ -274,6 +280,8 @@ jobs:
               "governance.json",
               "experiment_registry.json",
               "expert_loss_routing_oos.json",
+              "case_risk_oos.json",
+              "learned_case_risk_oos.json",
           }
           if not required_artifacts.issubset(set(manifest_data.get("artifacts") or [])):
               raise SystemExit("FAIL: v13 manifest missing required governance/history artifacts")
@@ -285,6 +293,21 @@ jobs:
           registry = json.loads(v13_registry.read_text(encoding="utf-8"))
           if registry.get("validation", {}).get("status") != "PASS":
               raise SystemExit("FAIL: v13 experiment registry validation did not PASS")
+          for label, path in (
+              ("case_risk_oos", v13_case_risk),
+              ("learned_case_risk_oos", v13_learned_case_risk),
+          ):
+              data = json.loads(path.read_text(encoding="utf-8"))
+              if data.get("schema_version") != 1:
+                  raise SystemExit(f"FAIL: {label} schema version is invalid")
+              if data.get("research_only") is not True:
+                  raise SystemExit(f"FAIL: {label} must remain research_only")
+              if data.get("production_changed") is not False:
+                  raise SystemExit(f"FAIL: {label} claims production mutation")
+              if data.get("promotion_allowed") is not False:
+                  raise SystemExit(f"FAIL: {label} may not promote")
+              if data.get("frozen_holdout_used") is not False:
+                  raise SystemExit(f"FAIL: {label} unexpectedly used frozen holdout")
           json.loads(summary.read_text(encoding="utf-8"))
           json.loads(v13_history.read_text(encoding="utf-8"))
           json.loads(v13_strategy_failure.read_text(encoding="utf-8"))
