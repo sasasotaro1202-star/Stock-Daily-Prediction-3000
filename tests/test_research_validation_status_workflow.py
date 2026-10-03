@@ -35,7 +35,25 @@ def test_missing_completed_evidence_fails_closed() -> None:
 
 def test_oos_restore_skips_non_success_workflow_run_events() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    start = text.index("      - name: Restore OOS metrics for longitudinal snapshot")
+    start = text.index("      - name: Download completed OOS evidence")
     block = text[start:text.index("      - name: Persist research validation status", start)]
-    assert "github.event_name == 'workflow_run'" in block
-    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in block
+    assert block.count("github.event_name == 'workflow_run'") == 2
+    assert block.count("github.event.workflow_run.conclusion == 'success'") == 2
+    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" not in block
+
+
+def test_workflow_run_context_is_captured_before_status_persistence() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    start = text.index("      - name: Resolve Research status context")
+    resolve_block = text[start:text.index("      - name: Download completed OOS evidence", start)]
+    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in resolve_block
+    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in resolve_block
+    assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}" in resolve_block
+    assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}" in resolve_block
+
+    start = text.index("      - name: Persist research validation status")
+    persist_block = text[start:text.index("      - name: Preserve generated status outputs", start)]
+    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}" not in persist_block
+    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" not in persist_block
+    assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}" not in persist_block
+    assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}" not in persist_block
