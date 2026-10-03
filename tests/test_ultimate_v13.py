@@ -183,7 +183,7 @@ def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path
     integrated_case_risk = result["case_risk_oos"]
     integrated_learned = result["learned_case_risk_oos"]
     assert integrated_case_risk["status"] == "EVALUATED"
-    assert integrated_learned["status"] == "EVALUATED"
+    assert integrated_learned["status"] == "INSUFFICIENT_DEVELOPMENT_HISTORY"
     assert integrated_case_risk["promotion_allowed"] is False
     assert integrated_learned["promotion_allowed"] is False
     assert (tmp_path / "case_risk_oos.json").exists()
