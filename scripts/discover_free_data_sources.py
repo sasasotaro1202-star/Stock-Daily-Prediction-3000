@@ -186,6 +186,14 @@ OFFICIAL_SOURCES = [
         "access_mode": "direct_csv",
     },
     {
+        "name": "U.S. SEC Insider and Beneficial Ownership Filings",
+        "kind": "insider_ownership_events",
+        "url": "https://www.sec.gov/edgar/searchedgar/companysearch.html",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "archives_api",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -268,6 +276,10 @@ GITHUB_QUERIES = {
     "fed_cross_asset": [
         "Federal Reserve FRED financial conditions SOFR dollar index",
         "FRED monetary financial stress macro time series",
+    ],
+    "insider_ownership_events": [
+        "SEC Form 4 insider transactions acceptance datetime",
+        "SEC Schedule 13D 13G beneficial ownership filings",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
