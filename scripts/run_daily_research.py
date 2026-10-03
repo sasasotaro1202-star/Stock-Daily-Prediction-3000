@@ -154,7 +154,28 @@ def make_models():
     if not configured_names:
         raise SystemExit("FAIL: no classifier candidates configured in pipeline.yml")
 
-    selected = {name: available[name] for name in configured_names if name in available}
+    allowlist_raw = os.environ.get("RESEARCH_MODEL_ALLOWLIST", "").strip()
+    research_model_allowlist = [
+        name.strip()
+        for name in allowlist_raw.split(",")
+        if name.strip()
+    ]
+    if len(research_model_allowlist) != len(set(research_model_allowlist)):
+        raise SystemExit("FAIL: RESEARCH_MODEL_ALLOWLIST contains duplicates")
+    primary_names = [str(name) for name in model_cfg.get("primary_candidates", []) or []]
+    missing_primary = [
+        name for name in primary_names if name not in research_model_allowlist
+    ]
+    if research_model_allowlist and missing_primary:
+        raise SystemExit(
+            "FAIL: RESEARCH_MODEL_ALLOWLIST must retain all primary candidates: "
+            + ",".join(missing_primary)
+        )
+
+    candidate_names = (
+        research_model_allowlist if research_model_allowlist else configured_names
+    )
+    selected = {name: available[name] for name in candidate_names if name in available}
     missing_primary = [
         str(name)
         for name in model_cfg.get("primary_candidates", []) or []
@@ -3318,6 +3339,11 @@ def main():
         "global_selection_candidates": balanced_candidates,
         "model_candidate_manifest": {
             "configured_candidates": configured_candidate_names,
+            "research_model_allowlist": [
+                str(name)
+                for name in os.environ.get("RESEARCH_MODEL_ALLOWLIST", "").split(",")
+                if str(name).strip()
+            ],
             "evaluated_candidates": sorted(candidate_models),
             "unavailable_optional_candidates": sorted(unavailable_optional_candidates),
         },
