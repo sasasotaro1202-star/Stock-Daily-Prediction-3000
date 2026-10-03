@@ -116,3 +116,24 @@ treasury_rate_family:
     exact_publication_time_verified: false
     source_available_at_inferred: false
     research_use_only_until_pit_validation: true
+
+mof_fx_intervention:
+  enabled: true
+  url: "https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv"
+  output: "data/research/mof_fx_intervention.csv"
+  pit_policy:
+    publication_schedule_verified: true
+    row_level_available_at_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
+
+mof_official_reserves:
+  enabled: true
+  url: "https://www.mof.go.jp/policy/international_policy/reference/official_reserve_assets/historical.csv"
+  output: "data/research/mof_official_reserves.csv"
+  pit_policy:
+    publication_schedule_verified: true
+    row_level_available_at_verified: false
+    source_available_at_inferred: false
+    revision_history_must_be_preserved: true
+    research_use_only_until_pit_validation: true
