@@ -138,6 +138,22 @@ OFFICIAL_SOURCES = [
         "access_mode": "api_or_feed",
     },
     {
+        "name": "Japan MOF Foreign Exchange Intervention Operations",
+        "kind": "fx_intervention",
+        "url": "https://www.mof.go.jp/policy/international_policy/reference/feio/foreign_exchange_intervention_operations.csv",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "direct_csv",
+    },
+    {
+        "name": "Japan MOF Official Reserve Assets",
+        "kind": "official_reserves",
+        "url": "https://www.mof.go.jp/policy/international_policy/reference/official_reserve_assets/historical.csv",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "direct_csv",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -196,6 +212,14 @@ GITHUB_QUERIES = {
     "real_rates_detail": [
         "U.S. Treasury real long term rates",
         "Treasury real long-term interest rates XML",
+    ],
+    "fx_intervention": [
+        "Japan MOF foreign exchange intervention operations CSV",
+        "foreign exchange intervention historical Japan",
+    ],
+    "official_reserves": [
+        "Japan MOF official reserve assets historical CSV",
+        "Japan foreign exchange reserves historical data",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
