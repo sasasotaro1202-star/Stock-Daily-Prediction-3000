@@ -1,6 +1,11 @@
 name: Actions reliability watchdog
 
 # Recovery trigger: rerun watchdog on latest HEAD after research timeout-policy alignment.
+#
+# Research validation intentionally does not trigger this workflow via workflow_run.
+# The watchdog uses its 5-minute schedule (plus push/manual recovery triggers) to
+# inspect research runs. This prevents cancel-in-progress from self-cancelling a
+# watchdog instance immediately after another research lifecycle event.
 
 on:
   workflow_dispatch:
@@ -13,9 +18,6 @@ on:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"
       timezone: "Asia/Tokyo"
-  workflow_run:
-    workflows: ["Research validation"]
-    types: [requested, in_progress, completed]
 
 permissions:
   actions: write
