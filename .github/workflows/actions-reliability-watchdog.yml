@@ -33,6 +33,12 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install project package for automation invariants
+        run: pip install -e .
       - name: Verify automation contract
         run: python scripts/automation_invariants.py
 
