@@ -105,3 +105,20 @@ def test_source_discovery_rechecks_after_research_completion():
     assert '"Research validation"' in text
     assert '"24H Research Marathon"' in text
     assert "types: [completed]" in text
+
+
+def test_marathon_uses_diverse_model_budget_without_removing_primary_candidates():
+    text = MARATHON.read_text(encoding="utf-8")
+    expected = (
+        "logistic,extra_trees,hgb,lightgbm,"
+        "hgb_conservative_recent,blend_hgb_lgbm_regularized_recent"
+    )
+    assert 'RESEARCH_MODEL_ALLOWLIST: "' + expected + '"' in text
+
+
+def test_research_model_allowlist_is_opt_in_and_keeps_all_primary_candidates(monkeypatch):
+    from scripts.run_daily_research import make_models
+    monkeypatch.delenv("RESEARCH_MODEL_ALLOWLIST", raising=False)
+    full = list(make_models())
+    assert {"logistic", "extra_trees", "hgb"}.issubset(set(full))
+
