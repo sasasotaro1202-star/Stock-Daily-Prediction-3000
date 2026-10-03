@@ -35,4 +35,4 @@ def test_stale_heartbeat_has_bounded_self_recovery() -> None:
 def test_research_start_triggers_reliability_watchdog():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' in text
-    assert "types: [requested, in_progress, completed]" in text
+    assert "types: [requested, completed]" in text
