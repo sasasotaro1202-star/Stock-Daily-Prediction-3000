@@ -113,6 +113,11 @@ jobs:
       - name: Conformal safety tests
         run: pytest -q tests/test_conformal_classification.py tests/test_routing_and_pit.py
       - name: Chronological OOS research
+        env:
+          # Keep the 6-hour GitHub-hosted runner budget focused on a diverse
+          # research set. The full configured candidate list remains intact
+          # for other research entry points; production is unaffected.
+          RESEARCH_MODEL_ALLOWLIST: "logistic,extra_trees,hgb,lightgbm,hgb_conservative_recent,blend_hgb_lgbm_regularized_recent"
         run: python scripts/run_daily_research.py
       - name: Write core OOS success checkpoint
         if: success()
