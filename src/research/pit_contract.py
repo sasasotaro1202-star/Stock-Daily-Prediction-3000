@@ -32,11 +32,8 @@ def _first_timestamp(row: Mapping[str, Any]) -> tuple[str | None, datetime | Non
     return None, None
 
 
-def audit_pit_row(
-    row: Mapping[str, Any],
-    *,
-    row_key: str | None = None,
-) -> dict[str, Any]:
+def audit_pit_timestamps(row: Mapping[str, Any]) -> dict[str, Any]:
+    """Audit PIT timestamp semantics without requiring a final pit_status."""
     violations: list[str] = []
     prediction_field, prediction_boundary = _first_timestamp(row)
     raw_prediction_time = row.get("prediction_time")
@@ -44,19 +41,13 @@ def audit_pit_row(
     prediction_time_value = _parse_timestamp(raw_prediction_time)
     prediction_cutoff_value = _parse_timestamp(raw_prediction_cutoff)
 
-    if (
-        raw_prediction_time not in (None, "")
-        and prediction_time_value is None
-    ):
+    if raw_prediction_time not in (None, "") and prediction_time_value is None:
         violations.append("invalid_prediction_time")
-    if (
-        raw_prediction_cutoff not in (None, "")
-        and prediction_cutoff_value is None
-    ):
+    if raw_prediction_cutoff not in (None, "") and prediction_cutoff_value is None:
         violations.append("invalid_prediction_cutoff")
-
     if prediction_field is None:
         violations.append("missing_or_invalid_prediction_time")
+
     available_time = _parse_timestamp(row.get(AVAILABLE_FIELD))
     if available_time is None:
         violations.append("missing_or_invalid_available_at")
@@ -92,12 +83,8 @@ def audit_pit_row(
         if retrieved_time < available_time:
             violations.append("retrieved_at_before_available_at")
 
-    if row.get("pit_status") != "PASS":
-        violations.append("pit_status_not_pass")
-
     return {
         "ok": not violations,
-        "row_key": row_key,
         "prediction_field": prediction_field,
         "prediction_boundary": (
             prediction_boundary.isoformat() if prediction_boundary is not None else None
@@ -114,6 +101,27 @@ def audit_pit_row(
         "violations": violations,
     }
 
+
+def audit_pit_row(
+    row: Mapping[str, Any],
+    *,
+    row_key: str | None = None,
+) -> dict[str, Any]:
+    result = audit_pit_timestamps(row)
+    violations = list(result["violations"])
+    if row.get("pit_status") != "PASS":
+        violations.append("pit_status_not_pass")
+
+    return {
+        "ok": not violations,
+        "row_key": row_key,
+        "prediction_field": result["prediction_field"],
+        "prediction_boundary": result["prediction_boundary"],
+        "available_at": result["available_at"],
+        "published_at": result["published_at"],
+        "retrieved_at": result["retrieved_at"],
+        "violations": violations,
+    }
 
 def canonical_case_key(row: Mapping[str, Any]) -> tuple[str, str, str, str]:
     scope = str(row.get("asset_class") or row.get("product_family") or "")
