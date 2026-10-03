@@ -21,7 +21,9 @@ from src.research.ultimate_control_v13 import (
     metrics,
     safe_probability,
 )
+from src.research.case_risk_oos import analyze_case_risk
 from src.research.expert_loss_routing_oos import analyze_expert_loss_routing
+from src.research.learned_case_risk_oos import analyze_learned_case_risk
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
@@ -865,6 +867,14 @@ def augment_v13_result(
         locked_folds=locked_folds,
     )
     result["expert_loss_routing_oos"] = expert_loss_oos
+
+    # Connect the existing case-risk research implementations to the same
+    # immutable v13 row-level ledger. These are diagnostics only; neither
+    # changes production routing nor tunes the frozen suffix.
+    case_risk_oos = analyze_case_risk(ledger_rows)
+    learned_case_risk_oos = analyze_learned_case_risk(ledger_rows)
+    result["case_risk_oos"] = case_risk_oos
+    result["learned_case_risk_oos"] = learned_case_risk_oos
     result.setdefault("prediction_output", {})["scenario_proxy"] = True
     result.setdefault("prediction_output", {})["forecast_contract"] = True
     result.setdefault("prediction_output", {})["ledger"] = True
