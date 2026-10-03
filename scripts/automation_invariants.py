@@ -295,6 +295,11 @@ def main() -> int:
         '  push:\n    paths:\n      - ".github/research_validation.trigger"',
         "watchdog_wakes_on_research_trigger",
     )
+    _assert_absent(
+        watchdog,
+        'workflows: ["Research validation"]',
+        "watchdog_not_triggered_by_research_workflow_run",
+    )
     _assert_once(
         watchdog,
         "current_sha_queued=true",
@@ -363,8 +368,8 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
-        "types: [completed, in_progress]",
-        "research_validation_status_workflow_tracks_completed",
+        "types: [completed, in_progress, requested]",
+        "research_validation_status_workflow_tracks_requested_and_completed",
     )
     _assert_once(
         status_workflow,
