@@ -150,3 +150,13 @@ def test_research_model_allowlist_limits_evaluated_candidates(monkeypatch):
         }
     )
     assert {"logistic", "extra_trees", "hgb"}.issubset(selected)
+
+
+def test_watchdog_force_cancels_unresponsive_stale_runs():
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert 'force-cancel for stale run' in text
+    assert 'actions/runs/$run_id/force-cancel' in text
+    assert 'standard cancel did not settle' in text
+    assert 'stale run cancellation did not settle after bounded force-cancel recovery' in text
+    assert 'for attempt in 1 2 3 4 5 6' in text
+    assert 'for attempt in 1 2 3 4' in text
