@@ -4,8 +4,8 @@ from datetime import datetime
 from typing import Any, Iterable, Mapping
 
 TIMESTAMP_FIELDS = (
-    "prediction_time",
     "prediction_cutoff",
+    "prediction_time",
 )
 AVAILABLE_FIELD = "available_at"
 PUBLISHED_FIELD = "published_at"
@@ -38,7 +38,9 @@ def audit_pit_row(
     row_key: str | None = None,
 ) -> dict[str, Any]:
     violations: list[str] = []
-    prediction_field, prediction_time = _first_timestamp(row)
+    prediction_field, prediction_boundary = _first_timestamp(row)
+    prediction_time_value = _parse_timestamp(row.get("prediction_time"))
+    prediction_cutoff_value = _parse_timestamp(row.get("prediction_cutoff"))
 
     if prediction_field is None:
         violations.append("missing_or_invalid_prediction_time")
@@ -58,8 +60,15 @@ def audit_pit_row(
         if retrieved_time is None:
             violations.append("invalid_retrieved_at")
 
-    if prediction_time is not None and available_time is not None:
-        if available_time > prediction_time:
+    if (
+        prediction_cutoff_value is not None
+        and prediction_time_value is not None
+        and prediction_cutoff_value > prediction_time_value
+    ):
+        violations.append("prediction_cutoff_after_prediction_time")
+
+    if prediction_boundary is not None and available_time is not None:
+        if available_time > prediction_boundary:
             violations.append("available_at_after_prediction_cutoff")
 
     if published_time is not None and available_time is not None:
@@ -77,8 +86,8 @@ def audit_pit_row(
         "ok": not violations,
         "row_key": row_key,
         "prediction_field": prediction_field,
-        "prediction_time": (
-            prediction_time.isoformat() if prediction_time is not None else None
+        "prediction_boundary": (
+            prediction_boundary.isoformat() if prediction_boundary is not None else None
         ),
         "available_at": (
             available_time.isoformat() if available_time is not None else None
@@ -108,8 +117,8 @@ def canonical_case_key(row: Mapping[str, Any]) -> tuple[str, str, str, str]:
         or ""
     )
     cutoff = str(
-        row.get("prediction_time")
-        or row.get("prediction_cutoff")
+        row.get("prediction_cutoff")
+        or row.get("prediction_time")
         or ""
     )
     return scope, symbol, session, cutoff
@@ -123,7 +132,14 @@ def audit_pit_rows(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
 
     for index, row in enumerate(rows):
         key = canonical_case_key(row)
-        if key in seen:
+        if any(not part.strip() for part in key):
+            violations.append(
+                {
+                    "row_key": f"row:{index}",
+                    "violations": ["missing_canonical_case_identity"],
+                }
+            )
+        elif key in seen:
             duplicate_keys.append([*key])
         else:
             seen.add(key)
@@ -141,14 +157,15 @@ def audit_pit_rows(rows: Iterable[Mapping[str, Any]]) -> dict[str, Any]:
             }
         )
 
+    row_level_violations = sum(
+        1
+        for row in violations
+        if "violations" in row and row.get("row_key") is not None
+    )
     return {
         "status": "PASS" if not violations else "FAIL",
         "rows": len(rows),
-        "valid_rows": len(rows) - sum(
-            1
-            for row in violations
-            if "violations" in row and row.get("row_key") is not None
-        ),
+        "valid_rows": len(rows) - row_level_violations,
         "violation_count": len(violations),
         "violations": violations,
     }
@@ -197,10 +214,14 @@ def audit_source_config(config: Mapping[str, Any]) -> dict[str, Any]:
             "row_level_available_at_verified",
             "source_available_at_verified",
         )
-        verified_flags = [flag for flag in availability_flags if pit_policy.get(flag) is True]
+        verified_flags = [
+            flag for flag in availability_flags if pit_policy.get(flag) is True
+        ]
         source_result["availability_verified"] = bool(verified_flags)
 
-        if verified_flags and not str(pit_policy.get("verification_evidence") or "").strip():
+        if verified_flags and not str(
+            pit_policy.get("verification_evidence") or ""
+        ).strip():
             violations.append(
                 {
                     "source": str(name),
@@ -225,8 +246,12 @@ def audit_source_config(config: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "status": "PASS" if not violations else "FAIL",
         "enabled_sources": len(sources),
-        "unverified_sources": sum(row["status"] == "UNVERIFIED" for row in sources),
-        "pit_ready_sources": sum(row["availability_verified"] for row in sources),
+        "unverified_sources": sum(
+            row["status"] == "UNVERIFIED" for row in sources
+        ),
+        "pit_ready_sources": sum(
+            row["availability_verified"] for row in sources
+        ),
         "violations": violations,
         "sources": sources,
     }
