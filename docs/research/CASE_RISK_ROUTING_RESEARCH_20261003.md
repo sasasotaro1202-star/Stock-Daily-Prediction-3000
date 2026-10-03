@@ -45,7 +45,7 @@ For every case:
 - prediction_time is the cutoff
 - available_at <= prediction_time
 - published_at, when present, <= prediction_time
-- retrieved_at, when present, satisfies available_at <= retrieved_at <= prediction_time
+- retrieved_at, when present, satisfies available_at <= retrieved_at; retrieval time may be after the prediction cutoff because availability_at is the causal PIT boundary
 - retrieved_at must not precede published_at when both exist
 - invalid/missing provenance is fail-closed
 - current-fold outcomes cannot train the router or set its threshold
