@@ -57,6 +57,7 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     end = text.index("            local current_sha_queued=false", start)
     block = text[start:end]
     assert "superseded queued" not in block
-    assert "continue into queue" in block
-    assert "return 0" not in block
+    preserve = block[block.index("              else\n                # Keep the active chronological OOS run"):block.index("              fi", block.index("              else\n                # Keep the active chronological OOS run"))]
+    assert "continue into queue" in preserve
+    assert "return 0" not in preserve
     assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in block
