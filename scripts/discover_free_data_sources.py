@@ -154,6 +154,30 @@ OFFICIAL_SOURCES = [
         "access_mode": "direct_csv",
     },
     {
+        "name": "Bank of Japan Monetary Base and Current Account Balances",
+        "kind": "boj_money",
+        "url": "https://www.stat-search.boj.or.jp/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_registration",
+    },
+    {
+        "name": "Bank of Japan Balance of Payments Time Series",
+        "kind": "boj_balance_of_payments",
+        "url": "https://www.stat-search.boj.or.jp/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_registration",
+    },
+    {
+        "name": "Bank of Japan TANKAN Time Series",
+        "kind": "boj_tankan",
+        "url": "https://www.stat-search.boj.or.jp/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_registration",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -220,6 +244,18 @@ GITHUB_QUERIES = {
     "official_reserves": [
         "Japan MOF official reserve assets historical CSV",
         "Japan foreign exchange reserves historical data",
+    ],
+    "boj_money": [
+        "BOJ monetary base current account balances API",
+        "Bank of Japan money deposits time series",
+    ],
+    "boj_balance_of_payments": [
+        "BOJ balance of payments time series API",
+        "Bank of Japan financial account net balance",
+    ],
+    "boj_tankan": [
+        "BOJ TANKAN business conditions API",
+        "Bank of Japan TANKAN time series",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
