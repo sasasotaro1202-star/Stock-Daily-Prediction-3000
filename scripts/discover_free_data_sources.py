@@ -82,6 +82,38 @@ OFFICIAL_SOURCES = [
         "access_mode": "direct_csv",
     },
     {
+        "name": "U.S. SEC EDGAR Submissions API",
+        "kind": "filing_timestamps",
+        "url": "https://data.sec.gov/submissions/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_auth",
+    },
+    {
+        "name": "U.S. Treasury Securities Auctions Data",
+        "kind": "rates_auction",
+        "url": "https://fiscaldata.treasury.gov/datasets/treasury-securities-auctions-data/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_auth",
+    },
+    {
+        "name": "U.S. Treasury Upcoming Auctions",
+        "kind": "rates_auction_events",
+        "url": "https://fiscaldata.treasury.gov/datasets/treasury-securities-auctions-data/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_auth",
+    },
+    {
+        "name": "U.S. Treasury Daily Real Yield Curve Rates",
+        "kind": "real_rates",
+        "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates",
+        "official": True,
+        "free_status": "public_web",
+        "access_mode": "api_or_feed",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -116,6 +148,22 @@ GITHUB_QUERIES = {
     "capital_flows": [
         "Japan securities transactions capital flows CSV",
         "foreign portfolio investment Japan statistics CSV",
+    ],
+    "filing_timestamps": [
+        "SEC EDGAR submissions acceptance datetime",
+        "SEC filing acceptance timestamp XBRL",
+    ],
+    "rates_auction": [
+        "U.S. Treasury securities auction bid to cover data",
+        "Treasury auction results CSV JSON",
+    ],
+    "rates_auction_events": [
+        "U.S. Treasury upcoming auctions schedule",
+        "Treasury auction announcement schedule",
+    ],
+    "real_rates": [
+        "U.S. Treasury real yield curve rates",
+        "Treasury TIPS real yield daily",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
