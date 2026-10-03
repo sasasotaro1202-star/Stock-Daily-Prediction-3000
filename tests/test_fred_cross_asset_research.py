@@ -39,3 +39,24 @@ fred_cross_asset:
     assert report["production_changed"] is False
     assert report["summary"]["successful"] == 2
     assert (tmp_path / "fred" / "DFF.csv").exists()
+
+
+def test_fred_cross_asset_fails_closed_on_partial_failure(tmp_path, monkeypatch):
+    config = tmp_path / "config.yml"
+    config.write_text(
+        "fred_cross_asset:\n  enabled: true\n  base_url: https://example.org/fredgraph.csv\n  series:\n    - DFF\n    - SOFR\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(collector, "CONFIG", config)
+    monkeypatch.setattr(collector, "OUT_DIR", tmp_path / "fred")
+
+    def fake_fetch(url):
+        if "DFF" in url:
+            return (
+                b"observation_date,value\n2026-09-30,4.00\n",
+                {"content_type": "text/csv"},
+            )
+        raise RuntimeError("synthetic failure")
+
+    monkeypatch.setattr(collector, "_fetch", fake_fetch)
+    assert collector.main() == 1
