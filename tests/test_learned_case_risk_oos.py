@@ -75,6 +75,15 @@ def test_learned_case_risk_is_frozen_on_locked_suffix():
     assert result["contracts"]["locked_suffix_model_is_frozen"] is True
     assert result["contracts"]["locked_outcomes_used_for_fit_or_threshold"] is False
     assert result["promotion_allowed"] is False
+    for method in ("fixed_case_risk", "learned_case_risk"):
+        metrics = result[method]["risk_metrics"]
+        assert 0.0 <= metrics["accuracy"] <= 1.0
+        assert metrics["logloss"] >= 0.0
+        assert metrics["brier"] >= 0.0
+        assert 0.0 <= metrics["ece"] <= 1.0
+    assert len(result["fold_metrics"]) == 1
+    assert result["stability"]["locked_fold_count"] == 1
+    assert result["stability"]["learned_logloss"]["folds"] == 1
 
 
 def test_learned_case_risk_blocks_invalid_locked_pit():
