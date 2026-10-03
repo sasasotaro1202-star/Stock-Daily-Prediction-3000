@@ -100,3 +100,19 @@ treasury_real_yield:
     exact_publication_time_verified: false
     source_available_at_inferred: false
     research_use_only_until_pit_validation: true
+
+treasury_rate_family:
+  enabled: true
+  base_url: "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/pages/xml"
+  datasets:
+    - daily_treasury_bill_rates
+    - daily_treasury_real_yield_curve
+    - daily_treasury_long_term_rate
+    - daily_treasury_real_long_term
+  lookback_years: 5
+  output_dir: "data/research/treasury_rate_family"
+  pit_policy:
+    daily_date_preserved: true
+    exact_publication_time_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
