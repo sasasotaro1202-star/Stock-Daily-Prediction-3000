@@ -73,5 +73,5 @@ def test_status_persistence_treats_pending_as_queued_not_as_lookup_failure() -> 
     script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
     assert '"pending"' in script
     assert 'state = "QUEUED"' in script
-    assert '"pending"' in script.split("workflow_statuses =", 1)[1].split("
-", 1)[0]
+    status_line = script.split("workflow_statuses =", 1)[1].splitlines()[0]
+    assert '"pending"' in status_line
