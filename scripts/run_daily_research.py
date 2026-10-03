@@ -89,6 +89,7 @@ from src.research.regime_threshold import (
     aggregate_oos_training_thresholds,
     volatility_threshold_from_training,
 )
+from src.research.run_provenance import write_manifest, write_progress
 from src.validation.leakage import audit_feature_columns, audit_target_separation
 from src.validation.walk_forward import make_date_folds
 
@@ -673,6 +674,8 @@ def _online_outcome_delay_sessions(pipeline_cfg: dict) -> int:
 
 
 def main():
+    write_manifest(status="STARTED", stage="initialization")
+    write_progress(event="research_started")
     _self_validate_conformal_research()
 
     _ensure_adaptive_research_data()
@@ -753,6 +756,33 @@ def main():
     )
     if len(folds) < 3:
         raise SystemExit(f"DEFERRED: only {len(folds)} OOS folds available")
+
+    fold_manifest_rows = []
+    for fold_idx, fold in enumerate(folds):
+        fold_dates = dates[fold.test_start : fold.test_end]
+        if not fold_dates:
+            raise SystemExit(f"DEFERRED: OOS fold {fold_idx} has an empty test window")
+        fold_manifest_rows.append({
+            "fold": fold_idx,
+            "test_start_date": str(min(fold_dates)),
+            "test_end_date": str(max(fold_dates)),
+        })
+    fold_signature = _oos_fold_signature(fold_manifest_rows)
+    if fold_signature is None:
+        raise SystemExit("FAIL: unable to build deterministic OOS fold signature")
+    write_manifest(
+        status="FOLDS_READY",
+        stage="fold_setup",
+        fold_count=len(folds),
+        fold_signature=fold_signature,
+        candidate_models=list(candidate_models),
+    )
+    write_progress(
+        event="folds_ready",
+        total_models=len(candidate_models),
+        total_folds=len(folds),
+        completed_folds=0,
+    )
 
     # Regime threshold is derived only from fold-local training distributions.
     # OOS/test observations never contribute to the frozen threshold.
@@ -1113,6 +1143,14 @@ def main():
             f"RESEARCH_PROGRESS model={model_index} name={name} total_models={len(candidate_models)} total_folds={len(folds)}",
             flush=True,
         )
+        write_progress(
+            event="model_started",
+            model=name,
+            model_index=model_index,
+            total_models=len(candidate_models),
+            total_folds=len(folds),
+            completed_folds=(model_index - 1) * len(folds),
+        )
         fold_rows = []
         for fold_idx, fold in enumerate(folds):
             train_dates = dates[: fold.train_end]
@@ -1128,6 +1166,15 @@ def main():
                 f"RESEARCH_PROGRESS model={name} fold={fold_idx + 1}/{len(folds)} "
                 f"core={len(core)} cal={len(cal)} test={len(test)}",
                 flush=True,
+            )
+            write_progress(
+                event="fold_started",
+                model=name,
+                model_index=model_index,
+                total_models=len(candidate_models),
+                fold=fold_idx,
+                total_folds=len(folds),
+                completed_folds=(model_index - 1) * len(folds) + fold_idx,
             )
 
             if min(len(core), len(cal), len(test)) < 50:
@@ -1385,6 +1432,15 @@ def main():
             row["test_start_date"] = str(min(test_dates))
             row["test_end_date"] = str(max(test_dates))
             fold_rows.append(row)
+            write_progress(
+                event="fold_evaluated",
+                model=name,
+                model_index=model_index,
+                total_models=len(candidate_models),
+                fold=fold_idx,
+                total_folds=len(folds),
+                completed_folds=(model_index - 1) * len(folds) + fold_idx + 1,
+            )
 
             regime = pd.Series(
                 np.asarray(fold_contexts[fold_idx]["regime"], dtype=str),
@@ -3380,6 +3436,21 @@ def main():
 
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    write_progress(
+        event="oos_complete",
+        status="COMPLETED",
+        total_models=len(candidate_models),
+        total_folds=len(folds),
+        completed_folds=len(candidate_models) * len(folds),
+        note="latest_metrics.json written; performance status remains subject to downstream release gates",
+    )
+    write_manifest(
+        status="OOS_COMPLETE",
+        stage="metrics_written",
+        fold_count=len(folds),
+        fold_signature=fold_signature,
+        candidate_models=list(candidate_models),
+    )
     print(json.dumps(payload, indent=2))
 
 if __name__ == "__main__":
