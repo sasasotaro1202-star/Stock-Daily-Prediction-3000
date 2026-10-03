@@ -42,7 +42,7 @@ def test_marathon_summary_status_reuses_final_checkpoint():
     assert 'final_checkpoint=Path("marathon-final-checkpoint.json")' in text
     assert 'final_status="FINAL_CHECKPOINT_MISSING"' in text
     assert 'final_status="FINAL_CHECKPOINT_INVALID"' in text
-    assert '"status": final_status' in text
+    assert '"status": final_status' in text or '"status":final_status' in text
     assert '"missing_required_evidence": final_payload.get("missing_required_evidence", [])' in text
     assert '"production_mutation_evidence": final_payload.get("production_mutation_evidence", [])' in text
     assert '"status":"24H_MARATHON_EVIDENCE_COLLECTED"' not in text
