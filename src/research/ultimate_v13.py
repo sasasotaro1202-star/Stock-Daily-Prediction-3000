@@ -197,6 +197,8 @@ def build_ultimate_intelligence(
         ("governance.json", "governance"),
         ("experiment_registry.json", "experiment_registry"),
         ("expert_loss_routing_oos.json", "expert_loss_routing_oos"),
+        ("case_risk_oos.json", "case_risk_oos"),
+        ("learned_case_risk_oos.json", "learned_case_risk_oos"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -239,6 +241,8 @@ def build_ultimate_intelligence(
             "governance.json",
             "experiment_registry.json",
             "expert_loss_routing_oos.json",
+            "case_risk_oos.json",
+            "learned_case_risk_oos.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
