@@ -38,3 +38,6 @@ A green workflow, artifact existence, model-file existence or external performan
 `src/research/learned_case_risk_oos.py` now additionally honors optional case-feature provenance fields when supplied: `feature_pit_status` must be `PASS`; `feature_snapshot_cutoff` and `feature_max_available_at` must parse successfully and must not be later than the resolved prediction cutoff. This supplements the row-level `available_at` / `published_at` / `retrieved_at` checks without inventing absent metadata.
 
 Regression coverage was added to `tests/test_learned_case_risk_oos.py` for a future feature snapshot and non-PIT feature lineage. The existing `Research validation` workflow already executes this test module, so these guards are inside the repository's normal research validation lane.
+
+## Recent operational hardening — 2026-10-04
+Research status heartbeat treats requested/queued/pending/waiting/in_progress as active transient states. When the Research validation job is not yet visible through the Actions API, status persistence retries boundedly for pending/waiting job-creation races rather than reporting a false lookup failure. This is operational evidence only and does not alter prediction, OOS, calibration, holdout, or promotion state.
