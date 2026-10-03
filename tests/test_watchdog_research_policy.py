@@ -31,3 +31,8 @@ def test_stale_heartbeat_has_bounded_self_recovery() -> None:
     assert "for attempt in 1 2 3" in text
     assert "gh workflow run heartbeat.yml --repo" in text
     assert "bounded heartbeat dispatch retries exhausted" in text
+
+def test_research_start_triggers_reliability_watchdog():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'workflows: ["Research validation"]' in text
+    assert "types: [requested, in_progress, completed]" in text
