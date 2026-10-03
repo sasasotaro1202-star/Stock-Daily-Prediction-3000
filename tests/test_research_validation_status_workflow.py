@@ -38,9 +38,11 @@ def test_oos_restore_skips_non_success_workflow_run_events() -> None:
     start = text.index("      - name: Download completed OOS evidence")
     block = text[start:text.index("      - name: Persist research validation status", start)]
     assert block.count("github.event_name == 'workflow_run'") == 2
-    assert block.count("github.event.workflow_run.conclusion == 'success'") == 2
-    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" not in block
-
+    artifact_block = _artifact_restore_block()
+    restore_block = _restore_block()
+    assert artifact_block.count("github.event.workflow_run.conclusion == 'success'") == 1
+    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in restore_block
+    assert "github.event.workflow_run.conclusion == 'success'" not in restore_block
 
 def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
