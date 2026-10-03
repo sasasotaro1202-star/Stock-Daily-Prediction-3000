@@ -807,6 +807,9 @@ def test_data_quality_provider_deferred_symbols_are_bounded(tmp_path, monkeypatc
 
     rows = []
     records = []
+    recent_session = (pd.Timestamp.now(tz="UTC") - pd.Timedelta(days=2)).date()
+    recent_available = pd.Timestamp.combine(pd.Timestamp(recent_session), pd.Timestamp("07:00:00").time()).tz_localize("UTC")
+    recent_retrieved = recent_available + pd.Timedelta(minutes=30)
     for i in range(100):
         symbol = f"{i:04d}"
         records.append({
@@ -817,9 +820,9 @@ def test_data_quality_provider_deferred_symbols_are_bounded(tmp_path, monkeypatc
         rows.append({
             "symbol": symbol,
             "asset_class": "jp_stock",
-            "session_date": pd.Timestamp("2026-09-23").date(),
-            "available_at": pd.Timestamp("2026-09-23T07:00:00Z"),
-            "retrieved_at": pd.Timestamp("2026-09-23T07:30:00Z"),
+            "session_date": recent_session,
+            "available_at": recent_available,
+            "retrieved_at": recent_retrieved,
             "source": "yfinance",
             "provider_symbol": f"{symbol}.T",
             "open": 100.0,
