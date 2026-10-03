@@ -31,3 +31,11 @@ def test_missing_completed_evidence_fails_closed() -> None:
     assert 'if [ -z "${source_file}" ]; then' in block
     assert "exit 1" in block
     assert "successful Research validation produced no latest_metrics.json artifact" in block
+
+
+def test_oos_restore_skips_non_success_workflow_run_events() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    start = text.index("      - name: Restore OOS metrics for longitudinal snapshot")
+    block = text[start:text.index("      - name: Persist research validation status", start)]
+    assert "github.event_name != 'workflow_run'" in block
+    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in block
