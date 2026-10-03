@@ -59,3 +59,19 @@ def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" not in persist_block
     assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}" not in persist_block
     assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}" not in persist_block
+
+
+def test_status_heartbeat_tracks_pending_research_runs() -> None:
+    resolver = Path("scripts/resolve_research_status_context.py").read_text(encoding="utf-8")
+    assert "status=pending" in resolver
+    assert "status=queued" in resolver
+    assert "status=in_progress" in resolver
+    assert '"pending"' in resolver
+
+
+def test_status_persistence_treats_pending_as_queued_not_as_lookup_failure() -> None:
+    script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
+    assert '"pending"' in script
+    assert 'state = "QUEUED"' in script
+    assert '"pending"' in script.split("workflow_statuses =", 1)[1].split("
+", 1)[0]
