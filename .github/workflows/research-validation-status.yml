@@ -51,7 +51,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}
       - name: Restore OOS metrics for longitudinal snapshot
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && (github.event_name != 'workflow_run' || env.RESEARCH_WORKFLOW_CONCLUSION == 'success')
         shell: bash
         run: |
           set -euo pipefail
