@@ -65,7 +65,6 @@ def main() -> int:
                 "id": series_id,
                 "cosd": start.isoformat(),
                 "coed": datetime.now(timezone.utc).date().isoformat(),
-                "fq": "Daily",
             }
         )
         try:
@@ -133,7 +132,7 @@ def main() -> int:
         "pit_status": "UNVERIFIED",
         **report["summary"],
     }, indent=2))
-    return 0 if success_count else 1
+    return 0 if rows and success_count == len(rows) else 1
 
 
 if __name__ == "__main__":
