@@ -166,10 +166,22 @@ def build_research_pit_lineage(
         available_at = available.loc[idx]
         retrieved_at = retrieved.loc[idx]
         published_at = published.loc[idx]
+        published_raw = (
+            frame.at[idx, "published_at"]
+            if "published_at" in frame.columns
+            else None
+        )
 
         available_iso = available_at.isoformat() if pd.notna(available_at) else None
         retrieved_iso = retrieved_at.isoformat() if pd.notna(retrieved_at) else None
-        published_iso = published_at.isoformat() if pd.notna(published_at) else None
+        if pd.notna(published_at):
+            published_iso = published_at.isoformat()
+        elif published_raw is None or pd.isna(published_raw):
+            published_iso = None
+        else:
+            # Preserve malformed raw values so the shared PIT contract can
+            # fail closed instead of losing the evidence during coercion.
+            published_iso = str(published_raw)
         prediction_iso = prediction.isoformat() if prediction is not None else None
 
         method = frame.at[idx, "available_at_method"] if "available_at_method" in frame.columns else None
