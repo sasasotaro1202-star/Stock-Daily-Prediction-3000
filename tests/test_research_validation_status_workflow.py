@@ -48,6 +48,12 @@ def test_oos_restore_skips_non_success_workflow_run_events() -> None:
     assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in restore_block
     assert "github.event.workflow_run.conclusion == 'success'" not in restore_block
 
+def test_status_workflow_captures_requested_research_runs() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'types: [completed, in_progress, requested]' in text
+    assert "requested" in text
+
+
 def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     start = text.index("      - name: Resolve Research status context")
