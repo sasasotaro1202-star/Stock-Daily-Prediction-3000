@@ -42,7 +42,7 @@ def test_pit_row_rejects_naive_and_reversed_lineage():
         _row(prediction_time="2026-10-02T09:00:00")
     )
     assert naive["ok"] is False
-    assert "missing_or_invalid_prediction_time" in naive["violations"]
+    assert "invalid_prediction_time" in naive["violations"]
 
     reversed_times = audit_pit_row(
         _row(
