@@ -197,6 +197,12 @@ def test_official_source_catalog_covers_additional_security_data_domains():
     assert "real_rates" in kinds
     assert "rates_detail" in kinds
     assert "real_rates_detail" in kinds
+    assert "fx_intervention" in kinds
+    assert "official_reserves" in kinds
+    assert "fed_cross_asset" in kinds
+    assert "boj_money" in kinds
+    assert "boj_balance_of_payments" in kinds
+    assert "boj_tankan" in kinds
 
 
 def test_manual_only_jpx_source_is_cataloged_but_not_auto_selected():
