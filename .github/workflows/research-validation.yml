@@ -29,7 +29,7 @@ on:
 
 permissions:
   actions: read
-  contents: write
+  contents: read
 
 concurrency:
   # Isolate the newest recovery lane from stale/orphaned executions, which
