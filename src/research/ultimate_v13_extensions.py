@@ -401,6 +401,12 @@ def augment_v13_result(
         retrieved_at_values = np.asarray(
             fold.get("retrieved_at", [None] * len(y)), dtype=object
         )
+        published_at_values = np.asarray(
+            fold.get("published_at", [None] * len(y)), dtype=object
+        )
+        prediction_cutoff_values = np.asarray(
+            fold.get("prediction_cutoff", [None] * len(y)), dtype=object
+        )
         prediction_time_sources = np.asarray(
             fold.get("prediction_time_source", [""] * len(y)), dtype=object
         )
@@ -549,6 +555,12 @@ def augment_v13_result(
                     and prediction_times[i] not in (None, "None", "nan")
                     else None
                 ),
+                "prediction_cutoff": (
+                    str(prediction_cutoff_values[i])
+                    if i < len(prediction_cutoff_values)
+                    and prediction_cutoff_values[i] not in (None, "None", "nan")
+                    else None
+                ),
                 "prediction_time_source": (
                     str(prediction_time_sources[i])
                     if i < len(prediction_time_sources)
@@ -559,6 +571,12 @@ def augment_v13_result(
                     str(available_at_values[i])
                     if i < len(available_at_values)
                     and available_at_values[i] not in (None, "None", "nan")
+                    else None
+                ),
+                "published_at": (
+                    str(published_at_values[i])
+                    if i < len(published_at_values)
+                    and published_at_values[i] not in (None, "None", "nan")
                     else None
                 ),
                 "retrieved_at": (
