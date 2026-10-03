@@ -201,6 +201,7 @@ def test_official_source_catalog_covers_additional_security_data_domains():
     assert "official_reserves" in kinds
     assert "fed_cross_asset" in kinds
     assert "insider_ownership_events" in kinds
+    assert "company_event_filings" in kinds
     assert "boj_money" in kinds
     assert "boj_balance_of_payments" in kinds
     assert "boj_tankan" in kinds
