@@ -265,7 +265,7 @@ jobs:
                 recovery_needed=true
               else
                 # Keep the active chronological OOS run, but continue into queue
-                # cleanup so superseded queued runs do not become the next blocker.
+                # cleanup so stale queue entries do not become the next blocker.
                 echo "WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha started_epoch=$active_run_started_epoch"
               fi
             fi
