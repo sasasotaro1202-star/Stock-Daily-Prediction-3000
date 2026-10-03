@@ -20,6 +20,7 @@ def _row(
         "result": result,
         "failed": int((p >= 0.5) != bool(result)),
         "prediction_time": "2026-01-02T00:00:00+00:00",
+        "prediction_cutoff": "2026-01-02T00:00:00+00:00",
         "available_at": "2026-01-01T23:00:00+00:00",
         "pit_status": "PASS",
         "case_predictability": 1.0 - risk,
@@ -138,13 +139,13 @@ def test_learned_case_risk_rejects_malformed_optional_pit_timestamp():
 
 
 
-def test_learned_case_risk_rejects_post_cutoff_retrieval():
+def test_learned_case_risk_accepts_late_retrieval_when_source_was_available_at_cutoff():
     rows = _development_rows()
-    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
-    broken["retrieved_at"] = "2026-01-02T01:00:00+00:00"
-    rows.append(broken)
+    row = _row(6, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row["retrieved_at"] = "2026-01-03T01:00:00+00:00"
+    rows.append(row)
     result = analyze_learned_case_risk(rows)
-    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+    assert result["status"] == "EVALUATED"
 
 
 def test_learned_case_risk_rejects_retrieval_before_publication():
@@ -182,6 +183,15 @@ def test_learned_case_risk_accepts_matching_prediction_cutoff():
         rows[-1]["prediction_cutoff"] = rows[-1]["prediction_time"]
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "EVALUATED"
+
+
+def test_learned_case_risk_rejects_missing_explicit_cutoff():
+    rows = _development_rows()
+    row = _row(6, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row.pop("prediction_cutoff")
+    rows.append(row)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
 
 
 def test_learned_case_risk_rejects_cutoff_after_generation_time():

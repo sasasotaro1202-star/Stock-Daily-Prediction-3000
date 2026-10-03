@@ -13,6 +13,7 @@ def _row(fold: int, row: int, *, locked: bool, risk: float, result: int, p: floa
         "prediction": p,
         "result": result,
         "prediction_time": "2026-01-02T00:00:00+00:00",
+        "prediction_cutoff": "2026-01-02T00:00:00+00:00",
         "available_at": "2026-01-01T23:00:00+00:00",
         "pit_status": "PASS",
         "case_predictability": 1.0 - risk,
@@ -98,6 +99,31 @@ def test_future_availability_timestamp_blocks_case_risk_evaluation():
     row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
     row["available_at"] = "2026-01-02T01:00:00+00:00"
     assert analyze_case_risk([row], risk_quantile=0.75)["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_case_risk_accepts_late_retrieval_when_source_was_available_at_cutoff():
+    rows = [
+        _row(0, 0, locked=False, risk=0.2, result=0, p=0.9),
+        _row(1, 0, locked=True, risk=0.8, result=0, p=0.9),
+    ]
+    rows[-1]["retrieved_at"] = "2026-01-03T01:00:00+00:00"
+    result = analyze_case_risk(rows, risk_quantile=0.75)
+    assert result["status"] == "EVALUATED"
+    assert result["scored_rows"] == 1
+
+
+def test_case_risk_rejects_missing_explicit_cutoff():
+    row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row.pop("prediction_cutoff")
+    result = analyze_case_risk([row], risk_quantile=0.75)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_case_risk_rejects_future_publication_timestamp():
+    row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
+    row["published_at"] = "2026-01-02T01:00:00+00:00"
+    result = analyze_case_risk([row], risk_quantile=0.75)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
 
 
 def test_partial_locked_case_validity_cannot_create_selective_aggregate():
