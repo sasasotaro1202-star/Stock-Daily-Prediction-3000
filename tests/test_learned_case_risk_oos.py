@@ -136,3 +136,22 @@ def test_learned_case_risk_rejects_malformed_optional_pit_timestamp():
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
 
+
+
+def test_learned_case_risk_rejects_post_cutoff_retrieval():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["retrieved_at"] = "2026-01-02T01:00:00+00:00"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_rejects_retrieval_before_publication():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["published_at"] = "2026-01-01T23:30:00+00:00"
+    broken["retrieved_at"] = "2026-01-01T23:15:00+00:00"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
