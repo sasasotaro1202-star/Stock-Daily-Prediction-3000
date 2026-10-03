@@ -11,16 +11,17 @@ CFG = {
 }
 
 
-def _frame(*, session_date="2026-10-01", asset_class="jp_stock", available_at="2026-10-01T07:00:00+00:00"):
+def _frame(*, session_date="2026-10-01", asset_class="jp_stock", available_at="2026-10-01T07:00:00+00:00", published_at=None, retrieved_at="2026-10-02T00:00:00+00:00"):
     return pd.DataFrame(
         {
             "session_date": [session_date],
             "asset_class": [asset_class],
             "available_at": [available_at],
-            "retrieved_at": ["2026-10-02T00:00:00+00:00"],
+            "retrieved_at": [retrieved_at],
             "available_at_method": ["conservative_post_close_inferred"],
             "source": ["yfinance"],
             "provider_symbol": ["TEST"],
+            "published_at": [published_at],
             "retrieval_run_id": ["unit-test"],
         }
     )
@@ -119,3 +120,27 @@ def test_row_lineage_fails_closed_for_unknown_asset_class():
         CFG,
     )
     assert lineage["pit_status"] == ["BLOCKED_UNKNOWN_ASSET_CLASS"]
+
+def test_row_lineage_reuses_shared_contract_for_publication_ordering():
+    lineage = build_research_pit_lineage(
+        _frame(published_at="2026-10-01T08:00:00+00:00"),
+        CFG,
+    )
+    assert lineage["pit_status"] == ["BLOCKED_PUBLISHED_AFTER_AVAILABLE"]
+    assert lineage["published_at"] == ["2026-10-01T08:00:00+00:00"]
+
+
+def test_row_lineage_reuses_shared_contract_for_retrieval_ordering():
+    lineage = build_research_pit_lineage(
+        _frame(retrieved_at="2026-10-01T06:59:00+00:00"),
+        CFG,
+    )
+    assert lineage["pit_status"] == ["BLOCKED_RETRIEVED_BEFORE_AVAILABLE"]
+
+
+def test_row_lineage_blocks_malformed_publication_timestamp():
+    lineage = build_research_pit_lineage(
+        _frame(published_at="not-a-timestamp"),
+        CFG,
+    )
+    assert lineage["pit_status"] == ["BLOCKED_INVALID_PUBLISHED_AT"]
