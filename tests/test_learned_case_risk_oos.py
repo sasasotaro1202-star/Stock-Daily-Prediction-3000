@@ -201,3 +201,34 @@ def test_learned_case_risk_reports_development_case_exclusions():
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "EVALUATED"
     assert result["development_rows_without_usable_features_or_outcomes"] == 1
+
+
+def test_learned_case_risk_locked_outcomes_cannot_change_frozen_scores():
+    rows = _development_rows()
+    for i in range(80):
+        rows.append(
+            _row(
+                6,
+                i,
+                locked=True,
+                risk=0.8 if i < 40 else 0.1,
+                result=i % 2,
+                p=0.9 if i % 4 == 0 else 0.1,
+            )
+        )
+
+    baseline = analyze_learned_case_risk(rows)
+    mutated = [dict(row) for row in rows]
+    for row in mutated:
+        if row["is_locked"]:
+            row["failed"] = 1 - int(row["failed"])
+    perturbed = analyze_learned_case_risk(mutated)
+
+    assert baseline["status"] == "EVALUATED"
+    assert perturbed["status"] == "EVALUATED"
+    assert baseline["learned_case_risk"]["threshold"] == perturbed["learned_case_risk"]["threshold"]
+    assert baseline["fixed_case_risk"]["threshold"] == perturbed["fixed_case_risk"]["threshold"]
+    assert baseline["learned_case_risk"]["evaluation"]["high_risk_rows"] == perturbed["learned_case_risk"]["evaluation"]["high_risk_rows"]
+    assert baseline["fixed_case_risk"]["evaluation"]["high_risk_rows"] == perturbed["fixed_case_risk"]["evaluation"]["high_risk_rows"]
+    assert baseline["learned_case_risk"]["evaluation"]["high_risk_coverage"] == perturbed["learned_case_risk"]["evaluation"]["high_risk_coverage"]
+    assert baseline["fixed_case_risk"]["evaluation"]["high_risk_coverage"] == perturbed["fixed_case_risk"]["evaluation"]["high_risk_coverage"]
