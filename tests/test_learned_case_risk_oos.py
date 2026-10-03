@@ -103,3 +103,31 @@ def test_learned_case_risk_requires_explicit_case_features():
     rows.append(broken)
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_rejects_future_publication_timestamp():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["published_at"] = "2026-01-02T01:00:00+00:00"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_rejects_impossible_retrieval_order():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["retrieved_at"] = "2026-01-01T22:00:00+00:00"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_rejects_malformed_optional_pit_timestamp():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["published_at"] = "not-a-timestamp"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
