@@ -9,6 +9,8 @@ from zoneinfo import ZoneInfo
 
 import pandas as pd
 
+from src.research.pit_contract import audit_pit_timestamps
+
 
 _POLICY_VERSION = "historical_scheduled_prediction_clock_v1"
 
@@ -137,11 +139,17 @@ def build_research_pit_lineage(
         if "retrieved_at" in frame.columns
         else pd.Series(pd.NaT, index=frame.index, dtype="datetime64[ns, UTC]")
     )
+    published = (
+        pd.to_datetime(frame["published_at"], utc=True, errors="coerce")
+        if "published_at" in frame.columns
+        else pd.Series(pd.NaT, index=frame.index, dtype="datetime64[ns, UTC]")
+    )
 
     prediction_times: list[str | None] = []
     prediction_sources: list[str] = []
     available_values: list[str | None] = []
     retrieved_values: list[str | None] = []
+    published_values: list[str | None] = []
     statuses: list[str] = []
     lineage_hashes: list[str | None] = []
     available_methods: list[str | None] = []
@@ -157,9 +165,11 @@ def build_research_pit_lineage(
         )
         available_at = available.loc[idx]
         retrieved_at = retrieved.loc[idx]
+        published_at = published.loc[idx]
 
         available_iso = available_at.isoformat() if pd.notna(available_at) else None
         retrieved_iso = retrieved_at.isoformat() if pd.notna(retrieved_at) else None
+        published_iso = published_at.isoformat() if pd.notna(published_at) else None
         prediction_iso = prediction.isoformat() if prediction is not None else None
 
         method = frame.at[idx, "available_at_method"] if "available_at_method" in frame.columns else None
@@ -182,7 +192,26 @@ def build_research_pit_lineage(
         elif not str(provider or "").strip():
             status = "BLOCKED_MISSING_PROVIDER_SYMBOL"
         else:
-            status = "PASS"
+            timestamp_audit = audit_pit_timestamps(
+                {
+                    "prediction_time": prediction_iso,
+                    "prediction_cutoff": prediction_iso,
+                    "available_at": available_iso,
+                    "published_at": published_iso,
+                    "retrieved_at": retrieved_iso,
+                }
+            )
+            timestamp_violations = set(timestamp_audit["violations"])
+            if "invalid_published_at" in timestamp_violations:
+                status = "BLOCKED_INVALID_PUBLISHED_AT"
+            elif "published_at_after_available_at" in timestamp_violations:
+                status = "BLOCKED_PUBLISHED_AFTER_AVAILABLE"
+            elif "retrieved_at_before_available_at" in timestamp_violations:
+                status = "BLOCKED_RETRIEVED_BEFORE_AVAILABLE"
+            elif timestamp_violations:
+                status = "BLOCKED_PIT_TIMESTAMP_CONTRACT"
+            else:
+                status = "PASS"
 
         lineage_payload = {
             "policy_version": _POLICY_VERSION,
@@ -192,6 +221,7 @@ def build_research_pit_lineage(
             "prediction_cutoff": prediction_iso,
             "prediction_time_source": prediction_source,
             "available_at": available_iso,
+            "published_at": published_iso,
             "retrieved_at": retrieved_iso,
             "available_at_method": str(method) if method is not None else None,
             "source": str(source) if source is not None else None,
@@ -212,6 +242,7 @@ def build_research_pit_lineage(
         prediction_sources.append(prediction_source)
         available_values.append(available_iso)
         retrieved_values.append(retrieved_iso)
+        published_values.append(published_iso)
         statuses.append(status)
         lineage_hashes.append(digest)
         available_methods.append(
@@ -235,6 +266,7 @@ def build_research_pit_lineage(
         "prediction_time_source": prediction_sources,
         "prediction_time_observed": [False] * len(frame),
         "available_at": available_values,
+        "published_at": published_values,
         "retrieved_at": retrieved_values,
         "available_at_method": available_methods,
         "source": sources,
