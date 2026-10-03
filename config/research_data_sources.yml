@@ -1,0 +1,54 @@
+version: 1
+
+policy:
+  research_only: true
+  production_changed: false
+  paid_sources_allowed: false
+  unknown_cost_is_hold: true
+  automatic_feature_adoption: false
+  pit_status_default: UNVERIFIED
+
+e_stat_dashboard:
+  enabled: true
+  base_metadata_url: "https://dashboard.e-stat.go.jp/api/1.0/Json/getIndicatorInfo"
+  base_data_url: "https://dashboard.e-stat.go.jp/api/1.0/Json/getData"
+  no_registration_required: true
+  max_indicators_per_keyword: 2
+  max_total_indicators: 24
+  keywords:
+    - "消費者物価"
+    - "鉱工業生産"
+    - "機械受注"
+    - "失業率"
+    - "現金給与総額"
+    - "実質GDP"
+    - "景気動向指数"
+    - "法人企業統計"
+    - "輸出"
+    - "輸入"
+    - "設備投資"
+    - "小売業販売額"
+  output: "data/research/estat_dashboard_research.json"
+  pit_policy:
+    retrieved_at_recorded: true
+    modified_at_recorded: true
+    historical_available_at_inferred: false
+    research_use_only_until_pit_validation: true
+
+mof_securities:
+  enabled: true
+  sources:
+    monthly_total:
+      url: "https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/montha1.csv"
+      kind: "cross_border_securities_flows"
+    monthly_resident_sector:
+      url: "https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/monthb2.csv"
+      kind: "resident_sector_securities_flows"
+    monthly_investor:
+      url: "https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/monthb1.csv"
+      kind: "investor_securities_flows"
+  output_dir: "data/research/mof_securities"
+  pit_policy:
+    retrieved_at_recorded: true
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
