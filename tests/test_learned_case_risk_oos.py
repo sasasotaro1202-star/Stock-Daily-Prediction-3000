@@ -158,6 +158,7 @@ def test_learned_case_risk_rejects_retrieval_before_publication():
 
 def test_learned_case_risk_fails_closed_on_invalid_development_pit():
     rows = _development_rows()
+    rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
     rows[0]["available_at"] = "2026-01-03T00:00:00+00:00"
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_DEVELOPMENT_PIT"
@@ -167,6 +168,7 @@ def test_learned_case_risk_fails_closed_on_invalid_development_pit():
 
 def test_learned_case_risk_fails_closed_on_malformed_development_pit():
     rows = _development_rows()
+    rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
     rows[1]["retrieved_at"] = "invalid"
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_DEVELOPMENT_PIT"
