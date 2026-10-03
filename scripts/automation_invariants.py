@@ -363,8 +363,8 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
-        "types: [completed, in_progress]",
-        "research_validation_status_workflow_tracks_completed",
+        "types: [requested, in_progress, completed]",
+        "research_validation_status_workflow_tracks_requested",
     )
     _assert_once(
         status_workflow,
