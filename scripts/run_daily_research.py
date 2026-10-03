@@ -1303,6 +1303,9 @@ def main():
                     "prediction_time": np.asarray(
                         pit_lineage["prediction_time"], dtype=object
                     ),
+                    "prediction_cutoff": np.asarray(
+                        pit_lineage["prediction_cutoff"], dtype=object
+                    ),
                     "prediction_time_source": np.asarray(
                         pit_lineage["prediction_time_source"], dtype=object
                     ),
