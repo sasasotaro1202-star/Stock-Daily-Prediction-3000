@@ -39,3 +39,9 @@ def test_24h_marathon_refresh_uses_bounded_retry_on_all_lanes():
     assert workflow.count('["python", "scripts/refresh_universe.py"]') == 4
     assert workflow.count("subprocess.TimeoutExpired") == 4
     assert "python scripts/refresh_universe.py" not in workflow
+
+
+def test_watchdog_does_not_self_cancel_on_research_workflow_events() -> None:
+    text = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    assert "\n  workflow_run:" not in text
+    assert '    - cron: "*/5 * * * *"' in text
