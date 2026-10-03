@@ -184,3 +184,27 @@ def test_source_discovery_summary_is_fail_closed_when_missing_or_invalid(tmp_pat
     assert invalid["status"] == "INVALID"
     assert invalid["next_best_action"] == "rerun_discovery_fail_closed"
     assert invalid["selection_is_advisory_only"] is True
+
+
+def test_official_source_catalog_covers_additional_security_data_domains():
+    kinds = {row["kind"] for row in OFFICIAL_SOURCES}
+    assert "fundamentals" in kinds
+    assert "capital_flows" in kinds
+    assert "market_statistics" in kinds
+
+
+def test_manual_only_jpx_source_is_cataloged_but_not_auto_selected():
+    from scripts.discover_free_data_sources import _lifecycle
+
+    source = next(row for row in OFFICIAL_SOURCES if row["kind"] == "market_statistics")
+    decorated = {
+        **source,
+        "reachable": True,
+        "has_tabular_hint": True,
+        "pit_hint": False,
+        "blocked": False,
+    }
+    lifecycle = _lifecycle(decorated)
+    assert lifecycle["automation_status"] == "MANUAL_ONLY"
+    selected = select_for_research([decorated], max_per_kind=5)
+    assert selected.get("market_statistics", []) == []
