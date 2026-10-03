@@ -122,3 +122,23 @@ def test_research_model_allowlist_is_opt_in_and_keeps_all_primary_candidates(mon
     full = list(make_models())
     assert {"logistic", "extra_trees", "hgb"}.issubset(set(full))
 
+
+
+def test_research_model_allowlist_limits_evaluated_candidates(monkeypatch):
+    from scripts.run_daily_research import make_models
+    monkeypatch.setenv(
+        "RESEARCH_MODEL_ALLOWLIST",
+        "logistic,extra_trees,hgb,lightgbm,hgb_conservative_recent,blend_hgb_lgbm_regularized_recent",
+    )
+    selected = set(make_models())
+    assert selected.issubset(
+        {
+            "logistic",
+            "extra_trees",
+            "hgb",
+            "lightgbm",
+            "hgb_conservative_recent",
+            "blend_hgb_lgbm_regularized_recent",
+        }
+    )
+    assert {"logistic", "extra_trees", "hgb"}.issubset(selected)
