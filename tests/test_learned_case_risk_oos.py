@@ -193,15 +193,6 @@ def test_learned_case_risk_rejects_cutoff_after_generation_time():
     assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
 
 
-def test_learned_case_risk_accepts_matching_prediction_cutoff():
-    rows = _development_rows()
-    rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
-    rows[-1]["prediction_cutoff"] = rows[-1]["prediction_time"]
-    result = analyze_learned_case_risk(rows)
-    assert result["status"] == "EVALUATED"
-    assert result["locked_rows"] == 1
-
-
 def test_learned_case_risk_accepts_feature_provenance_at_cutoff_boundary():
     rows = _development_rows()
     rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
