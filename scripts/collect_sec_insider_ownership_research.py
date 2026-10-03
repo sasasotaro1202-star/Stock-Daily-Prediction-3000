@@ -170,19 +170,33 @@ def _form4_transaction_view(raw: bytes) -> dict[str, object]:
         if _local_name(tx.tag) != "nonDerivativeTransaction":
             continue
         item = {}
+        allowed = {
+            "transactionDate",
+            "transactionCode",
+            "transactionShares",
+            "transactionPricePerShare",
+            "sharesOwnedFollowingTransaction",
+            "directOrIndirectOwnership",
+        }
         for child in tx.iter():
             name = _local_name(child.tag)
-            if name in {
-                "transactionDate",
-                "transactionCode",
-                "transactionShares",
-                "transactionPricePerShare",
-                "sharesOwnedFollowingTransaction",
-                "directOrIndirectOwnership",
-            }:
-                value = child.text.strip() if child.text else ""
-                if value:
-                    item[name] = value
+            if name not in allowed:
+                continue
+            value_nodes = [
+                descendant
+                for descendant in child.iter()
+                if _local_name(descendant.tag) == "value"
+            ]
+            value = next(
+                (
+                    descendant.text.strip()
+                    for descendant in value_nodes
+                    if descendant.text and descendant.text.strip()
+                ),
+                child.text.strip() if child.text else "",
+            )
+            if value:
+                item[name] = value
         if item:
             transactions.append(item)
     return {
