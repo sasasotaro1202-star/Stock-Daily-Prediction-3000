@@ -17,11 +17,14 @@ on:
       - "src/research/case_risk_oos.py"
       - "src/research/learned_case_risk_oos.py"
       - "src/research/expert_loss_routing_oos.py"
+      - "src/research/run_provenance.py"
       - "src/research/v13_governance.py"
       - "scripts/run_daily_research.py"
       - "scripts/run_case_risk_oos_audit.py"
       - "scripts/run_learned_case_risk_oos.py"
+      - "scripts/finalize_research_run_provenance.py"
       - "tests/test_case_risk_oos.py"
+      - "tests/test_run_provenance.py"
       - "tests/test_learned_case_risk_oos.py"
       - "tests/test_expert_loss_routing_oos.py"
       - "tests/test_ultimate_v13.py"
@@ -164,6 +167,12 @@ jobs:
       - name: Chronological OOS research
         id: research_oos
         run: python scripts/run_daily_research.py
+      - name: Finalize OOS provenance
+        if: always()
+        env:
+          RESEARCH_OOS_OUTCOME: ${{ steps.research_oos.outcome }}
+        run: python scripts/finalize_research_run_provenance.py
+
       - name: Evaluate experience-driven candidates against chronological OOS
         if: steps.research_oos.outcome == 'success'
         run: python scripts/evaluate_experience_candidates.py
