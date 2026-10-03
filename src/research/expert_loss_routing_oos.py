@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from datetime import datetime
 from typing import Any, Mapping, Sequence
 
 import numpy as np
@@ -34,28 +33,10 @@ def _clip01(value: Any) -> float | None:
 
 
 def _pit_ready(row: Mapping[str, Any]) -> bool:
-    if row.get("pit_status") != "PASS":
-        return False
-    prediction_time = row.get("prediction_time")
-    available_at = row.get("available_at")
-    if not isinstance(prediction_time, str) or not isinstance(available_at, str):
-        return False
-    try:
-        prediction = datetime.fromisoformat(
-            prediction_time.replace("Z", "+00:00")
-        )
-        available = datetime.fromisoformat(
-            available_at.replace("Z", "+00:00")
-        )
-    except ValueError:
-        return False
-    return (
-        prediction.tzinfo is not None
-        and prediction.utcoffset() is not None
-        and available.tzinfo is not None
-        and available.utcoffset() is not None
-        and available <= prediction
-    )
+    """Require the same row-level fail-closed PIT contract as the shared auditor."""
+    from src.research.pit_contract import audit_pit_row
+
+    return bool(audit_pit_row(row)["ok"])
 
 
 def _case_features(row: Mapping[str, Any], expert_prediction: float) -> np.ndarray | None:
@@ -199,7 +180,6 @@ def _paired_bootstrap(
     if int(n_resamples) < 100:
         raise ValueError("n_resamples must be >= 100")
 
-    row_index = np.arange(len(y))
     candidate_loss = -(y * np.log(candidate) + (1 - y) * np.log(1.0 - candidate))
     baseline_loss = -(y * np.log(baseline) + (1 - y) * np.log(1.0 - baseline))
     deltas = candidate_loss - baseline_loss
@@ -381,9 +361,6 @@ def analyze_expert_loss_routing(
     expert_history: dict[str, list[tuple[np.ndarray, int]]] = {
         model: [] for model in model_names
     }
-    expert_global_failures: dict[str, list[int]] = {
-        model: [] for model in model_names
-    }
     locked_rows: list[dict[str, Any]] = []
     locked_oos_y: list[int] = []
     locked_candidate_predictions: list[float] = []
@@ -531,7 +508,7 @@ def analyze_expert_loss_routing(
         fold_rows.append(fold_result)
 
         if fold_index >= locked_start:
-            for row_index, meta in enumerate(current_rows):
+            for row_index, _meta in enumerate(current_rows):
                 locked_oos_y.append(int(y[row_index]))
                 locked_candidate_predictions.append(float(candidate_prediction[row_index]))
                 locked_dynamic_predictions.append(float(dynamic_prediction[row_index]))
@@ -574,7 +551,6 @@ def analyze_expert_loss_routing(
                         (p_matrix[row_index, model_index] >= 0.5) != bool(y[row_index])
                     )
                     expert_history[model].append((feature, failed))
-                    expert_global_failures[model].append(failed)
 
     locked_candidate = [r["candidate"] for r in fold_rows if r["is_locked"]]
     locked_dynamic = [r["dynamic"] for r in fold_rows if r["is_locked"]]
@@ -591,9 +567,6 @@ def analyze_expert_loss_routing(
                 "brier": float("nan"),
                 "ece": float("nan"),
             }
-        # Aggregate by recomputing from per-case predictions is preferable, but
-        # per-fold metric averaging would overweight small folds. The current
-        # implementation keeps the locked suffix fold sizes explicit.
         weighted: dict[str, float] = {}
         for key in ("accuracy", "logloss", "brier", "ece"):
             weighted[key] = float(
@@ -687,7 +660,11 @@ def analyze_expert_loss_routing(
             "all_expert_loss_models_fit_only_on_prior_folds": True,
             "locked_suffix_routing_is_frozen_across_all_locked_folds": True,
             "locked_suffix_routing_is_frozen_per_fold": True,
+            "pit_requires_shared_row_level_fail_closed_contract": True,
             "pit_requires_timezone_aware_available_at_le_prediction_time": True,
+            "pit_validates_prediction_cutoff": True,
+            "pit_validates_publication_ordering": True,
+            "pit_validates_retrieval_ordering": True,
             "frozen_holdout_used": False,
             "production_changed": False,
             "promotion_allowed": False,
