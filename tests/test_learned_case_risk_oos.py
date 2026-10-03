@@ -72,8 +72,9 @@ def test_learned_case_risk_is_frozen_on_locked_suffix():
         )
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "EVALUATED"
-    assert result["frozen_holdout_used"] is True
+    assert result["frozen_holdout_used"] is False
     assert result["contracts"]["locked_suffix_model_is_frozen"] is True
+    assert result["contracts"]["production_changed"] is False
     assert result["contracts"]["locked_outcomes_used_for_fit_or_threshold"] is False
     assert result["promotion_allowed"] is False
     for method in ("fixed_case_risk", "learned_case_risk"):
