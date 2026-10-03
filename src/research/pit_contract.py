@@ -87,6 +87,10 @@ def audit_pit_timestamps(row: Mapping[str, Any]) -> dict[str, Any]:
         if retrieved_time < available_time:
             violations.append("retrieved_at_before_available_at")
 
+    if retrieved_time is not None and prediction_boundary is not None:
+        if retrieved_time > prediction_boundary:
+            violations.append("retrieved_at_after_prediction_cutoff")
+
     return {
         "ok": not violations,
         "prediction_field": prediction_field,
