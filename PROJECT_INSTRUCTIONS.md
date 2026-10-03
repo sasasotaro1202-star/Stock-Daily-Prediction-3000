@@ -10,6 +10,9 @@ Re-check the latest GitHub HEAD/default branch, code/config, tests, workflows, A
 ## PIT / time
 Separate event/market time, prediction cutoff, source availability, publication, retrieval, effective time and revision time. Only use information demonstrably available by cutoff. Unknown/unverifiable availability is fail-closed for production-quality OOS.
 
+## Data expansion
+Increase data breadth by adding independent information axes (market microstructure, filings/timestamps, rates, macro, flows, events and fundamentals) rather than maximizing feature count. New sources remain research-only until license/access/cost, PIT availability, schema/revision, survivorship/universe scope, missingness, and incremental OOS value are validated. Prefer raw-data preservation and source lineage so later feature ablations can distinguish information value from feature-volume effects.
+
 ## Evaluation
 Use chronological walk-forward OOS/WFO. Random splits are prohibited for temporal prediction. Separate candidate selection from final OOS. Frozen holdout is final evidence only and may not be tuned.
 
