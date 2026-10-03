@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import os
 
 import yaml
 
@@ -37,13 +38,35 @@ def main() -> int:
 
     source_audit = audit_source_config(config)
     ledger_path, rows = _load_ledger()
-    ledger_audit = audit_pit_rows(rows) if rows else {
-        "status": "NO_LEDGER_EVIDENCE",
-        "rows": 0,
-        "valid_rows": 0,
-        "violation_count": 0,
-        "violations": [],
-    }
+    require_ledger = os.environ.get("REQUIRE_PIT_LEDGER", "0").strip() == "1"
+
+    if rows:
+        ledger_audit = audit_pit_rows(rows)
+    else:
+        ledger_audit = {
+            "status": "NO_LEDGER_EVIDENCE",
+            "rows": 0,
+            "valid_rows": 0,
+            "violation_count": 0,
+            "violations": [],
+        }
+        if require_ledger:
+            ledger_audit = {
+                "status": "FAIL",
+                "rows": 0,
+                "valid_rows": 0,
+                "violation_count": 1,
+                "violations": [
+                    {
+                        "row_key": None,
+                        "violations": ["NO_LEDGER_EVIDENCE"],
+                        "reason": (
+                            "A successful post-OOS PIT audit requires a non-empty "
+                            "prediction ledger."
+                        ),
+                    }
+                ],
+            }
 
     payload = {
         "schema_version": 1,
@@ -61,6 +84,7 @@ def main() -> int:
             **ledger_audit,
         },
         "contracts": {
+            "nonempty_prediction_ledger_required_when_enforced": require_ledger,
             "unknown_or_unverifiable_availability_is_not_pit_ready": True,
             "available_at_must_not_exceed_prediction_cutoff": True,
             "published_at_must_not_exceed_available_at": True,
