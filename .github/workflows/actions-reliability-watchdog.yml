@@ -314,10 +314,9 @@ jobs:
           }
 
           # Research validation intentionally preserves an active chronological
-          # OOS run. Recover only stale active runs near their hard timeout, and
-          # only replace queued runs when no active research run is occupying the
-          # lane; this prevents a legitimate queued research run from being
-          # repeatedly cancelled while a long OOS execution is still running.
+          # OOS run. Recover only stale active runs near their hard timeout, but
+          # still remove queued runs targeting superseded SHAs so the next run
+          # cannot execute stale research after the active OOS completes.
           inspect_research_validation
 
           recover_missing_scheduled_run() {
