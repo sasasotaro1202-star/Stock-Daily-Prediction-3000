@@ -31,7 +31,7 @@ def _row(
 
 def _development_rows() -> list[dict]:
     rows = []
-    for fold in range(4):
+    for fold in range(6):
         for i in range(80):
             risk = 0.05 if i < 40 else 0.90
             result = i % 2
@@ -61,7 +61,7 @@ def test_learned_case_risk_is_frozen_on_locked_suffix():
         p = 0.90 if predicted_class == 1 else 0.10
         rows.append(
             _row(
-                4,
+                6,
                 i,
                 locked=True,
                 risk=risk,
