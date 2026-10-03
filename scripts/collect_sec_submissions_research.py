@@ -6,7 +6,6 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 import yaml
@@ -274,7 +273,7 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
-    return 0 if successes else 1
+    return 0 if selected and not failures else 1
 
 
 if __name__ == "__main__":
