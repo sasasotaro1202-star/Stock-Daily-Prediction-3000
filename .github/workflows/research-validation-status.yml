@@ -41,7 +41,6 @@ jobs:
       - name: Download completed OOS evidence
         if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
         uses: actions/download-artifact@v7
-        continue-on-error: true
         with:
           name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}
           path: research-evidence
