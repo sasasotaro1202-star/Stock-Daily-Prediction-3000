@@ -39,3 +39,17 @@ def test_24h_marathon_refresh_uses_bounded_retry_on_all_lanes():
     assert workflow.count('["python", "scripts/refresh_universe.py"]') == 4
     assert workflow.count("subprocess.TimeoutExpired") == 4
     assert "python scripts/refresh_universe.py" not in workflow
+
+
+def test_watchdog_does_not_trigger_from_research_workflow_run():
+    watchdog = (ROOT / ".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    assert 'workflows: ["Research validation"]' not in watchdog
+    assert "cancel-in-progress: true" in watchdog
+
+
+def test_research_status_tracks_requested_without_waking_watchdog():
+    status = (ROOT / ".github/workflows/research-validation-status.yml").read_text(encoding="utf-8")
+    watchdog = (ROOT / ".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    assert 'workflows: ["Research validation"]' in status
+    assert "types: [completed, in_progress, requested]" in status
+    assert 'workflows: ["Research validation"]' not in watchdog
