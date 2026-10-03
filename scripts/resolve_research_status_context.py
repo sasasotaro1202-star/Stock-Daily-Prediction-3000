@@ -51,22 +51,25 @@ def main() -> int:
     if not token or not repository:
         raise SystemExit("FAIL: research status heartbeat GitHub context is missing")
 
-    try:
-        payload = _request_json(
-            f"{api_base}/repos/{repository}/actions/runs?status=in_progress&per_page=100",
-            token,
-        )
-    except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
-        raise SystemExit(
-            f"FAIL: research status heartbeat run lookup: {type(exc).__name__}:{exc}"
-        ) from exc
+    candidates = []
+    for workflow_status in ("pending", "queued", "in_progress"):
+        try:
+            payload = _request_json(
+                f"{api_base}/repos/{repository}/actions/runs?status={workflow_status}&per_page=100",
+                token,
+            )
+        except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
+            raise SystemExit(
+                "FAIL: research status heartbeat run lookup: "
+                f"{type(exc).__name__}:{exc}"
+            ) from exc
 
-    candidates = [
-        run
-        for run in payload.get("workflow_runs", []) or []
-        if str(run.get("name", "")).strip() == "Research validation"
-        and str(run.get("status", "")).strip() == "in_progress"
-    ]
+        candidates.extend(
+            run
+            for run in payload.get("workflow_runs", []) or []
+            if str(run.get("name", "")).strip() == "Research validation"
+            and str(run.get("status", "")).strip() == workflow_status
+        )
     if not candidates:
         _write_env("RESEARCH_STATUS_CONTEXT_FOUND", "false")
         return 0
