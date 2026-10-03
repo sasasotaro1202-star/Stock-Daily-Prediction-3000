@@ -103,6 +103,10 @@ def _bank(folds: int = 6, with_lineage: bool = False):
                     [f"2026-01-{fold + 1:02d}T09:17:00+00:00"] * len(y),
                     dtype=object,
                 ),
+                "prediction_cutoff": np.array(
+                    [f"2026-01-{fold + 1:02d}T09:17:00+00:00"] * len(y),
+                    dtype=object,
+                ),
                 "prediction_time_source": np.array(
                     ["DECLARED_CONFIG_SCHEDULE:asia_prediction_time_jst"] * len(y),
                     dtype=object,
@@ -110,6 +114,10 @@ def _bank(folds: int = 6, with_lineage: bool = False):
                 "prediction_time_observed": np.array([False] * len(y), dtype=bool),
                 "available_at": np.array(
                     [f"2026-01-{fold + 1:02d}T07:00:00+00:00"] * len(y),
+                    dtype=object,
+                ),
+                "published_at": np.array(
+                    [f"2026-01-{fold + 1:02d}T07:30:00+00:00"] * len(y),
                     dtype=object,
                 ),
                 "retrieved_at": np.array(
@@ -153,7 +161,9 @@ def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path
     assert len(rows) == 36
     assert all(row["pit_status"] == "PASS" for row in rows)
     assert all(row["prediction_time"] for row in rows)
+    assert all(row["prediction_cutoff"] == row["prediction_time"] for row in rows)
     assert all(row["available_at"] for row in rows)
+    assert all(row["published_at"] for row in rows)
     assert all(row["prediction_time_observed"] is False for row in rows)
     assert all(len(row["lineage_sha256"]) == 64 for row in rows)
     assert all(
