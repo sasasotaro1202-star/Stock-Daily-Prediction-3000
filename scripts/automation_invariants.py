@@ -100,6 +100,11 @@ def main() -> int:
         "cancel-in-progress: true",
         "watchdog_latest_run_wins",
     )
+    _assert_absent(
+        watchdog,
+        "workflow_run:",
+        "watchdog_no_workflow_run_self_cancel_loop",
+    )
     for due in ("07:17", "09:27", "18:37"):
         _assert_once(watchdog, due, f"watchdog_recovery_window_{due.replace(':', '_')}")
 
