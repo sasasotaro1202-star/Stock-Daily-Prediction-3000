@@ -192,3 +192,12 @@ def test_learned_case_risk_rejects_cutoff_after_generation_time():
     rows[-1]["prediction_time"] = "2026-01-02T00:00:00+00:00"
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_reports_development_case_exclusions():
+    rows = _development_rows()
+    rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
+    rows[0].pop("case_ood")
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "EVALUATED"
+    assert result["development_rows_without_usable_features_or_outcomes"] == 1
