@@ -52,3 +52,16 @@ mof_securities:
     retrieved_at_recorded: true
     source_available_at_inferred: false
     research_use_only_until_pit_validation: true
+
+sec_companyfacts:
+  enabled: true
+  company_tickers_url: "https://www.sec.gov/files/company_tickers.json"
+  companyfacts_url_template: "https://data.sec.gov/api/xbrl/companyfacts/CIK{cik}.json"
+  max_symbols_per_shard: 75
+  shard_count: 4
+  output_dir: "data/research/sec_companyfacts"
+  pit_policy:
+    filed_date_recorded: true
+    exact_acceptance_timestamp_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
