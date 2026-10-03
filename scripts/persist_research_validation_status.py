@@ -121,6 +121,8 @@ def _runtime_health(job: dict) -> dict:
             state = "LONG_RUNNING"
         else:
             state = "RUNNING"
+    elif status in {"requested", "queued", "pending", "waiting"}:
+        state = "QUEUED"
     elif status in {"completed", "cancelled", "failure", "failed", "skipped"}:
         state = "TERMINAL"
     else:
@@ -156,11 +158,11 @@ def main() -> int:
     # a valid terminal state, not an API failure. For every other conclusion,
     # a missing research job remains fail-closed.
     effective_lookup_error = lookup_error
-    workflow_statuses = {"requested", "queued", "in_progress"}
+    workflow_statuses = {"requested", "queued", "pending", "waiting", "in_progress"}
     if lookup_error == "research_job_not_found" and workflow_conclusion in {"cancelled", "skipped"}:
         effective_lookup_error = None
     elif lookup_error == "research_job_not_found" and workflow_status in workflow_statuses:
-        # workflow_run can emit in_progress before matrix jobs are visible
+        # workflow_run can emit before matrix jobs are visible
         # through the Actions API. Preserve an explicit active status rather
         # than converting a transient race into a false failure.
         effective_lookup_error = None
