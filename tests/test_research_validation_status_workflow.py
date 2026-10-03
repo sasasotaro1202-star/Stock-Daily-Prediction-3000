@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+import io
+import json
+
+from scripts import persist_research_validation_status as status
 
 
 WORKFLOW = Path(".github/workflows/research-validation-status.yml")
@@ -77,3 +81,31 @@ def test_status_persistence_treats_pending_as_queued_not_as_lookup_failure() -> 
     assert 'workflow_status or "unknown"' in script
     status_line = script.split("workflow_statuses =", 1)[1].splitlines()[0]
     assert '"pending"' in status_line
+
+
+def test_status_persistence_retries_pending_job_creation_race(monkeypatch) -> None:
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "123")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "pending")
+
+    calls = 0
+
+    def fake_urlopen(request, timeout):
+        nonlocal calls
+        calls += 1
+        payload = (
+            {"jobs": []}
+            if calls == 1
+            else {"jobs": [{"name": "research", "status": "in_progress", "conclusion": None}]}
+        )
+        return io.BytesIO(json.dumps(payload).encode("utf-8"))
+
+    monkeypatch.setattr(status.urllib.request, "urlopen", fake_urlopen)
+    monkeypatch.setattr(status.time, "sleep", lambda _: None)
+
+    job, error = status._lookup_research_job()
+
+    assert error is None
+    assert job["name"] == "research"
+    assert calls == 2
