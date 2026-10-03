@@ -726,11 +726,22 @@ def main():
             if candidate not in configured_candidate_names:
                 configured_candidate_names.append(candidate)
     candidate_models = make_models()
+    allowlist_for_manifest = [
+        name.strip()
+        for name in os.environ.get("RESEARCH_MODEL_ALLOWLIST", "").split(",")
+        if name.strip()
+    ]
+    budget_excluded_candidates = [
+        name
+        for name in configured_candidate_names
+        if allowlist_for_manifest and name not in allowlist_for_manifest
+    ]
     unavailable_optional_candidates = [
         name
         for name in configured_candidate_names
         if name not in candidate_models
         and name not in {str(x) for x in model_cfg.get("primary_candidates", []) or []}
+        and name not in budget_excluded_candidates
     ]
     folds = make_date_folds(
         dates,
@@ -3344,6 +3355,7 @@ def main():
                 for name in os.environ.get("RESEARCH_MODEL_ALLOWLIST", "").split(",")
                 if str(name).strip()
             ],
+            "budget_excluded_candidates": sorted(budget_excluded_candidates),
             "evaluated_candidates": sorted(candidate_models),
             "unavailable_optional_candidates": sorted(unavailable_optional_candidates),
         },
