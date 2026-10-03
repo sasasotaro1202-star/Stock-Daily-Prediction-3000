@@ -194,6 +194,14 @@ OFFICIAL_SOURCES = [
         "access_mode": "archives_api",
     },
     {
+        "name": "U.S. SEC Current and Periodic Company Filings",
+        "kind": "company_event_filings",
+        "url": "https://data.sec.gov/submissions/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_auth",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -280,6 +288,10 @@ GITHUB_QUERIES = {
     "insider_ownership_events": [
         "SEC Form 4 insider transactions acceptance datetime",
         "SEC Schedule 13D 13G beneficial ownership filings",
+    ],
+    "company_event_filings": [
+        "SEC 8-K 10-Q 10-K company event filings acceptance datetime",
+        "SEC current reports periodic reports company events",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
