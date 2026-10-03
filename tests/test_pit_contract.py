@@ -18,7 +18,7 @@ def _row(**overrides):
         "prediction_cutoff": "2026-10-02T09:00:00+09:00",
         "available_at": "2026-10-02T08:59:00+09:00",
         "published_at": "2026-10-02T08:58:00+09:00",
-        "retrieved_at": "2026-10-02T09:00:10+09:00",
+        "retrieved_at": "2026-10-02T08:59:10+09:00",
         "pit_status": "PASS",
     }
     row.update(overrides)
@@ -172,6 +172,19 @@ def test_shared_pit_timestamp_contract_catches_publication_and_retrieval_orderin
     )
     assert retrieved_early["ok"] is False
     assert "retrieved_at_before_available_at" in retrieved_early["violations"]
+
+
+def test_retrieval_after_prediction_cutoff_is_blocking():
+    result = audit_pit_timestamps(
+        {
+            "prediction_cutoff": "2026-10-02T09:00:00+09:00",
+            "prediction_time": "2026-10-02T09:00:00+09:00",
+            "available_at": "2026-10-02T08:59:00+09:00",
+            "retrieved_at": "2026-10-02T09:00:01+09:00",
+        }
+    )
+    assert result["ok"] is False
+    assert "retrieved_at_after_prediction_cutoff" in result["violations"]
 
 
 def test_missing_explicit_prediction_cutoff_is_blocking():
