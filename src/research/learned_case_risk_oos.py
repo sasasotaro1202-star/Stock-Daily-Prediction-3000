@@ -80,7 +80,8 @@ def _prediction_cutoff(row: Mapping[str, Any]):
 
     Newer ledgers should provide prediction_cutoff. Legacy rows may carry only
     prediction_time, which is treated as the cutoff alias for backward
-    compatibility. When both exist they must agree exactly.
+    compatibility. When both exist, generation time must not precede the
+    explicit cutoff.
     """
     prediction_raw = row.get("prediction_cutoff")
     prediction = (
@@ -369,6 +370,7 @@ def analyze_learned_case_risk(
 
     development_by_fold: dict[int, list[tuple[np.ndarray, int]]] = {}
     invalid_development_pit_rows = 0
+    development_rows_without_usable_features_or_outcomes = 0
     for row in development:
         if not _pit_ready(row):
             invalid_development_pit_rows += 1
@@ -378,6 +380,8 @@ def analyze_learned_case_risk(
             development_by_fold.setdefault(
                 int(row.get("fold", 0) or 0), []
             ).append(item)
+        else:
+            development_rows_without_usable_features_or_outcomes += 1
 
     if invalid_development_pit_rows:
         return {
@@ -390,6 +394,9 @@ def analyze_learned_case_risk(
             "frozen_holdout_used": True,
             "development_rows": int(len(development)),
             "invalid_development_pit_rows": int(invalid_development_pit_rows),
+            "development_rows_without_usable_features_or_outcomes": int(
+                development_rows_without_usable_features_or_outcomes
+            ),
             "scored_rows": 0,
         }
 
@@ -561,6 +568,9 @@ def analyze_learned_case_risk(
         "development_folds": sorted(development_by_fold),
         "development_rows": int(len(history_labels)),
         "development_oof_risk_rows": int(len(development_oof_learned)),
+        "development_rows_without_usable_features_or_outcomes": int(
+            development_rows_without_usable_features_or_outcomes
+        ),
         "model_training_folds": int(training_folds),
         "locked_rows": int(len(locked_failed)),
         "method": {
