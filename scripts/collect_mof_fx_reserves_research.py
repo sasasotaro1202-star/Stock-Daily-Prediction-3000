@@ -151,7 +151,8 @@ def main() -> int:
         encoding="utf-8",
     )
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
-    return 0 if any(r.get("status") == "EVALUATED" for r in reports) else 1
+    required = [r for r in reports if r.get("status") != "DEFERRED_DISABLED"]
+    return 0 if required and all(r.get("status") == "EVALUATED" for r in required) else 1
 
 
 if __name__ == "__main__":
