@@ -75,13 +75,37 @@ def _parse_pit_timestamp(value: Any):
     return parsed
 
 
+def _prediction_cutoff(row: Mapping[str, Any]):
+    """Resolve the explicit prediction cutoff without silently inventing time.
+
+    Newer ledgers should provide prediction_cutoff. Legacy rows may carry only
+    prediction_time, which is treated as the cutoff alias for backward
+    compatibility. When both exist they must agree exactly.
+    """
+    prediction_raw = row.get("prediction_cutoff")
+    prediction = (
+        _parse_pit_timestamp(prediction_raw)
+        if prediction_raw is not None
+        else _parse_pit_timestamp(row.get("prediction_time"))
+    )
+    if prediction_raw is not None and prediction is None:
+        return None
+    if row.get("prediction_time") is not None:
+        generation = _parse_pit_timestamp(row.get("prediction_time"))
+        if generation is None:
+            return None
+        if prediction is not None and generation < prediction:
+            return None
+    return prediction
+
+
 def _pit_ready(row: Mapping[str, Any]) -> bool:
     if row.get("pit_status") != "PASS":
         return False
 
-    prediction = _parse_pit_timestamp(row.get("prediction_time"))
+    cutoff = _prediction_cutoff(row)
     available = _parse_pit_timestamp(row.get("available_at"))
-    if prediction is None or available is None or available > prediction:
+    if cutoff is None or available is None or available > cutoff:
         return False
 
     published_raw = row.get("published_at")
@@ -98,19 +122,19 @@ def _pit_ready(row: Mapping[str, Any]) -> bool:
     )
 
     # Optional provenance timestamps are fail-closed when present:
-    # publication cannot occur after prediction, and retrieval cannot precede
-    # the source availability timestamp.
+    # publication cannot occur after the prediction cutoff, and retrieval
+    # cannot precede source availability.
     if published_raw is not None and published is None:
         return False
     if retrieved_raw is not None and retrieved is None:
         return False
-    if published is not None and published > prediction:
+    if published is not None and published > cutoff:
         return False
     if retrieved is not None and retrieved < available:
         return False
     # Retrieval is itself an information-availability event for this
     # prediction path; a post-cutoff retrieval cannot make the row PIT-safe.
-    if retrieved is not None and retrieved > prediction:
+    if retrieved is not None and retrieved > cutoff:
         return False
     if (
         published is not None
