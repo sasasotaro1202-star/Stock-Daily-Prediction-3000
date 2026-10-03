@@ -46,3 +46,17 @@ def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_a
     assert "stalled active run $active_run_id cancelled by inactivity guard" in text
     assert "has exceeded 350 minutes of active age" in text
     assert "stale active run $active_run_id cancelled by hard-age guard" in text
+
+
+def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    start = text.index(
+        '            if [ -n "$active_run_id" ]; then',
+        text.index("inspect_research_validation"),
+    )
+    end = text.index("            local current_sha_queued=false", start)
+    block = text[start:end]
+    assert "superseded queued" not in block
+    assert "continue into queue" in block
+    assert "return 0" not in block
+    assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in block
