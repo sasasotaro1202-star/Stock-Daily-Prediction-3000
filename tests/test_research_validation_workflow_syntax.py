@@ -59,6 +59,15 @@ def _extract_python_heredocs(text: str) -> list[str]:
     return blocks
 
 
+def test_research_validation_uses_read_only_repository_permission():
+    text = (ROOT / ".github" / "workflows" / "research-validation.yml").read_text(encoding="utf-8")
+    assert "permissions:" in text
+    assert "  actions: read" in text
+    assert "  contents: read" in text
+    assert "  contents: write" not in text
+    assert "git push" not in text
+
+
 def test_research_validation_bash_blocks_are_syntactically_valid() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     status_text = STATUS_WORKFLOW.read_text(encoding="utf-8")
