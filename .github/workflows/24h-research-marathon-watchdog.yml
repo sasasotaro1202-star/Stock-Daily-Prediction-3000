@@ -109,8 +109,45 @@ jobs:
               echo "WATCHDOG: $action ($reason)"
               ;;
             CANCEL_AND_WAIT)
+              set +e
               gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
-              echo "WATCHDOG: cancelled stale run $run_id; waiting for cancellation to settle before dispatch"
+              cancel_rc=$?
+              set -e
+              if [ "$cancel_rc" -ne 0 ]; then
+                echo "WATCHDOG: standard cancel request failed for stale run $run_id" >&2
+                exit "$cancel_rc"
+              fi
+
+              settled=0
+              for attempt in 1 2 3 4 5 6; do
+                sleep 10
+                current="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.status')"
+                echo "WATCHDOG: cancellation settle poll attempt=$attempt/6 status=$current"
+                if [ "$current" != "in_progress" ] && [ "$current" != "queued" ] && [ "$current" != "pending" ] && [ "$current" != "waiting" ] && [ "$current" != "requested" ]; then
+                  settled=1
+                  break
+                fi
+              done
+
+              if [ "$settled" -eq 0 ]; then
+                echo "WATCHDOG: standard cancel did not settle; issuing force-cancel for stale run $run_id"
+                gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/force-cancel"
+                for attempt in 1 2 3 4; do
+                  sleep 10
+                  current="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.status')"
+                  echo "WATCHDOG: force-cancel settle poll attempt=$attempt/4 status=$current"
+                  if [ "$current" != "in_progress" ] && [ "$current" != "queued" ] && [ "$current" != "pending" ] && [ "$current" != "waiting" ] && [ "$current" != "requested" ]; then
+                    settled=1
+                    break
+                  fi
+                done
+              fi
+
+              if [ "$settled" -ne 1 ]; then
+                echo "WATCHDOG: stale run cancellation did not settle after bounded force-cancel recovery" >&2
+                exit 1
+              fi
+              echo "WATCHDOG: stale run $run_id cancellation settled; next tick may dispatch"
               ;;
             DISPATCH)
               dispatch_main
