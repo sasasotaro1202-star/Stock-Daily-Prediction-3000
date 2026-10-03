@@ -26,3 +26,12 @@ def test_workflows_have_only_executable_steps() -> None:
                 assert step.get("run") or step.get("uses"), (
                     f"{path}: job {job_name} step {index} must define run or uses"
                 )
+
+def test_project_instructions_preserve_adoption_experience_and_transfer_gates() -> None:
+    instructions = (ROOT / "PROJECT_INSTRUCTIONS.md").read_text(encoding="utf-8")
+    assert "primary relative OOS LogLoss improvement >=3%" in instructions
+    assert "no worsening in >=70% of evaluation periods" in instructions
+    assert "zero PIT violations" in instructions
+    assert "canonical instrument-date-cutoff granularity" in instructions
+    assert "DISCOVER -> ABSTRACT_MECHANISM -> COMPATIBILITY -> ADAPT -> LOCAL_PIT -> LOCAL_OOS -> LOCAL_HOLDOUT -> SHADOW -> PROMOTE" in instructions
+
