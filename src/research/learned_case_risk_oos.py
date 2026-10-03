@@ -344,12 +344,30 @@ def analyze_learned_case_risk(
         return features, failed
 
     development_by_fold: dict[int, list[tuple[np.ndarray, int]]] = {}
+    invalid_development_pit_rows = 0
     for row in development:
+        if not _pit_ready(row):
+            invalid_development_pit_rows += 1
+            continue
         item = valid(row)
         if item is not None:
             development_by_fold.setdefault(
                 int(row.get("fold", 0) or 0), []
             ).append(item)
+
+    if invalid_development_pit_rows:
+        return {
+            **base,
+            "status": "BLOCKED_INVALID_DEVELOPMENT_PIT",
+            "block_reason": (
+                "development rows with invalid or missing PIT timestamp "
+                "provenance are fail-closed rather than silently excluded"
+            ),
+            "frozen_holdout_used": True,
+            "development_rows": int(len(development)),
+            "invalid_development_pit_rows": int(invalid_development_pit_rows),
+            "scored_rows": 0,
+        }
 
     history_features: list[np.ndarray] = []
     history_labels: list[int] = []
@@ -655,6 +673,7 @@ def analyze_learned_case_risk(
             "locked_suffix_model_is_frozen": True,
             "locked_outcomes_used_for_fit_or_threshold": False,
             "pit_requires_timezone_aware_available_at_le_prediction_time": True,
+            "development_pit_invalid_rows_fail_closed": True,
             "production_changed": False,
             "promotion_allowed": False,
         },
