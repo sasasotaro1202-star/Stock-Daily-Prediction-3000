@@ -168,3 +168,9 @@ def test_watchdog_triggers_on_own_workflow_changes():
     assert '      - ".github/workflows/24h-research-marathon-watchdog.yml"' in text
     assert "workflow_dispatch:" in text
     assert "schedule:" in text
+
+def test_watchdog_prioritizes_stale_in_progress_runs_over_queue_cleanup():
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert "stale.sort(" in text
+    assert '0 if item[2] == "active" else 1' in text
+    assert "-item[1]" in text
