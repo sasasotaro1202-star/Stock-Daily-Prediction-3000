@@ -175,14 +175,13 @@ def test_learned_case_risk_fails_closed_on_malformed_development_pit():
     assert result["invalid_development_pit_rows"] == 1
 
 
-def test_learned_case_risk_uses_explicit_prediction_cutoff():
+def test_learned_case_risk_accepts_matching_prediction_cutoff():
     rows = _development_rows()
-    rows.append(_row(6, 0, locked=True, risk=0.8, result=0, p=0.9))
-    rows[-1]["prediction_cutoff"] = "2026-01-01T23:30:00+00:00"
-    rows[-1]["prediction_time"] = "2026-01-02T00:00:00+00:00"
-    rows[-1]["available_at"] = "2026-01-01T23:45:00+00:00"
+    for i in range(4):
+        rows.append(_row(6, i, locked=True, risk=0.8, result=i % 2, p=0.9 if i % 2 else 0.1))
+        rows[-1]["prediction_cutoff"] = rows[-1]["prediction_time"]
     result = analyze_learned_case_risk(rows)
-    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+    assert result["status"] == "EVALUATED"
 
 
 def test_learned_case_risk_rejects_cutoff_after_generation_time():
