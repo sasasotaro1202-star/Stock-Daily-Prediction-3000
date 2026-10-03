@@ -89,6 +89,12 @@ def test_status_persistence_treats_pending_as_queued_not_as_lookup_failure() -> 
     assert '"pending"' in status_line
 
 
+def test_status_persistence_marks_requested_as_queued_in_runtime_health() -> None:
+    script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
+    assert 'status in {"requested", "queued", "pending", "waiting"}' in script
+    assert 'state = "QUEUED"' in script
+
+
 def test_status_persistence_retries_pending_job_creation_race(monkeypatch) -> None:
     monkeypatch.setenv("GITHUB_TOKEN", "token")
     monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
