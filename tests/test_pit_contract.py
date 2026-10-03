@@ -131,3 +131,17 @@ def test_missing_case_identity_is_blocking():
         "missing_canonical_case_identity" in row.get("violations", [])
         for row in result["violations"]
     )
+
+
+def test_present_but_malformed_secondary_prediction_timestamp_is_blocking():
+    result = audit_pit_row(
+        _row(prediction_cutoff="2026-10-02T08:55:00+09:00", prediction_time="bad")
+    )
+    assert result["ok"] is False
+    assert "invalid_prediction_time" in result["violations"]
+
+    result = audit_pit_row(
+        _row(prediction_cutoff="bad", prediction_time="2026-10-02T09:00:00+09:00")
+    )
+    assert result["ok"] is False
+    assert "invalid_prediction_cutoff" in result["violations"]
