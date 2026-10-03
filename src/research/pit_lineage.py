@@ -189,6 +189,7 @@ def build_research_pit_lineage(
             "session_date": str(frame.at[idx, "session_date"]),
             "asset_class": str(frame.at[idx, "asset_class"]),
             "prediction_time": prediction_iso,
+            "prediction_cutoff": prediction_iso,
             "prediction_time_source": prediction_source,
             "available_at": available_iso,
             "retrieved_at": retrieved_iso,
@@ -226,7 +227,11 @@ def build_research_pit_lineage(
 
     return {
         "policy_version": _POLICY_VERSION,
+        # The declared prediction schedule is also the information cutoff for
+        # this historical OOS lane. Keep both names explicit for downstream
+        # PIT audits and case-level provenance.
         "prediction_time": prediction_times,
+        "prediction_cutoff": list(prediction_times),
         "prediction_time_source": prediction_sources,
         "prediction_time_observed": [False] * len(frame),
         "available_at": available_values,
