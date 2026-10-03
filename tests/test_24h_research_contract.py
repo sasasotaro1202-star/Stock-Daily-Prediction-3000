@@ -26,6 +26,9 @@ def test_marathon_final_checkpoint_is_fail_closed():
     assert text.count('if: always()') >= 3
     assert '"research_only": True' in text
     assert '"production_changed": False' in text
+    assert 'out.write_text(json.dumps(payload,indent=2,sort_keys=True)+' in text
+    assert 'name: marathon-final-checkpoint-' in text
+    assert 'path: marathon-final-checkpoint.json' in text
     assert 'if status != "COMPLETED":' in text
     assert 'if-no-files-found: error' in text
     for lane in ("core_oos", "finra", "treasury", "audits"):
