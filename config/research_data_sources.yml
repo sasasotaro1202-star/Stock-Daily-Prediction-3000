@@ -172,3 +172,22 @@ boj_frontier_research:
     available_at_verified: false
     revision_policy_verified: false
     research_use_only_until_pit_validation: true
+
+fred_cross_asset:
+  enabled: true
+  base_url: "https://fred.stlouisfed.org/graph/fredgraph.csv"
+  series:
+    - DFF
+    - SOFR
+    - DTWEXBGS
+    - NFCI
+    - STLFSI4
+    - GSCPI
+    - TREAST
+  output: "data/research/fred_cross_asset.csv"
+  pit_policy:
+    retrieval_timestamp_recorded: true
+    vintage_timestamp_available: false
+    source_available_at_inferred: false
+    revision_policy_requires_local_snapshot: true
+    research_use_only_until_pit_validation: true
