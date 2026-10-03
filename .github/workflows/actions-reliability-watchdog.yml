@@ -15,7 +15,7 @@ on:
       timezone: "Asia/Tokyo"
   workflow_run:
     workflows: ["Research validation"]
-    types: [completed]
+    types: [requested, in_progress, completed]
 
 permissions:
   actions: write
