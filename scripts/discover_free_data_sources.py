@@ -178,6 +178,14 @@ OFFICIAL_SOURCES = [
         "access_mode": "api_no_registration",
     },
     {
+        "name": "Federal Reserve / FRED Public Macro and Financial Series",
+        "kind": "fed_cross_asset",
+        "url": "https://fred.stlouisfed.org/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "direct_csv",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -256,6 +264,10 @@ GITHUB_QUERIES = {
     "boj_tankan": [
         "BOJ TANKAN business conditions API",
         "Bank of Japan TANKAN time series",
+    ],
+    "fed_cross_asset": [
+        "Federal Reserve FRED financial conditions SOFR dollar index",
+        "FRED monetary financial stress macro time series",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
