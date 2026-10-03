@@ -70,9 +70,9 @@ def _lookup_run_artifacts() -> tuple[list[dict], str | None]:
     return payload.get("artifacts", []) or [], None
 
 
-def _runtime_health(job: dict) -> dict:
+def _runtime_health(job: dict, workflow_status: str = "") -> dict:
     """Summarize active research runtime without treating long duration as failure."""
-    status = str(job.get("status") or "unknown").strip()
+    status = str(job.get("status") or workflow_status or "unknown").strip()
     started_at = str(job.get("started_at") or "").strip() or None
     active_step = next(
         (
@@ -121,6 +121,8 @@ def _runtime_health(job: dict) -> dict:
             state = "LONG_RUNNING"
         else:
             state = "RUNNING"
+    elif status in {"requested", "queued", "pending", "waiting"}:
+        state = "QUEUED"
     elif status in {"completed", "cancelled", "failure", "failed", "skipped"}:
         state = "TERMINAL"
     else:
@@ -156,11 +158,11 @@ def main() -> int:
     # a valid terminal state, not an API failure. For every other conclusion,
     # a missing research job remains fail-closed.
     effective_lookup_error = lookup_error
-    workflow_statuses = {"requested", "queued", "in_progress"}
+    workflow_statuses = {"requested", "queued", "pending", "waiting", "in_progress"}
     if lookup_error == "research_job_not_found" and workflow_conclusion in {"cancelled", "skipped"}:
         effective_lookup_error = None
     elif lookup_error == "research_job_not_found" and workflow_status in workflow_statuses:
-        # workflow_run can emit in_progress before matrix jobs are visible
+        # workflow_run can emit before matrix jobs are visible
         # through the Actions API. Preserve an explicit active status rather
         # than converting a transient race into a false failure.
         effective_lookup_error = None
@@ -193,7 +195,7 @@ def main() -> int:
         "sec_research_step": _step_conclusion(job, "Collect free SEC filing research inputs"),
         "sec_ablation_step": _step_conclusion(job, "Run SEC filing OOS challenger ablation"),
         "cpcv_step": _step_conclusion(job, "CPCV leakage-boundary research audit"),
-        "runtime_health": _runtime_health(job),
+        "runtime_health": _runtime_health(job, workflow_status),
         "evidence_artifact_present": evidence_artifact_present,
         "evidence_artifact_raw_present": evidence_artifact_raw_present,
         "evidence_state": evidence_state,
