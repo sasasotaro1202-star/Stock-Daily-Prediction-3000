@@ -102,10 +102,14 @@ def test_future_availability_timestamp_blocks_case_risk_evaluation():
 
 
 def test_case_risk_accepts_late_retrieval_when_source_was_available_at_cutoff():
-    row = _row(0, 0, locked=True, risk=0.8, result=0, p=0.9)
-    row["retrieved_at"] = "2026-01-03T01:00:00+00:00"
-    result = analyze_case_risk([row], risk_quantile=0.75)
-    assert result["status"] == "NO_VALID_LOCKED_CASES" or result["status"] == "EVALUATED"
+    rows = [
+        _row(0, 0, locked=False, risk=0.2, result=0, p=0.9),
+        _row(1, 0, locked=True, risk=0.8, result=0, p=0.9),
+    ]
+    rows[-1]["retrieved_at"] = "2026-01-03T01:00:00+00:00"
+    result = analyze_case_risk(rows, risk_quantile=0.75)
+    assert result["status"] == "EVALUATED"
+    assert result["scored_rows"] == 1
 
 
 def test_case_risk_rejects_missing_explicit_cutoff():
