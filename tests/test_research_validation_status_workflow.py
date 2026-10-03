@@ -37,5 +37,5 @@ def test_oos_restore_skips_non_success_workflow_run_events() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     start = text.index("      - name: Restore OOS metrics for longitudinal snapshot")
     block = text[start:text.index("      - name: Persist research validation status", start)]
-    assert "github.event_name != 'workflow_run'" in block
+    assert "github.event_name == 'workflow_run'" in block
     assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in block
