@@ -36,7 +36,7 @@ Matured predictions are stored at canonical instrument-date-cutoff granularity. 
 Transfer from other projects is mechanism-level only: DISCOVER -> ABSTRACT_MECHANISM -> COMPATIBILITY -> ADAPT -> LOCAL_PIT -> LOCAL_OOS -> LOCAL_HOLDOUT -> SHADOW -> PROMOTE. Cross-domain success is never copied directly into stock production.
 
 ## Reliability / cost / security
-Use checkpoint/resume, idempotency, bounded retry/backoff, watchdog/heartbeat, stale-run detection, deterministic writes, artifact preservation, concurrency control, recovery and rollback. Never hide failure. Prefer verified free/OSS/local/cache; unknown-cost or billing-risk services are not automatic dependencies. Never expose credentials.
+Use checkpoint/resume, idempotency, bounded retry/backoff, watchdog/heartbeat, stale-run detection, deterministic writes, artifact preservation, concurrency control, recovery and rollback. Heartbeat status must treat requested/queued/pending/waiting/in_progress as transient active states and tolerate a short job-creation race without converting it into false failure. Never hide failure. Prefer verified free/OSS/local/cache; unknown-cost or billing-risk services are not automatic dependencies. Never expose credentials.
 
 ## Completion
 Green CI, generated artifacts or a completed workflow do not prove performance verification or production completion. Evidence must cover tests, PIT/leakage/meta-leakage, relevant universe/scope audits, chronological OOS/WFO, calibration, ablation, robustness, frozen holdout, artifact integrity, reproducibility, recovery, release gate, monitoring and rollback.
