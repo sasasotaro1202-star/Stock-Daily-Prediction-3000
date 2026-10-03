@@ -1,4 +1,3 @@
-
 name: 24H Research Marathon Watchdog
 
 on:
@@ -61,7 +60,7 @@ jobs:
 
           if stale:
               r,age,kind=stale[0]
-              print(json.dumps({"action":"CANCEL_AND_DISPATCH","run_id":int(r["id"]),"reason":f"stale_{kind}","age_minutes":round(age,1)}))
+              print(json.dumps({"action":"CANCEL_AND_WAIT","run_id":int(r["id"]),"reason":f"stale_{kind}","age_minutes":round(age,1)}))
           elif active:
               print(json.dumps({"action":"WAIT","reason":"active_run_present"}))
           else:
@@ -109,10 +108,9 @@ jobs:
             WAIT|HOLD)
               echo "WATCHDOG: $action ($reason)"
               ;;
-            CANCEL_AND_DISPATCH)
+            CANCEL_AND_WAIT)
               gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
-              echo "WATCHDOG: cancelled stale run $run_id"
-              dispatch_main
+              echo "WATCHDOG: cancelled stale run $run_id; waiting for cancellation to settle before dispatch"
               ;;
             DISPATCH)
               dispatch_main
