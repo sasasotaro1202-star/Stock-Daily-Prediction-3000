@@ -39,8 +39,21 @@ def audit_pit_row(
 ) -> dict[str, Any]:
     violations: list[str] = []
     prediction_field, prediction_boundary = _first_timestamp(row)
-    prediction_time_value = _parse_timestamp(row.get("prediction_time"))
-    prediction_cutoff_value = _parse_timestamp(row.get("prediction_cutoff"))
+    raw_prediction_time = row.get("prediction_time")
+    raw_prediction_cutoff = row.get("prediction_cutoff")
+    prediction_time_value = _parse_timestamp(raw_prediction_time)
+    prediction_cutoff_value = _parse_timestamp(raw_prediction_cutoff)
+
+    if (
+        raw_prediction_time not in (None, "")
+        and prediction_time_value is None
+    ):
+        violations.append("invalid_prediction_time")
+    if (
+        raw_prediction_cutoff not in (None, "")
+        and prediction_cutoff_value is None
+    ):
+        violations.append("invalid_prediction_cutoff")
 
     if prediction_field is None:
         violations.append("missing_or_invalid_prediction_time")
