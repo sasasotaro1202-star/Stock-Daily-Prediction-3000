@@ -160,3 +160,11 @@ def test_watchdog_force_cancels_unresponsive_stale_runs():
     assert 'stale run cancellation did not settle after bounded force-cancel recovery' in text
     assert 'for attempt in 1 2 3 4 5 6' in text
     assert 'for attempt in 1 2 3 4' in text
+
+
+def test_watchdog_triggers_on_own_workflow_changes():
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert "push:" in text
+    assert '      - ".github/workflows/24h-research-marathon-watchdog.yml"' in text
+    assert "workflow_dispatch:" in text
+    assert "schedule:" in text
