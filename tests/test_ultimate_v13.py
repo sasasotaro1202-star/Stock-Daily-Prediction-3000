@@ -117,7 +117,7 @@ def _bank(folds: int = 6, with_lineage: bool = False):
                     dtype=object,
                 ),
                 "published_at": np.array(
-                    [f"2026-01-{fold + 1:02d}T07:30:00+00:00"] * len(y),
+                    [f"2026-01-{fold + 1:02d}T06:30:00+00:00"] * len(y),
                     dtype=object,
                 ),
                 "retrieved_at": np.array(
