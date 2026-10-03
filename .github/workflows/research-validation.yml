@@ -32,6 +32,7 @@ on:
       - "tests/test_expert_loss_routing_oos.py"
       - "tests/test_ultimate_v13.py"
       - "tests/test_pit_contract.py"
+      - "tests/test_research_validation_contract.py"
       - "tests/test_audit_research_pit_contract.py"
       - "tests/test_pit_lineage.py"
       - "config/pipeline.yml"
