@@ -54,6 +54,15 @@ def test_watchdog_does_not_cancel_itself_on_next_scheduled_tick():
     assert "cancel-in-progress: false" in text
 
 
+def test_watchdog_does_not_dispatch_until_stale_run_cancellation_settles():
+    text = WATCHDOG.read_text(encoding="utf-8")
+    assert '"action":"CANCEL_AND_WAIT"' in text
+    block = text.split("CANCEL_AND_WAIT)", 1)[1].split("DISPATCH)", 1)[0]
+    assert "gh run cancel" in block
+    assert "waiting for cancellation to settle before dispatch" in block
+    assert "dispatch_main" not in block
+
+
 def test_marathon_price_guard_is_statement_based():
     text = MARATHON.read_text(encoding="utf-8")
     assert 'raise SystemExit("FAIL: provider deferred ratio over 5%") if ratio>0.05 else None' not in text
@@ -121,7 +130,6 @@ def test_research_model_allowlist_is_opt_in_and_keeps_all_primary_candidates(mon
     monkeypatch.delenv("RESEARCH_MODEL_ALLOWLIST", raising=False)
     full = list(make_models())
     assert {"logistic", "extra_trees", "hgb"}.issubset(set(full))
-
 
 
 def test_research_model_allowlist_limits_evaluated_candidates(monkeypatch):
