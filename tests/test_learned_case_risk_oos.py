@@ -232,3 +232,21 @@ def test_learned_case_risk_locked_outcomes_cannot_change_frozen_scores():
     assert baseline["fixed_case_risk"]["evaluation"]["high_risk_rows"] == perturbed["fixed_case_risk"]["evaluation"]["high_risk_rows"]
     assert baseline["learned_case_risk"]["evaluation"]["high_risk_coverage"] == perturbed["learned_case_risk"]["evaluation"]["high_risk_coverage"]
     assert baseline["fixed_case_risk"]["evaluation"]["high_risk_coverage"] == perturbed["fixed_case_risk"]["evaluation"]["high_risk_coverage"]
+
+def test_learned_case_risk_rejects_future_feature_snapshot():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["feature_snapshot_cutoff"] = "2026-01-02T01:00:00+00:00"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
+
+def test_learned_case_risk_rejects_non_pit_feature_lineage():
+    rows = _development_rows()
+    broken = _row(4, 0, locked=True, risk=0.8, result=0, p=0.9)
+    broken["feature_pit_status"] = "UNKNOWN"
+    rows.append(broken)
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+
