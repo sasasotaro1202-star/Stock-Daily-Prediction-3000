@@ -532,6 +532,110 @@ jobs:
           from pathlib import Path
 
           root=Path("marathon-evidence")
+          results={
+              "core_oos":"${{ needs.core_oos.result }}",
+              "finra":"${{ needs.finra.result }}",
+              "treasury":"${{ needs.treasury.result }}",
+              "audits":"${{ needs.audits.result }}",
+          }
+          required={
+              "core_oos":[
+                  "data/research/latest_metrics.json",
+                  "data/research/leakage_audit.json",
+                  "data/research/independent_leakage_audit.json",
+                  "data/research/data_quality.json",
+                  "data/research/universe_quality.json",
+                  "data/research/market_context_quality.json",
+                  "marathon-checkpoints/core_oos.json",
+              ],
+              "finra":[
+                  "data/research/finra_short_sale.json",
+                  "data/research/finra_short_sale_ablation.json",
+                  "marathon-checkpoints/finra.json",
+              ],
+              "treasury":[
+                  "data/research/treasury_curve.json",
+                  "data/research/treasury_ablation.json",
+                  "marathon-checkpoints/treasury.json",
+              ],
+              "audits":[
+                  "data/research/independent_leakage_audit.json",
+                  "data/research/v13_meta_leakage_audit.json",
+                  "data/research/cpcv_validation_audit.json",
+                  "marathon-checkpoints/audits.json",
+              ],
+          }
+          missing=[]
+          for lane, paths in required.items():
+              if results[lane] != "success":
+                  continue
+              for rel in paths:
+                  p=root/rel
+                  if not p.is_file() or p.stat().st_size <= 0:
+                      missing.append(f"{lane}:{rel}")
+                      continue
+                  if rel.startswith("marathon-checkpoints/"):
+                      try:
+                          checkpoint=json.loads(p.read_text(encoding="utf-8"))
+                      except Exception:
+                          missing.append(f"{lane}:{rel}:invalid_json")
+                          continue
+                      if checkpoint.get("status") != "success":
+                          missing.append(f"{lane}:{rel}:status_not_success")
+                      if checkpoint.get("research_only") is not True:
+                          missing.append(f"{lane}:{rel}:research_only_contract")
+                      if checkpoint.get("production_changed") is not False:
+                          missing.append(f"{lane}:{rel}:production_changed_contract")
+                      if str(checkpoint.get("workflow_run_id")) != str(os.environ.get("GITHUB_RUN_ID")):
+                          missing.append(f"{lane}:{rel}:run_id_mismatch")
+                      if checkpoint.get("head_sha") != os.environ.get("GITHUB_SHA"):
+                          missing.append(f"{lane}:{rel}:sha_mismatch")
+
+          mutation_files=[]
+          for p in sorted(root.rglob("*.json")) if root.exists() else []:
+              try:
+                  obj=json.loads(p.read_text(encoding="utf-8"))
+              except Exception:
+                  continue
+              if isinstance(obj,dict) and obj.get("production_changed") is True:
+                  mutation_files.append(str(p.relative_to(root)))
+
+          status="COMPLETED" if all(v=="success" for v in results.values()) and not missing and not mutation_files else "PARTIAL_OR_BLOCKED"
+          payload={
+              "schema_version":1,
+              "status":status,
+              "research_only":True,
+              "production_changed":False,
+              "github_run_id":int(os.environ["GITHUB_RUN_ID"]),
+              "github_sha":os.environ["GITHUB_SHA"],
+              "lane_results":results,
+              "missing_required_evidence":missing,
+              "production_mutation_evidence":mutation_files,
+          }
+          out=Path("marathon-final-checkpoint.json")
+          out.write_text(json.dumps(payload,indent=2,sort_keys=True)+"\n",encoding="utf-8")
+          print(json.dumps(payload,indent=2,sort_keys=True))
+          if status != "COMPLETED":
+              raise SystemExit("FAIL: 24H final checkpoint is not complete")
+          PY
+      - name: Upload final checkpoint
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: marathon-final-checkpoint-${{ github.run_id }}
+          path: marathon-final-checkpoint.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Build marathon summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root=Path("marathon-evidence")
           files=sorted(root.rglob("*.json")) if root.exists() else []
           final_checkpoint=Path("marathon-final-checkpoint.json")
           if final_checkpoint.is_file():
@@ -546,9 +650,7 @@ jobs:
               final_payload={}
               final_status="FINAL_CHECKPOINT_MISSING"
           summary={
-              "status": final_status,
-              "research_only": True,
-              "production_changed": False,
+              "status":final_status,
               "workflow_run_id": "${{ github.run_id }}",
               "head_sha": "${{ github.sha }}",
               "jobs": {
@@ -557,10 +659,13 @@ jobs:
                   "treasury": "${{ needs.treasury.result }}",
                   "audits": "${{ needs.audits.result }}",
               },
-              "missing_required_evidence": final_payload.get("missing_required_evidence", []),
-              "production_mutation_evidence": final_payload.get("production_mutation_evidence", []),
+              "missing_required_evidence":final_payload.get("missing_required_evidence", []),
+              "production_mutation_evidence":final_payload.get("production_mutation_evidence", []),
               "json_files": [str(p.relative_to(root)) for p in files],
           }
+          Path("marathon-summary.json").write_text(json.dumps(summary,indent=2),encoding="utf-8")
+          print(json.dumps(summary,indent=2))
+          PY
       - name: Upload marathon summary
         if: always()
         uses: actions/upload-artifact@v7
