@@ -4,8 +4,8 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": false,
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-03T21:01:54.246145+00:00",
-  "job_status": "completed",
+  "generated_at_utc": "2026-10-03T21:03:45.499952+00:00",
+  "job_status": "in_progress",
   "research_step": "unknown",
   "runtime_health": {
     "active_step": null,
@@ -22,8 +22,8 @@
   "sec_research_step": "unknown",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": "cancelled",
-  "workflow_run_id": "37153555010",
-  "workflow_sha": "ad44cdc38728ae8711b2f44a8920ed2139e949f5",
-  "workflow_status": "completed"
+  "workflow_conclusion": null,
+  "workflow_run_id": "37153562751",
+  "workflow_sha": "00d252ea859a70b59eea9ca2c9f9912918ae12bd",
+  "workflow_status": "in_progress"
 }
