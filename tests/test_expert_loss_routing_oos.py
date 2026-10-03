@@ -13,6 +13,7 @@ def _case_row(fold: int, row: int, *, locked: bool) -> dict:
         "session_date": f"2026-01-{fold + 1:02d}",
         "is_locked": locked,
         "prediction_time": "2026-01-02T00:00:00+00:00",
+        "prediction_cutoff": "2026-01-02T00:00:00+00:00",
         "available_at": "2026-01-01T23:00:00+00:00",
         "pit_status": "PASS",
         "case_predictability": 0.15 + 0.70 * ((row % 10) / 9.0),
@@ -98,6 +99,45 @@ def test_locked_outcomes_do_not_change_locked_routing_weights():
 def test_missing_case_lineage_fails_closed():
     ledger, folds = _make_data([i % 2 for i in range(80)])
     ledger[0]["available_at"] = "2026-01-03T00:00:00+00:00"
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_INVALID_CASE_LINEAGE"
+
+
+def test_future_publication_timestamp_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    ledger[0]["published_at"] = "2026-01-02T00:01:00+00:00"
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_INVALID_CASE_LINEAGE"
+
+
+def test_retrieval_before_availability_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    ledger[0]["retrieved_at"] = "2026-01-01T22:59:00+00:00"
+    result = analyze_expert_loss_routing(
+        ledger,
+        folds,
+        models=MODELS,
+        locked_folds=1,
+        min_training_rows=60,
+    )
+    assert result["status"] == "BLOCKED_INVALID_CASE_LINEAGE"
+
+
+def test_cutoff_after_prediction_time_fails_closed():
+    ledger, folds = _make_data([i % 2 for i in range(80)])
+    ledger[0]["prediction_cutoff"] = "2026-01-02T00:01:00+00:00"
     result = analyze_expert_loss_routing(
         ledger,
         folds,
