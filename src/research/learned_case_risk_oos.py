@@ -121,6 +121,65 @@ def _quantile(values: Sequence[float], q: float) -> float | None:
     return float(np.quantile(array, q))
 
 
+def _risk_metrics(scores: np.ndarray, failed: np.ndarray) -> dict[str, float]:
+    scores = np.asarray(scores, dtype=float)
+    failed = np.asarray(failed, dtype=int)
+    if len(scores) != len(failed):
+        raise ValueError("score/failure arrays must be aligned")
+    if len(scores) == 0:
+        return {
+            "accuracy": float("nan"),
+            "logloss": float("nan"),
+            "brier": float("nan"),
+            "ece": float("nan"),
+        }
+
+    p = np.clip(scores, 1e-6, 1.0 - 1e-6)
+    y = failed.astype(float)
+    logloss = float(-np.mean(y * np.log(p) + (1.0 - y) * np.log1p(-p)))
+    brier = float(np.mean((p - y) ** 2))
+    accuracy = float(np.mean((p >= 0.5) == failed.astype(bool)))
+
+    bins = np.linspace(0.0, 1.0, 11)
+    ece = 0.0
+    for left, right in zip(bins[:-1], bins[1:]):
+        mask = (p >= left) & (p < right if right < 1.0 else p <= right)
+        if not np.any(mask):
+            continue
+        ece += float(mask.mean()) * abs(
+            float(p[mask].mean()) - float(y[mask].mean())
+        )
+
+    return {
+        "accuracy": accuracy,
+        "logloss": logloss,
+        "brier": brier,
+        "ece": float(ece),
+    }
+
+
+def _fold_stability(rows: Sequence[dict[str, Any]], key: str) -> dict[str, Any]:
+    values = np.asarray(
+        [float(row[key]) for row in rows if _finite(row.get(key))],
+        dtype=float,
+    )
+    if values.size == 0:
+        return {
+            "folds": 0,
+            "mean": None,
+            "std": None,
+            "worst": None,
+            "best": None,
+        }
+    return {
+        "folds": int(values.size),
+        "mean": float(values.mean()),
+        "std": float(values.std(ddof=0)),
+        "worst": float(values.max()),
+        "best": float(values.min()),
+    }
+
+
 def _evaluate(
     scores: np.ndarray,
     failed: np.ndarray,
@@ -363,6 +422,48 @@ def analyze_learned_case_risk(
         locked_failed,
         fixed_threshold,
     )
+    learned_risk_metrics = _risk_metrics(learned_scores, locked_failed)
+    fixed_risk_metrics = _risk_metrics(fixed_scores, locked_failed)
+
+    locked_rows_by_fold: dict[int, list[tuple[float, float, int]]] = {}
+    for (row, _, failed), learned_score, fixed_score in zip(
+        valid_locked,
+        learned_scores,
+        fixed_scores,
+    ):
+        locked_rows_by_fold.setdefault(
+            int(row.get("fold", 0) or 0),
+            [],
+        ).append((float(learned_score), float(fixed_score), int(failed)))
+
+    fold_metrics: list[dict[str, Any]] = []
+    for fold in sorted(locked_rows_by_fold):
+        fold_rows = locked_rows_by_fold[fold]
+        fold_learned = np.asarray([r[0] for r in fold_rows], dtype=float)
+        fold_fixed = np.asarray([r[1] for r in fold_rows], dtype=float)
+        fold_failed = np.asarray([r[2] for r in fold_rows], dtype=int)
+        fold_metrics.append(
+            {
+                "fold": int(fold),
+                "rows": int(len(fold_rows)),
+                "learned": {
+                    "risk_metrics": _risk_metrics(fold_learned, fold_failed),
+                    "high_risk": _evaluate(
+                        fold_learned,
+                        fold_failed,
+                        learned_threshold,
+                    ),
+                },
+                "fixed": {
+                    "risk_metrics": _risk_metrics(fold_fixed, fold_failed),
+                    "high_risk": _evaluate(
+                        fold_fixed,
+                        fold_failed,
+                        fixed_threshold,
+                    ),
+                },
+            }
+        )
 
     return {
         **base,
@@ -390,10 +491,44 @@ def analyze_learned_case_risk(
         "fixed_case_risk": {
             "threshold": float(fixed_threshold),
             "evaluation": fixed_eval,
+            "risk_metrics": fixed_risk_metrics,
         },
         "learned_case_risk": {
             "threshold": float(learned_threshold),
             "evaluation": learned_eval,
+            "risk_metrics": learned_risk_metrics,
+        },
+        "fold_metrics": fold_metrics,
+        "stability": {
+            "locked_fold_count": int(len(fold_metrics)),
+            "learned_logloss": _fold_stability(
+                [
+                    {"logloss": row["learned"]["risk_metrics"]["logloss"]}
+                    for row in fold_metrics
+                ],
+                "logloss",
+            ),
+            "fixed_logloss": _fold_stability(
+                [
+                    {"logloss": row["fixed"]["risk_metrics"]["logloss"]}
+                    for row in fold_metrics
+                ],
+                "logloss",
+            ),
+            "learned_brier": _fold_stability(
+                [
+                    {"brier": row["learned"]["risk_metrics"]["brier"]}
+                    for row in fold_metrics
+                ],
+                "brier",
+            ),
+            "fixed_brier": _fold_stability(
+                [
+                    {"brier": row["fixed"]["risk_metrics"]["brier"]}
+                    for row in fold_metrics
+                ],
+                "brier",
+            ),
         },
         "delta_learned_minus_fixed": {
             "high_risk_coverage": float(
