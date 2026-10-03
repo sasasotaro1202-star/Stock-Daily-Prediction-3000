@@ -114,6 +114,30 @@ OFFICIAL_SOURCES = [
         "access_mode": "api_or_feed",
     },
     {
+        "name": "U.S. Treasury Daily Bill Rates",
+        "kind": "rates_detail",
+        "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates",
+        "official": True,
+        "free_status": "public_web",
+        "access_mode": "api_or_feed",
+    },
+    {
+        "name": "U.S. Treasury Daily Long-Term Rates",
+        "kind": "rates_detail",
+        "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates",
+        "official": True,
+        "free_status": "public_web",
+        "access_mode": "api_or_feed",
+    },
+    {
+        "name": "U.S. Treasury Daily Real Long-Term Rates",
+        "kind": "real_rates_detail",
+        "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates",
+        "official": True,
+        "free_status": "public_web",
+        "access_mode": "api_or_feed",
+    },
+    {
         "name": "Tokyo Stock Exchange Daily Bulletin",
         "kind": "market_statistics",
         "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
@@ -164,6 +188,14 @@ GITHUB_QUERIES = {
     "real_rates": [
         "U.S. Treasury real yield curve rates",
         "Treasury TIPS real yield daily",
+    ],
+    "rates_detail": [
+        "U.S. Treasury daily bill rates",
+        "U.S. Treasury long term rates XML",
+    ],
+    "real_rates_detail": [
+        "U.S. Treasury real long term rates",
+        "Treasury real long-term interest rates XML",
     ],
     "market_statistics": [
         "Tokyo Stock Exchange daily bulletin CSV",
