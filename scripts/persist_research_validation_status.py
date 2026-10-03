@@ -122,6 +122,7 @@ def _runtime_health(job: dict, workflow_status: str = "") -> dict:
         else:
             state = "RUNNING"
     elif status in {"requested", "queued", "pending", "waiting"}:
+        # requested is emitted before queue/job materialization; it is active, not terminal.
         state = "QUEUED"
     elif status in {"completed", "cancelled", "failure", "failed", "skipped"}:
         state = "TERMINAL"
