@@ -63,10 +63,47 @@ def _fixed_risk_score(row: Mapping[str, Any]) -> float | None:
 
 
 def _pit_ready(row: Mapping[str, Any]) -> bool:
-    """Use the canonical row-level fail-closed PIT contract."""
+    """Use the canonical row PIT contract plus learned-feature provenance checks."""
     from src.research.pit_contract import audit_pit_row
 
-    return bool(audit_pit_row(row)["ok"])
+    if not bool(audit_pit_row(row)["ok"]):
+        return False
+
+    cutoff = row.get("prediction_cutoff")
+    # Feature provenance is a learned-case-risk-specific defense-in-depth layer.
+    feature_status_raw = row.get("feature_pit_status")
+    if feature_status_raw is not None and str(feature_status_raw).strip() != "PASS":
+        return False
+
+    def parse(value: Any):
+        if not isinstance(value, str):
+            return None
+        try:
+            from datetime import datetime
+            parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        if parsed.tzinfo is None or parsed.utcoffset() is None:
+            return None
+        return parsed
+
+    cutoff_dt = parse(cutoff)
+    if cutoff_dt is None:
+        return False
+
+    feature_cutoff_raw = row.get("feature_snapshot_cutoff")
+    if feature_cutoff_raw is not None:
+        feature_cutoff = parse(feature_cutoff_raw)
+        if feature_cutoff is None or feature_cutoff > cutoff_dt:
+            return False
+
+    feature_available_raw = row.get("feature_max_available_at")
+    if feature_available_raw is not None:
+        feature_available = parse(feature_available_raw)
+        if feature_available is None or feature_available > cutoff_dt:
+            return False
+
+    return True
 
 
 def _fit(
