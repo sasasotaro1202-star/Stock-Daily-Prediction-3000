@@ -83,6 +83,7 @@ def test_row_lineage_passes_pit_even_when_research_acquisition_happens_later():
     lineage = build_research_pit_lineage(_frame(), CFG)
     assert lineage["pit_status"] == ["PASS"]
     assert lineage["prediction_time"] == ["2026-10-01T09:17:00+00:00"]
+    assert lineage["prediction_cutoff"] == ["2026-10-01T09:17:00+00:00"]
     assert lineage["available_at"] == ["2026-10-01T07:00:00+00:00"]
     assert lineage["retrieved_at"] == ["2026-10-02T00:00:00+00:00"]
     assert lineage["prediction_time_observed"] == [False]
