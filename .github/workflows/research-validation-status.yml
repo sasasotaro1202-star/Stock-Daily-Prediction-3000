@@ -3,7 +3,7 @@ name: Research validation status
 on:
   workflow_run:
     workflows: ["Research validation"]
-    types: [completed, in_progress]
+    types: [completed, in_progress, requested]
   schedule:
     - cron: "13,43 * * * *"
   workflow_dispatch:
