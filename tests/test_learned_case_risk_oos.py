@@ -81,9 +81,14 @@ def test_learned_case_risk_is_frozen_on_locked_suffix():
         assert metrics["logloss"] >= 0.0
         assert metrics["brier"] >= 0.0
         assert 0.0 <= metrics["ece"] <= 1.0
+    assert len(result["development_fold_metrics"]) == 3
+    assert result["stability"]["development_fold_count"] == 3
+    assert result["stability"]["development_learned_logloss"]["folds"] == 3
+    assert result["stability"]["development_fixed_logloss"]["folds"] == 3
     assert len(result["fold_metrics"]) == 1
     assert result["stability"]["locked_fold_count"] == 1
-    assert result["stability"]["learned_logloss"]["folds"] == 1
+    assert result["stability"]["locked_learned_logloss"]["folds"] == 1
+    assert result["stability"]["locked_fixed_logloss"]["folds"] == 1
 
 
 def test_learned_case_risk_blocks_invalid_locked_pit():

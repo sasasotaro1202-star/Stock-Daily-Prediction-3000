@@ -345,6 +345,7 @@ def analyze_learned_case_risk(
     history_labels: list[int] = []
     development_oof_learned: list[float] = []
     development_oof_fixed: list[float] = []
+    development_oof_by_fold: dict[int, dict[str, list[float] | list[int]]] = {}
     training_folds = 0
 
     for fold in sorted(development_by_fold):
@@ -364,16 +365,24 @@ def analyze_learned_case_risk(
             if item is None:
                 continue
             features, failed = item
+            fold_bucket = development_oof_by_fold.setdefault(
+                int(fold),
+                {"learned": [], "fixed": [], "failed": []},
+            )
             if model is not None:
-                development_oof_learned.append(
-                    float(model.predict_proba(features.reshape(1, -1))[0, 1])
+                learned_score = float(
+                    model.predict_proba(features.reshape(1, -1))[0, 1]
                 )
+                development_oof_learned.append(learned_score)
+                fold_bucket["learned"].append(learned_score)
             fixed = _fixed_risk_score(row)
             if fixed is not None:
                 development_oof_fixed.append(fixed)
+                fold_bucket["fixed"].append(fixed)
+            fold_bucket["failed"].append(int(failed))
             history_features.append(features)
             history_labels.append(failed)
-        if history_features:
+        if model is not None:
             training_folds += 1
 
     trained = _fit(
@@ -525,31 +534,80 @@ def analyze_learned_case_risk(
             "evaluation": learned_eval,
             "risk_metrics": learned_risk_metrics,
         },
+        "development_fold_metrics": [
+            {
+                "fold": int(fold),
+                "rows": int(len(bucket["failed"])),
+                "learned": {
+                    "risk_metrics": _risk_metrics(
+                        np.asarray(bucket["learned"], dtype=float),
+                        np.asarray(bucket["failed"], dtype=int),
+                    ),
+                },
+                "fixed": {
+                    "risk_metrics": _risk_metrics(
+                        np.asarray(bucket["fixed"], dtype=float),
+                        np.asarray(bucket["failed"], dtype=int),
+                    ),
+                },
+            }
+            for fold, bucket in sorted(development_oof_by_fold.items())
+            if bucket["learned"] and bucket["fixed"]
+        ],
         "fold_metrics": fold_metrics,
         "stability": {
+            "development_fold_count": int(
+                sum(
+                    1
+                    for bucket in development_oof_by_fold.values()
+                    if bucket["learned"] and bucket["fixed"]
+                )
+            ),
+            "development_learned_logloss": _fold_stability(
+                [
+                    {"logloss": _risk_metrics(
+                        np.asarray(bucket["learned"], dtype=float),
+                        np.asarray(bucket["failed"], dtype=int),
+                    )["logloss"]}
+                    for bucket in development_oof_by_fold.values()
+                    if bucket["learned"] and bucket["fixed"]
+                ],
+                "logloss",
+            ),
+            "development_fixed_logloss": _fold_stability(
+                [
+                    {"logloss": _risk_metrics(
+                        np.asarray(bucket["fixed"], dtype=float),
+                        np.asarray(bucket["failed"], dtype=int),
+                    )["logloss"]}
+                    for bucket in development_oof_by_fold.values()
+                    if bucket["learned"] and bucket["fixed"]
+                ],
+                "logloss",
+            ),
             "locked_fold_count": int(len(fold_metrics)),
-            "learned_logloss": _fold_stability(
+            "locked_learned_logloss": _fold_stability(
                 [
                     {"logloss": row["learned"]["risk_metrics"]["logloss"]}
                     for row in fold_metrics
                 ],
                 "logloss",
             ),
-            "fixed_logloss": _fold_stability(
+            "locked_fixed_logloss": _fold_stability(
                 [
                     {"logloss": row["fixed"]["risk_metrics"]["logloss"]}
                     for row in fold_metrics
                 ],
                 "logloss",
             ),
-            "learned_brier": _fold_stability(
+            "locked_learned_brier": _fold_stability(
                 [
                     {"brier": row["learned"]["risk_metrics"]["brier"]}
                     for row in fold_metrics
                 ],
                 "brier",
             ),
-            "fixed_brier": _fold_stability(
+            "locked_fixed_brier": _fold_stability(
                 [
                     {"brier": row["fixed"]["risk_metrics"]["brier"]}
                     for row in fold_metrics
