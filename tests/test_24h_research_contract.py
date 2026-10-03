@@ -24,8 +24,8 @@ def test_marathon_final_checkpoint_is_fail_closed():
     text = MARATHON.read_text(encoding="utf-8")
     assert "Write immutable final checkpoint" in text
     assert text.count('if: always()') >= 3
-    assert '"research_only":True' in text
-    assert '"production_changed":False' in text
+    assert '"research_only": True' in text
+    assert '"production_changed": False' in text
     assert 'if status != "COMPLETED":' in text
     assert 'if-no-files-found: error' in text
     for lane in ("core_oos", "finra", "treasury", "audits"):
