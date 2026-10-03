@@ -36,3 +36,13 @@ def test_research_start_triggers_reliability_watchdog():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' in text
     assert "types: [requested, in_progress, completed]" in text
+
+
+def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_age_guard() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "research_inactive_epoch" in text
+    assert "120-minute no-update window" in text
+    assert "has had no Actions update for over 120 minutes" in text
+    assert "stalled active run $active_run_id cancelled by inactivity guard" in text
+    assert "has exceeded 350 minutes of active age" in text
+    assert "stale active run $active_run_id cancelled by hard-age guard" in text
