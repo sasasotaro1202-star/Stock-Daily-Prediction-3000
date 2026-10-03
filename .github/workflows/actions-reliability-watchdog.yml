@@ -183,8 +183,13 @@ jobs:
             now_epoch="$(date -u +%s)"
             local research_stale_epoch
             # Research OOS can use the full 6-hour hosted-runner limit; cancel runs after 350 minutes
-            # without progress so a stalled/superseded run cannot block the current-head queue.
+            # of active age so a legitimate long-running chronological OOS is preserved.
             research_stale_epoch="$((now_epoch - 350 * 60))"
+            local research_inactive_epoch
+            # A genuinely stalled run can block every newer research validation indefinitely.
+            # Require at least a 120-minute no-update window before cancelling; this is separate
+            # from the 350-minute hard-age guard and still preserves normal long OOS work.
+            research_inactive_epoch="$((now_epoch - 120 * 60))"
             local queued_cutoff_epoch
             queued_cutoff_epoch="$((now_epoch - 30 * 60))"
             local active_run_id=""
@@ -236,7 +241,18 @@ jobs:
               # Preserve a running chronological OOS even when main has advanced.
               # The run SHA remains provenance for the evidence; cancelling solely
               # because a newer commit landed would discard valid long-running work.
-              if [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
+              if [ "$active_updated_epoch" -gt 0 ] && [ "$active_updated_epoch" -lt "$research_inactive_epoch" ]; then
+                echo "::warning title=Research validation inactive active run::run $active_run_id has had no Actions update for over 120 minutes; cancelling stalled OOS"
+                if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "Research validation: stalled active run $active_run_id cancelled by inactivity guard"
+                  active_run_id=""
+                  recovery_needed=true
+                else
+                  echo "::error title=Research validation stalled active recovery failed::unable to cancel stalled run $active_run_id"
+                  failures=$((failures + 1))
+                  return 0
+                fi
+              elif [ "$active_run_started_epoch" -gt 0 ] && [ "$active_run_started_epoch" -lt "$research_stale_epoch" ]; then
                 echo "::warning title=${workflow_name} stale active run::run $active_run_id has exceeded 350 minutes of active age; cancelling before Actions timeout"
                 if gh run cancel "$active_run_id" --repo "$GITHUB_REPOSITORY"; then
                   echo "${workflow_name}: stale active run $active_run_id cancelled by hard-age guard"
