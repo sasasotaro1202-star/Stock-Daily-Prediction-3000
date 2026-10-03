@@ -41,9 +41,13 @@ def audit_pit_timestamps(row: Mapping[str, Any]) -> dict[str, Any]:
     prediction_time_value = _parse_timestamp(raw_prediction_time)
     prediction_cutoff_value = _parse_timestamp(raw_prediction_cutoff)
 
-    if raw_prediction_time not in (None, "") and prediction_time_value is None:
+    if raw_prediction_time in (None, ""):
+        violations.append("missing_prediction_time")
+    elif prediction_time_value is None:
         violations.append("invalid_prediction_time")
-    if raw_prediction_cutoff not in (None, "") and prediction_cutoff_value is None:
+    if raw_prediction_cutoff in (None, ""):
+        violations.append("missing_prediction_cutoff")
+    elif prediction_cutoff_value is None:
         violations.append("invalid_prediction_cutoff")
     if prediction_field is None:
         violations.append("missing_or_invalid_prediction_time")
@@ -137,11 +141,7 @@ def canonical_case_key(row: Mapping[str, Any]) -> tuple[str, str, str, str]:
         or row.get("target_date")
         or ""
     )
-    cutoff = str(
-        row.get("prediction_cutoff")
-        or row.get("prediction_time")
-        or ""
-    )
+    cutoff = str(row.get("prediction_cutoff") or "")
     return scope, symbol, session, cutoff
 
 
