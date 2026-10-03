@@ -80,8 +80,7 @@ def _prediction_cutoff(row: Mapping[str, Any]):
 
     Newer ledgers should provide prediction_cutoff. Legacy rows may carry only
     prediction_time, which is treated as the cutoff alias for backward
-    compatibility. When both exist, generation time must not precede the
-    explicit cutoff.
+    compatibility. When both exist they must represent the same instant.
     """
     prediction_raw = row.get("prediction_cutoff")
     prediction = (
@@ -95,7 +94,7 @@ def _prediction_cutoff(row: Mapping[str, Any]):
         generation = _parse_pit_timestamp(row.get("prediction_time"))
         if generation is None:
             return None
-        if prediction is not None and generation < prediction:
+        if prediction is not None and generation != prediction:
             return None
     return prediction
 
