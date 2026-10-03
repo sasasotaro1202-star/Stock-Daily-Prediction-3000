@@ -32,6 +32,9 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
+          cache: pip
+      - name: Install project package for status helpers
+        run: pip install -e .
       - name: Resolve Research status context
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
