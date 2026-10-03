@@ -109,3 +109,10 @@ def test_status_persistence_retries_pending_job_creation_race(monkeypatch) -> No
     assert error is None
     assert job["name"] == "research"
     assert calls == 2
+
+
+def test_status_workflow_captures_requested_research_runs() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    start = text.index("  workflow_run:")
+    block = text[start:text.index("  schedule:", start)]
+    assert "types: [requested, in_progress, completed]" in block
