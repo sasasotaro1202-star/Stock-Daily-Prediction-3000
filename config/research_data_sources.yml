@@ -65,3 +65,38 @@ sec_companyfacts:
     exact_acceptance_timestamp_verified: false
     source_available_at_inferred: false
     research_use_only_until_pit_validation: true
+
+sec_submissions:
+  enabled: true
+  company_tickers_url: "https://www.sec.gov/files/company_tickers.json"
+  submissions_url_template: "https://data.sec.gov/submissions/CIK{cik}.json"
+  max_symbols_per_shard: 75
+  shard_count: 4
+  output_dir: "data/research/sec_submissions"
+  pit_policy:
+    acceptance_datetime_preserved: true
+    exact_publication_timestamp_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
+
+treasury_auctions:
+  enabled: true
+  auctions_url: "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/auctions_query"
+  upcoming_url: "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/od/upcoming_auctions"
+  lookback_years: 5
+  output: "data/research/treasury_auctions_research.json"
+  pit_policy:
+    record_date_is_publication_date: true
+    exact_publication_time_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
+
+treasury_real_yield:
+  enabled: true
+  source_url: "https://home.treasury.gov/resource-center/data-chart-center/interest-rates"
+  output: "data/research/treasury_real_yield_research.json"
+  pit_policy:
+    daily_date_preserved: true
+    exact_publication_time_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
