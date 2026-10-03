@@ -1315,6 +1315,9 @@ def main():
                     "available_at": np.asarray(
                         pit_lineage["available_at"], dtype=object
                     ),
+                    "published_at": np.asarray(
+                        pit_lineage["published_at"], dtype=object
+                    ),
                     "retrieved_at": np.asarray(
                         pit_lineage["retrieved_at"], dtype=object
                     ),
