@@ -216,3 +216,32 @@ sec_insider_ownership:
     exact_publication_timestamp_verified: false
     source_available_at_inferred: false
     research_use_only_until_pit_validation: true
+
+sec_company_events:
+  enabled: true
+  company_tickers_url: "https://www.sec.gov/files/company_tickers.json"
+  submissions_url_template: "https://data.sec.gov/submissions/CIK{cik}.json"
+  forms:
+    - "8-K"
+    - "8-K/A"
+    - "10-K"
+    - "10-K/A"
+    - "10-Q"
+    - "10-Q/A"
+    - "6-K"
+    - "6-K/A"
+    - "20-F"
+    - "20-F/A"
+  lookback_days: 365
+  max_events_per_symbol: 40
+  max_symbols_per_shard: 75
+  shard_count: 4
+  output_dir: "data/research/sec_company_events"
+  pit_policy:
+    acceptance_datetime_preserved: true
+    filing_date_preserved: true
+    report_date_preserved: true
+    8k_item_codes_preserved: true
+    exact_publication_timestamp_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
