@@ -62,6 +62,14 @@ jobs:
                   stale.append((r,age,"active"))
 
           if stale:
+              # Prefer stale in-progress runs over stale queued runs so an
+              # orphaned compute job is reclaimed before queue cleanup.
+              stale.sort(
+                  key=lambda item: (
+                      0 if item[2] == "active" else 1,
+                      -item[1],
+                  )
+              )
               r,age,kind=stale[0]
               print(json.dumps({"action":"CANCEL_AND_WAIT","run_id":int(r["id"]),"reason":f"stale_{kind}","age_minutes":round(age,1)}))
           elif active:
