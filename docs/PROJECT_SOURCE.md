@@ -12,7 +12,7 @@ Canonical Source is preserved losslessly in seven ordered parts because the sour
 7. [part-07](./PROJECT_SOURCE_PARTS/part-07.md) — lines 2101–2262
 
 ## 2026-10-03 repository alignment
-Verified latest observed main HEAD: `045507049f7f472a06db25f0b1da0b6ba179fcc0`.
+Audit baseline observed on 2026-10-03: `045507049f7f472a06db25f0b1da0b6ba179fcc0` (historical audit reference only; not a live HEAD pin).
 Recent observed work includes watchdog stale-run prioritization, post-cutoff retrieval guards, and prequential-fold stability test coverage. The README states the production universe is dynamically derived from PayPay Securities official Japan/US lists rather than a fixed 3,000-symbol population.
 
 Current GitHub code/config/tests/workflows/actions/artifacts/registries/measurements remain authoritative. This index and the source parts do not rewrite historical metrics, holdout evidence, failure history, or prior decisions. Workflow green/artifact existence is execution evidence only, not automatic proof of performance verification or production adoption.
