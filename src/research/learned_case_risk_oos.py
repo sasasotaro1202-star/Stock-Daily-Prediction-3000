@@ -266,6 +266,8 @@ def analyze_learned_case_risk(
     Development folds produce strictly prior out-of-fold learned-risk scores
     used to set a threshold. The model is then fit on all eligible development
     outcomes and frozen across the locked suffix.
+
+    The locked suffix is chronological OOS evidence, not the final frozen holdout.
     """
     if not 0.50 <= float(risk_quantile) < 1.0:
         raise ValueError("risk_quantile must be in [0.50, 1.0)")
@@ -351,7 +353,7 @@ def analyze_learned_case_risk(
                 "development rows with invalid or missing PIT timestamp "
                 "provenance are fail-closed rather than silently excluded"
             ),
-            "frozen_holdout_used": True,
+            "frozen_holdout_used": False,
             "development_rows": int(len(development)),
             "invalid_development_pit_rows": int(invalid_development_pit_rows),
             "development_rows_without_usable_features_or_outcomes": int(
@@ -428,7 +430,7 @@ def analyze_learned_case_risk(
                 "all locked rows require valid prediction-time features, "
                 "outcomes, and PIT lineage"
             ),
-            "frozen_holdout_used": True,
+            "frozen_holdout_used": False,
             "locked_rows": int(len(locked)),
             "scored_rows": 0,
             "invalid_rows": int(len(locked) - len(valid_locked)),
@@ -438,7 +440,7 @@ def analyze_learned_case_risk(
         return {
             **base,
             "status": "INSUFFICIENT_DEVELOPMENT_HISTORY",
-            "frozen_holdout_used": True,
+            "frozen_holdout_used": False,
             "development_rows": int(len(history_labels)),
             "development_oof_risk_rows": int(len(development_oof_learned)),
         }
@@ -452,7 +454,7 @@ def analyze_learned_case_risk(
         return {
             **base,
             "status": "INSUFFICIENT_DEVELOPMENT_RISK_HISTORY",
-            "frozen_holdout_used": True,
+            "frozen_holdout_used": False,
             "development_rows": int(len(history_labels)),
             "development_oof_risk_rows": int(len(development_oof_learned)),
         }
@@ -523,7 +525,7 @@ def analyze_learned_case_risk(
     return {
         **base,
         "status": "EVALUATED",
-        "frozen_holdout_used": True,
+        "frozen_holdout_used": False,
         "locked_folds": locked_folds,
         "development_folds": sorted(development_by_fold),
         "development_rows": int(len(history_labels)),
