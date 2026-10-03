@@ -109,28 +109,11 @@ def _binary_metrics(y: Sequence[int], probabilities: Sequence[float]) -> dict[st
 
 
 def _pit_ready(row: Mapping[str, Any]) -> bool:
-    """Require explicit, timezone-aware prediction and availability timestamps."""
-    if row.get("pit_status") != "PASS":
-        return False
-    prediction_time = row.get("prediction_time")
-    available_at = row.get("available_at")
-    if not isinstance(prediction_time, str) or not isinstance(available_at, str):
-        return False
-    def _parse(value: str):
-        raw = value.strip()
-        if raw.endswith("Z"):
-            raw = raw[:-1] + "+00:00"
-        try:
-            from datetime import datetime
-            dt = datetime.fromisoformat(raw)
-        except ValueError:
-            return None
-        if dt.tzinfo is None or dt.utcoffset() is None:
-            return None
-        return dt
-    available = _parse(available_at)
-    prediction = _parse(prediction_time)
-    return available is not None and prediction is not None and available <= prediction
+    """Use the canonical row-level fail-closed PIT contract."""
+    from src.research.pit_contract import audit_pit_row
+
+    return bool(audit_pit_row(row)["ok"])
+
 
 def _percentile(values: Sequence[float], quantile: float) -> float | None:
     x = np.asarray(list(values), dtype=float)
