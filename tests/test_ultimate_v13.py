@@ -180,6 +180,15 @@ def test_v13_ledger_carries_row_level_pit_lineage_and_unlocks_case_risk(tmp_path
     assert case_risk["locked_rows"] == 12
     assert case_risk["scored_rows"] == 12
 
+    integrated_case_risk = result["case_risk_oos"]
+    integrated_learned = result["learned_case_risk_oos"]
+    assert integrated_case_risk["status"] == "EVALUATED"
+    assert integrated_learned["status"] == "EVALUATED"
+    assert integrated_case_risk["promotion_allowed"] is False
+    assert integrated_learned["promotion_allowed"] is False
+    assert (tmp_path / "case_risk_oos.json").exists()
+    assert (tmp_path / "learned_case_risk_oos.json").exists()
+
 
 def test_v13_builds_and_blocks_promotion(tmp_path):
     result = build_ultimate_intelligence(_bank(), out_dir=tmp_path)
@@ -512,6 +521,17 @@ def test_predictability_calibration_remains_research_only(tmp_path):
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
     assert result["predictability"]["calibrator_frozen_before_locked"] is True
+
+
+def test_v13_case_risk_audits_fail_closed_without_pit_lineage(tmp_path):
+    result = build_ultimate_intelligence(
+        _bank(with_lineage=False),
+        out_dir=tmp_path,
+    )
+    assert result["case_risk_oos"]["status"] == "BLOCKED_INVALID_LOCKED_CASES"
+    assert result["learned_case_risk_oos"]["status"] == "BLOCKED_INVALID_DEVELOPMENT_PIT"
+    assert result["case_risk_oos"]["production_changed"] is False
+    assert result["learned_case_risk_oos"]["production_changed"] is False
 
 
 def test_v13_expert_loss_audit_fails_closed_without_pit_lineage(tmp_path):
