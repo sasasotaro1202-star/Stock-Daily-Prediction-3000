@@ -111,3 +111,23 @@ def test_source_config_preserves_research_only_unverified_state():
     assert result["status"] == "PASS"
     assert result["unverified_sources"] == 1
     assert result["pit_ready_sources"] == 0
+
+
+def test_prediction_cutoff_is_the_pit_boundary_when_prediction_time_is_later():
+    row = _row(
+        prediction_cutoff="2026-10-02T08:55:00+09:00",
+        prediction_time="2026-10-02T09:00:00+09:00",
+        available_at="2026-10-02T08:59:00+09:00",
+    )
+    result = audit_pit_row(row)
+    assert result["ok"] is False
+    assert "available_at_after_prediction_cutoff" in result["violations"]
+
+
+def test_missing_case_identity_is_blocking():
+    result = audit_pit_rows([_row(symbol="")])
+    assert result["status"] == "FAIL"
+    assert any(
+        "missing_canonical_case_identity" in row.get("violations", [])
+        for row in result["violations"]
+    )
