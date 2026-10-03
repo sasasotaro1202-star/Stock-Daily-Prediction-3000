@@ -50,14 +50,25 @@ def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_a
 
 def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
+    research_start = text.index("inspect_research_validation")
     start = text.index(
         '            if [ -n "$active_run_id" ]; then',
-        text.index("inspect_research_validation"),
+        research_start,
     )
-    end = text.index("            local current_sha_queued=false", start)
-    block = text[start:end]
-    assert "superseded queued" not in block
-    preserve = block[block.index("              else\n                # Keep the active chronological OOS run"):block.index("              fi", block.index("              else\n                # Keep the active chronological OOS run"))]
+    queue_start = text.index("            local current_sha_queued=false", start)
+    active_block = text[start:queue_start]
+    queue_block = text[queue_start:]
+    assert "superseded queued" not in active_block
+    preserve = active_block[
+        active_block.index(
+            "              else\n                # Keep the active chronological OOS run"
+        ):active_block.index(
+            "              fi",
+            active_block.index(
+                "              else\n                # Keep the active chronological OOS run"
+            ),
+        )
+    ]
     assert "continue into queue" in preserve
     assert "return 0" not in preserve
-    assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in block
+    assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in queue_block
