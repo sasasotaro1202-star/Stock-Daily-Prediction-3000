@@ -191,6 +191,12 @@ def test_official_source_catalog_covers_additional_security_data_domains():
     assert "fundamentals" in kinds
     assert "capital_flows" in kinds
     assert "market_statistics" in kinds
+    assert "filing_timestamps" in kinds
+    assert "rates_auction" in kinds
+    assert "rates_auction_events" in kinds
+    assert "real_rates" in kinds
+    assert "rates_detail" in kinds
+    assert "real_rates_detail" in kinds
 
 
 def test_manual_only_jpx_source_is_cataloged_but_not_auto_selected():
