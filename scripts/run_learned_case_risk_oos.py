@@ -34,6 +34,11 @@ def main() -> int:
         raise SystemExit("FAIL: learned case-risk audit claims production mutation")
     if result.get("promotion_allowed") is not False:
         raise SystemExit("FAIL: learned case-risk audit cannot promote")
+    if str(result.get("status") or "").startswith("BLOCKED_"):
+        raise SystemExit(
+            "FAIL: learned case-risk audit is blocked by an integrity condition: "
+            + str(result.get("status"))
+        )
 
     learned = result.get("learned_case_risk") or {}
     fixed = result.get("fixed_case_risk") or {}
