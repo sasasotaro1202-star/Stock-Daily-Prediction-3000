@@ -289,6 +289,10 @@ jobs:
           print("ULTIMATE_V13_EQUAL_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("equal_weight", {}).get("logloss"))
           PY
 
+      - name: Audit generated OOS ledger PIT contract
+        if: steps.research_oos.outcome == 'success'
+        run: python scripts/audit_research_pit_contract.py
+
       - name: Run prequential case-risk OOS audit
         if: steps.research_oos.outcome == 'success'
         run: python scripts/run_case_risk_oos_audit.py
