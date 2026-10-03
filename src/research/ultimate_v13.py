@@ -85,9 +85,11 @@ def build_ultimate_intelligence(
         lineage_keys = (
             "pit_lineage_policy_version",
             "prediction_time",
+            "prediction_cutoff",
             "prediction_time_source",
             "prediction_time_observed",
             "available_at",
+            "published_at",
             "retrieved_at",
             "available_at_method",
             "source",
