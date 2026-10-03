@@ -28,7 +28,7 @@ def _lookup_research_job() -> tuple[dict, str | None]:
     )
     workflow_status = str(os.environ.get("RESEARCH_WORKFLOW_STATUS", "")).strip()
     retries = 0
-    if workflow_status in {"requested", "queued", "in_progress"}:
+    if workflow_status in {"requested", "queued", "pending", "waiting", "in_progress"}:
         retries = max(0, min(5, int(os.environ.get("RESEARCH_STATUS_JOB_LOOKUP_RETRIES", "4"))))
 
     for attempt in range(retries + 1):
