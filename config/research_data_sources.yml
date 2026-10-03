@@ -191,3 +191,28 @@ fred_cross_asset:
     source_available_at_inferred: false
     revision_policy_requires_local_snapshot: true
     research_use_only_until_pit_validation: true
+
+sec_insider_ownership:
+  enabled: true
+  company_tickers_url: "https://www.sec.gov/files/company_tickers.json"
+  submissions_url_template: "https://data.sec.gov/submissions/CIK{cik}.json"
+  archive_base_url: "https://www.sec.gov/Archives/edgar/data"
+  forms:
+    - "4"
+    - "4/A"
+    - "13D"
+    - "13D/A"
+    - "13G"
+    - "13G/A"
+  lookback_days: 180
+  max_filings_per_symbol: 8
+  max_symbols_per_shard: 75
+  shard_count: 4
+  output_dir: "data/research/sec_insider_ownership"
+  pit_policy:
+    acceptance_datetime_preserved: true
+    filing_date_preserved: true
+    transaction_or_schedule_event_date_preserved: true
+    exact_publication_timestamp_verified: false
+    source_available_at_inferred: false
+    research_use_only_until_pit_validation: true
