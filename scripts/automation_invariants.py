@@ -27,7 +27,33 @@ def _assert_absent(source: str, needle: str, label: str) -> None:
         raise SystemExit(f"FAIL: automation invariant {label}: forbidden text present")
 
 
+def _assert_feature_pit_guard() -> None:
+    from src.research.learned_case_risk_oos import _pit_ready
+
+    base = {
+        "pit_status": "PASS",
+        "prediction_time": "2026-01-02T00:00:00+00:00",
+        "available_at": "2026-01-01T23:00:00+00:00",
+        "case_predictability": 0.8,
+        "case_ood": 0.1,
+        "case_failure_risk": 0.2,
+        "case_disagreement": 0.1,
+        "prediction": 0.8,
+        "failed": 0,
+    }
+    future_snapshot = {
+        **base,
+        "feature_snapshot_cutoff": "2026-01-02T00:01:00+00:00",
+    }
+    unknown_lineage = {**base, "feature_pit_status": "UNKNOWN"}
+    if _pit_ready(future_snapshot):
+        raise SystemExit("FAIL: feature snapshot after prediction cutoff was accepted")
+    if _pit_ready(unknown_lineage):
+        raise SystemExit("FAIL: unknown feature PIT lineage was accepted")
+
+
 def main() -> int:
+    _assert_feature_pit_guard()
     market = _read("market-cycle.yml")
     monitoring = _read("prediction-monitoring.yml")
     watchdog = _read("actions-reliability-watchdog.yml")
