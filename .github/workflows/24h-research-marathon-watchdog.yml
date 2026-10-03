@@ -2,6 +2,9 @@ name: 24H Research Marathon Watchdog
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/24h-research-marathon-watchdog.yml"
   schedule:
     - cron: "*/15 * * * *"
       timezone: "Asia/Tokyo"
