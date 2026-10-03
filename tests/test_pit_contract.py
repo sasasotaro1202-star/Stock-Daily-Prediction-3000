@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.research.pit_contract import (
     audit_pit_row,
+    audit_pit_timestamps,
     audit_pit_rows,
     audit_source_config,
     canonical_case_key,
@@ -145,3 +146,28 @@ def test_present_but_malformed_secondary_prediction_timestamp_is_blocking():
     )
     assert result["ok"] is False
     assert "invalid_prediction_cutoff" in result["violations"]
+
+
+def test_shared_pit_timestamp_contract_catches_publication_and_retrieval_ordering():
+    published_late = audit_pit_timestamps(
+        {
+            "prediction_cutoff": "2026-10-02T09:00:00+09:00",
+            "prediction_time": "2026-10-02T09:00:00+09:00",
+            "available_at": "2026-10-02T08:59:00+09:00",
+            "published_at": "2026-10-02T09:01:00+09:00",
+            "retrieved_at": "2026-10-02T09:02:00+09:00",
+        }
+    )
+    assert published_late["ok"] is False
+    assert "published_at_after_available_at" in published_late["violations"]
+
+    retrieved_early = audit_pit_timestamps(
+        {
+            "prediction_cutoff": "2026-10-02T09:00:00+09:00",
+            "prediction_time": "2026-10-02T09:00:00+09:00",
+            "available_at": "2026-10-02T08:59:00+09:00",
+            "retrieved_at": "2026-10-02T08:58:00+09:00",
+        }
+    )
+    assert retrieved_early["ok"] is False
+    assert "retrieved_at_before_available_at" in retrieved_early["violations"]
