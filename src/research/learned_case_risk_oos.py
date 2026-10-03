@@ -108,6 +108,16 @@ def _pit_ready(row: Mapping[str, Any]) -> bool:
         return False
     if retrieved is not None and retrieved < available:
         return False
+    # Retrieval is itself an information-availability event for this
+    # prediction path; a post-cutoff retrieval cannot make the row PIT-safe.
+    if retrieved is not None and retrieved > prediction:
+        return False
+    if (
+        published is not None
+        and retrieved is not None
+        and retrieved < published
+    ):
+        return False
     return True
 
 
