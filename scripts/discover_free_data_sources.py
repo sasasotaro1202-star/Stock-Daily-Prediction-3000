@@ -363,6 +363,8 @@ def select_for_research(candidates: list[dict], max_per_kind: int = 5) -> dict[s
         # lead and must be manually/policy validated before acquisition.
         if lifecycle.get("cost_status") != "VERIFIED_BY_DECLARATION":
             continue
+        if lifecycle.get("automation_status") == "MANUAL_ONLY":
+            continue
         grouped.setdefault(str(candidate.get("kind", "unknown")), []).append(candidate)
 
     selected = {}
