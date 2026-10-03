@@ -34,6 +34,16 @@ def test_marathon_final_checkpoint_is_fail_closed():
         assert f"marathon-checkpoints/{checkpoint}" in text
     assert text.count("if: success()") >= 4
 
+def test_marathon_summary_status_reuses_final_checkpoint():
+    text = MARATHON.read_text(encoding="utf-8")
+    assert 'final_checkpoint=Path("marathon-final-checkpoint.json")' in text
+    assert 'final_status="FINAL_CHECKPOINT_MISSING"' in text
+    assert 'final_status="FINAL_CHECKPOINT_INVALID"' in text
+    assert '"status": final_status' in text
+    assert '"missing_required_evidence": final_payload.get("missing_required_evidence", [])' in text
+    assert '"production_mutation_evidence": final_payload.get("production_mutation_evidence", [])' in text
+    assert '"status":"24H_MARATHON_EVIDENCE_COLLECTED"' not in text
+
 
 def test_watchdog_has_bounded_recovery_and_failure_cooldown():
     text = WATCHDOG.read_text(encoding="utf-8")
