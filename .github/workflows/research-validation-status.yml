@@ -52,14 +52,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_file="$(find research-evidence -type f -name latest_metrics.json -print -quit 2>/dev/null || true)"
-          if [ -n "${source_file}" ]; then
-            mkdir -p data/research
-            cp "${source_file}" data/research/latest_metrics.json
-            python scripts/persist_research_validation_snapshot.py
-          else
-            echo "No successful OOS metrics artifact available; snapshot remains absent."
+          source_file="$(find research-evidence -type f -name latest_metrics.json -print -quit 2>/dev/null)"
+          if [ -z "${source_file}" ]; then
+            echo "Research evidence missing: successful Research validation produced no latest_metrics.json artifact"
+            exit 1
           fi
+          mkdir -p data/research
+          cp "${source_file}" data/research/latest_metrics.json
+          python scripts/persist_research_validation_snapshot.py
       - name: Persist research validation status
         if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true'
         env:
