@@ -457,4 +457,6 @@ jobs:
             data/research/case_risk_oos.json
             data/research/learned_case_risk_oos.json
             data/research/ultimate_v13/**
+            data/research/oos_run_manifest.json
+            data/research/oos_progress.json
           retention-days: 14
