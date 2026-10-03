@@ -67,7 +67,7 @@ def test_workflow_run_context_is_captured_before_status_persistence() -> None:
 
 def test_status_heartbeat_tracks_pending_research_runs() -> None:
     resolver = Path("scripts/resolve_research_status_context.py").read_text(encoding="utf-8")
-    assert 'for workflow_status in ("pending", "queued", "in_progress")' in resolver
+    assert 'for workflow_status in ("pending", "queued", "waiting", "in_progress")' in resolver
     assert '?status={workflow_status}&per_page=100' in resolver
     assert '"pending"' in resolver
     assert '"queued"' in resolver
