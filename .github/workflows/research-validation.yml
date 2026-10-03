@@ -19,15 +19,18 @@ on:
       - "src/research/expert_loss_routing_oos.py"
       - "src/research/run_provenance.py"
       - "src/research/v13_governance.py"
+      - "src/research/pit_contract.py"
       - "scripts/run_daily_research.py"
       - "scripts/run_case_risk_oos_audit.py"
       - "scripts/run_learned_case_risk_oos.py"
       - "scripts/finalize_research_run_provenance.py"
+      - "scripts/audit_research_pit_contract.py"
       - "tests/test_case_risk_oos.py"
       - "tests/test_run_provenance.py"
       - "tests/test_learned_case_risk_oos.py"
       - "tests/test_expert_loss_routing_oos.py"
       - "tests/test_ultimate_v13.py"
+      - "tests/test_pit_contract.py"
       - "config/pipeline.yml"
 
 permissions:
@@ -139,6 +142,10 @@ jobs:
         run: python scripts/data_quality_gate.py
       - name: Independent raw-input PIT leakage audit
         run: python scripts/run_independent_leakage_audit.py
+      - name: Research source PIT contract preflight
+        run: python scripts/audit_research_pit_contract.py
+      - name: Research PIT contract unit tests
+        run: pytest -q tests/test_pit_contract.py
       - name: Fail-fast conformal unit tests
         run: pytest -q tests/test_conformal_classification.py
       - name: Ultimate v13 unit tests
@@ -451,6 +458,7 @@ jobs:
             data/research/sec_filings_research.json
             data/research/sec_filing_ablation.json
             data/research/cpcv_validation_audit.json
+            data/research/research_pit_contract_audit.json
             data/research/universe_quality.json
             data/research/experience_candidates.json
             data/research/experience_candidate_evaluation.json
