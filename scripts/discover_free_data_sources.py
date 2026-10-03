@@ -31,6 +31,13 @@ OFFICIAL_SOURCES = [
         "free_status": "public",
     },
     {
+        "name": "U.S. SEC EDGAR XBRL Company Facts",
+        "kind": "fundamentals",
+        "url": "https://data.sec.gov/api/xbrl/companyfacts/",
+        "official": True,
+        "free_status": "public",
+    },
+    {
         "name": "FINRA",
         "kind": "market_microstructure",
         "url": "https://www.finra.org/finra-data",
@@ -58,6 +65,30 @@ OFFICIAL_SOURCES = [
         "official": True,
         "free_status": "public",
     },
+    {
+        "name": "Statistics Dashboard (e-Stat)",
+        "kind": "macro",
+        "url": "https://dashboard.e-stat.go.jp/",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "api_no_registration",
+    },
+    {
+        "name": "Japan Ministry of Finance Securities Transactions",
+        "kind": "capital_flows",
+        "url": "https://www.mof.go.jp/policy/international_policy/reference/itn_transactions_in_securities/montha1.csv",
+        "official": True,
+        "free_status": "public",
+        "access_mode": "direct_csv",
+    },
+    {
+        "name": "Tokyo Stock Exchange Daily Bulletin",
+        "kind": "market_statistics",
+        "url": "https://www.jpx.co.jp/markets/statistics-equities/daily/03.html",
+        "official": True,
+        "free_status": "public_web",
+        "access_mode": "manual_only",
+    },
 ]
 
 GITHUB_QUERIES = {
@@ -77,6 +108,18 @@ GITHUB_QUERIES = {
     "market_microstructure": [
         "FINRA short sale volume csv",
         "market microstructure stock csv",
+    ],
+    "fundamentals": [
+        "SEC companyfacts XBRL fundamentals",
+        "SEC companyconcept financial statements",
+    ],
+    "capital_flows": [
+        "Japan securities transactions capital flows CSV",
+        "foreign portfolio investment Japan statistics CSV",
+    ],
+    "market_statistics": [
+        "Tokyo Stock Exchange daily bulletin CSV",
+        "JPX market statistics equities",
     ],
 }
 
@@ -181,12 +224,19 @@ def _lifecycle(candidate: dict) -> dict:
     pit_status = "UNVERIFIED"
     stage = "REJECTED" if blocked else "DISCOVERED"
 
+    automation_status = (
+        "MANUAL_ONLY"
+        if str(candidate.get("access_mode") or "").strip().lower() == "manual_only"
+        else "AUTOMATABLE_CANDIDATE"
+    )
+
     return {
         "stage": stage,
         "eligibility": eligibility,
         "cost_status": cost_status,
         "data_feasibility": data_status,
         "pit_status": pit_status,
+        "automation_status": automation_status,
         "adoption_status": "RESEARCH_CANDIDATE_ONLY",
         "next_test": (
             "verify_license_cost_access_and_pit_lineage"
@@ -425,6 +475,7 @@ def main() -> int:
             "discovery_never_adopts": True,
             "pit_unverified_is_fail_closed": True,
             "cost_unconfirmed_is_not_free_verified": True,
+            "manual_only_sources_are_cataloged_but_not_auto_selected": True,
         },
         "selection_policy": {
             "max_per_kind": 5,
