@@ -62,26 +62,53 @@ def _fixed_risk_score(row: Mapping[str, Any]) -> float | None:
     )
 
 
+def _parse_pit_timestamp(value: Any):
+    if not isinstance(value, str):
+        return None
+    try:
+        from datetime import datetime
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        return None
+    return parsed
+
+
 def _pit_ready(row: Mapping[str, Any]) -> bool:
     if row.get("pit_status") != "PASS":
         return False
-    prediction_time = row.get("prediction_time")
-    available_at = row.get("available_at")
-    if not isinstance(prediction_time, str) or not isinstance(available_at, str):
+
+    prediction = _parse_pit_timestamp(row.get("prediction_time"))
+    available = _parse_pit_timestamp(row.get("available_at"))
+    if prediction is None or available is None or available > prediction:
         return False
-    try:
-        from datetime import datetime
-        prediction = datetime.fromisoformat(prediction_time.replace("Z", "+00:00"))
-        available = datetime.fromisoformat(available_at.replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    return (
-        prediction.tzinfo is not None
-        and prediction.utcoffset() is not None
-        and available.tzinfo is not None
-        and available.utcoffset() is not None
-        and available <= prediction
+
+    published_raw = row.get("published_at")
+    retrieved_raw = row.get("retrieved_at")
+    published = (
+        _parse_pit_timestamp(published_raw)
+        if published_raw is not None
+        else None
     )
+    retrieved = (
+        _parse_pit_timestamp(retrieved_raw)
+        if retrieved_raw is not None
+        else None
+    )
+
+    # Optional provenance timestamps are fail-closed when present:
+    # publication cannot occur after prediction, and retrieval cannot precede
+    # the source availability timestamp.
+    if published_raw is not None and published is None:
+        return False
+    if retrieved_raw is not None and retrieved is None:
+        return False
+    if published is not None and published > prediction:
+        return False
+    if retrieved is not None and retrieved < available:
+        return False
+    return True
 
 
 def _fit(
