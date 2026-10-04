@@ -485,6 +485,39 @@ def run_extreme_pattern_suite(
         )
     )
 
+    development_candidates = []
+    for name, rows in sorted(pattern_rows.items()):
+        dev = [r["metrics"] for r in rows if not r["is_locked"]]
+        ll = [float(r["logloss"]) for r in dev if np.isfinite(r.get("logloss", np.nan))]
+        br = [float(r["brier"]) for r in dev if np.isfinite(r.get("brier", np.nan))]
+        ec = [float(r["ece"]) for r in dev if np.isfinite(r.get("ece", np.nan))]
+        if not ll:
+            continue
+        development_candidates.append({
+            "name": name,
+            "development_metrics": {
+                "logloss": float(np.mean(ll)),
+                "brier": float(np.mean(br)) if br else float("nan"),
+                "ece": float(np.mean(ec)) if ec else float("nan"),
+                "folds": int(len(dev)),
+            },
+        })
+    development_sorted = sorted(
+        development_candidates,
+        key=lambda row: (
+            row["development_metrics"]["logloss"],
+            row["development_metrics"]["brier"] if np.isfinite(row["development_metrics"]["brier"]) else float("inf"),
+            row["development_metrics"]["ece"] if np.isfinite(row["development_metrics"]["ece"]) else float("inf"),
+            row["name"],
+        ),
+    )
+    selected_name = development_sorted[0]["name"] if development_sorted else None
+    selected_locked = next(
+        (row for row in summaries if row["name"] == selected_name),
+        None,
+    )
+    best_locked_diagnostic = summaries[0] if summaries else None
+
     pattern_count = len(summaries)
     status = (
         "EXECUTED_EXTREME_PATTERN_MATRIX"
@@ -503,7 +536,13 @@ def run_extreme_pattern_suite(
         "pattern_count": int(pattern_count),
         "minimum_pattern_count": int(minimum_patterns),
         "patterns": summaries,
-        "best_research_pattern": summaries[0] if summaries else None,
+        "best_research_pattern": selected_locked,
+        "best_locked_diagnostic": best_locked_diagnostic,
+        "selection": {
+            "source": "development_only",
+            "selected_name": selected_name,
+            "development_ranking": development_sorted,
+        },
         "baseline": {
             "name": "mean",
             "locked_metrics": baseline_metrics,
@@ -517,6 +556,8 @@ def run_extreme_pattern_suite(
             "frozen_holdout_used": False,
             "production_changed": False,
             "promotion_allowed": False,
+            "locked_outcomes_used_for_selection": False,
+            "best_research_pattern_selected_from_development_only": True,
         },
         "session_cluster": {
             "cluster_unit": "session_date",
