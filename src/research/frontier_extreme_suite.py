@@ -315,6 +315,7 @@ def run_extreme_pattern_suite(
     )
     base = {
         "schema_version": 1,
+        "research_contract_id": "extreme-frontier-pattern-ecology-v1",
         "status": "BLOCKED",
         "research_only": True,
         "production_changed": False,
@@ -335,6 +336,7 @@ def run_extreme_pattern_suite(
     locked_start = len(ordered) - locked_count
 
     pattern_rows: dict[str, list[dict[str, Any]]] = {}
+    execution_failures: list[dict[str, Any]] = []
     locked_predictions: dict[str, list[float]] = {}
     locked_y: list[int] = []
     locked_sessions: list[str] = []
@@ -346,7 +348,19 @@ def run_extreme_pattern_suite(
         prior = ordered[:t]
         base_rate = _prior_base_rate(prior)
         prior_mean = _prior_mean_prediction(prior, models)
-        family = _candidate_family(prior, current, models)
+        try:
+            family = _candidate_family(prior, current, models)
+        except Exception as exc:
+            execution_failures.append({
+                "fold": int(t),
+                "candidate_scope": "candidate_family",
+                "error_type": type(exc).__name__,
+                "error": str(exc)[:500],
+            })
+            family = {
+                "mean": _safe_probability(current.mean(axis=1)),
+                "median": _safe_probability(np.median(current, axis=1)),
+            }
 
         # Shrinkage around two prior-only anchors.
         for name, anchor in (("base_rate", base_rate), ("prior_mean", prior_mean), ("neutral", 0.5)):
@@ -586,9 +600,13 @@ def run_extreme_pattern_suite(
 
     pattern_count = len(summaries)
     status = (
-        "EXECUTED_EXTREME_PATTERN_MATRIX"
-        if pattern_count >= int(minimum_patterns)
-        else "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
+        "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
+        if execution_failures and pattern_count >= int(minimum_patterns)
+        else (
+            "EXECUTED_EXTREME_PATTERN_MATRIX"
+            if pattern_count >= int(minimum_patterns)
+            else "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
+        )
     )
 
     return {
@@ -602,6 +620,7 @@ def run_extreme_pattern_suite(
         "pattern_count": int(pattern_count),
         "minimum_pattern_count": int(minimum_patterns),
         "patterns": summaries,
+        "execution_failures": execution_failures,
         "best_research_pattern": selected_locked,
         "best_locked_diagnostic": best_locked_diagnostic,
         "selection": {
