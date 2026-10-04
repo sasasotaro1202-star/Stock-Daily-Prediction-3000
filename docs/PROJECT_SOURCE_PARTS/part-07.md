@@ -160,3 +160,35 @@ Failure Learning > Repeated Failure
 まで制御できるAdaptive Stock Prediction Intelligenceを構築することを最終目標とする。
 
 === COPY END ===
+
+⸻
+
+99. NESTED PREQUENTIAL RANKING SELECTION — 2026-10-04
+
+Cross-sectional ranking selection is divided into two evidence lanes.
+
+Legacy same-run ranking diagnostics may still be emitted for comparison, but they are not production-selection evidence because they can condition on globally selected model/training-window state from the same OOS run.
+
+The canonical research challenger is:
+nested_prequential_ranking_selection
+
+For outer fold t:
+
+1. classifier model selection uses only classifier LogLoss from folds < t
+2. return-estimator selection uses only prior-fold Rank IC
+3. ranking probability weight and uncertainty penalty use only ranking outcomes from prior outer folds
+4. current fold is scored only after those selections are fixed
+5. current outcomes enter future selection history only after scoring
+
+The nested ranking selector does not accept the globally selected model or globally selected training-window value. This prevents silent same-OOS reuse of global model/window evidence.
+
+The current candidate remains:
+
+research_only = true
+production_changed = false
+promotion_allowed = false
+same_oos_global_model_or_window_reuse = false
+
+ranking_selection_ready_for_production remains false until the selected nested evidence is identity-bound to the actual frozen production classifier training window and return-estimator configuration and then survives frozen-holdout evaluation.
+
+Nested ranking evidence is therefore an incremental research-control improvement, not a production promotion claim.
