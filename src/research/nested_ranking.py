@@ -134,6 +134,8 @@ def nested_prequential_ranking_oos(
     model_fold_rows: Mapping[str, Sequence[Mapping[str, object]]],
     *,
     min_history_folds: int = 3,
+    production_identity: Mapping[str, object] | None = None,
+    prediction_generation_training_window_sessions: int | None = 252,
     model_half_life_folds: float = 4.0,
     model_stability_penalty: float = 0.25,
     weights: Sequence[float] = (0.25, 0.50, 0.75),
@@ -149,9 +151,10 @@ def nested_prequential_ranking_oos(
       4. score the untouched current fold;
       5. only then make the current outcome available to later folds.
 
-    This function intentionally does not accept a globally selected model or
-    training-window value. It therefore cannot silently inherit same-OOS
-    global model/window selection.
+    This function intentionally does not use a globally selected model or
+    training-window value for the nested selection itself. An optional
+    production_identity is used only after scoring to audit whether the nested
+    evidence is aligned with the eventual frozen production configuration.
     """
     if min_history_folds < 1:
         raise ValueError("min_history_folds must be >= 1")
@@ -480,6 +483,72 @@ def nested_prequential_ranking_oos(
             "return_estimator": str(last["return_estimator"]),
         }
 
+    production_identity_alignment = {
+        "provided": production_identity is not None,
+        "aligned": False,
+        "checks": {
+            "selected_model_matches_final_prequential_model": False,
+            "selected_return_estimator_matches_final_prequential_estimator": False,
+            "classifier_training_window_matches_prediction_generation": False,
+            "rank_probability_weight_matches_final_prequential_parameter": False,
+            "rank_uncertainty_penalty_matches_final_prequential_parameter": False,
+        },
+    }
+    if production_identity is not None and final_rank_parameters is not None:
+        production_model = str(production_identity.get("selected_model", "")).strip()
+        production_return = str(production_identity.get("return_estimator", "")).strip()
+        try:
+            production_window = int(
+                production_identity.get("classifier_training_window_sessions")
+            )
+        except (TypeError, ValueError):
+            production_window = None
+        try:
+            production_weight = float(
+                production_identity.get("rank_probability_weight")
+            )
+            production_penalty = float(
+                production_identity.get("rank_uncertainty_penalty")
+            )
+        except (TypeError, ValueError):
+            production_weight = None
+            production_penalty = None
+
+        production_identity_alignment["checks"] = {
+            "selected_model_matches_final_prequential_model": (
+                production_model == str(final_rank_parameters["model"])
+            ),
+            "selected_return_estimator_matches_final_prequential_estimator": (
+                production_return
+                == str(final_rank_parameters["return_estimator"])
+            ),
+            "classifier_training_window_matches_prediction_generation": (
+                production_window is not None
+                and prediction_generation_training_window_sessions is not None
+                and production_window
+                == int(prediction_generation_training_window_sessions)
+            ),
+            "rank_probability_weight_matches_final_prequential_parameter": (
+                production_weight is not None
+                and abs(
+                    production_weight
+                    - float(final_rank_parameters["probability_weight"])
+                )
+                <= 1e-12
+            ),
+            "rank_uncertainty_penalty_matches_final_prequential_parameter": (
+                production_penalty is not None
+                and abs(
+                    production_penalty
+                    - float(final_rank_parameters["uncertainty_penalty"])
+                )
+                <= 1e-12
+            ),
+        }
+        production_identity_alignment["aligned"] = all(
+            production_identity_alignment["checks"].values()
+        )
+
     return {
         "status": "EVALUATED",
         "research_only": True,
@@ -507,7 +576,13 @@ def nested_prequential_ranking_oos(
         "bootstrap_p05_improvement": bootstrap_p05,
         "bootstrap_method": "moving_block",
         "final_prequential_ranking_parameters": final_rank_parameters,
-        "training_window_policy": "not_selected_from_same OOS; ranking evaluation consumes fold-local model predictions",
+        "production_identity_alignment": production_identity_alignment,
+        "prediction_generation_training_window_sessions": (
+            int(prediction_generation_training_window_sessions)
+            if prediction_generation_training_window_sessions is not None
+            else None
+        ),
+        "training_window_policy": "not_selected_from same OOS; ranking evaluation consumes fold-local model predictions",
         "same_oos_global_model_or_window_reuse": False,
         "ranking_weight_selection_prequential": True,
         "model_selection_prequential": True,
