@@ -490,8 +490,13 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        "Preserve a running chronological OOS",
+        "Preserve an active chronological OOS across control-plane-only main changes.",
         "watchdog_research_preserves_active_oos",
+    )
+    _assert_once(
+        watchdog,
+        "Evidence-affecting changes invalidate the run and must release the concurrency",
+        "watchdog_research_invalidates_evidence_changes",
     )
     _assert_absent(
         watchdog,
