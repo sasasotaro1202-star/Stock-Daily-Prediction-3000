@@ -701,12 +701,12 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
-        "python scripts/reconcile_automation_failures.py",
+        "python -m scripts.reconcile_automation_failures",
         "failure_learning_reconciliation_script",
     )
     _assert_once(
         failure_workflow,
-        "python scripts/triage_automation_failures.py",
+        "python -m scripts.triage_automation_failures",
         "failure_learning_triage_script",
     )
     _assert_once(
