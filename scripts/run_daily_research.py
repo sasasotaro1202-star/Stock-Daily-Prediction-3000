@@ -3298,7 +3298,7 @@ def main():
             "rank_probability_weight": selected_rank_weight,
             "rank_uncertainty_penalty": selected_uncertainty_penalty,
         },
-        prediction_generation_training_window_sessions=252,
+        prediction_generation_training_window_sessions=0,
     )
 
     conformal_prediction_research = {
