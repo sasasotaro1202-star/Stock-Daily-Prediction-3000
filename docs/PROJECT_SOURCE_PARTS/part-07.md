@@ -222,3 +222,12 @@ The learned case-risk locked-suffix comparison now records paired LogLoss improv
 * frozen holdout remains outside this research artifact
 
 This bootstrap is evidence for stability and statistical uncertainty only. It does not by itself authorize production routing or replace chronological OOS, calibration, PIT, robustness, and frozen-holdout gates.
+
+
+## 102. Nested ranking: model × training-window prequential identity
+
+Nested ranking research now consumes a window-conditioned classifier prediction bank in addition to the existing fold OOS bank. For every outer fold, the selector jointly chooses the classifier model and classifier training-window length using only LogLoss evidence from earlier outer folds. When sufficient prior evidence does not exist, the selector uses a warmup default of full eligible history (window 0) and records that status explicitly.
+
+For the current outer fold, probabilities are produced from the selected model/window pair before any current outcome is appended to selection history. After scoring, the current fold outcome is appended to every valid model/window pair in the window-conditioned bank. This preserves strict prequential ordering while making the eventual production training-window identity auditable.
+
+The evidence exposes selected training window by fold, final prequential training window, per-fold selection status, and a boolean named training_window_selection_prequential. Production identity alignment now compares the frozen classifier training window directly against the final prequential window rather than against a fixed prediction-generation window of 0. The existing production gate remains fail-closed; implementation alone does not authorize promotion.
