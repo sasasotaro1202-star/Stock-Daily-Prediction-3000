@@ -514,6 +514,12 @@ def run_frontier_pattern_suite(
             {"space": "logit"},
             None,
         )
+        patterns["logit_median"] = (
+            _sigmoid(np.median(_logit(p_matrix), axis=1)),
+            "probability_geometry",
+            {"space": "logit", "aggregation": "median"},
+            None,
+        )
 
         logit_matrix = _logit(p_matrix)
         row_q10 = np.quantile(logit_matrix, 0.10, axis=1)
