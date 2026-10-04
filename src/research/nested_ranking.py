@@ -135,7 +135,7 @@ def nested_prequential_ranking_oos(
     *,
     min_history_folds: int = 3,
     production_identity: Mapping[str, object] | None = None,
-    prediction_generation_training_window_sessions: int | None = 252,
+    prediction_generation_training_window_sessions: int | None = 0,
     model_half_life_folds: float = 4.0,
     model_stability_penalty: float = 0.25,
     weights: Sequence[float] = (0.25, 0.50, 0.75),
@@ -156,6 +156,11 @@ def nested_prequential_ranking_oos(
     production_identity is used only after scoring to audit whether the nested
     evidence is aligned with the eventual frozen production configuration.
     """
+    The prediction-bank window uses the same semantics as the research
+    runner: 0 means the full eligible pre-test core history, subject only
+    to the deterministic row-count cap. The recent_sessions=252 argument
+    used by cap_training_rows is a sampling safeguard, not a 252-session
+    training-window restriction.
     if min_history_folds < 1:
         raise ValueError("min_history_folds must be >= 1")
     if not np.isfinite(model_half_life_folds) or model_half_life_folds <= 0:
