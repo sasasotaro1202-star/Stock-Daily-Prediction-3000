@@ -45,3 +45,7 @@ Research status heartbeat treats requested/queued/pending/waiting/in_progress as
 
 ## 2026-10-04 repository alignment
 Current GitHub code/config/tests/workflows/actions/artifacts/registries/measurements remain authoritative. The release gate requires the generated research PIT contract audit to exist, to contain no FAIL state, and to contain a PASS prediction-ledger audit before production approval can be emitted. This requirement is a safety gate only; it does not promote research artifacts automatically.
+
+
+## 2026-10-04 chronological ranking evidence hardening
+The research runner no longer reuses the globally selected calibration method when evaluating ranking-weight candidates on the same chronological OOS folds. Ranking-fold calibration now comes from the prior-fold temporal calibration router, with the current fold scored only after that pre-test selection. The final global calibration method remains a separate configuration-selection artifact and is still subject to the frozen release evidence gate. This is research/evaluation hardening only; no production model, frozen holdout, or live routing state is mutated by the change.
