@@ -91,6 +91,7 @@ A candidate is not production-eligible unless the complete bundle is internally 
 時間方向の情報は、日次OHLCVで確認できる範囲から段階的に拡張する。現在は `temporal_state_research` をResearch-only Challengerとして運用し、過去数セッションのリターン、経路リターン、方向持続性、リターン加速度、ボラティリティ遷移、出来高圧力、日中レンジ変化、終値位置変化を因果的に生成する。
 
 この層は `available_at` の存在を必須とし、retrieved_atを過去時点の可用性証拠として代用しない。将来行を参照しないことを構造テストで監査し、current feature setとの同一chronological OOS比較を行う。Frozen holdoutは使用せず、production_changed=false、promotion_allowed=falseを維持する。
+候補特徴構成を比較するときは、可能な範囲でprequentialに選択する。fold t の構成選択は t より前に完了したOOS結果だけで行い、初回はincumbentをアンカーとする。fold t 自身の結果をそのfoldの選択へ使用しない。候補選択の集計値は診断情報であり、単一実行だけでproductionへ昇格させない。
 
 将来intradayデータを利用できる場合も、1つの巨大モデルへ直接統合せず、複数時間粒度のstate encoder、state transition、dynamic expert routing、predictability/uncertaintyをResearch-firstで段階検証する。時間粒度の追加自体を成果とせず、LogLoss、Brier、ECE、Accuracy、case-level stability、robustness、PITを含むincremental OOS valueで判断する。
 ## Frontier research ecology
