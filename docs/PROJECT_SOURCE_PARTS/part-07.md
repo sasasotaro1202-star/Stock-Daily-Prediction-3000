@@ -236,3 +236,459 @@ The evidence exposes selected training window by fold, final prequential trainin
 ## 103. Nested window evidence requires contiguous prior folds
 
 The nested model × training-window selector now requires the immediately preceding min_history_folds outer folds to be present for a candidate pair. Sparse or gapped model-window history is excluded rather than allowing a candidate to qualify from a non-contiguous subset. The artifact also preserves per-window/model fold coverage so missingness is inspectable instead of being silently treated as equivalent evidence.
+
+⸻
+
+104. CROSS-PROJECT VALIDATED PATTERN TRANSFER — 2026-10-04
+
+他projectはperformance benchmarkではなく、failure prevention / evidence integrity / information efficiencyのmechanism sourceとして利用する。
+
+参照対象:
+* BTC-Prediction-Research
+* 7-Sport-Prediction-Research
+* Soccer-Prediction-Research
+* Baseball-Prediction-System
+
+Transfer pipeline:
+
+DISCOVER
+→ SOURCE_COMPARE
+→ ABSTRACT_MECHANISM
+→ COMPATIBILITY_CHECK
+→ LOCAL_IMPLEMENTATION
+→ LOCAL_UNIT/INTEGRATION_TEST
+→ LOCAL_PIT
+→ LOCAL_OOS/WFO
+→ ROBUSTNESS
+→ FROZEN_HOLDOUT
+→ RELEASE_GATE
+→ ADOPT / HOLD / REJECT
+
+他projectでのmetric gain、production status、green CI、paper claimはStockのevidenceとして直接使用しない。
+
+⸻
+
+105. PIT MATURITY / PRIOR-OUTCOME FIREWALL — 2026-10-04
+
+OOS predictionを対象とするlearned case-risk、meta-label、predictability、failure prediction、routing、calibration等の学習では、過去predictionの行順だけではprior evidenceとみなさない。
+
+各training rowについて可能な限り、
+
+prediction_cutoff
+< outcome/event time
+< experience_available_at
+
+の成熟順序を明示し、target evaluation cutoffまでにoutcomeがmatureしていることを要求する。
+
+特に、label i が transition i→i+1 の outcome に依存する場合、prediction transition i の時点で label i は未成熟として扱う。
+
+minimum条件を満たさないrowは学習から除外し、その除外数を evidenceへ保存する。
+
+missing / malformed / contradictory maturity timestamp:
+→ PIT FAILURE / BLOCKED
+
+「後から正解が判明している」という知識を過去prediction時点へ遡及して学習しない。
+
+retrieved_atはmaturity evidenceではない。available_at、publication timing、outcome maturityを独立管理する。
+
+⸻
+
+106. PARTIAL FAILURE / DEGRADED STATE — 2026-10-04
+
+selected future rows、universe members、source batches、enrichment batches、price shards等のrequired acquisitionで一部failureが発生した場合、成功したrowが存在してもbatch全体をOKとは扱わない。
+
+required failureは、
+
+OK
+→ DEGRADED
+→ FAILED / BLOCKED
+
+の適切なstateへ伝播させる。
+
+workflowはrequired failureをexit statusへ反映し、downstream OOS / release gateへ誤ってPASSを渡さない。
+
+ただしoptional sourceのfailureを必ず全system failureへ昇格させるのではなく、scope / requiredness / fallback policyを明示する。
+
+「一部成功したから完全成功」は禁止する。
+
+partial outputsは、
+* selected_count
+* processed_count
+* success_count
+* failure_count
+* skipped_count
+* reason taxonomy
+* usable_scope
+を保持する。
+
+⸻
+
+107. LONG-RUNNING OOS / CONTROL-PLANE CONCURRENCY — 2026-10-04
+
+長時間chronological OOSは、main commitだけを理由にcancelしてはならない。
+
+Research validationのconcurrencyは、
+cancel-in-progress = false
+を基本とする。
+
+ただし以下を明確に分類する:
+
+A. NON-EVIDENCE-AFFECTING CONTROL CHANGE
+* operational status
+* documentation
+* tests
+* watchdog/control-plane
+* append-only experience outputs
+
+B. EVIDENCE-AFFECTING CHANGE
+* model
+* feature
+* target
+* dataset
+* source
+* PIT
+* calendar
+* scoring
+* routing
+* calibration
+* selection
+* config
+* candidate identity
+
+Bがruntime evidenceへ影響する場合、実行中runをvalid current evidenceとして継続利用せず、fresh OOSを要求する。
+
+Aについてもallowlistを明示し、曖昧な変更を自動的にsafe扱いしない。
+
+長時間collector / checkpoint writerではstable concurrency groupを使い、同一stateへの複数writer競合を避ける。
+
+checkpoint publish前後にremote stateとlocal stateを再比較し、古いsnapshotが新しいsnapshotを上書きしないようにする。
+
+⸻
+
+108. EVIDENCE FRESHNESS / TRIGGER CONTRACT — 2026-10-04
+
+次の変更はrelevant validation / OOSをfreshに実行しない限り、過去evidenceをcurrent evidenceとして扱わない:
+
+* model implementation
+* feature implementation / feature list
+* feature schema
+* target semantics
+* data acquisition
+* source parser
+* PIT contract
+* calibration
+* routing
+* OOS scoring
+* release gate
+* candidate generation
+* adoption logic
+
+trigger coverageそのものをtests / workflow contractで検証する。
+
+「旧runがgreen」
+「artifactが残っている」
+「同じfile名のresultが存在する」
+だけではcurrent evidenceと認めない。
+
+analysis snapshotとevidence snapshotのSHAを分離して保持する。
+
+⸻
+
+109. FEATURE MANIFEST / RUNTIME SCHEMA GOVERNANCE — 2026-10-04
+
+Production featureはsource code上の存在だけではactiveとみなさない。
+
+canonical feature manifest、
+machine-readable feature policy、
+deterministic feature assembly、
+runtime feature count、
+runtime feature schema hash、
+manifest version
+を管理し、frozen production candidateと照合する。
+
+feature statusを少なくとも、
+
+ACTIVE
+CONDITIONAL
+OBSERVATION_ONLY
+RESEARCH_CANDIDATE
+DISABLED
+
+へ分類する。
+
+conditional featureはPIT-safe availabilityとconfig activationが両方確認できない限りproduction probabilityへ影響させない。
+
+feature assembly orderはdeterministicでなければならない。
+
+feature changeがprediction valueへ影響し得る場合は、
+TEST
+→ PIT
+→ chronological OOS/WFO
+→ calibration
+→ ablation
+→ robustness
+→ frozen holdout
+→ release gate
+を要求する。
+
+⸻
+
+110. ANALYSIS SHA / PUBLISH COMMIT SEPARATION — 2026-10-04
+
+研究artifactは、可能な限り、
+
+analysis_git_sha
+analysis_code_fingerprint
+config_fingerprint
+dataset/universe/source hashes
+generation_run_id
+
+を保存する。
+
+後続bot commitによるsummary、manifest、status更新はpublication commitであり、analysisを実行したSHAの代替ではない。
+
+release evidenceでは、
+analysis identity
+と
+publication identity
+を混同しない。
+
+analysis SHAとworkflow GITHUB_SHAが一致すべきresearch laneでは、その一致を明示的に検査する。必要な場合はmismatchをFAIL-CLOSEDとする。
+
+⸻
+
+111. RESEARCH HANDOFF FIREWALL — 2026-10-04
+
+高コストなchronological OOS / WFOを開始する前に、少なくとも、
+
+TESTS_PASSED = true
+AUDIT_PASSED = true
+
+の明示的handoff状態を要求する。
+
+missing
+invalid
+stale
+contradictory
+handoff
+は、
+
+BLOCKED
+
+とする。
+
+dependency timeoutなどのtransient failureと、schema / code / contract failureなどのdeterministic failureを分離する。
+
+bounded retryはtransient classに限定し、implementation failureをretryで成功扱いしない。
+
+⸻
+
+112. SOURCE / FEATURE / DATA INDEPENDENCE — 2026-10-04
+
+source countをinformation diversityと同一視しない。
+
+同一upstreamの、
+
+mirror
+wrapper
+republisher
+derived archive
+duplicate endpoint
+secondary scraper
+
+は原則として独立source数へ加算しない。
+
+source graphとindependence classを保存し、ensemble weighting / evidence aggregationへ反映する。
+
+feature countを増やすより、独立information axisを増やすことを優先する。
+
+⸻
+
+113. EXPERIENCE / FAILURE EVIDENCE INTEGRITY — 2026-10-04
+
+experienceは「結果がある行を増やす」ことを目的としない。
+
+canonical identity:
+instrument
++
+prediction date
++
+prediction cutoff
++
+target
++
+prediction state
+
+等で重複を排除し、same-event revisionや同一predictionの再取得でexperience weightを水増ししない。
+
+failureは少なくとも、
+
+data
+timestamp
+PIT
+universe
+source
+feature
+model
+calibration
+routing
+regime
+OOD
+timing
+automation
+recovery
+
+へ分類し、
+
+Failure
+→ Root Cause
+→ Hypothesis
+→ Experiment
+→ OOS
+→ Robustness
+→ Decision
+→ Memory
+
+のchainを保存する。
+
+negative evidenceも将来のresearch priorityと再開条件を持つknowledgeとして保存する。
+
+⸻
+
+114. STOCK-SPECIFIC ADAPTIVE INFORMATION LOOP — 2026-10-04
+
+Stockでは「より多く取得する」を常に正解としない。
+
+candidate information source / refresh / recomputeについて、
+
+Expected Information Value
+× Probability of usable update
+× Source reliability
+× PIT validity
+÷ Latency / Compute / Cost / Operational risk
+
+を基本思想として優先順位をつける。
+
+source qualityが不十分なら、
+PREDICT_NOW
+ではなく
+ACQUIRE_MORE / WAIT / RECOMPUTE / FALLBACK / ABSTAIN / DEFERRED
+を選択可能とする。
+
+情報取得に失敗した場合、成功した別sourceだけで元のscopeを完全再現できないなら、usable scopeを縮小して明示する。
+
+⸻
+
+115. RELEASE-GATE EVIDENCE BUNDLE — 2026-10-04
+
+release gateは単一metricではなくbundle consistencyを確認する。
+
+minimum evidence:
+
+* PIT contract
+* prediction ledger PIT
+* leakage/meta-leakage
+* universe/survivorship
+* market calendar
+* chronological OOS/WFO
+* candidate versus incumbent on same observations
+* calibration
+* ablation
+* robustness
+* frozen holdout
+* feature/schema identity
+* analysis/evidence SHA lineage
+* reproducibility
+* artifact integrity
+* monitoring/recovery
+* rollback target
+* state consistency
+
+一部だけPASSしてもbundle全体が揃わなければPRODUCTIONへ進めない。
+
+⸻
+
+116. OPERATIONAL STATUS IS NOT PERFORMANCE STATUS — 2026-10-04
+
+以下を明確に分離する:
+
+EXECUTED
+= workflow / commandが実行された
+
+VERIFIED
+= intended contractが検証された
+
+PERFORMANCE_VERIFIED
+= metric evidenceが検証された
+
+PROMOTION_CANDIDATE
+= release criteriaを満たす候補として比較可能
+
+ADOPTED
+= release gateを通過して採用された
+
+PRODUCTION
+= frozen runtimeとして稼働中
+
+STABLE
+= monitoring evidenceで継続安定性が確認された
+
+queued / in_progress / completed / green Actionは、単独では上記statusを意味しない。
+
+⸻
+
+117. CROSS-PROJECT FRONTIER PRIORITY — 2026-10-04
+
+他repoの最新研究からStockへ移植候補として優先するのは、
+
+1. PIT maturity and knowledge-time firewalls
+2. evidence freshness and long-run OOS continuity
+3. partial failure propagation / degraded scope
+4. runtime feature governance
+5. concurrency-safe durable state
+6. experience-derived research prioritization
+7. uncertainty / case-risk routing
+8. statistical dependence-aware comparison
+
+とする。
+
+ただしpriorityが高いことはadoptionを意味しない。
+
+⸻
+
+118. FINAL STOCK RESEARCH PRINCIPLE — 2026-10-04
+
+Stock-Daily-Prediction-3000は「より複雑なmodel」を作るprojectではない。
+
+最終systemは、
+
+PIT-safe population
+→ PIT-safe information
+→ deterministic feature contract
+→ prequential model ecology
+→ calibrated probability
+→ return/price distribution
+→ uncertainty/predictability
+→ selective information acquisition
+→ case-level decision
+→ robust OOS/WFO
+→ frozen evidence
+→ safe release
+→ monitored production
+→ exact reconciliation
+→ failure learning
+→ next research
+
+を一つのcausal chainとして維持する。
+
+特に、
+「良い予測を出す」だけではなく、
+「その予測がその時点で本当に作れたか」
+「情報は本当にその時点で存在したか」
+「失敗した場合にscopeを正しく縮小したか」
+「後から得た結果を学習へ遡及させていないか」
+「どのcode/config/sourceでそのevidenceが生成されたか」
+「その候補をproductionへ入れてよいだけの独立証拠があるか」
+までを一体で管理する。
+
+これをFuture Generalization × Case-Level Correctness × Calibration × Predictability × Uncertainty × Robustness × PIT Integrity × Information Efficiency × Operational Reliability × Reproducibilityの基準とする。
