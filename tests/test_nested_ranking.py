@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import numpy as np
 
-from src.research.nested_ranking import nested_prequential_ranking_oos
+from src.research.nested_ranking import (
+    _select_prior_model_window,
+    nested_prequential_ranking_oos,
+)
 
 
 def _fixture():
@@ -218,3 +221,24 @@ def test_nested_ranking_reports_aligned_model_window_identity_when_production_ma
         prediction_generation_training_window_sessions=None,
     )
     assert aligned["production_identity_alignment"]["aligned"] is True
+
+
+def test_nested_window_selector_rejects_sparse_noncontiguous_history():
+    history = {
+        ("model_a", 252): [
+            {"fold": 0, "logloss": 0.01},
+            {"fold": 2, "logloss": 0.01},
+        ],
+        ("model_b", 0): [
+            {"fold": 1, "logloss": 0.10},
+            {"fold": 2, "logloss": 0.10},
+        ],
+    }
+    selected = _select_prior_model_window(
+        history,
+        current_fold=3,
+        min_history_folds=2,
+        half_life_folds=4.0,
+        stability_penalty=0.0,
+    )
+    assert selected == ("model_b", 0)
