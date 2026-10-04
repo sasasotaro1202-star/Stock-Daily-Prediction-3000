@@ -125,7 +125,7 @@ def main():
     if identity.get("aligned") is not True:
         raise SystemExit(
             "DEFERRED: nested ranking evidence is not identity-aligned with "
-            "the frozen production candidate"
+            "the frozen production candidate (including training-window semantics)"
         )
     if payload.get("ranking_selection_ready_for_production") is not True:
         raise SystemExit(
