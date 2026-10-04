@@ -190,7 +190,9 @@ def nested_prequential_ranking_oos(
     """Evaluate ranking selection with a genuinely prequential outer loop.
 
     At outer fold t:
-      1. select the classifier only from model log-losses on folds < t;
+      1. when a window-conditioned bank is supplied, jointly select the
+         classifier model and training window from model/window LogLoss on
+         folds < t; otherwise use the legacy prior-model selector;
       2. select the return estimator only from rank-IC on folds < t;
       3. select ranking weight/penalty only from ranking scores on earlier
          outer folds using the already-chosen model/return path;
@@ -618,6 +620,7 @@ def nested_prequential_ranking_oos(
             "selected_model_matches_final_prequential_model": False,
             "selected_return_estimator_matches_final_prequential_estimator": False,
             "classifier_training_window_matches_final_prequential_window": False,
+            "training_window_selection_is_prequential": False,
             "rank_probability_weight_matches_final_prequential_parameter": False,
             "rank_uncertainty_penalty_matches_final_prequential_parameter": False,
         },
@@ -654,6 +657,9 @@ def nested_prequential_ranking_oos(
                 production_window is not None
                 and int(final_rank_parameters["training_window_sessions"])
                 == production_window
+            ),
+            "training_window_selection_is_prequential": (
+                training_window_selection_prequential
             ),
             "rank_probability_weight_matches_final_prequential_parameter": (
                 production_weight is not None
