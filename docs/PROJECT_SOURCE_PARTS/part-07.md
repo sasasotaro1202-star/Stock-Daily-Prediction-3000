@@ -733,3 +733,23 @@ Required sequence:
 DISCOVER → VERIFY → ABSTRACT → PIT/COST CHECK → LOCAL TEST → CHRONOLOGICAL OOS → ROBUSTNESS → FROZEN HOLDOUT → ADOPT/HOLD/REJECT
 
 All tuned components remain prior-only, all candidates share locked OOS observations, and production promotion remains blocked until the existing independent release gate is satisfied.
+
+
+⸻
+
+122. PREQUENTIAL FRONTIER WINNER SELECTION — 2026-10-04
+
+For broad frontier matrices, locked OOS may be used for final diagnostic comparison but never for winner selection.
+
+The winner-selection path is:
+
+1. For each development fold t, inspect only folds < t.
+2. Select the candidate with the best prior development LogLoss.
+3. Evaluate that selected candidate on fold t.
+4. Record the decision, selected pattern, fold and score.
+5. Aggregate only these prequential development decisions to choose the research winner.
+6. Evaluate the frozen locked suffix only after the candidate is fixed.
+
+This preserves a one-step-ahead selection contract inside development and makes adaptive selection visible in the evidence artifact.
+
+A large candidate matrix does not relax multiple-testing discipline. Locked OOS remains untouched and the existing production release gate remains mandatory.
