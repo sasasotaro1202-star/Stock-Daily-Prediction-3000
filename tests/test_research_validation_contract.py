@@ -45,3 +45,14 @@ def test_ranking_selection_is_explicitly_blocked_until_nested_oos_evidence():
     assert '"ranking_selection_ready_for_production": False' in research
     assert "nested prequential ranking selection is required before production freeze" in research
     assert 'if payload.get("ranking_selection_ready_for_production") is not True:' in locker
+
+
+
+def test_nested_ranking_selection_is_prequential():
+    source = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
+    helper = (ROOT / "src/research/nested_ranking.py").read_text(encoding="utf-8")
+    assert "nested_prequential_ranking_oos(" in source
+    assert '"nested_ranking_selection_research": nested_ranking_selection_research' in source
+    assert '"ranking_selection_ready_for_production": False' in source
+    assert "same-OOS model/window selection" in helper or "globally selected model" in helper
+    assert '"same_oos_global_model_or_window_reuse": False' in helper
