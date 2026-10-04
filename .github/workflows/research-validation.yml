@@ -300,6 +300,8 @@ jobs:
               "expert_loss_routing_oos.json",
               "case_risk_oos.json",
               "learned_case_risk_oos.json",
+              "frontier_pattern_suite.json",
+              "frontier_extreme_pattern_suite.json",
           }
           if not required_artifacts.issubset(set(manifest_data.get("artifacts") or [])):
               raise SystemExit("FAIL: v13 manifest missing required governance/history artifacts")
@@ -333,6 +335,27 @@ jobs:
           print("ULTIMATE_V13_FOLDS=", v13.get("folds"))
           print("ULTIMATE_V13_MODELS=", len(v13.get("models") or []))
           print("ULTIMATE_V13_PREDICTABILITY_MEAN=", (v13.get("predictability") or {}).get("mean"))
+          frontier = json.loads(frontier_pattern_suite.read_text(encoding="utf-8"))
+          if frontier.get("status") != "EXECUTED_RESEARCH_PATTERN_MATRIX":
+              raise SystemExit("FAIL: frontier pattern matrix did not execute")
+          if frontier.get("pattern_count", 0) < 50:
+              raise SystemExit("FAIL: frontier pattern matrix breadth below 50")
+          if frontier.get("production_changed") is not False or frontier.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: frontier pattern matrix is not research-only")
+          extreme = json.loads(frontier_extreme_pattern_suite.read_text(encoding="utf-8"))
+          if extreme.get("status") != "EXECUTED_EXTREME_PATTERN_MATRIX":
+              raise SystemExit("FAIL: extreme frontier pattern matrix did not execute")
+          if int(extreme.get("pattern_count", 0)) < 100:
+              raise SystemExit("FAIL: extreme frontier pattern matrix breadth below 100")
+          if extreme.get("production_changed") is not False or extreme.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: extreme frontier pattern matrix is not research-only")
+          extreme_cases = {int(row.get("locked_cases", -1)) for row in extreme.get("patterns", [])}
+          if len(extreme_cases) != 1 or -1 in extreme_cases:
+              raise SystemExit("FAIL: extreme frontier patterns are not evaluated on one common locked OOS case set")
+          if extreme.get("frozen_holdout_used") is not False:
+              raise SystemExit("FAIL: extreme frontier pattern matrix used frozen holdout")
+          print("FRONTIER_PATTERN_MATRIX=PASS patterns=", frontier["pattern_count"])
+          print("FRONTIER_EXTREME_PATTERN_MATRIX=PASS patterns=", extreme["pattern_count"], "locked_cases=", next(iter(extreme_cases)))
           print("ULTIMATE_V13_DYNAMIC_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("dynamic", {}).get("logloss"))
           print("ULTIMATE_V13_EQUAL_LOGLOSS=", ((v13.get("routing") or {}).get("aggregate") or {}).get("equal_weight", {}).get("logloss"))
           PY
