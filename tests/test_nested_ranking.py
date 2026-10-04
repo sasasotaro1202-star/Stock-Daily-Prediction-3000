@@ -224,6 +224,14 @@ def test_nested_ranking_reports_aligned_model_window_identity_when_production_ma
     assert aligned["production_identity_alignment"]["aligned"] is True
 
 
+def test_nested_ranking_reuses_global_window_prediction_cache_contract():
+    text = RUNNER.read_text(encoding="utf-8")
+    assert "nested_ranking_reusable_window_predictions_by_fold" in text
+    assert "if model_name == global_selected:" in text
+    assert '"prediction_window_reuse"' in text
+    assert '"compute_only_reuse_of_the_exact_fold_local_calibrated_probability_vector' in text
+
+
 def test_nested_window_selector_rejects_sparse_noncontiguous_history():
     history = {
         ("model_a", 252): [
