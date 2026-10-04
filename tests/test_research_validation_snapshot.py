@@ -132,5 +132,31 @@ def test_research_snapshot_marks_stale_execution_sha(monkeypatch, tmp_path) -> N
     assert out["research_workflow_sha"] == "research-old"
     assert out["status_branch_main_sha"] == "main-new"
     assert out["evidence_freshness"] == "STALE"
+    assert out["evidence_freshness_basis"] == "execution_sha"
     assert out["evidence_scope"]["freshness"] == "STALE"
+    assert out["evidence_scope"]["freshness_basis"] == "execution_sha"
     assert hashlib.sha256(source.read_bytes()).hexdigest() == out["evidence_scope"]["source_sha256"]
+
+
+def test_research_snapshot_keeps_evidence_fresh_across_control_plane_sha_change(monkeypatch, tmp_path):
+    _write_metrics(tmp_path, _payload(evidence_code_fingerprint_sha256="evidence-fp"))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "research-old")
+    monkeypatch.setattr("scripts.persist_research_validation_snapshot._git_head_sha", lambda: "main-new")
+    monkeypatch.setattr("scripts.persist_research_validation_snapshot.evidence_fingerprint_sha256", lambda: "evidence-fp")
+    main()
+    out = json.loads((tmp_path / "artifacts" / "research_validation_latest.json").read_text(encoding="utf-8"))
+    assert out["evidence_freshness"] == "FRESH"
+    assert out["evidence_freshness_basis"] == "evidence_code_fingerprint"
+
+
+def test_research_snapshot_marks_evidence_fingerprint_mismatch_stale(monkeypatch, tmp_path):
+    _write_metrics(tmp_path, _payload(evidence_code_fingerprint_sha256="research-fp"))
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "same-sha")
+    monkeypatch.setattr("scripts.persist_research_validation_snapshot._git_head_sha", lambda: "same-sha")
+    monkeypatch.setattr("scripts.persist_research_validation_snapshot.evidence_fingerprint_sha256", lambda: "main-fp")
+    main()
+    out = json.loads((tmp_path / "artifacts" / "research_validation_latest.json").read_text(encoding="utf-8"))
+    assert out["evidence_freshness"] == "STALE"
+    assert out["evidence_freshness_basis"] == "evidence_code_fingerprint"

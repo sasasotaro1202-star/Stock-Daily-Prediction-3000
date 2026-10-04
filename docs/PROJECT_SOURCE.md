@@ -9,7 +9,7 @@ Canonical Source is preserved losslessly in seven ordered parts because the sour
 4. [part-04](./PROJECT_SOURCE_PARTS/part-04.md) — lines 1051–1400
 5. [part-05](./PROJECT_SOURCE_PARTS/part-05.md) — lines 1401–1750
 6. [part-06](./PROJECT_SOURCE_PARTS/part-06.md) — lines 1751–2100
-7. [part-07](./PROJECT_SOURCE_PARTS/part-07.md) — lines 2101–2923
+7. [part-07](./PROJECT_SOURCE_PARTS/part-07.md) — lines 2101–2916
 
 ## 2026-10-03 repository alignment
 Audit baseline observed on 2026-10-03: `045507049f7f472a06db25f0b1da0b6ba179fcc0` (historical audit reference only; not a live HEAD pin).

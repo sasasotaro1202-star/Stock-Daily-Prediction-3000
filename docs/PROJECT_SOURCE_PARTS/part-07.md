@@ -795,16 +795,9 @@ The control preserves the distinction between unavailable, unknown and observed 
 
 Research validation results are evidence artifacts, not current-state truth by default.
 
-The exact Research validation execution SHA must be preserved with the evidence. The status/snapshot branch must also record the current main SHA used when the snapshot is persisted.
+The exact Research validation execution SHA must be preserved with the evidence. The status/snapshot branch must also record the current main SHA used when the snapshot is persisted. The execution must additionally persist an evidence-affecting fingerprint covering runtime code, configuration, workflows and relevant dependency manifests.
 
-When the two SHAs differ:
-
-* evidence_freshness = STALE
-* the raw OOS result remains preserved
-* the result must not be treated as current performance evidence
-* evidence-affecting main changes require a fresh OOS/WFO run before promotion or release decisions
-
-When either SHA cannot be established, evidence_freshness = UNKNOWN and the result is fail-closed for release decisions.
+Evidence freshness is determined first from the evidence-affecting fingerprint. Matching fingerprints mean evidence_freshness = FRESH even when commit SHAs differ because of non-evidence-affecting control-plane changes. Fingerprint mismatch means evidence_freshness = STALE and requires fresh OOS/WFO. If the fingerprint is absent or unverifiable, SHA equality is only a legacy fallback; otherwise evidence_freshness = UNKNOWN and release decisions fail closed.
 
 This is a governance layer only. It does not retune frozen holdout evidence and does not mutate Production.
 

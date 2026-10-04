@@ -31,3 +31,6 @@ Risk-derived OOD must distinguish missing evidence from neutral observed OOD. Wh
 
 ## Reliability state
 Requested, queued, pending, waiting and in-progress research runs are transient active states. Long-running chronological OOS is preserved across ordinary main-branch commits; stale recovery must be bounded and must not create self-recovery loops. Failed, cancelled, skipped and stale evidence remains non-success until independently rerun and verified.
+
+## Evidence identity and freshness
+Research evidence records the exact execution SHA plus an evidence-affecting fingerprint. Evidence is FRESH when the execution fingerprint matches the current main fingerprint, even if commit SHAs differ because of non-evidence-affecting control-plane changes. Any runtime/config/workflow/dependency fingerprint mismatch requires fresh validation/OOS. Unknown fingerprint provenance is fail-closed.

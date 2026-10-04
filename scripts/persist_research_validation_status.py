@@ -9,6 +9,8 @@ import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.validation.code_fingerprint import evidence_fingerprint_sha256
+
 
 def _lookup_research_job() -> tuple[dict, str | None]:
     token = os.environ.get("GITHUB_TOKEN", "")
@@ -85,10 +87,32 @@ def _git_head_sha() -> str | None:
     return value or None
 
 
-def _evidence_freshness(research_sha: str | None, current_sha: str | None) -> str:
+def _load_research_evidence_fingerprint() -> str | None:
+    path = Path("data/research/latest_metrics.json")
+    if not path.exists():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    value = str(payload.get("evidence_code_fingerprint_sha256") or "").strip()
+    return value or None
+
+
+def _evidence_freshness(research_sha: str | None, current_sha: str | None, research_fingerprint: str | None = None, current_fingerprint: str | None = None) -> str:
+    if research_fingerprint and current_fingerprint:
+        return "FRESH" if research_fingerprint == current_fingerprint else "STALE"
     if research_sha and current_sha:
         return "FRESH" if research_sha == current_sha else "STALE"
     return "UNKNOWN"
+
+
+def _evidence_freshness_basis(research_fingerprint: str | None, current_fingerprint: str | None, research_sha: str | None, current_sha: str | None) -> str:
+    if research_fingerprint and current_fingerprint:
+        return "evidence_code_fingerprint"
+    if research_sha and current_sha:
+        return "execution_sha"
+    return "unknown"
 
 
 def _runtime_health(job: dict, workflow_status: str = "") -> dict:
@@ -208,11 +232,18 @@ def main() -> int:
         evidence_state = "MISSING"
     research_sha = os.environ.get("RESEARCH_WORKFLOW_SHA", "").strip() or None
     current_main_sha = _git_head_sha()
+    research_evidence_fingerprint = _load_research_evidence_fingerprint()
+    current_evidence_fingerprint = evidence_fingerprint_sha256()
+    evidence_freshness = _evidence_freshness(research_sha, current_main_sha, research_evidence_fingerprint, current_evidence_fingerprint)
+    evidence_freshness_basis = _evidence_freshness_basis(research_evidence_fingerprint, current_evidence_fingerprint, research_sha, current_main_sha)
     status = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "research_workflow_sha": research_sha,
         "status_branch_main_sha": current_main_sha,
-        "evidence_freshness": _evidence_freshness(research_sha, current_main_sha),
+        "research_evidence_fingerprint_sha256": research_evidence_fingerprint,
+        "status_branch_evidence_fingerprint_sha256": current_evidence_fingerprint,
+        "evidence_freshness": evidence_freshness,
+        "evidence_freshness_basis": evidence_freshness_basis,
         "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", ""),
         "workflow_sha": os.environ.get("RESEARCH_WORKFLOW_SHA") or os.environ.get("GITHUB_SHA", ""),
         "workflow_status": workflow_status or "unknown",

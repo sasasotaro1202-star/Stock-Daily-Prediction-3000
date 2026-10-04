@@ -7,6 +7,8 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from src.validation.code_fingerprint import evidence_fingerprint_sha256
+
 
 def _require_completed_oos(payload: dict) -> None:
     if payload.get("status") != "OOS_COMPLETE":
@@ -48,10 +50,20 @@ def _git_head_sha() -> str | None:
     return value or None
 
 
-def _evidence_freshness(research_sha: str | None, current_sha: str | None) -> str:
+def _evidence_freshness(research_sha: str | None, current_sha: str | None, research_fingerprint: str | None = None, current_fingerprint: str | None = None) -> str:
+    if research_fingerprint and current_fingerprint:
+        return "FRESH" if research_fingerprint == current_fingerprint else "STALE"
     if research_sha and current_sha:
         return "FRESH" if research_sha == current_sha else "STALE"
     return "UNKNOWN"
+
+
+def _evidence_freshness_basis(research_fingerprint: str | None, current_fingerprint: str | None, research_sha: str | None, current_sha: str | None) -> str:
+    if research_fingerprint and current_fingerprint:
+        return "evidence_code_fingerprint"
+    if research_sha and current_sha:
+        return "execution_sha"
+    return "unknown"
 
 
 def main() -> None:
@@ -126,6 +138,10 @@ def main() -> None:
         or None
     )
     current_main_sha = _git_head_sha()
+    research_evidence_fingerprint = str(payload.get("evidence_code_fingerprint_sha256") or "").strip() or None
+    current_evidence_fingerprint = evidence_fingerprint_sha256()
+    evidence_freshness = _evidence_freshness(research_workflow_sha, current_main_sha, research_evidence_fingerprint, current_evidence_fingerprint)
+    evidence_freshness_basis = _evidence_freshness_basis(research_evidence_fingerprint, current_evidence_fingerprint, research_workflow_sha, current_main_sha)
     snapshot = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID", "").strip()
@@ -133,7 +149,10 @@ def main() -> None:
         "workflow_sha": research_workflow_sha or "",
         "research_workflow_sha": research_workflow_sha,
         "status_branch_main_sha": current_main_sha,
-        "evidence_freshness": _evidence_freshness(research_workflow_sha, current_main_sha),
+        "research_evidence_fingerprint_sha256": research_evidence_fingerprint,
+        "status_branch_evidence_fingerprint_sha256": current_evidence_fingerprint,
+        "evidence_freshness": evidence_freshness,
+        "evidence_freshness_basis": evidence_freshness_basis,
         "status": payload.get("status", "UNKNOWN"),
         "selected_model": selected_model,
         "selected_model_score": selected_score,
@@ -149,7 +168,10 @@ def main() -> None:
             "source_sha256": hashlib.sha256(raw).hexdigest(),
             "research_workflow_sha": research_workflow_sha,
             "status_branch_main_sha": current_main_sha,
-            "freshness": _evidence_freshness(research_workflow_sha, current_main_sha),
+            "research_evidence_fingerprint_sha256": research_evidence_fingerprint,
+            "status_branch_evidence_fingerprint_sha256": current_evidence_fingerprint,
+            "freshness": evidence_freshness,
+            "freshness_basis": evidence_freshness_basis,
             "frozen_holdout_excluded_from_selection": True,
             "research_only_layers": True,
             "snapshot_contract": "OOS_COMPLETE_selected_model_logloss_required",

@@ -127,5 +127,12 @@ def test_status_persistence_exposes_execution_sha_and_freshness_contract() -> No
     script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
     assert '"research_workflow_sha"' in script
     assert '"status_branch_main_sha"' in script
+    assert '"research_evidence_fingerprint_sha256"' in script
     assert '"evidence_freshness"' in script
-    assert 'return "FRESH" if research_sha == current_sha else "STALE"' in script
+    assert 'return "FRESH" if research_fingerprint == current_fingerprint else "STALE"' in script
+
+def test_status_persistence_reads_evidence_fingerprint_from_completed_metrics() -> None:
+    script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
+    assert "def _load_research_evidence_fingerprint()" in script
+    assert 'payload.get("evidence_code_fingerprint_sha256")' in script
+
