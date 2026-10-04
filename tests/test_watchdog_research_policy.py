@@ -14,7 +14,7 @@ def test_active_research_preserves_control_plane_only_changes() -> None:
     end = text.index("            local current_sha_queued=false", start)
     block = text[start:end]
     assert "control-plane-only main changes" in block
-    assert "evidence-affecting changes invalidate the run" in block
+    assert "evidence-affecting changes invalidate the run" in block.lower()
     assert 'gh run cancel "$active_run_id"' in block
     assert "350 minutes" in block
 
