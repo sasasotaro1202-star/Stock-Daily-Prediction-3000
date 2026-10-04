@@ -32,7 +32,7 @@ def validate_source_text(text: str) -> list[str]:
         errors.append("project_name_missing")
     if "https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000" not in text:
         errors.append("target_repository_missing")
-    section_numbers = [int(match.group(1)) for match in re.finditer(r"(?m)^(\d+)\.\s+", text)]
+    section_numbers = [int(match.group(1)) for match in re.finditer(r"(?m)^(\d+)\.\s+[A-Z][A-Z0-9 /&._-]*$", text)]
     expected = list(range(1, 99))
     if section_numbers != expected:
         errors.append("section_sequence_invalid:" + ",".join(map(str, section_numbers[:110])))
@@ -55,7 +55,7 @@ def build_contract() -> dict[str, Any]:
         "source": str(SOURCE_PATH.relative_to(ROOT)),
         "sha256": digest,
         "line_count": len(text.splitlines()),
-        "section_count": len(re.findall(r"(?m)^\d+\.\s+", text)),
+        "section_count": len(re.findall(r"(?m)^\d+\.\s+[A-Z][A-Z0-9 /&._-]*$", text)),
         "required_terms": list(REQUIRED_TERMS),
         "validation_errors": errors,
         "git_sha": os.environ.get("GITHUB_SHA"),
