@@ -288,6 +288,7 @@ def main() -> int:
 
     _assert_once(price_restore, "falling back to bounded fresh price fetch", "price_restore_auth_fallback")
 
+    market_cycle = _read("market-cycle.yml")
     validation_workflow = _read("research-validation.yml")
     quality_gate = str(
         (ROOT / "scripts" / "data_quality_gate.py").read_text(encoding="utf-8")
@@ -301,6 +302,16 @@ def main() -> int:
         validation_workflow,
         "cancel-in-progress: false",
         "research_validation_preserves_active_oos_runs",
+    )
+    _assert_once(
+        market_cycle,
+        'env:\n          REQUIRE_PIT_LEDGER: "1"',
+        "market_cycle_enforces_pit_ledger_audit",
+    )
+    _assert_once(
+        market_cycle,
+        "run: python scripts/audit_research_pit_contract.py",
+        "market_cycle_runs_pit_contract_audit_before_release_gate",
     )
     _assert_once(
         watchdog,
