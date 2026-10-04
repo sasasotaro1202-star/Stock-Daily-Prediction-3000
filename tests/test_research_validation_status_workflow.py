@@ -121,3 +121,11 @@ def test_status_persistence_retries_pending_job_creation_race(monkeypatch) -> No
     assert error is None
     assert job["name"] == "research"
     assert calls == 2
+
+
+def test_status_persistence_exposes_execution_sha_and_freshness_contract() -> None:
+    script = Path("scripts/persist_research_validation_status.py").read_text(encoding="utf-8")
+    assert '"research_workflow_sha"' in script
+    assert '"status_branch_main_sha"' in script
+    assert '"evidence_freshness"' in script
+    assert 'return "FRESH" if research_sha == current_sha else "STALE"' in script
