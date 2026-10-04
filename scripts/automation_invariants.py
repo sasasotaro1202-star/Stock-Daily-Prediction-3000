@@ -691,6 +691,21 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
+        '    - cron: "*/15 * * * *"',
+        "failure_learning_reconciliation_schedule",
+    )
+    _assert_once(
+        failure_workflow,
+        "python scripts/reconcile_automation_failures.py",
+        "failure_learning_reconciliation_script",
+    )
+    _assert_once(
+        failure_workflow,
+        "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+        "failure_learning_reconcile_trigger",
+    )
+    _assert_once(
+        failure_workflow,
         'workflows:\n      - "Research validation"',
         "failure_learning_research_validation_trigger",
     )

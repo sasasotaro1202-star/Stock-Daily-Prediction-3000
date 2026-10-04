@@ -63,3 +63,58 @@ def test_watchdog_recovers_failure_learning_and_experience_review() -> None:
     text = WATCHDOG.read_text(encoding="utf-8")
     assert 'inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true' in text
     assert 'inspect_workflow "experience-review.yml" "Experience review" true true' in text
+
+def test_failure_learning_reconciliation_safety_net() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert '    - cron: "*/15 * * * *"' in text
+    assert "python scripts/reconcile_automation_failures.py" in text
+    assert "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'" in text
+
+
+def test_reconciliation_discovers_unique_recent_failures(monkeypatch) -> None:
+    import scripts.reconcile_automation_failures as reconcile
+
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_API_URL", "https://api.github.test")
+
+    def fake_request(url, token):
+        return {
+            "workflow_runs": [
+                {
+                    "id": 101,
+                    "run_number": 4,
+                    "name": "Repository verification",
+                    "head_sha": "abc",
+                    "head_branch": "main",
+                    "run_attempt": 1,
+                    "conclusion": "failure",
+                    "created_at": "2026-10-04T10:00:00Z",
+                    "updated_at": "2026-10-04T10:01:00Z",
+                    "event": "push",
+                },
+                {
+                    "id": 101,
+                    "run_number": 4,
+                    "name": "Repository verification",
+                    "head_sha": "abc",
+                    "head_branch": "main",
+                    "run_attempt": 1,
+                    "conclusion": "failure",
+                    "created_at": "2026-10-04T10:00:00Z",
+                    "updated_at": "2026-10-04T10:01:00Z",
+                    "event": "push",
+                },
+            ]
+        }
+
+    monkeypatch.setattr(reconcile, "_request_json", fake_request)
+    monkeypatch.setattr(
+        reconcile,
+        "_load_job_snapshot",
+        lambda repository, run_id, token, api_base: [],
+    )
+    records = reconcile.discover_failure_records()
+    assert len(records) == 1
+    assert records[0]["failure_id"]
+    assert records[0]["research_only"] is True
