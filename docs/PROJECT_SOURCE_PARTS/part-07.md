@@ -209,3 +209,16 @@ The nested selector itself remains prior-fold-only. Production configuration val
 Identity alignment is not a promotion signal by itself. Even when aligned, nested ranking remains research-only until bootstrap evidence, chronological OOS/robustness, calibration, PIT, and the frozen-holdout gate are all satisfied.
 
 A production freeze must fail closed when nested ranking evidence is missing, unevaluated, structurally non-prequential, bootstrap-insufficient, or not identity-aligned.
+
+101. LEARNED CASE-RISK SESSION-CLUSTER BOOTSTRAP — 2026-10-04
+
+The learned case-risk locked-suffix comparison now records paired LogLoss improvement with dependence-aware moving-block bootstrap evidence.
+
+* each unique prediction_cutoff is treated as an ordered dependence cluster
+* cluster delta = fixed case-risk LogLoss - learned case-risk LogLoss, so positive means learned improvement
+* fewer than 5 clusters => INSUFFICIENT_CLUSTERS; bootstrap promotion evidence is unavailable
+* 5 or more clusters => moving-block bootstrap probability and p05 are recorded
+* locked outcomes are never used to fit the learned model or select its threshold
+* frozen holdout remains outside this research artifact
+
+This bootstrap is evidence for stability and statistical uncertainty only. It does not by itself authorize production routing or replace chronological OOS, calibration, PIT, robustness, and frozen-holdout gates.
