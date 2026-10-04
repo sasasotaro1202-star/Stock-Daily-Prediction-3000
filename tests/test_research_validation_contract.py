@@ -37,3 +37,11 @@ def test_ranking_oos_calibration_is_prequential():
     assert 'fold_calibration_method = temporal_calibration_method_by_fold.get(' in source
     assert 'global selected_calibration_method is not reused for ranking evidence' in source
     assert '"ranking_oos_calibration_protocol"' in source
+
+
+def test_ranking_selection_is_explicitly_blocked_until_nested_oos_evidence():
+    research = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
+    locker = (ROOT / "scripts/lock_frozen_model.py").read_text(encoding="utf-8")
+    assert '"ranking_selection_ready_for_production": False' in research
+    assert "nested prequential ranking selection is required before production freeze" in research
+    assert 'if payload.get("ranking_selection_ready_for_production") is not True:' in locker
