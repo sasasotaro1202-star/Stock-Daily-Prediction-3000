@@ -549,7 +549,13 @@ def run_extreme_pattern_suite(
     )
     prequential_selected_name = preq_rank[0]["name"] if preq_rank else None
     selection_trace = [d["selected_name"] for d in preq_decisions]
-    selection_stability = {}
+    selection_stability = {
+        "decision_count": 0,
+        "unique_selected_patterns": 0,
+        "top_selection_share": 0.0,
+        "switch_count": 0,
+        "selection_counts": {},
+    }
     if selection_trace:
         counts = {}
         for selected in selection_trace:
