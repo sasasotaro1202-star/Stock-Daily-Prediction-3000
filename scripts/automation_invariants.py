@@ -85,7 +85,7 @@ def main() -> int:
     )
     _assert_once(
         project_source_contract,
-        "CANONICAL_SECTION_HEADINGS",
+        "CANONICAL_SECTION_HEADINGS = (",
         "project_source_contract_locks_exact_headings",
     )
     source_section_count = len(re.findall(r"(?m)^(\\d+)\\.\\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
