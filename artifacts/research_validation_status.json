@@ -5,28 +5,28 @@
   "evidence_artifact_raw_present": false,
   "evidence_freshness": "STALE",
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-04T06:08:32.139339+00:00",
-  "job_status": "queued",
+  "generated_at_utc": "2026-10-04T06:19:03.264279+00:00",
+  "job_status": "completed",
   "research_step": "unknown",
-  "research_workflow_sha": "c9c46a6bd4498592542bfff70aced9987fb8f8bd",
+  "research_workflow_sha": "f92362fe138a8fb443da58fe91aecfbc4f4f8d70",
   "runtime_health": {
     "active_step": null,
     "active_step_elapsed_minutes": null,
     "active_step_started_at_utc": null,
     "job_elapsed_minutes": null,
     "job_started_at_utc": null,
-    "job_status": "queued",
+    "job_status": "completed",
     "long_running_threshold_minutes": 60,
     "stale_risk_threshold_minutes": 240,
-    "state": "QUEUED"
+    "state": "TERMINAL"
   },
   "sec_ablation_step": "unknown",
   "sec_research_step": "unknown",
-  "status_branch_main_sha": "f92362fe138a8fb443da58fe91aecfbc4f4f8d70",
+  "status_branch_main_sha": "e382356ed4db9f9a8cd1906872365c690d8a20f1",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": null,
-  "workflow_run_id": "37181738540",
-  "workflow_sha": "c9c46a6bd4498592542bfff70aced9987fb8f8bd",
-  "workflow_status": "queued"
+  "workflow_conclusion": "cancelled",
+  "workflow_run_id": "37181778955",
+  "workflow_sha": "f92362fe138a8fb443da58fe91aecfbc4f4f8d70",
+  "workflow_status": "completed"
 }
