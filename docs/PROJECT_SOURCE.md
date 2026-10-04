@@ -53,3 +53,7 @@ The research runner no longer reuses the globally selected calibration method wh
 
 ## 2026-10-04 challenger ecology expansion
 The configured research candidate set already included XGBoost and CatBoost, but the model factory previously exposed neither and the research extra dependencies did not install them. The research environment now installs both packages and the factory exposes conservative deterministic XGBoost/CatBoost challengers. They remain optional research candidates: chronological OOS/WFO selection, PIT checks, calibration, robustness and frozen-holdout gates remain unchanged, and factory availability alone never promotes a challenger.
+
+
+## 2026-10-04 challenger ecology and ranking freeze firewall
+XGBoost and CatBoost are now installable optional research challengers and are exposed by the model factory. Their scores are still governed by the existing chronological OOS model-selection evidence. Separately, ranking-weight evidence is explicitly marked non-production-ready while the ranking loop conditions on a globally selected model/training window from the same OOS run; lock_frozen_model.py now fails closed until nested/prequential ranking evidence is available. This prevents same-OOS double selection from silently entering a frozen production configuration.
