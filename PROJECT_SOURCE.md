@@ -795,8 +795,7 @@ Current research convention:
 
 selection score =
 mean OOS LogLoss
-+
-0.25 × fold LogLoss standard deviation
++0.25 × fold LogLoss standard deviation
 
 を候補評価軸として使用可能。
 
@@ -1595,8 +1594,7 @@ candidateで最低限:
 * universe/survivorship attack
 * corporate-action timing attack
 * source removal
-* feature deletion
-* time shift
+* feature deletion* time shift
 * distribution shift
 * regime transition
 * stale-data attack
@@ -1796,12 +1794,9 @@ critical state:
 * rollback state
 * experience ledger
 
-* time shift
-* distribution shift
-* regime transition
-* stale-data attack
+はsingle-writer semanticsを優先する。
 
-を実施する。
+parallel research結果のmergeはdeterministicに行う。
 
 ⸻
 
