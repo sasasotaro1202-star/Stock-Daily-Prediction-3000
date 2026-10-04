@@ -473,14 +473,8 @@ def run_frontier_pattern_suite(
     locked_y: list[int] = []
     locked_sessions: list[str] = []
 
-    def add_locked(name: str, p: np.ndarray, y: np.ndarray, session_ids: Sequence[Any]) -> None:
+    def add_locked(name: str, p: np.ndarray) -> None:
         locked_rows.setdefault(name, []).extend(np.asarray(p, dtype=float).tolist())
-        if not locked_y:
-            locked_y.extend(np.asarray(y, dtype=int).tolist())
-            locked_sessions.extend([str(x) for x in session_ids])
-        else:
-            locked_y.extend(np.asarray(y, dtype=int).tolist())
-            locked_sessions.extend([str(x) for x in session_ids])
 
     for t, fold in enumerate(ordered):
         y = np.asarray(fold.get("y", []), dtype=int)
@@ -623,7 +617,53 @@ def run_frontier_pattern_suite(
                 {"scale": 0.75, "fit_policy": "prior_risk_state_only"},
                 None,
             )
-            reg_weights = _regime_weights(ordered[:t], models, frame if frame is not None else {})
+
+            // Consensus gating: use a prior-only threshold on row disagreement.
+            prior_disagreement = np.concatenate([
+                _fold_probabilities(prev, models).std(axis=1)
+                for prev in ordered[:t]
+            ]) if ordered[:t] else np.array([])
+            current_disagreement = p_matrix.std(axis=1)
+            for q in (0.50, 0.75, 0.90):
+                threshold = float(np.quantile(prior_disagreement, q)) if len(prior_disagreement) else 0.10
+                shrink = np.clip(current_disagreement / max(threshold, 0.01), 0.0, 1.0)
+                patterns[f"consensus_shrink_q{int(q*100)}"] = (
+                    0.5 + (equal - 0.5) * (1.0 - 0.60 * shrink),
+                    "case_level_uncertainty",
+                    {"disagreement_quantile": q, "threshold_fit_source": "strictly_prior_oos"},
+                    None,
+                )
+
+            // Regime × recentness: mix regime expert weights with global recent expert weights.
+            reg_weights_arr = _regime_weights(
+                ordered[:t],
+                models,
+                frame if frame is not None else {},
+            )
+            recent_weights = np.tile(
+                _softmax(-recency_losses, 0.05)[None, :],
+                (len(y), 1),
+            )
+            for mix in (0.25, 0.50, 0.75):
+                mix_weights = mix * reg_weights_arr + (1.0 - mix) * recent_weights
+                mix_weights /= np.clip(mix_weights.sum(axis=1, keepdims=True), EPS, None)
+                patterns[f"regime_recent_mix_{int(mix*100)}"] = (
+                    np.sum(p_matrix * mix_weights, axis=1),
+                    "regime_recency_interaction",
+                    {"regime_weight": mix, "recent_weight": 1.0 - mix, "fit_policy": "prior_oos_only"},
+                    None,
+                )
+
+            // Prior failure/difficulty gate: calibrate toward 0.5 when the row is difficult.
+            difficulty_scale = np.clip(difficulty, 0.0, 1.0)
+            for strength in (0.20, 0.40, 0.60):
+                patterns[f"difficulty_shrink_{int(strength*100)}"] = (
+                    0.5 + (equal - 0.5) * (1.0 - strength * difficulty_scale),
+                    "case_level_risk_control",
+                    {"strength": strength, "difficulty": "model_disagreement_plus_information"},
+                    None,
+                )
+            reg_weights = reg_weights_arr
             patterns["regime_prior_expert"] = (
                 np.sum(p_matrix * reg_weights, axis=1),
                 "regime_routing",
@@ -632,6 +672,20 @@ def run_frontier_pattern_suite(
             )
 
         prior_matrix, prior_y, _ = _history_rows(ordered[:t], models)
+        if t:
+            prior_equal_by_fold = [
+                float(np.mean(_fold_probabilities(prev, models)))
+                for prev in ordered[:t]
+                if len(np.asarray(prev.get("y", []), dtype=int))
+            ]
+            if prior_equal_by_fold:
+                long_run_direction = float(np.mean(prior_equal_by_fold))
+                patterns["prior_base_rate_shrink"] = (
+                    0.75 * equal + 0.25 * long_run_direction,
+                    "base_rate_stabilization",
+                    {"blend": [0.75, 0.25], "prior_only": True},
+                    None,
+                )
         if len(prior_y):
             prior_equal = prior_matrix.mean(axis=1)
             prior_logits = _logit(prior_matrix)
@@ -687,6 +741,34 @@ def run_frontier_pattern_suite(
                     None,
                 )
 
+        if p_matrix.shape[1] >= 3:
+            order = np.argsort(p_matrix, axis=1)
+            low2 = np.take_along_axis(p_matrix, order[:, :2], axis=1).mean(axis=1)
+            high2 = np.take_along_axis(p_matrix, order[:, -2:], axis=1).mean(axis=1)
+            patterns["lower_tail_mean2"] = (
+                low2,
+                "tail_robust_aggregation",
+                {"tail": "lower_2_models"},
+                None,
+            )
+            patterns["upper_tail_mean2"] = (
+                high2,
+                "tail_robust_aggregation",
+                {"tail": "upper_2_models"},
+                None,
+            )
+
+            // Direction-vote probability with confidence-weighted vote strength.
+            votes = (p_matrix >= 0.5).astype(float)
+            vote_rate = votes.mean(axis=1)
+            strength = np.mean(np.abs(p_matrix - 0.5) * 2.0, axis=1)
+            patterns["vote_strength_probability"] = (
+                np.clip(0.5 + (vote_rate - 0.5) * (0.60 + 0.40 * strength), EPS, 1.0 - EPS),
+                "direction_vote",
+                {"vote_weight": "confidence_strength"},
+                None,
+            )
+
         rank_p = _rank_percentile(p_matrix)
         patterns["rank_average_percentile"] = (
             rank_p,
@@ -707,7 +789,7 @@ def run_frontier_pattern_suite(
                 _difficulty(_fold_probabilities(prev, models), _risk_matrix(prev, len(np.asarray(prev.get("y", []), dtype=int))))
                 for prev in ordered[:t]
             ])
-            for q in (0.75, 0.85, 0.90):
+            for q in (0.60, 0.70, 0.75, 0.85, 0.90, 0.95):
                 threshold = float(np.quantile(prior_difficulty, q)) if len(prior_difficulty) else 1.0
                 active = difficulty <= threshold
                 patterns[f"selective_difficulty_q{int(q*100)}"] = (
@@ -716,6 +798,10 @@ def run_frontier_pattern_suite(
                     {"threshold_quantile": q, "threshold_fit_source": "strictly_prior_state_only"},
                     active,
                 )
+
+        if t >= locked_start:
+            locked_y.extend(np.asarray(y, dtype=int).tolist())
+            locked_sessions.extend([str(x) for x in session_ids])
 
         for name, (pred, category, meta, active) in patterns.items():
             row = _evaluate_pattern(
