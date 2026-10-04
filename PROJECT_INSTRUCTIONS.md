@@ -17,7 +17,7 @@ Increase data breadth by adding independent information axes (market microstruct
 Use chronological walk-forward OOS/WFO. Random splits are prohibited for temporal prediction. Separate candidate selection from final OOS. Frozen holdout is final evidence only and may not be tuned.
 
 ## Data integrity
-Missing ≠ zero. Preserve explicit unavailable/unknown/delayed/not-yet-public/source-failed/malformed/not-applicable states. Preserve source lineage, snapshots, schema, revision behavior and identity history.
+Missing ≠ zero. Preserve explicit unavailable/unknown/delayed/not-yet-public/source-failed/malformed/not-applicable states. Preserve source lineage, snapshots, schema, revision behavior and identity history. Risk-derived OOD features must also fail closed: when historical or current risk evidence is entirely unavailable, emit a finite neutral score rather than NaN, and never allow missingness to masquerade as observed risk.
 
 ## Models / routing
 Maintain simple baselines. Add challengers only for demonstrated incremental OOS value plus robustness. Specialist routing requires sufficient sample/folds/class coverage where relevant, calibration evidence and recent stability; otherwise fallback to broader validated scope.

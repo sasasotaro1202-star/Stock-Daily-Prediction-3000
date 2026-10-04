@@ -770,3 +770,18 @@ For candidate matrices, execution failures are evidence:
 * CI must require the pinned contract ID and zero execution failures before treating the matrix as successfully executed.
 
 This control is independent of performance. It prevents execution incompleteness from being mistaken for evidence of candidate superiority.
+
+
+⸻
+
+124. RISK-OOD MISSINGNESS FAIL-SAFE — 2026-10-04
+
+Risk-derived OOD evidence must remain finite under missingness.
+
+* Historical risk vectors with no finite evidence produce a neutral OOD score of zero rather than NaN.
+* When only some risk dimensions are observed, the OOD score uses only dimensions with finite historical and current evidence; unavailable dimensions contribute no fabricated signal.
+* Entirely unavailable current risk evidence produces a finite neutral score.
+* This is a fail-safe data-quality behavior, not a performance assumption and not permission to treat unknown risk as low risk.
+* Regression tests must cover all-missing historical/current risk as well as mixed missingness, and execution warnings must not be used to silently downgrade research evidence.
+
+The control preserves the distinction between unavailable, unknown and observed risk while preventing numerical NaN propagation from contaminating difficulty, routing or frontier pattern diagnostics.
