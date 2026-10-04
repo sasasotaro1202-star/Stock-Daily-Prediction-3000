@@ -35,6 +35,10 @@ Matured predictions are stored at canonical instrument-date-cutoff granularity. 
 
 Transfer from other projects is mechanism-level only: DISCOVER -> ABSTRACT_MECHANISM -> COMPATIBILITY -> ADAPT -> LOCAL_PIT -> LOCAL_OOS -> LOCAL_HOLDOUT -> SHADOW -> PROMOTE. Cross-domain success is never copied directly into stock production.
 
+## Evidence freshness
+
+Chronological OOS evidence is bound to the exact Research validation execution SHA. The status/snapshot branch also records the main SHA used when the evidence was persisted. If execution SHA and current main SHA differ, evidence freshness is `STALE` and must not be treated as current performance evidence or release evidence. Raw historical evidence remains immutable; a stale result is re-evaluated by rerunning the affected research/OOS workflow on the current evidence-affecting main state.
+
 ## Reliability / cost / security
 Use checkpoint/resume, idempotency, bounded retry/backoff, watchdog/heartbeat, stale-run detection, deterministic writes, artifact preservation, concurrency control, recovery and rollback. Heartbeat status must treat requested/queued/pending/waiting/in_progress as transient active states and tolerate a short job-creation race without converting it into false failure. Never hide failure. Prefer verified free/OSS/local/cache; unknown-cost or billing-risk services are not automatic dependencies. Never expose credentials.
 
