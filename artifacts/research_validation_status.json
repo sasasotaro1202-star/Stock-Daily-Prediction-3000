@@ -4,14 +4,14 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": true,
   "evidence_state": "PARTIAL",
-  "generated_at_utc": "2026-10-04T04:59:16.970618+00:00",
+  "generated_at_utc": "2026-10-04T05:01:51.194971+00:00",
   "job_status": "failure",
   "research_step": "skipped",
   "runtime_health": {
     "active_step": null,
     "active_step_elapsed_minutes": null,
     "active_step_started_at_utc": null,
-    "job_elapsed_minutes": 2.3328446499999997,
+    "job_elapsed_minutes": 4.903250283333334,
     "job_started_at_utc": "2026-10-04T04:56:57Z",
     "job_status": "completed",
     "long_running_threshold_minutes": 60,
@@ -22,8 +22,8 @@
   "sec_research_step": "skipped",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": null,
+  "workflow_conclusion": "failure",
   "workflow_run_id": "37177720654",
   "workflow_sha": "1903a166227485ca4b95ff3d8ce3ea93a70e7f9a",
-  "workflow_status": "in_progress"
+  "workflow_status": "completed"
 }
