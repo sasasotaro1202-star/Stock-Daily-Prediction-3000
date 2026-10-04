@@ -169,6 +169,8 @@ jobs:
         run: pytest -q tests/test_nested_ranking.py
       - name: Frontier pattern suite unit tests
         run: pytest -q tests/test_frontier_pattern_suite.py
+      - name: Frontier extreme pattern suite unit tests
+        run: pytest -q tests/test_frontier_extreme_suite.py
       - name: Learned case-risk unit tests
         run: pytest -q tests/test_learned_case_risk_oos.py
       - name: Model factory challenger contract tests
@@ -259,6 +261,7 @@ jobs:
           v13_case_risk = Path("data/research/ultimate_v13/case_risk_oos.json")
           v13_learned_case_risk = Path("data/research/ultimate_v13/learned_case_risk_oos.json")
           frontier_pattern_suite = Path("data/research/ultimate_v13/frontier_pattern_suite.json")
+          frontier_extreme_pattern_suite = Path("data/research/ultimate_v13/frontier_extreme_pattern_suite.json")
           if (
               not summary.exists()
               or not manifest.exists()
@@ -279,6 +282,7 @@ jobs:
               or not v13_case_risk.exists()
               or not v13_learned_case_risk.exists()
               or not frontier_pattern_suite.exists()
+              or not frontier_extreme_pattern_suite.exists()
           ):
               raise SystemExit("FAIL: v13 artifact files missing")
           audit = json.loads(meta_audit.read_text(encoding="utf-8"))
