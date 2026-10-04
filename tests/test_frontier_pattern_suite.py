@@ -140,5 +140,5 @@ def test_frontier_risk_ood_handles_mixed_missing_dimensions():
     assert (result >= 0.0).all() and (result <= 1.0).all()
     # Only dimensions with both historical and current finite evidence may
     # contribute; unavailable dimensions are neutral rather than imputed.
-    assert result[0] > 0.0
-    assert result[1] == 0.0
+    assert result[0] == 0.0
+    assert result[1] > 0.0
