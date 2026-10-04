@@ -481,7 +481,7 @@ def main() -> int:
     )
     _assert_once(
         autopilot,
-        "stale queued Research runs cancelled",
+        "Stale queued Research runs cancelled",
         "research_autopilot_reports_stale_queue_recovery",
     )
     _assert_once(
