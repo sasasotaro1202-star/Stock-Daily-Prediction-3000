@@ -691,8 +691,7 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
-        'workflows:
-      - "Research validation"',
+        'workflows:\n      - "Research validation"',
         "failure_learning_research_validation_trigger",
     )
     _assert_once(
