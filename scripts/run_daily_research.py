@@ -3100,7 +3100,7 @@ def main():
     ranking_candidates = {}
     rank_weight_grid = (0.25, 0.50, 0.75)
     uncertainty_penalty_grid = (0.0, 0.05, 0.10)
-    for fold in folds:
+    for fold_idx, fold in enumerate(folds):
         train_dates = dates[: fold.train_end]
         selected_train_dates = (
             train_dates
