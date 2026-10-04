@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 
-RUNNER = Path("scripts/run_daily_research.py")
+RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "run_daily_research.py"
 
 from src.research.nested_ranking import (
     _select_prior_model_window,
@@ -239,7 +239,8 @@ def test_nested_window_candidates_are_declared_before_bank_use_and_reuse_is_expl
     assert "nested_ranking_window_predictions_by_fold" in text
     assert ".get(global_selected)" in text
     assert '"prediction_window_reuse"' in text
-    assert "exact fold-local calibrated probability vector" in text
+    assert "nested_ranking_window_predictions_by_fold" in text
+    assert "global window scoring" in text
 
 
 def test_nested_window_selector_rejects_sparse_noncontiguous_history():
