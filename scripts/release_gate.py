@@ -12,6 +12,7 @@ def main():
     frozen_path=Path("data/research/frozen_holdout_result.json")
     frozen_lock_path=Path("config/frozen_holdout.json")
     manifest_path=Path("data/research/reproducibility_manifest.json")
+    pit_audit_path=Path("data/research/research_pit_contract_audit.json")
     reasons=[]
     if not metrics_path.exists(): reasons.append("missing_oos_metrics")
     if not audit_path.exists(): reasons.append("missing_leakage_audit")
@@ -22,6 +23,7 @@ def main():
     if not frozen_path.exists(): reasons.append("missing_frozen_holdout_result")
     if not frozen_lock_path.exists(): reasons.append("missing_frozen_holdout_lock")
     if not manifest_path.exists(): reasons.append("missing_reproducibility_manifest")
+    if not pit_audit_path.exists(): reasons.append("missing_research_pit_contract_audit")
     metrics=json.loads(metrics_path.read_text()) if metrics_path.exists() else {}
     audit=json.loads(audit_path.read_text()) if audit_path.exists() else {}
     independent_audit=json.loads(independent_audit_path.read_text()) if independent_audit_path.exists() else {}
@@ -31,6 +33,7 @@ def main():
     frozen=json.loads(frozen_path.read_text()) if frozen_path.exists() else {}
     frozen_lock=json.loads(frozen_lock_path.read_text()) if frozen_lock_path.exists() else {}
     manifest=json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    pit_audit=json.loads(pit_audit_path.read_text()) if pit_audit_path.exists() else {}
     if metrics.get("status")!="OOS_COMPLETE":
         reasons.append("direction_oos_not_complete")
     return_oos=metrics.get("return_oos",{})
@@ -56,6 +59,11 @@ def main():
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if universe.get("status")!="PASS": reasons.append("universe_quality_not_pass")
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
+    if pit_audit.get("status") == "FAIL":
+        reasons.append("research_pit_contract_audit_failed")
+    pit_ledger = pit_audit.get("prediction_ledger", {}) if isinstance(pit_audit.get("prediction_ledger"), dict) else {}
+    if pit_ledger.get("status") != "PASS":
+        reasons.append("research_pit_prediction_ledger_not_pass")
     if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED":
         reasons.append("manifest_invalid")
     manifest_fp=manifest.get("code_fingerprint_sha256")
