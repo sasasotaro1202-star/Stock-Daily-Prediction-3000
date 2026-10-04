@@ -335,6 +335,10 @@ jobs:
           frontier = json.loads(frontier_pattern_suite.read_text(encoding="utf-8"))
           if frontier.get("status") != "EXECUTED_RESEARCH_PATTERN_MATRIX":
               raise SystemExit("FAIL: frontier pattern matrix did not execute")
+          if frontier.get("research_contract_id") != "frontier-pattern-ecology-v1":
+              raise SystemExit("FAIL: frontier research contract id mismatch")
+          if frontier.get("execution_failures") not in ([], None):
+              raise SystemExit("FAIL: frontier pattern execution failures were recorded")
           if int(frontier.get("pattern_count", 0)) < 50:
               raise SystemExit("FAIL: frontier pattern matrix breadth below 50")
           if frontier.get("production_changed") is not False or frontier.get("promotion_allowed") is not False:
@@ -349,6 +353,10 @@ jobs:
           extreme = json.loads(frontier_extreme_pattern_suite.read_text(encoding="utf-8"))
           if extreme.get("status") != "EXECUTED_EXTREME_PATTERN_MATRIX":
               raise SystemExit("FAIL: extreme frontier pattern matrix did not execute")
+          if extreme.get("research_contract_id") != "extreme-frontier-pattern-ecology-v1":
+              raise SystemExit("FAIL: extreme frontier research contract id mismatch")
+          if extreme.get("execution_failures") not in ([], None):
+              raise SystemExit("FAIL: extreme frontier pattern execution failures were recorded")
           if int(extreme.get("pattern_count", 0)) < 100:
               raise SystemExit("FAIL: extreme frontier pattern matrix breadth below 100")
           if extreme.get("production_changed") is not False or extreme.get("promotion_allowed") is not False:
