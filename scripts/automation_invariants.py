@@ -65,6 +65,32 @@ def main() -> int:
     source_discovery_script = str(
         (ROOT / "scripts" / "discover_free_data_sources.py").read_text(encoding="utf-8")
     )
+\n    project_source = (ROOT / "PROJECT_SOURCE.md").read_text(encoding="utf-8")
+    project_source_contract = str(
+        (ROOT / "scripts" / "project_source_contract.py").read_text(encoding="utf-8")
+    )
+    repository_verification = _read("repository-verification.yml")
+
+    _assert_once(
+        repository_verification,
+        "Validate canonical Project Source contract",
+        "repository_verification_runs_project_source_contract",
+    )
+    _assert_once(
+        repository_verification,
+        "project-source-contract-${{ github.run_id }}",
+        "repository_verification_archives_project_source_contract",
+    )
+    _assert_once(
+        project_source_contract,
+        "CANONICAL_SECTION_HEADINGS",
+        "project_source_contract_locks_exact_headings",
+    )
+    source_section_count = len(re.findall(r"(?m)^(\\d+)\\.\\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
+    if source_section_count != 98:
+        raise SystemExit(
+            f"FAIL: canonical Project Source section count expected 98, got {source_section_count}"
+        )
 
     # One canonical schedule per expensive/critical daily workflow. Missed
     # schedules are recovered by the watchdog rather than by duplicate cron
