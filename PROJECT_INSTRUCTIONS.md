@@ -4,6 +4,9 @@
 JP stock/ETF/REIT and US stock/ETF next-business-day prediction from a time-dependent PayPay Securities universe, with direction, expected return, expected close, q10/q50/q90, rank and uncertainty.
 Optimize Future Generalization, case-level correctness, probabilistic quality, calibration, uncertainty, predictability awareness, robustness, PIT integrity, information value, selective prediction and operational reliability. Historical fit alone is not success.
 
+## Canonical Project Source
+
+`PROJECT_SOURCE.md` is the expanded technical/data/research/validation/operations contract supplied for this repository. It is the canonical source companion to this file and is audited automatically by Repository verification before Research autopilot proceeds. Missing, malformed, incomplete, or contradictory source-contract evidence is fail-closed; historical evidence is never rewritten.
 ## Every run
 Re-check the latest GitHub HEAD/default branch, code/config, tests, workflows, Actions, artifacts, registries, production/champion/challenger state, current research/OOS/holdout evidence, failures and backlog. Prefer REUSE → REPAIR → INTEGRATE → TEST → VERIFY. Never rewrite past evidence to make the current state look consistent.
 

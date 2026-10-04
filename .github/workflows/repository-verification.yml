@@ -30,6 +30,13 @@ jobs:
           cache: pip
       - run: pip install -e ".[dev,research]"
       - run: python -m compileall -q src scripts
+      - name: Validate canonical Project Source contract
+        run: python scripts/project_source_contract.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: project-source-contract-${{ github.run_id }}
+          path: data/research/project_source_contract.json
+          retention-days: 7
       - name: Validate workflow YAML
         run: python -c 'from pathlib import Path; import yaml; docs=[yaml.safe_load(p.read_text(encoding="utf-8")) for p in Path(".github/workflows").glob("*.yml")]; assert all(isinstance(d, dict) and "jobs" in d for d in docs); print("workflow_yaml_valid", len(docs))'
       - run: pytest -q
