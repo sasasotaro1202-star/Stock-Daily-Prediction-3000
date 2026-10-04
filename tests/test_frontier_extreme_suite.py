@@ -52,7 +52,7 @@ def test_extreme_suite_has_broad_mechanism_coverage():
         minimum_patterns=80,
     )
     assert result["status"] == "EXECUTED_EXTREME_PATTERN_MATRIX"
-    assert result["pattern_count"] >= 80
+    assert result["pattern_count"] >= 100
     assert result["research_only"] is True
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
