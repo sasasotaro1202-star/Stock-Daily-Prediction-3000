@@ -192,8 +192,13 @@ jobs:
           assert d.get("pit", {}).get("available_at_required") is True
           assert d.get("pit", {}).get("future_row_reference") is False
           assert d.get("oos_protocol") == "chronological_walk_forward_same_data_population"
+          selection = d.get("prequential_selection") or {}
+          assert selection.get("selection_metric") == "logloss"
+          assert selection.get("selection_protocol") == "prior_oos_only"
+          assert selection.get("current_fold_outcomes_used_for_selection") is False
           print("temporal_state_oos_safety=PASS")
           print("temporal_state_relative_logloss_improvement=", (d.get("metrics") or {}).get("relative_logloss_improvement"))
+          print("temporal_state_prequential_relative_logloss_improvement=", (d.get("metrics") or {}).get("prequential_relative_logloss_improvement"))
           PY
 
       - name: Evaluate experience-driven candidates against chronological OOS
