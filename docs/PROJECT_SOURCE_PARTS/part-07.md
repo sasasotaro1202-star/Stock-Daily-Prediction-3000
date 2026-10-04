@@ -231,3 +231,8 @@ Nested ranking research now consumes a window-conditioned classifier prediction 
 For the current outer fold, probabilities are produced from the selected model/window pair before any current outcome is appended to selection history. After scoring, the current fold outcome is appended to every valid model/window pair in the window-conditioned bank. This preserves strict prequential ordering while making the eventual production training-window identity auditable.
 
 The evidence exposes selected training window by fold, final prequential training window, per-fold selection status, and a boolean named training_window_selection_prequential. Production identity alignment now compares the frozen classifier training window directly against the final prequential window rather than against a fixed prediction-generation window of 0. The existing production gate remains fail-closed; implementation alone does not authorize promotion.
+
+
+## 103. Nested window evidence requires contiguous prior folds
+
+The nested model × training-window selector now requires the immediately preceding min_history_folds outer folds to be present for a candidate pair. Sparse or gapped model-window history is excluded rather than allowing a candidate to qualify from a non-contiguous subset. The artifact also preserves per-window/model fold coverage so missingness is inspectable instead of being silently treated as equivalent evidence.
