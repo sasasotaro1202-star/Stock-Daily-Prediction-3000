@@ -41,3 +41,7 @@ Regression coverage was added to `tests/test_learned_case_risk_oos.py` for a fut
 
 ## Recent operational hardening — 2026-10-04
 Research status heartbeat treats requested/queued/pending/waiting/in_progress as active transient states. The status workflow also subscribes directly to the `requested` workflow_run event, so newly requested research runs become visible immediately. When the Research validation job is not yet visible through the Actions API, status persistence retries boundedly for pending/waiting job-creation races rather than reporting a false lookup failure. This is operational evidence only and does not alter prediction, OOS, calibration, holdout, or promotion state.
+
+
+## 2026-10-04 repository alignment
+Current GitHub code/config/tests/workflows/actions/artifacts/registries/measurements remain authoritative. The release gate requires the generated research PIT contract audit to exist, to contain no FAIL state, and to contain a PASS prediction-ledger audit before production approval can be emitted. This requirement is a safety gate only; it does not promote research artifacts automatically.
