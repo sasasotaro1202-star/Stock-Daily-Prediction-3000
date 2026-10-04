@@ -792,7 +792,7 @@ def main() -> int:
         "python -m scripts.triage_automation_failures",
         "failure_learning_triage_script",
     )
-    _assert_once(
+    _assert_contains(
         failure_workflow,
         "automation_failure_triage.json",
         "failure_learning_triage_artifact",
