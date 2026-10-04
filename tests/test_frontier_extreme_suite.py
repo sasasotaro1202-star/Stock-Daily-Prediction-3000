@@ -105,6 +105,7 @@ def test_extreme_suite_never_opens_production_or_holdout():
     assert contracts["best_research_pattern_selected_from_development_only"] is True
     assert contracts["winner_selection_is_prequential_development_only"] is True
     assert result["selection"]["source"] == "prequential_development_only"
+    assert result["selection"]["prequential_selection_stability"]["decision_count"] >= 0
 
 
 def test_extreme_suite_blocks_short_oos_history():
