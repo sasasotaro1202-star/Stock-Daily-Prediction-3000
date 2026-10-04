@@ -435,8 +435,13 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        'inspect_workflow "repository-verification.yml" "Repository verification" true',
+        'inspect_workflow "repository-verification.yml" "Repository verification" true true',
         "watchdog_recovers_stale_verification_queue",
+    )
+    _assert_once(
+        watchdog,
+        "rerunning the same current-main execution once",
+        "watchdog_bounded_control_plane_failure_retry",
     )
     _assert_once(
         watchdog,
