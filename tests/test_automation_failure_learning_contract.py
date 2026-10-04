@@ -118,3 +118,33 @@ def test_reconciliation_discovers_unique_recent_failures(monkeypatch) -> None:
     assert len(records) == 1
     assert records[0]["failure_id"]
     assert records[0]["research_only"] is True
+
+def test_failure_triage_prioritizes_pit_and_production_failures() -> None:
+    import scripts.triage_automation_failures as triage
+
+    records = [
+        {
+            "failure_id": "a",
+            "category": "RESEARCH_VALIDATION_FAILURE",
+            "workflow_name": "Research validation",
+            "workflow_run_id": 1,
+            "head_sha": "sha1",
+            "created_at": "2026-10-04T10:00:00Z",
+            "failed_jobs": [{"name": "research", "failed_steps": [{"name": "Independent PIT leakage audit", "conclusion": "failure"}]}],
+        },
+        {
+            "failure_id": "b",
+            "category": "PRODUCTION_WORKFLOW_FAILURE",
+            "workflow_name": "Prediction monitoring",
+            "workflow_run_id": 2,
+            "head_sha": "sha2",
+            "created_at": "2026-10-04T11:00:00Z",
+            "failed_jobs": [{"name": "monitor", "failed_steps": [{"name": "monitor_predictions.py", "conclusion": "failure"}]}],
+        },
+    ]
+    payload = triage.triage(records)
+    assert payload["status"] == "RECONCILED"
+    assert payload["production_mutation"] is False
+    assert payload["promotion_allowed"] is False
+    assert payload["backlog"][0]["priority_reason"] == "PIT_OR_UNIVERSE_REVIEW"
+    assert payload["backlog"][0]["action"].startswith("RUN_PIT")

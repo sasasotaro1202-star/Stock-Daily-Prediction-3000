@@ -118,7 +118,8 @@ jobs:
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/research/automation_failure_memory.jsonl
+          cp "$GITHUB_WORKSPACE/data/research/automation_failure_triage.json" data/research/automation_failure_triage.json
+          git add data/research/automation_failure_memory.jsonl data/research/automation_failure_triage.json
           if git diff --cached --quiet; then
             exit 0
           fi
@@ -161,10 +162,27 @@ jobs:
           assert len({row.get("failure_id") for row in rows}) == len(rows)
           print("reconciled_failure_records=PASS", len(rows))
           PY
+      - name: Build failure triage and research backlog
+        run: python scripts/triage_automation_failures.py
+      - name: Validate failure triage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("data/research/automation_failure_triage.json").read_text(encoding="utf-8"))
+          assert payload.get("schema_version") == 1
+          assert payload.get("status") == "RECONCILED"
+          assert payload.get("research_only") is True
+          assert payload.get("production_mutation") is False
+          assert isinstance(payload.get("backlog"), list)
+          print("automation_failure_triage=PASS", len(payload["backlog"]))
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: automation-failure-reconciliation-${{ github.run_id }}
-          path: data/research/automation_failure_records.jsonl
+          path: |
+            data/research/automation_failure_records.jsonl
+            data/research/automation_failure_triage.json
           if-no-files-found: error
           retention-days: 90
       - name: Persist reconciled failure memory on research-status branch

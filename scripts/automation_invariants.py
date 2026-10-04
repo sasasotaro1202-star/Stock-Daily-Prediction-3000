@@ -701,6 +701,16 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
+        "python scripts/triage_automation_failures.py",
+        "failure_learning_triage_script",
+    )
+    _assert_once(
+        failure_workflow,
+        "automation_failure_triage.json",
+        "failure_learning_triage_artifact",
+    )
+    _assert_once(
+        failure_workflow,
         "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
         "failure_learning_reconcile_trigger",
     )
