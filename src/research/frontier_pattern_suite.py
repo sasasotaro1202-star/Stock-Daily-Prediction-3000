@@ -130,6 +130,27 @@ def _incomplete_score(risk: np.ndarray) -> np.ndarray:
     return 1.0 - np.clip(np.isfinite(risk).mean(axis=1), 0.0, 1.0)
 
 
+def _risk_ood(current_risk: np.ndarray, prior_risks: Sequence[np.ndarray]) -> np.ndarray:
+    if current_risk.shape[1] == 0 or not prior_risks:
+        return np.zeros(len(current_risk), dtype=float)
+    dim = current_risk.shape[1]
+    prior = []
+    for arr in prior_risks:
+        x = np.asarray(arr, dtype=float)
+        if x.ndim != 2 or x.shape[1] != dim:
+            continue
+        prior.append(x)
+    if not prior:
+        return np.zeros(len(current_risk), dtype=float)
+    hist = np.vstack(prior)
+    med = np.nanmedian(hist, axis=0)
+    sd = np.nanstd(hist, axis=0)
+    sd[~np.isfinite(sd) | (sd < 1e-6)] = 1.0
+    cur = np.nan_to_num(current_risk, nan=med[None, :])
+    z = np.abs((cur - med[None, :]) / sd[None, :])
+    return np.clip(np.sqrt(np.mean(z * z, axis=1)) / 4.0, 0.0, 1.0)
+
+
 def _difficulty(p_matrix: np.ndarray, risk: np.ndarray) -> np.ndarray:
     mean_p = p_matrix.mean(axis=1)
     uncertainty = p_matrix.std(axis=1)
@@ -185,17 +206,20 @@ def _prior_recency_losses(folds: Sequence[Mapping[str, Any]], models: Sequence[s
     if not folds:
         return np.full(len(models), math.log(2.0))
     ages = np.arange(len(folds) - 1, -1, -1, dtype=float)
-    weights = np.exp(-np.log(2.0) * ages / max(half_life, EPS))
-    weights /= np.clip(weights.sum(), EPS, None)
+    fold_weights = np.exp(-np.log(2.0) * ages / max(half_life, EPS))
     out = []
     for model in models:
-        vals = []
-        for fold, w in zip(folds, weights):
+        numerator = 0.0
+        denominator = 0.0
+        idx = models.index(model)
+        for fold, weight in zip(folds, fold_weights):
             y = np.asarray(fold.get("y", []), dtype=int)
-            p = _fold_probabilities(fold, models)[:, models.index(model)]
-            if len(y):
-                vals.append(float(_metrics(y, p)["logloss"]) * float(w))
-        out.append(float(sum(vals) / max(sum(weights[-len(vals):]) if vals else 1.0, EPS)))
+            if not len(y):
+                continue
+            p = _fold_probabilities(fold, models)[:, idx]
+            numerator += float(_metrics(y, p)["logloss"]) * float(weight)
+            denominator += float(weight)
+        out.append(float(numerator / max(denominator, EPS)))
     return np.asarray(out, dtype=float)
 
 
@@ -493,12 +517,26 @@ def run_frontier_pattern_suite(
             None,
         )
 
-        patterns["geometric_odds_mean"] = (
-            _sigmoid(np.mean(_logit(p_matrix), axis=1)),
+        logit_matrix = _logit(p_matrix)
+        row_q10 = np.quantile(logit_matrix, 0.10, axis=1)
+        row_q90 = np.quantile(logit_matrix, 0.90, axis=1)
+        winsorized = np.clip(logit_matrix, row_q10[:, None], row_q90[:, None])
+        patterns["winsorized_logit_mean"] = (
+            _sigmoid(np.mean(winsorized, axis=1)),
             "probability_geometry",
-            {"space": "log_odds_geometric"},
+            {"space": "logit", "winsorize": [0.10, 0.90]},
             None,
         )
+
+        for power in (0.50, 2.00):
+            transformed = np.power(np.clip(p_matrix, EPS, 1.0), power).mean(axis=1)
+            power_mean = np.power(np.clip(transformed, EPS, 1.0), 1.0 / power)
+            patterns[f"power_mean_p{str(power).replace('.', '')}"] = (
+                power_mean,
+                "nonlinear_aggregation",
+                {"power": power},
+                None,
+            )
 
         for temp in (0.02, 0.05, 0.10):
             weights = _prior_weights(ordered[:t], models, temp)
@@ -539,13 +577,21 @@ def run_frontier_pattern_suite(
                 {"row_weight": "distance_from_half", "floor": 0.05},
                 None,
             )
-            sparse_scores = np.exp(-np.abs(p_matrix - equal[:, None]) / np.maximum(p_matrix.std(axis=1, keepdims=True), 0.02))
-            sparse_weights = sparse_scores * _softmax(-recency_losses, 0.05)[None, :]
-            sparse_weights /= np.clip(sparse_weights.sum(axis=1, keepdims=True), EPS, None)
+            sparse_scores = np.exp(
+                -np.abs(p_matrix - equal[:, None])
+                / np.maximum(p_matrix.std(axis=1, keepdims=True), 0.02)
+            )
+            quality = _softmax(-recency_losses, 0.05)[None, :]
+            joint_scores = sparse_scores * quality
+            k = min(2, joint_scores.shape[1])
+            idx = np.argpartition(joint_scores, -k, axis=1)[:, -k:]
+            top_scores = np.take_along_axis(joint_scores, idx, axis=1)
+            top_probs = np.take_along_axis(p_matrix, idx, axis=1)
+            top_scores /= np.clip(top_scores.sum(axis=1, keepdims=True), EPS, None)
             patterns["sparse_consensus_top2"] = (
-                np.sum(p_matrix * sparse_weights, axis=1),
+                np.sum(top_probs * top_scores, axis=1),
                 "sparse_routing",
-                {"k": 2, "prior_quality": True, "consensus_scale": 0.02},
+                {"k": int(k), "prior_quality": True, "selection": "rowwise_prior_quality_times_consensus"},
                 None,
             )
 
@@ -569,6 +615,14 @@ def run_frontier_pattern_suite(
         )
 
         if t:
+            prior_risks = [_risk_matrix(prev, len(np.asarray(prev.get("y", []), dtype=int))) for prev in ordered[:t]]
+            risk_ood = _risk_ood(risk, prior_risks)
+            patterns["risk_ood_shrink"] = (
+                0.5 + (equal - 0.5) * np.exp(-0.75 * risk_ood),
+                "ood_uncertainty",
+                {"scale": 0.75, "fit_policy": "prior_risk_state_only"},
+                None,
+            )
             reg_weights = _regime_weights(ordered[:t], models, frame if frame is not None else {})
             patterns["regime_prior_expert"] = (
                 np.sum(p_matrix * reg_weights, axis=1),
@@ -699,10 +753,22 @@ def run_frontier_pattern_suite(
             (aggregate["logloss"] - float(_metrics(locked_y_arr, equal_locked)["logloss"]))
             / max(abs(float(_metrics(locked_y_arr, equal_locked)["logloss"])), EPS)
         )
+        selective_rows = [r.get("selective", {}) for r in rows if r["is_locked"] and "selective" in r]
+        selective_summary = {}
+        if selective_rows:
+            cov = [float(r.get("coverage", float("nan"))) for r in selective_rows]
+            al = [r.get("active_metrics", {}).get("logloss", float("nan")) for r in selective_rows]
+            aa = [r.get("active_metrics", {}).get("accuracy", float("nan")) for r in selective_rows]
+            selective_summary = {
+                "coverage": float(np.nanmean(cov)) if cov else float("nan"),
+                "active_logloss": float(np.nanmean(al)) if al else float("nan"),
+                "active_accuracy": float(np.nanmean(aa)) if aa else float("nan"),
+            }
         summary.append({
             "name": name,
             "category": rows[0]["category"],
             "locked_metrics": aggregate,
+            "selective_locked": selective_summary,
             "relative_logloss_delta_vs_equal": relative,
             "locked_cases": int(len(candidate_locked)),
             "locked_fold_count": int(sum(1 for r in rows if r["is_locked"])),
