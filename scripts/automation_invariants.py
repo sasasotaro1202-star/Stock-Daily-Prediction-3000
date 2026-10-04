@@ -381,7 +381,7 @@ def main() -> int:
     )
     _assert_once(
         learned_case_risk,
-        ""locked_logloss_bootstrap": locked_logloss_bootstrap",
+        '"locked_logloss_bootstrap": locked_logloss_bootstrap',
         "learned_case_risk_bootstrap_artifact",
     )
     validation_learned_case = _read(
