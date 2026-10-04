@@ -44,7 +44,7 @@ def test_ranking_selection_is_explicitly_blocked_until_nested_oos_evidence():
     research = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
     locker = (ROOT / "scripts/lock_frozen_model.py").read_text(encoding="utf-8")
     assert '"ranking_selection_ready_for_production": False' in research
-    assert "nested prequential ranking selection is required before production freeze" in research
+    assert "ranking remains blocked until the model × training-window identity" in research
     assert 'if payload.get("ranking_selection_ready_for_production") is not True:' in locker
 
 
@@ -65,9 +65,8 @@ def test_nested_ranking_freeze_gate_requires_structural_evidence():
     assert 'nested_ranking = payload.get("nested_ranking_selection_research")' in locker
     assert 'nested_ranking.get("status") != "EVALUATED"' in locker
     assert 'nested_ranking.get("same_oos_global_model_or_window_reuse") is not False' in locker
-    assert 'nested_ranking.get("ranking_weight_selection_prequential") is not True' in locker
-    assert 'nested_ranking.get("model_selection_prequential") is not True' in locker
-    assert 'nested_ranking.get("return_estimator_selection_prequential") is not True' in locker
+    assert 'nested_ranking.get(flag) is not True' in locker
+    assert '"training_window_selection_prequential"' in locker
     assert 'bootstrap_probability < 0.90 or bootstrap_p05 <= 0.0' in locker
 
 
@@ -93,6 +92,6 @@ def test_nested_ranking_uses_full_history_window_semantics_for_prediction_bank()
     call_start = source.index("nested_ranking_selection_research = nested_prequential_ranking_oos(")
     call_end = source.index("\n    )", call_start) + 6
     call = source[call_start:call_end]
-    assert "prediction_generation_training_window_sessions=0" in call
-    assert "prediction_generation_training_window_sessions=252" not in call
-    assert "sampling safeguard, not a 252-session" in helper
+    assert "window_predictions_by_fold=nested_ranking_window_predictions_by_fold" in call
+    assert "prediction_generation_training_window_sessions=None" in call
+    assert "joint_model_and_training_window_selection_from_prior_oos" in helper

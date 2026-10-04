@@ -220,8 +220,8 @@ def main() -> int:
     )
     _assert_once(
         release_gate,
-        'reasons.append("research_pit_contract_audit_failed")',
-        "release_gate_fails_on_pit_audit_failure",
+        'if pit_audit.get("status") not in {"PASS", "RESEARCH_ONLY_UNVERIFIED"}:',
+        "release_gate_rejects_failed_pit_audit",
     )
     _assert_once(
         release_gate,
@@ -381,7 +381,7 @@ def main() -> int:
     )
     _assert_once(
         learned_case_risk,
-        ""locked_logloss_bootstrap": locked_logloss_bootstrap",
+        '"locked_logloss_bootstrap": locked_logloss_bootstrap',
         "learned_case_risk_bootstrap_artifact",
     )
     validation_learned_case = _read(
@@ -414,17 +414,17 @@ def main() -> int:
     )
     _assert_once(
         locker,
-        'if nested_ranking.get("ranking_weight_selection_prequential") is not True:',
+        '"ranking_weight_selection_prequential",',
         "freeze_requires_prequential_ranking_weights",
     )
     _assert_once(
         locker,
-        'if nested_ranking.get("model_selection_prequential") is not True:',
+        '"model_selection_prequential",',
         "freeze_requires_prequential_ranking_model_selection",
     )
     _assert_once(
         locker,
-        'if nested_ranking.get("return_estimator_selection_prequential") is not True:',
+        '"return_estimator_selection_prequential",',
         "freeze_requires_prequential_ranking_return_selection",
     )
     _assert_once(

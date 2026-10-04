@@ -1751,6 +1751,7 @@ def main():
         for name, value in model_results.items()
         if name in balanced_candidates
     }
+    window_candidates = (252, 504, 756, 0)
     # Build window-conditioned classifier predictions for nested ranking. Window
     # 0 reuses the existing fold-local OOS bank; non-zero windows are refit
     # from each fold's own pre-test core/calibration slices. Current outcomes
@@ -2647,7 +2648,6 @@ def main():
 
     # Select classifier training-window length on chronological OOS after
     # model-family selection. 0 means all eligible history.
-    window_candidates = (252, 504, 756, 0)
     window_metrics = {}
     window_fold_rows = {lookback: [] for lookback in window_candidates}
     for lookback in window_candidates:
@@ -2674,9 +2674,6 @@ def main():
                 or test.target_up_1d.nunique() < 2
             ):
                 continue
-            factory = candidate_models.get(global_selected)
-            if factory is None:
-                continue
             fit_rows = restrict_to_lookback(
                 core,
                 None if lookback == 0 else lookback,
@@ -2686,23 +2683,37 @@ def main():
                 max_rows=300_000,
                 recent_sessions=min(252, lookback or 252),
             )
-            model = factory()
-            fit_classifier(
-                model,
-                global_selected,
-                fit_rows[FEATURE_COLUMNS],
-                fit_rows.target_up_1d.astype(int),
-                fit_rows["session_date"],
-                half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
+            nested_reuse = (
+                nested_ranking_window_predictions_by_fold
+                .get(int(fold_idx), {})
+                .get(int(lookback), {})
+                .get(global_selected)
+                if int(lookback) != 0
+                else None
             )
-            cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-            calibrator = make_calibrator("platt").fit(
-                cal_p,
-                cal.target_up_1d.astype(int),
-            )
-            p = calibrator.predict(
-                model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
-            )
+            if nested_reuse is not None and nested_reuse.shape == (len(test),):
+                p = np.asarray(nested_reuse, dtype=float).copy()
+            else:
+                factory = candidate_models.get(global_selected)
+                if factory is None:
+                    continue
+                model = factory()
+                fit_classifier(
+                    model,
+                    global_selected,
+                    fit_rows[FEATURE_COLUMNS],
+                    fit_rows.target_up_1d.astype(int),
+                    fit_rows["session_date"],
+                    half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
+                )
+                cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
+                calibrator = make_calibrator("platt").fit(
+                    cal_p,
+                    cal.target_up_1d.astype(int),
+                )
+                p = calibrator.predict(
+                    model.predict_proba(test[FEATURE_COLUMNS])[:, 1]
+                )
             metrics = classification_metrics(
                 test.target_up_1d.astype(int), p
             )
@@ -3405,6 +3416,30 @@ def main():
     nested_ranking_selection_research[
         "prediction_window_bank_manifest"
     ] = nested_ranking_prediction_window_manifest
+    reused_window_pairs = sorted(
+        (
+            int(fold_idx),
+            int(lookback),
+        )
+        for fold_idx, per_fold in nested_ranking_window_predictions_by_fold.items()
+        for lookback, per_model in per_fold.items()
+        if int(lookback) != 0 and global_selected in per_model
+    )
+    nested_ranking_selection_research["prediction_window_reuse"] = {
+        "enabled": True,
+        "scope": "global_window_scoring_nonzero_windows_for_global_selected_model",
+        "reused_fold_window_pairs": [
+            {"fold": fold_idx, "window": lookback}
+            for fold_idx, lookback in reused_window_pairs
+        ],
+        "reused_fold_window_pair_count": len(reused_window_pairs),
+        "semantics": (
+            "global window scoring reuses the exact fold-local calibrated "
+            "probability vector already generated for nested ranking; no "
+            "selection history, PIT boundary, or production gate is changed"
+        ),
+        "research_only": True,
+    }
 
     conformal_prediction_research = {
         "research_only": True,
