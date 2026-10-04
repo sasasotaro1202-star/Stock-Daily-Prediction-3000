@@ -14,7 +14,7 @@ permissions:
 
 concurrency:
   # Serialize status commits with each other, but never share the Research validation concurrency lane.
-  group: research-validation-status
+  group: research-status-writer
 
   cancel-in-progress: false
 

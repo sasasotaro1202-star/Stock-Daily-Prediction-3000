@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -636,6 +637,8 @@ def main() -> int:
         "research_validation_runs_model_factory_contract",
     )
     status_workflow = _read("research-validation-status.yml")
+    experience_workflow = _read("experience-review.yml")
+    failure_workflow = _read("automation-failure-learning.yml")
     _assert_absent(
         validation_workflow,
         "research-status:",
@@ -653,8 +656,39 @@ def main() -> int:
     )
     _assert_once(
         status_workflow,
-        "group: research-validation-status",
-        "research_validation_status_serialized_commits",
+        "group: research-status-writer",
+        "research_status_writer_shared_concurrency",
+    )
+    _assert_once(
+        experience_workflow,
+        'workflows: ["Prediction monitoring"]',
+        "experience_review_runs_after_prediction_monitoring",
+    )
+    _assert_once(
+        experience_workflow,
+        "github.event.workflow_run.conclusion == 'success'",
+        "experience_review_requires_successful_monitoring",
+    )
+    _assert_once(
+        failure_workflow,
+        'workflows:
+      - "Research validation"',
+        "failure_learning_research_validation_trigger",
+    )
+    _assert_once(
+        failure_workflow,
+        "research-status-writer",
+        "failure_learning_shared_single_writer",
+    )
+    _assert_once(
+        failure_workflow,
+        "git push origin HEAD:research-status",
+        "failure_learning_never_mutates_main",
+    )
+    _assert_absent(
+        failure_workflow,
+        "git push origin HEAD:main",
+        "failure_learning_does_not_mutate_main",
     )
     _assert_once(
         status_workflow,
