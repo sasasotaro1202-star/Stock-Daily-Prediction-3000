@@ -4,8 +4,8 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": false,
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-04T00:42:50.397243+00:00",
-  "job_status": "pending",
+  "generated_at_utc": "2026-10-04T00:45:50.834678+00:00",
+  "job_status": "completed",
   "research_step": "unknown",
   "runtime_health": {
     "active_step": null,
@@ -13,17 +13,17 @@
     "active_step_started_at_utc": null,
     "job_elapsed_minutes": null,
     "job_started_at_utc": null,
-    "job_status": "pending",
+    "job_status": "completed",
     "long_running_threshold_minutes": 60,
     "stale_risk_threshold_minutes": 240,
-    "state": "QUEUED"
+    "state": "TERMINAL"
   },
   "sec_ablation_step": "unknown",
   "sec_research_step": "unknown",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": null,
-  "workflow_run_id": "37165702798",
-  "workflow_sha": "9ef3035604c670560ca98eb7667e6289da326f41",
-  "workflow_status": "pending"
+  "workflow_conclusion": "cancelled",
+  "workflow_run_id": "37165690617",
+  "workflow_sha": "4430cd56a4e421423f30b907982ecb7b17c1b0f6",
+  "workflow_status": "completed"
 }
