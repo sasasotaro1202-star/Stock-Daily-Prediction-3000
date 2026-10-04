@@ -787,7 +787,7 @@ def main():
     # Regime threshold is derived only from fold-local training distributions.
     # OOS/test observations never contribute to the frozen threshold.
     oos_regime_thresholds = []
-    for fold in folds:
+    for fold_idx, fold in enumerate(folds):
         train_dates = dates[: fold.train_end]
         cal_n = max(20, int(len(train_dates) * 0.2))
         core_dates = set(train_dates[:-cal_n])
