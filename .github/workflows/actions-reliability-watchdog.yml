@@ -94,6 +94,7 @@ jobs:
             local workflow_file="$1"
             local workflow_name="$2"
             local self_heal_queued="${3:-false}"
+            local self_heal_failed="${4:-false}"
             local runs
             if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
               echo "::error title=${workflow_name} Actions API unavailable::unable to inspect recent workflow runs"
@@ -170,8 +171,16 @@ jobs:
               if [ "$attempt" -ge 2 ]; then
                 echo "::error title=${workflow_name} unresolved failure::latest run ${run_id} is still failing after bounded recovery"
                 failures=$((failures + 1))
+              elif [ "$self_heal_failed" = "true" ]; then
+                echo "::warning title=${workflow_name} transient failure recovery::latest run $run_id failed on attempt 1; rerunning the same current-main execution once"
+                if gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY"; then
+                  echo "$workflow_name: bounded failure rerun requested for run $run_id"
+                else
+                  echo "::error title=${workflow_name} failure rerun failed::unable to rerun failed current-main run $run_id"
+                  failures=$((failures + 1))
+                fi
               else
-                echo "${workflow_name}: latest run failed on attempt 1; bounded recovery is expected to handle it"
+                echo "${workflow_name}: latest run failed on attempt 1; no automatic failure rerun is enabled for this workflow"
               fi
             elif [ "$status" != "completed" ] && [ "$updated_epoch" -gt 0 ] && [ "$updated_epoch" -lt "$stale_cutoff" ]; then
               echo "::error title=${workflow_name} stale run::latest run ${run_id} has been non-completed for over 120 minutes"
@@ -202,8 +211,8 @@ jobs:
           # Verification and autopilot are control-plane prerequisites for expensive Research.
           # Recover stale queued entries on the current main SHA instead of leaving the
           # whole Research lane blocked indefinitely by runner/queue incidents.
-          inspect_workflow "repository-verification.yml" "Repository verification" true
-          inspect_workflow "research-autopilot.yml" "Research autopilot" true
+          inspect_workflow "repository-verification.yml" "Repository verification" true true
+          inspect_workflow "research-autopilot.yml" "Research autopilot" true true
           inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true
 
           inspect_workflow "market-cycle.yml" "Market cycle" true
