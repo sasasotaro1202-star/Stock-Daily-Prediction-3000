@@ -4,3 +4,4 @@ trigger_reason=latest_head_requested_event_heartbeat_and_holdout_semantics_20261
 manual_research_trigger_2026-10-04T09:05:00+09:00
 model_ecology_oos_2026-10-04T09:16:00+09:00
 watchdog_recovery_requested_20261004
+manual_research_trigger_2026-10-04T06:04:32.455Z
