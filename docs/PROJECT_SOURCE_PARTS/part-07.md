@@ -710,3 +710,26 @@ This is a compute-only optimization. It must satisfy all of the following:
 * reused fold/window pairs are recorded in research evidence for auditability.
 
 The optimization changes neither PIT boundaries nor the nested prior-fold evidence contract. It is not performance evidence and cannot by itself justify promotion. Reuse is valid only when fold, training-window, model identity, calibration path, and output shape all match exactly; otherwise the original computation path is required.
+
+
+⸻
+
+120. FRONTIER PATTERN SEARCH MATRIX — 2026-10-04
+
+The research layer must test mechanism-level pattern families rather than only hyperparameter variants.
+
+Active families include probability-space transforms, robust/tail aggregation, prior-quality and recency weighting, minimax and diversity-aware expert weighting, calibration-before-blending, blend-level calibration, rank/probability hybrids, case-level shrinkage, selective prediction, and direction voting.
+
+The matrix is research-only. Candidate breadth is not evidence by itself and does not alter the production release gate.
+
+⸻
+
+121. EXTREME PATTERN ECOLOGY / EXTERNAL-METHOD TRANSFER — 2026-10-04
+
+External forecasting research is used for mechanism discovery only. Ideas related to forecastability-aware sparse routing, expert-loss routing and time-series dependence-aware uncertainty evaluation may be translated into small local candidates, but external reported performance never substitutes for local PIT/WFO/OOS evidence.
+
+Required sequence:
+
+DISCOVER → VERIFY → ABSTRACT → PIT/COST CHECK → LOCAL TEST → CHRONOLOGICAL OOS → ROBUSTNESS → FROZEN HOLDOUT → ADOPT/HOLD/REJECT
+
+All tuned components remain prior-only, all candidates share locked OOS observations, and production promotion remains blocked until the existing independent release gate is satisfied.
