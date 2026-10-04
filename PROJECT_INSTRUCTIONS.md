@@ -86,3 +86,12 @@ Prediction research should search over materially different mechanisms, not only
 All learned or tuned pattern components must be fitted strictly from information available before the evaluated fold. Pattern comparisons must use the same locked OOS observations whenever feasible, and dependence-aware intervals must be reported.
 
 Frontier experiments remain research-only until the full project release gate is satisfied. A best-on-OOS pattern is not automatically a candidate for Production. New pattern families must preserve PIT, survivorship, universe, calendar, feature lineage, frozen holdout, reproducibility, and rollback contracts.
+
+
+FRONTIER RESEARCH ECOLOGY
+
+When research is requested, do not limit the search to model-family hyperparameters. Prefer a broad mechanism matrix across probability geometry, robust aggregation, prior/recency expert weighting, diversity-aware routing, contextual routing, regime interactions, individual-then-blend calibration, blend-then-calibrate, OOD/uncertainty shrinkage, selective prediction, ranking transforms, and robust/expert-selection objectives.
+
+Require same-case chronological OOS comparison wherever feasible. Learned or tuned components must use strictly prior evidence, and frozen holdout remains untouched until the candidate specification is locked.
+
+External methods are discovery inputs only. Reported external performance is not local evidence and must not bypass local PIT, WFO/OOS, robustness, calibration, and release gates.
