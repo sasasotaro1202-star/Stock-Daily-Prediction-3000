@@ -3434,6 +3434,12 @@ def main():
             "current test outcomes are never used before scoring; "
             "global selected_calibration_method is not reused for ranking evidence"
         ),
+        "ranking_selection_ready_for_production": False,
+        "ranking_selection_block_reason": (
+            "current ranking evidence still conditions on globally selected model "
+            "and training window from the same OOS run; nested prequential ranking "
+            "selection is required before production freeze"
+        ),
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
         "online_expert_balanced_research": online_expert_balanced_research,
