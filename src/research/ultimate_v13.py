@@ -210,6 +210,10 @@ def build_ultimate_intelligence(
         "version": "ultimate_v13_control_plane",
         "schema_version": result.get("schema_version"),
         "fold_count": len(ordered),
+        "research_contracts": {
+            "frontier_pattern_suite": "frontier-pattern-ecology-v1",
+            "frontier_extreme_pattern_suite": "extreme-frontier-pattern-ecology-v1",
+        },
         "artifacts": [
             "ultimate_summary.json",
             "model_disagreement.json",
