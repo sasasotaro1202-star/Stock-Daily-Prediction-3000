@@ -160,7 +160,7 @@ def test_production_identity_alignment_is_fail_closed():
             "rank_probability_weight": 0.99,
             "rank_uncertainty_penalty": 0.99,
         },
-        prediction_generation_training_window_sessions=252,
+        prediction_generation_training_window_sessions=0,
     )
 
     alignment = result["production_identity_alignment"]
