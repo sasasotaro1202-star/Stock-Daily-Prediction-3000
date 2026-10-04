@@ -936,6 +936,22 @@ def run_frontier_pattern_suite(
         key=lambda row: (row["prequential_logloss"], row["name"]),
     )
     prequential_selected_name = preq_rank[0]["name"] if preq_rank else None
+    selection_trace = [d["selected_name"] for d in preq_decisions]
+    selection_stability = {}
+    if selection_trace:
+        counts = {}
+        for selected in selection_trace:
+            counts[selected] = counts.get(selected, 0) + 1
+        selection_stability = {
+            "decision_count": int(len(selection_trace)),
+            "unique_selected_patterns": int(len(counts)),
+            "top_selection_share": float(max(counts.values()) / len(selection_trace)),
+            "switch_count": int(sum(
+                1 for i in range(1, len(selection_trace))
+                if selection_trace[i] != selection_trace[i - 1]
+            )),
+            "selection_counts": dict(sorted(counts.items(), key=lambda item: (-item[1], item[0]))),
+        }
 
     development_candidates = []
     for name, rows in per_pattern.items():
@@ -1021,6 +1037,7 @@ def run_frontier_pattern_suite(
             "development_ranking": development_sorted,
             "prequential_ranking": preq_rank,
             "prequential_decisions": preq_decisions,
+            "prequential_selection_stability": selection_stability,
         },
         "baseline": {
             "name": "equal_mean",
