@@ -319,6 +319,34 @@ def main() -> int:
         "ranking_selection_is_not_production_ready_without_nested_oos",
     )
     _assert_once(
+        research,
+        "nested_prequential_ranking_oos(",
+        "nested_prequential_ranking_selector_used",
+    )
+    nested_ranking = str(
+        (ROOT / "src" / "research" / "nested_ranking.py").read_text(encoding="utf-8")
+    )
+    _assert_once(
+        nested_ranking,
+        '"same_oos_global_model_or_window_reuse": False',
+        "nested_ranking_blocks_same_oos_global_reuse",
+    )
+    _assert_once(
+        nested_ranking,
+        '"ranking_weight_selection_prequential": True',
+        "nested_ranking_weight_selection_is_prequential",
+    )
+    _assert_once(
+        nested_ranking,
+        '"model_selection_prequential": True',
+        "nested_ranking_model_selection_is_prequential",
+    )
+    _assert_once(
+        nested_ranking,
+        '"return_estimator_selection_prequential": True',
+        "nested_ranking_return_selection_is_prequential",
+    )
+    _assert_once(
         locker,
         'if payload.get("ranking_selection_ready_for_production") is not True:',
         "freeze_requires_nested_ranking_evidence",
