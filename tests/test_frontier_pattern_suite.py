@@ -46,12 +46,15 @@ def test_frontier_suite_executes_broad_matrix_without_production_mutation():
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
     assert result["frozen_holdout_used"] is False
-    assert result["pattern_count"] >= 30
+    assert result["pattern_count"] >= 40
     names = {row["name"] for row in result["patterns"]}
     assert "winsorized_logit_mean" in names
     assert "regime_recent_mix_50" in names
     assert "difficulty_shrink_40" in names
     assert "risk_ood_shrink" in names
+    assert "logit_median" in names
+    assert "winsorized_probability_mean" in names
+    assert "prior_outcome_base_rate_shrink_25" in names
     assert "selective_difficulty_q60" in names
     assert "selective_difficulty_q95" in names
 
