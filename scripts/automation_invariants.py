@@ -443,6 +443,11 @@ def main() -> int:
         'inspect_workflow "research-autopilot.yml" "Research autopilot" true',
         "watchdog_recovers_stale_autopilot_queue",
     )
+    _assert_once(
+        watchdog,
+        'inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true',
+        "watchdog_recovers_stale_marathon_queue",
+    )
 
     _assert_once(
         watchdog,

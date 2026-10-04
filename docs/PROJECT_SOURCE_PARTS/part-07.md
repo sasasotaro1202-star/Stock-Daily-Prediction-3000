@@ -869,3 +869,20 @@ The Actions reliability watchdog therefore monitors:
 For Repository verification and Research autopilot, a queued/pending entry that remains stale beyond the bounded queue threshold is cancelled and a fresh current-main run is dispatched. Active Research validation is handled separately by the evidence-fingerprint and stale-run guards.
 
 The recovery controller must suppress duplicate current-main executions and must never treat queue recovery as evidence of successful validation. Queue recovery is an operational reliability state only.
+
+
+⸻
+
+130. OBSOLETE RESEARCH QUEUE CONTAINMENT — 2026-10-04
+
+Long-running research lanes must not allow obsolete queued work to consume GitHub runner capacity indefinitely.
+
+The Actions reliability watchdog therefore applies the bounded queue recovery policy to the 24H Research Marathon as well as Repository verification and Research autopilot:
+
+* queued/pending obsolete-SHA entries are eligible for cancellation;
+* stale current-SHA queued entries are also bounded by the queue-age threshold;
+* a fresh current-main dispatch is created only after stale queue cleanup;
+* duplicate current-main active/queued work is suppressed;
+* cancellation/recovery itself never counts as OOS evidence or performance verification.
+
+This is operational resource protection. It does not relax research correctness or promotion gates.
