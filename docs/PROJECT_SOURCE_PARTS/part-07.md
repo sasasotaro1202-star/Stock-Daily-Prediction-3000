@@ -692,3 +692,57 @@ PIT-safe population
 までを一体で管理する。
 
 これをFuture Generalization × Case-Level Correctness × Calibration × Predictability × Uncertainty × Robustness × PIT Integrity × Information Efficiency × Operational Reliability × Reproducibilityの基準とする。
+
+
+⸻
+
+120. FRONTIER PATTERN SEARCH MATRIX — 2026-10-04
+
+Model improvement research must test materially different prediction mechanisms rather than repeatedly tuning one model family.
+
+The frontier pattern suite compares, on the same chronological locked OOS observations:
+
+* probability-space aggregation;
+* logit / winsorized-logit / nonlinear transforms;
+* robust median / trimmed / tail aggregation;
+* prior-OOS quality weighting;
+* recentness weighting;
+* sparse top-k routing;
+* row-wise consensus routing;
+* model-disagreement shrinkage;
+* information-completeness shrinkage;
+* OOD-aware shrinkage;
+* regime experts;
+* regime × recentness interaction;
+* prior-only logistic stacking over probabilities and logits;
+* post-blend Platt / Beta / Isotonic / Temperature calibration;
+* cross-sectional rank transforms;
+* difficulty / case-risk shrinkage;
+* selective prediction at multiple prior-state coverage thresholds;
+* direction-vote strength;
+* prior base-rate stabilization;
+* leave-one-model-out sensitivity;
+* oracle upper-bound diagnostics.
+
+Selection discipline:
+
+DISCOVER
+→ EXECUTE
+→ SAME-OOS COMPARE
+→ DEPENDENCE-AWARE INTERVAL
+→ ROBUSTNESS
+→ FROZEN HOLDOUT
+→ ADOPT / HOLD / REJECT
+
+No pattern may be promoted because it is best on one period, one metric, or one correlated sample.
+
+Learned pattern components must use strictly prior folds. Calibration parameters and selective thresholds must also be determined only from information available before the evaluated fold.
+
+All pattern rows preserve:
+
+* research_only=true
+* production_changed=false
+* promotion_allowed=false
+* frozen_holdout_used=false
+
+The matrix is a search instrument, not production logic. Its purpose is to discover which mechanisms remain useful under future-like chronological evaluation and to identify where complexity does not generalize.
