@@ -77,3 +77,12 @@ Failure learning > repeated failure.
 
 A candidate is not production-eligible unless the complete bundle is internally consistent across model, training window, target, features/schema, calibration, routing, uncertainty policy, universe/scope, source/PIT policy, frozen holdout, reproducibility manifest, release gate, monitoring and rollback target.
 
+
+
+FRONTIER PATTERN SEARCH REQUIREMENT
+
+Prediction research should search over materially different mechanisms, not only hyperparameters inside one model family. When sufficient chronological OOS data exist, compare multiple independent families such as robust aggregation, probability geometry, prior-OOS weighting, recency weighting, sparse/case-level routing, regime interaction, prior-only stacking, post-blend calibration, uncertainty/OOD shrinkage, selective prediction, cross-sectional ranking, and tail aggregation.
+
+All learned or tuned pattern components must be fitted strictly from information available before the evaluated fold. Pattern comparisons must use the same locked OOS observations whenever feasible, and dependence-aware intervals must be reported.
+
+Frontier experiments remain research-only until the full project release gate is satisfied. A best-on-OOS pattern is not automatically a candidate for Production. New pattern families must preserve PIT, survivorship, universe, calendar, feature lineage, frozen holdout, reproducibility, and rollback contracts.
