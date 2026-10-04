@@ -14,6 +14,7 @@ from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.targets import add_targets
 from src.research.metrics import classification_metrics
+from src.research.pit_lineage import scheduled_prediction_time
 from src.research.temporal_state import TEMPORAL_STATE_COLUMNS, build_temporal_state_features
 from src.validation.code_fingerprint import evidence_fingerprint_sha256
 from src.validation.leakage import audit_feature_columns, audit_target_separation
@@ -74,6 +75,47 @@ def main() -> int:
     df["available_at"] = pd.to_datetime(df["available_at"], utc=True, errors="coerce")
     if df["session_date"].isna().any() or df["available_at"].isna().any():
         raise SystemExit("FAIL: temporal state PIT fields contain invalid values")
+    if "asset_class" not in df.columns:
+        raise SystemExit("DEFERRED: asset_class is required for the canonical PIT clock")
+
+    # Reuse the canonical market-specific prediction clock. Resolve it only for
+    # unique session/asset pairs, then apply the cutoff vectorially to every row.
+    cutoff_rows = []
+    for (session_date, asset_class) in (
+        df[["session_date", "asset_class"]].drop_duplicates().itertuples(index=False, name=None)
+    ):
+        prediction, source = scheduled_prediction_time(session_date, asset_class, cfg)
+        if prediction is None:
+            raise SystemExit(f"FAIL: temporal state PIT clock unavailable for {asset_class}")
+        cutoff_rows.append({
+            "session_date": session_date,
+            "asset_class": asset_class,
+            "_prediction_cutoff": prediction,
+            "_prediction_clock_source": source,
+        })
+    cutoffs = pd.DataFrame(cutoff_rows)
+    df = df.merge(cutoffs, on=["session_date", "asset_class"], how="left", validate="many_to_one")
+    if df["_prediction_cutoff"].isna().any():
+        raise SystemExit("FAIL: temporal state prediction cutoff could not be resolved")
+    if (df["available_at"] > df["_prediction_cutoff"]).any():
+        raise SystemExit("FAIL: temporal state input contains available_at after prediction cutoff")
+    if "published_at" in df.columns:
+        published = pd.to_datetime(df["published_at"], utc=True, errors="coerce")
+        malformed_published = df["published_at"].notna() & published.isna()
+        if malformed_published.any():
+            raise SystemExit("FAIL: temporal state input contains malformed published_at")
+        if ((published.notna()) & (published > df["available_at"])).any():
+            raise SystemExit("FAIL: temporal state input contains published_at after available_at")
+    if "retrieved_at" in df.columns:
+        retrieved = pd.to_datetime(df["retrieved_at"], utc=True, errors="coerce")
+        malformed_retrieved = df["retrieved_at"].notna() & retrieved.isna()
+        if malformed_retrieved.any():
+            raise SystemExit("FAIL: temporal state input contains malformed retrieved_at")
+        if ((retrieved.notna()) & (retrieved < df["available_at"])).any():
+            raise SystemExit("FAIL: temporal state input contains retrieved_at before available_at")
+    for col in ("available_at_method", "source", "provider_symbol"):
+        if col in df.columns and df[col].astype(str).str.strip().eq("").any():
+            raise SystemExit(f"FAIL: temporal state PIT field {col} contains empty provenance")
 
     # Use the same preprocessing family as the main research pipeline.
     market_context = pd.read_parquet(MARKET_CONTEXT)
@@ -82,6 +124,7 @@ def main() -> int:
     df = add_targets(add_cross_sectional_context(df))
 
     temporal = build_temporal_state_features(df)
+    temporal = temporal.drop(columns=["_prediction_cutoff", "_prediction_clock_source"])
     base_features = list(FEATURE_COLUMNS)
     augmented_features = base_features + list(TEMPORAL_STATE_COLUMNS)
 
@@ -204,6 +247,7 @@ def main() -> int:
         "pit": {
             "available_at_required": True,
             "available_at_valid": True,
+            "market_specific_prediction_clock": True,
             "future_row_reference": False,
             "retrieval_time_not_used_as_availability": True,
         },
