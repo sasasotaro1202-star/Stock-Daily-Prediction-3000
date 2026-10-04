@@ -192,3 +192,20 @@ same_oos_global_model_or_window_reuse = false
 ranking_selection_ready_for_production remains false until the selected nested evidence is identity-bound to the actual frozen production classifier training window and return-estimator configuration and then survives frozen-holdout evaluation.
 
 Nested ranking evidence is therefore an incremental research-control improvement, not a production promotion claim.
+
+
+100. NESTED RANKING IDENTITY BINDING — 2026-10-04
+
+The nested ranking evidence is computed only after the current OOS run has materialized the production candidate configuration. The research result records a fail-closed identity audit covering:
+
+* selected classifier model versus final prequential model
+* selected return estimator versus final prequential estimator
+* frozen classifier training-window sessions versus the training window used to generate the nested ranking prediction bank
+* production ranking probability weight versus final prequential ranking weight
+* production ranking uncertainty penalty versus final prequential uncertainty penalty
+
+The nested selector itself remains prior-fold-only. Production configuration values are used only for post-scoring identity reconciliation and never for selecting the current fold.
+
+Identity alignment is not a promotion signal by itself. Even when aligned, nested ranking remains research-only until bootstrap evidence, chronological OOS/robustness, calibration, PIT, and the frozen-holdout gate are all satisfied.
+
+A production freeze must fail closed when nested ranking evidence is missing, unevaluated, structurally non-prequential, bootstrap-insufficient, or not identity-aligned.
