@@ -709,4 +709,4 @@ This is a compute-only optimization. It must satisfy all of the following:
 * non-reusable cases fall back to the original fit/calibrate/predict path;
 * reused fold/window pairs are recorded in research evidence for auditability.
 
-The optimization changes neither PIT boundaries nor the nested prior-fold evidence contract. It is not performance evidence and cannot by itself justify promotion.
+The optimization changes neither PIT boundaries nor the nested prior-fold evidence contract. It is not performance evidence and cannot by itself justify promotion. Reuse is valid only when fold, training-window, model identity, calibration path, and output shape all match exactly; otherwise the original computation path is required.
