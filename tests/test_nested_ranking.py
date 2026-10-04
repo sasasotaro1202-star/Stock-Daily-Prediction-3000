@@ -185,6 +185,7 @@ def test_production_identity_alignment_is_fail_closed():
     alignment = result["production_identity_alignment"]
     assert alignment["provided"] is True
     assert alignment["aligned"] is False
+    assert alignment["checks"]["training_window_selection_is_prequential"] is True
     assert alignment["checks"]["classifier_training_window_matches_final_prequential_window"] is False
 
 
