@@ -886,3 +886,20 @@ The Actions reliability watchdog therefore applies the bounded queue recovery po
 * cancellation/recovery itself never counts as OOS evidence or performance verification.
 
 This is operational resource protection. It does not relax research correctness or promotion gates.
+
+
+⸻
+
+131. CONTROL-PLANE FAILURE RETRY BOUND — 2026-10-04
+
+The GitHub control plane may encounter transient runner/API/setup failures.
+
+For current-main Repository verification and Research autopilot, the reliability watchdog may rerun a first-attempt workflow failure once. This retry:
+
+* uses the same current-main SHA;
+* does not alter research evidence;
+* does not convert failure into success;
+* is bounded to one retry;
+* leaves a second failure explicitly FAILED.
+
+Research/OOS execution itself remains governed by its separate stale-run and evidence-integrity policy; expensive research failures are not indiscriminately retried as if they were transient.
