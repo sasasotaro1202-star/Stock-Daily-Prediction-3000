@@ -586,12 +586,12 @@ def main() -> int:
         "research_autopilot_reports_stale_queue_recovery",
     )
     _assert_once(
-        research,
+        validation_workflow,
         "workflow_dispatch:",
         "research_validation_manual_dispatch_retained",
     )
     _assert_absent(
-        research,
+        validation_workflow,
         "  push:\n    branches: [main]",
         "research_validation_no_direct_push_dispatch",
     )
