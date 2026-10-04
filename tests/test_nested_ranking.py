@@ -137,6 +137,7 @@ def test_current_fold_outcome_does_not_change_current_fold_selection():
         changed_predictions,
         changed_returns,
         changed_model_rows,
+        window_predictions_by_fold=window_predictions,
         min_history_folds=2,
     )
 
