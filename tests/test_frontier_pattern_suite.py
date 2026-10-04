@@ -79,6 +79,7 @@ def test_frontier_suite_learned_components_are_prior_only_by_contract():
     assert contracts["best_research_pattern_selected_from_development_only"] is True
     assert contracts["winner_selection_is_prequential_development_only"] is True
     assert result["selection"]["source"] == "prequential_development_only"
+    assert result["selection"]["prequential_selection_stability"]["decision_count"] >= 0
 
 
 def test_frontier_suite_blocks_insufficient_chronological_folds():
