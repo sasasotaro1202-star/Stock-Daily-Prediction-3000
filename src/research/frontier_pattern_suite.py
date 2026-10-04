@@ -994,7 +994,7 @@ def run_frontier_pattern_suite(
             r["name"],
         ),
     )
-    selected_name = prequential_selected_name or (development_sorted[0]["name"] if development_sorted else None)
+    selected_name = prequential_selected_name
     selected_locked = next((r for r in summary_sorted if r["name"] == selected_name), None)
     best_locked_diagnostic = summary_sorted[0] if summary_sorted else None
 
@@ -1034,7 +1034,15 @@ def run_frontier_pattern_suite(
 
     return {
         **base,
-        "status": "EXECUTED_RESEARCH_PATTERN_MATRIX_WITH_FAILURES" if execution_failures else "EXECUTED_RESEARCH_PATTERN_MATRIX",
+        "status": (
+            "BLOCKED_INSUFFICIENT_PREQUENTIAL_DEVELOPMENT_SELECTION"
+            if prequential_selected_name is None
+            else (
+                "EXECUTED_RESEARCH_PATTERN_MATRIX_WITH_FAILURES"
+                if execution_failures
+                else "EXECUTED_RESEARCH_PATTERN_MATRIX"
+            )
+        ),
         "evaluation_mode": "chronological_oos_same_observations",
         "models": models,
         "fold_count": len(ordered),
