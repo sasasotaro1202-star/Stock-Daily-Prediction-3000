@@ -236,3 +236,11 @@ The evidence exposes selected training window by fold, final prequential trainin
 ## 103. Nested window evidence requires contiguous prior folds
 
 The nested model × training-window selector now requires the immediately preceding min_history_folds outer folds to be present for a candidate pair. Sparse or gapped model-window history is excluded rather than allowing a candidate to qualify from a non-contiguous subset. The artifact also preserves per-window/model fold coverage so missingness is inspectable instead of being silently treated as equivalent evidence.
+
+
+
+## 104. Nested ranking: compute-only reuse of exact window predictions
+
+The nested ranking window-conditioned bank reuses the exact calibrated probability vector already materialized by the same fold/window evaluation when the candidate model is the globally selected classifier. The reuse is keyed by outer fold and non-zero training window and is copied into the nested bank; it does not import any current-fold outcome into model/window selection.
+
+This is an execution optimization only. The nested selector, contiguous prior-fold evidence gate, model × window LogLoss history, PIT boundary, production identity audit, and promotion gate are unchanged. The artifact records the reused fold/window pairs and an explicit research-only reuse contract so compute savings remain inspectable rather than implicit.
