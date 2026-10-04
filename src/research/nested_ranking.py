@@ -180,200 +180,250 @@ def nested_prequential_ranking_oos(
         for p in uncertainty_penalties
     }
     outer_rows: list[dict[str, object]] = []
-    baseline_rows: list[dict[str, object]] = []
+
+    def _safe_float(value: object) -> float | None:
+        try:
+            parsed = float(value)
+        except (TypeError, ValueError):
+            return None
+        return parsed if np.isfinite(parsed) else None
+
+    def _rank_ic(
+        values: np.ndarray,
+        target: np.ndarray,
+        group_keys: np.ndarray,
+    ) -> float:
+        vals: list[float] = []
+        for key in np.unique(group_keys):
+            mask = group_keys == key
+            if int(mask.sum()) < 2:
+                continue
+            a = np.asarray(values[mask], dtype=float)
+            b = np.asarray(target[mask], dtype=float)
+            if not np.isfinite(a).all() or not np.isfinite(b).all():
+                continue
+            if np.allclose(a, a[0]) or np.allclose(b, b[0]):
+                continue
+            corr = float(np.corrcoef(a, b, rowvar=False)[0, 1])
+            if np.isfinite(corr):
+                vals.append(corr)
+        return float(np.mean(vals)) if vals else float("nan")
+
+    model_rows_normalized: dict[str, list[dict[str, object]]] = {}
+    for name, rows in model_fold_rows.items():
+        normalized: list[dict[str, object]] = []
+        for row in rows:
+            fold = _safe_float(row.get("fold"))
+            loss = _safe_float(row.get("logloss"))
+            if fold is None or loss is None:
+                continue
+            normalized.append({
+                "fold": int(fold),
+                "logloss": float(loss),
+            })
+        model_rows_normalized[str(name)] = normalized
 
     for fold in folds:
         bank = predictions_by_fold.get(fold) or {}
         y = np.asarray(bank.get("y", []), dtype=int)
         if y.size == 0:
             continue
-        model_rows = {
-            name: rows
-            for name, rows in model_history.items()
-            if len([r for r in rows if int(r["fold"]) < fold]) >= min_history_folds
-        }
-        model = _select_prior_model(
-            model_rows,
-            fold,
-            min_history_folds=min_history_folds,
-            half_life_folds=model_half_life_folds,
-            stability_penalty=model_stability_penalty,
-        )
-        return_estimator = _select_prior_return_estimator(
-            return_history,
-            fold,
-            min_history_folds=min_history_folds,
-        )
-        if model is None or return_estimator is None:
-            # Warmup folds are still admitted into history, but are not scored
-            # as selection evidence because no prior decision was possible.
-            model_losses = bank.get("model_loglosses") or {}
-            for name, loss in model_losses.items():
-                try:
-                    loss = float(loss)
-                except (TypeError, ValueError):
-                    continue
-                if np.isfinite(loss):
-                    model_history.setdefault(str(name), []).append(
-                        {"fold": fold, "logloss": loss}
-                    )
-            return_metrics = bank.get("return_metrics") or {}
-            for name, metric in return_metrics.items():
-                try:
-                    rank_ic = float(metric["rank_ic"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                if np.isfinite(rank_ic):
-                    return_history.setdefault(str(name), []).append(
-                        {"fold": fold, "rank_ic": rank_ic}
-                    )
-            continue
-
-        prior_candidates = {
-            key: rows
-            for key, rows in rank_history_by_candidate.items()
-            if len([r for r in rows if int(r["fold"]) < fold]) >= min_history_folds
-        }
-        if prior_candidates:
-            rank_scores = {}
-            for key, rows in prior_candidates.items():
-                vals = np.asarray(
-                    [
-                        float(row["rank_ic"])
-                        for row in rows
-                        if int(row["fold"]) < fold
-                        and np.isfinite(float(row["rank_ic"]))
-                    ],
-                    dtype=float,
-                )
-                if vals.size:
-                    rank_scores[key] = float(
-                        vals.mean() - 0.25 * (vals.std(ddof=1) if vals.size >= 2 else 0.0)
-                    )
-            rank_key = (
-                max(rank_scores, key=lambda key: (rank_scores[key], key))
-                if rank_scores
-                else "0.50::0.00"
-            )
-        else:
-            rank_key = "0.50::0.00"
-        rank_weight, rank_penalty = map(float, rank_key.split("::"))
-
-        probabilities = np.asarray(bank["predictions"][model], dtype=float)
-        return_bank = return_predictions_by_fold.get(fold, {}).get(return_estimator)
-        if return_bank is None:
-            continue
-        expected = np.asarray(return_bank["pred"], dtype=float)
-        interval = np.asarray(return_bank.get("interval"), dtype=float)
-        if interval.ndim != 2 or interval.shape[0] != expected.size or interval.shape[1] != 2:
-            continue
-        uncertainty = np.maximum(interval[:, 1] - interval[:, 0], 0.0)
-        session_dates = np.asarray(bank["session_dates"], dtype=str)
+        session_dates = np.asarray(bank.get("session_dates", []), dtype=str)
         asset_classes = (
             np.asarray(bank["asset_classes"], dtype=str)
             if bank.get("asset_classes") is not None
             else None
-        )
-        score = _rank_score(
-            probabilities,
-            expected,
-            uncertainty,
-            session_dates,
-            asset_classes,
-            rank_weight,
-            rank_penalty,
         )
         group_keys = (
             session_dates + "::" + asset_classes
             if asset_classes is not None
             else session_dates
         )
-        deltas = []
-        baseline_score = _rank_score(
-            probabilities,
-            expected,
-            uncertainty,
-            session_dates,
-            asset_classes,
-            0.50,
-            0.0,
+
+        model = (
+            _select_prior_model(
+                model_history,
+                fold,
+                min_history_folds=min_history_folds,
+                half_life_folds=model_half_life_folds,
+                stability_penalty=model_stability_penalty,
+            )
+            if fold >= min_history_folds
+            else None
+        )
+        return_estimator = (
+            _select_prior_return_estimator(
+                return_history,
+                fold,
+                min_history_folds=min_history_folds,
+            )
+            if fold >= min_history_folds
+            else None
         )
 
-        def rank_ic(values: np.ndarray) -> float:
-            vals = []
-            for key in np.unique(group_keys):
-                mask = group_keys == key
-                if mask.sum() < 2:
+        # All ranking hyperparameters are selected from ranking outcomes of
+        # earlier outer folds only. There is no access to the current fold
+        # outcome when rank_weight/rank_penalty is chosen.
+        rank_key = "0.50::0.00"
+        if model is not None and return_estimator is not None:
+            prior_scores: dict[str, float] = {}
+            for key, rows in rank_history_by_candidate.items():
+                prior = [
+                    float(row["rank_ic"])
+                    for row in rows
+                    if int(row["fold"]) < fold
+                    and np.isfinite(float(row["rank_ic"]))
+                ]
+                if len(prior) < min_history_folds:
                     continue
-                a = values[mask]
-                b = None
-                target = np.asarray(bank["target_returns"], dtype=float)
-                b = target[mask]
-                if np.allclose(a, a[0]) or np.allclose(b, b[0]):
-                    continue
-                vals.append(float(np.corrcoef(a, b, rowvar=False)[0, 1]))
-            return float(np.mean(vals)) if vals else float("nan")
-
-        selected_rank_ic = rank_ic(score)
-        baseline_rank_ic = rank_ic(baseline_score)
-        selected_rank_by_fold = {
-            "fold": fold,
-            "model": model,
-            "return_estimator": return_estimator,
-            "probability_weight": rank_weight,
-            "uncertainty_penalty": rank_penalty,
-            "rank_ic": selected_rank_ic,
-            "baseline_rank_ic": baseline_rank_ic,
-        }
-        outer_rows.append(selected_rank_by_fold)
-        if np.isfinite(selected_rank_ic) and np.isfinite(baseline_rank_ic):
-            deltas.append(selected_rank_ic - baseline_rank_ic)
-        if deltas:
-            rank_key = f"{rank_weight:.2f}::{rank_penalty:.2f}"
-
-        # Current fold is added to model/return/ranking histories only after
-        # its untouched OOS score has been recorded.
-        model_losses = bank.get("model_loglosses") or {}
-        for name, loss in model_losses.items():
-            try:
-                loss = float(loss)
-            except (TypeError, ValueError):
-                continue
-            if np.isfinite(loss):
-                model_history.setdefault(str(name), []).append(
-                    {"fold": fold, "logloss": loss}
+                values = np.asarray(prior, dtype=float)
+                prior_scores[key] = float(
+                    values.mean()
+                    - 0.25 * (values.std(ddof=1) if values.size >= 2 else 0.0)
+                )
+            if prior_scores:
+                rank_key = max(
+                    prior_scores,
+                    key=lambda key: (prior_scores[key], key),
                 )
 
-        return_metrics = bank.get("return_metrics") or {}
-        for name, metric in return_metrics.items():
-            try:
-                value = float(metric["rank_ic"])
-            except (KeyError, TypeError, ValueError):
-                continue
-            if np.isfinite(value):
-                return_history.setdefault(str(name), []).append(
-                    {"fold": fold, "rank_ic": value}
-                )
+        rank_weight, rank_penalty = map(float, rank_key.split("::"))
+        return_bank = (
+            return_predictions_by_fold.get(fold, {}).get(return_estimator)
+            if return_estimator is not None
+            else None
+        )
+        probabilities = (
+            np.asarray(bank.get("predictions", {}).get(model, []), dtype=float)
+            if model is not None
+            else np.empty((0,), dtype=float)
+        )
+        expected = (
+            np.asarray(return_bank.get("pred", []), dtype=float)
+            if return_bank is not None
+            else np.empty((0,), dtype=float)
+        )
+        target_returns = (
+            np.asarray(return_bank.get("y", []), dtype=float)
+            if return_bank is not None
+            else np.empty((0,), dtype=float)
+        )
+        interval = (
+            np.asarray(return_bank.get("interval"), dtype=float)
+            if return_bank is not None
+            else np.empty((0, 2), dtype=float)
+        )
 
-        for key in rank_history_by_candidate:
-            candidate_weight, candidate_penalty = map(float, key.split("::"))
-            candidate_score = _rank_score(
+        valid_current = (
+            model is not None
+            and return_estimator is not None
+            and probabilities.size == y.size
+            and expected.size == y.size
+            and target_returns.size == y.size
+            and interval.shape == (y.size, 2)
+            and session_dates.size == y.size
+        )
+        if valid_current:
+            uncertainty = np.maximum(interval[:, 1] - interval[:, 0], 0.0)
+            score = _rank_score(
                 probabilities,
                 expected,
                 uncertainty,
                 session_dates,
                 asset_classes,
-                candidate_weight,
-                candidate_penalty,
+                rank_weight,
+                rank_penalty,
             )
-            candidate_rank_ic = rank_ic(candidate_score)
-            if np.isfinite(candidate_rank_ic):
-                rank_history_by_candidate[key].append(
-                    {"fold": fold, "rank_ic": candidate_rank_ic}
+            baseline_score = _rank_score(
+                probabilities,
+                expected,
+                uncertainty,
+                session_dates,
+                asset_classes,
+                0.50,
+                0.0,
+            )
+            selected_rank_ic = _rank_ic(score, target_returns, group_keys)
+            baseline_rank_ic = _rank_ic(
+                baseline_score,
+                target_returns,
+                group_keys,
+            )
+            outer_rows.append({
+                "fold": fold,
+                "model": model,
+                "return_estimator": return_estimator,
+                "probability_weight": rank_weight,
+                "uncertainty_penalty": rank_penalty,
+                "rank_ic": selected_rank_ic,
+                "baseline_rank_ic": baseline_rank_ic,
+            })
+            selected_model_by_fold[fold] = model
+            selected_return_by_fold[fold] = return_estimator
+            selected_rank_by_fold[fold] = (rank_weight, rank_penalty)
+
+            # Current outcomes are appended only after the current fold was
+            # scored, preserving strict prequential ordering.
+            for name, rows in model_rows_normalized.items():
+                row = next((r for r in rows if r["fold"] == fold), None)
+                if row is not None:
+                    model_history.setdefault(name, []).append(row)
+
+            for estimator_name, estimator_bank in (
+                return_predictions_by_fold.get(fold, {}) or {}
+            ).items():
+                pred = np.asarray(estimator_bank.get("pred", []), dtype=float)
+                target = np.asarray(estimator_bank.get("y", []), dtype=float)
+                if pred.size != y.size or target.size != y.size:
+                    continue
+                estimator_rank_ic = _rank_ic(pred, target, group_keys)
+                if np.isfinite(estimator_rank_ic):
+                    return_history.setdefault(str(estimator_name), []).append({
+                        "fold": fold,
+                        "rank_ic": estimator_rank_ic,
+                    })
+
+            for key in rank_history_by_candidate:
+                candidate_weight, candidate_penalty = map(float, key.split("::"))
+                candidate_score = _rank_score(
+                    probabilities,
+                    expected,
+                    uncertainty,
+                    session_dates,
+                    asset_classes,
+                    candidate_weight,
+                    candidate_penalty,
                 )
-        selected_model_by_fold[fold] = model
-        selected_return_by_fold[fold] = return_estimator
-        selected_rank_by_fold[fold] = (rank_weight, rank_penalty)
+                candidate_rank_ic = _rank_ic(
+                    candidate_score,
+                    target_returns,
+                    group_keys,
+                )
+                if np.isfinite(candidate_rank_ic):
+                    rank_history_by_candidate[key].append({
+                        "fold": fold,
+                        "rank_ic": candidate_rank_ic,
+                    })
+        else:
+            # Warmup still contributes prior model/return evidence but never
+            # creates ranking-selection evidence for production.
+            for name, rows in model_rows_normalized.items():
+                row = next((r for r in rows if r["fold"] == fold), None)
+                if row is not None:
+                    model_history.setdefault(name, []).append(row)
+            for estimator_name, estimator_bank in (
+                return_predictions_by_fold.get(fold, {}) or {}
+            ).items():
+                pred = np.asarray(estimator_bank.get("pred", []), dtype=float)
+                target = np.asarray(estimator_bank.get("y", []), dtype=float)
+                if pred.size != y.size or target.size != y.size:
+                    continue
+                estimator_rank_ic = _rank_ic(pred, target, group_keys)
+                if np.isfinite(estimator_rank_ic):
+                    return_history.setdefault(str(estimator_name), []).append({
+                        "fold": fold,
+                        "rank_ic": estimator_rank_ic,
+                    })
 
     if len(outer_rows) < min_history_folds:
         return {
