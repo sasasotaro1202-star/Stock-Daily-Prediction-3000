@@ -52,7 +52,7 @@ def main() -> int:
         raise SystemExit("FAIL: research status heartbeat GitHub context is missing")
 
     candidates = []
-    for workflow_status in ("pending", "queued", "waiting", "in_progress"):
+    for workflow_status in ("requested", "pending", "queued", "waiting", "in_progress"):
         try:
             payload = _request_json(
                 f"{api_base}/repos/{repository}/actions/runs?status={workflow_status}&per_page=100",
