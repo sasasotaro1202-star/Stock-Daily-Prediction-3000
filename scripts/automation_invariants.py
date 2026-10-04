@@ -435,6 +435,17 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
+        'inspect_workflow "repository-verification.yml" "Repository verification" true',
+        "watchdog_recovers_stale_verification_queue",
+    )
+    _assert_once(
+        watchdog,
+        'inspect_workflow "research-autopilot.yml" "Research autopilot" true',
+        "watchdog_recovers_stale_autopilot_queue",
+    )
+
+    _assert_once(
+        watchdog,
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
     )

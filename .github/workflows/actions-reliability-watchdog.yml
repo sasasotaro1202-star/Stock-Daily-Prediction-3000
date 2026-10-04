@@ -199,6 +199,12 @@ jobs:
           fi
           }
 
+          # Verification and autopilot are control-plane prerequisites for expensive Research.
+          # Recover stale queued entries on the current main SHA instead of leaving the
+          # whole Research lane blocked indefinitely by runner/queue incidents.
+          inspect_workflow "repository-verification.yml" "Repository verification" true
+          inspect_workflow "research-autopilot.yml" "Research autopilot" true
+
           inspect_workflow "market-cycle.yml" "Market cycle" true
           inspect_workflow "us-close-prediction.yml" "U.S. close prediction" false
           inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false

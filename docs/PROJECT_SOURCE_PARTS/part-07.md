@@ -851,3 +851,21 @@ The GitHub-side Research autopilot controller:
 The Research validation workflow therefore does not need a direct push trigger. Main-branch changes wake the controller, verification completion wakes it again, and the daily schedule provides a missed-trigger safety net.
 
 This is an operational scheduling/control-plane contract only. It does not establish performance verification, promotion readiness, or Production status. All existing PIT, OOS/WFO, calibration, robustness, frozen-holdout and release-gate requirements remain mandatory.
+
+
+⸻
+
+129. GITHUB QUEUE SELF-RECOVERY — 2026-10-04
+
+The autonomous Research control plane must not depend on a human noticing a queued verification or autopilot run.
+
+The Actions reliability watchdog therefore monitors:
+
+* Repository verification
+* Research autopilot
+* Research validation
+* critical production/monitoring workflows
+
+For Repository verification and Research autopilot, a queued/pending entry that remains stale beyond the bounded queue threshold is cancelled and a fresh current-main run is dispatched. Active Research validation is handled separately by the evidence-fingerprint and stale-run guards.
+
+The recovery controller must suppress duplicate current-main executions and must never treat queue recovery as evidence of successful validation. Queue recovery is an operational reliability state only.
