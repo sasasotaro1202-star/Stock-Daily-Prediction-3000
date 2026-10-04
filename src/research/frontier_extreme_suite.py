@@ -273,6 +273,18 @@ def _candidate_family(
                 current @ _diversity_weights(prior_folds, models, 0.05, penalty)
             )
 
+        quality = _quality_weights(prior_folds, models, 0.05)
+        recency = _recency_weights(prior_folds, models, 2.0)
+        minimax = _minimax_weights(prior_folds, models, 0.05)
+        diversity = _diversity_weights(prior_folds, models, 0.05, 1.0)
+        for alpha in (0.0, 0.25, 0.50, 0.75, 1.0):
+            w_qr = alpha * quality + (1.0 - alpha) * recency
+            out[f"weight_mix_quality_recency_{int(alpha * 100)}"] = _safe_probability(current @ w_qr)
+            w_qm = alpha * quality + (1.0 - alpha) * minimax
+            out[f"weight_mix_quality_minimax_{int(alpha * 100)}"] = _safe_probability(current @ w_qm)
+            w_qd = alpha * quality + (1.0 - alpha) * diversity
+            out[f"weight_mix_quality_diversity_{int(alpha * 100)}"] = _safe_probability(current @ w_qd)
+
         for method in ("platt", "beta", "isotonic", "temperature"):
             out[f"cal_{method}_equal"] = _prior_calibrated_blend(
                 prior_folds, current, models, method, "equal"
