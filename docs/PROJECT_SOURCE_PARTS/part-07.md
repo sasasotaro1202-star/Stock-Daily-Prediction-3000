@@ -746,3 +746,39 @@ All pattern rows preserve:
 * frozen_holdout_used=false
 
 The matrix is a search instrument, not production logic. Its purpose is to discover which mechanisms remain useful under future-like chronological evaluation and to identify where complexity does not generalize.
+
+
+⸻
+
+121. EXTREME PATTERN ECOLOGY / EXTERNAL-METHOD TRANSFER — 2026-10-04
+
+External forecasting research may be used to discover new mechanisms, but external reported gains are never treated as local evidence.
+
+Current research directions include:
+
+* forecastability-aware sparse expert routing;
+* expert-specific loss-aware routing;
+* temporally adaptive expert weighting;
+* multiscale / geometry-aware transformations;
+* dependence-aware uncertainty assessment for time-series conformal evaluation.
+
+These directions are implemented locally only as small, deterministic, research-only candidates. Each candidate must pass:
+
+DISCOVER → VERIFY → ABSTRACT → PIT/COST CHECK → LOCAL TEST → CHRONOLOGICAL OOS → ROBUSTNESS → FROZEN HOLDOUT → ADOPT/HOLD/REJECT
+
+The frontier pattern ecology intentionally includes:
+
+* probability geometry and transformed probability spaces;
+* robust and tail aggregation;
+* prior-quality, recency, Hedge, minimax and diversity-aware expert weighting;
+* individual calibration before blending;
+* blend-level calibration after aggregation;
+* contextual case-level expert routing;
+* uncertainty / disagreement / OOD shrinkage;
+* regime × recentness interaction;
+* cross-sectional rank/probability hybrids;
+* multi-threshold selective prediction;
+* base-rate stabilization;
+* model-exclusion and oracle diagnostics.
+
+The breadth of candidates is an exploration mechanism. It must not become a multiple-testing shortcut: all candidates use the same locked OOS observations, all tuned parameters are prior-only, dependence-aware intervals are descriptive, and the production adoption gate remains unchanged.
