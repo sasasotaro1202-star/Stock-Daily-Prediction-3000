@@ -591,7 +591,7 @@ def run_extreme_pattern_suite(
             row["name"],
         ),
     )
-    selected_name = prequential_selected_name or (development_sorted[0]["name"] if development_sorted else None)
+    selected_name = prequential_selected_name
     selected_locked = next(
         (row for row in summaries if row["name"] == selected_name),
         None,
@@ -599,16 +599,17 @@ def run_extreme_pattern_suite(
     best_locked_diagnostic = summaries[0] if summaries else None
 
     pattern_count = len(summaries)
-    status = (
-        "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
+    if prequential_selected_name is None:
+        status = "BLOCKED_INSUFFICIENT_PREQUENTIAL_DEVELOPMENT_SELECTION"
+    else:
+        status = (
+            "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
         if execution_failures and pattern_count >= int(minimum_patterns)
         else (
             "EXECUTED_EXTREME_PATTERN_MATRIX"
             if pattern_count >= int(minimum_patterns)
             else "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
-        )
-    )
-
+            )
     return {
         **base,
         "status": status,
