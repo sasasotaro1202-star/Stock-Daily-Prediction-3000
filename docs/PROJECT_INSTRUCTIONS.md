@@ -20,3 +20,14 @@ Baseball, BTC, 7-Sport and Soccer methods are candidates, not production evidenc
 
 ## Failure and cost safety
 No fabricated metric, silent exception, missing→zero, skipped test→pass, failed recovery→success or unknown-PIT→valid. Prefer verified free/OSS/local/cached sources; unknown or billing-risk cost is HOLD/UNCONFIRMED.
+## Evidence freshness
+Chronological OOS evidence is bound to the exact research execution SHA and the main SHA observed when that evidence was persisted. If those SHAs differ, evidence is STALE and must not be treated as current performance or release evidence. Unknown provenance fails closed. Historical evidence remains immutable.
+
+## Prequential frontier selection
+For research-only frontier matrices, the final winner is the candidate selected by the last development decision made before that fold is scored. The decision-fold outcome cannot determine its own selection. Aggregate rankings of selected-candidate outcomes are diagnostics only; they cannot define the winner.
+
+## Risk/OOD missingness
+Risk-derived OOD must distinguish missing evidence from neutral observed OOD. When risk history/current values are unavailable, the underlying OOD score stays finite-neutral; any missingness-aware shrink is an explicit research candidate and must not silently convert missingness into observed risk.
+
+## Reliability state
+Requested, queued, pending, waiting and in-progress research runs are transient active states. Long-running chronological OOS is preserved across ordinary main-branch commits; stale recovery must be bounded and must not create self-recovery loops. Failed, cancelled, skipped and stale evidence remains non-success until independently rerun and verified.
