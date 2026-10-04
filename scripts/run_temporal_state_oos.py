@@ -123,10 +123,37 @@ def main() -> int:
     df = add_market_context(df, market_context)
     df = add_targets(add_cross_sectional_context(df))
 
+    base_features = list(FEATURE_COLUMNS)
     temporal = build_temporal_state_features(df)
     temporal = temporal.drop(columns=["_prediction_cutoff", "_prediction_clock_source"])
-    base_features = list(FEATURE_COLUMNS)
-    augmented_features = base_features + list(TEMPORAL_STATE_COLUMNS)
+    temporal_feature_sets = {
+        "current_feature_set": base_features,
+        "temporal_short": base_features + [
+            name for name in TEMPORAL_STATE_COLUMNS
+            if name in {
+                "ts_ret_1", "ts_ret_2", "ts_ret_3",
+                "ts_path_return_3",
+                "ts_return_sign_persistence_3",
+                "ts_return_acceleration_1",
+                "ts_volatility_3",
+                "ts_volume_log_change_1",
+                "ts_volume_log_change_3",
+                "ts_range_change_1",
+                "ts_close_location_change_1",
+            }
+        ],
+        "temporal_medium": base_features + [
+            name for name in TEMPORAL_STATE_COLUMNS
+            if name not in {
+                "ts_ret_10", "ts_path_return_10",
+                "ts_return_sign_persistence_10",
+                "ts_volatility_10",
+                "ts_volatility_ratio_3_10",
+            }
+        ],
+        "temporal_full": base_features + list(TEMPORAL_STATE_COLUMNS),
+    }
+    augmented_features = temporal_feature_sets["temporal_full"]
 
     base_audit = audit_feature_columns(base_features)
     temporal_names = audit_feature_columns(list(TEMPORAL_STATE_COLUMNS))
@@ -166,6 +193,11 @@ def main() -> int:
         raise SystemExit(f"DEFERRED: only {len(folds)} temporal OOS folds available; need {min_folds}")
 
     fold_rows: list[dict[str, object]] = []
+    candidate_history: dict[str, list[dict[str, float]]] = {
+        name: [] for name in temporal_feature_sets
+    }
+    selected_candidate_rows: list[dict[str, object]] = []
+
     for fold_idx, fold in enumerate(folds):
         train_dates = dates[: fold.train_end]
         cal_n = max(20, int(len(train_dates) * 0.2))
@@ -181,11 +213,50 @@ def main() -> int:
         ):
             continue
 
-        p_base = _fit_predict(train, test, base_features)
-        p_augmented = _fit_predict(train, test, augmented_features)
         y = test["target_up_1d"].astype(int).to_numpy()
-        base = classification_metrics(y, p_base)
-        augmented = classification_metrics(y, p_augmented)
+        candidate_metrics: dict[str, dict[str, float]] = {}
+        candidate_predictions: dict[str, np.ndarray] = {}
+
+        for candidate_name, feature_names in temporal_feature_sets.items():
+            p = _fit_predict(train, test, feature_names)
+            candidate_predictions[candidate_name] = p
+            candidate_metrics[candidate_name] = classification_metrics(y, p)
+
+        # Prequential choice: fold t may use only outcomes from completed OOS
+        # folds < t. The first fold is anchored to the incumbent feature set.
+        if fold_idx == 0:
+            selected_name = "current_feature_set"
+            selection_source = "incumbent_anchor_first_fold"
+        else:
+            prior_scores = {}
+            for candidate_name, rows in candidate_history.items():
+                if rows:
+                    prior_scores[candidate_name] = float(
+                        np.average(
+                            [row["logloss"] for row in rows],
+                            weights=[row["n_test"] for row in rows],
+                        )
+                    )
+            selected_name = min(
+                prior_scores,
+                key=lambda name: (prior_scores[name], 0 if name == "current_feature_set" else 1, name),
+            ) if prior_scores else "current_feature_set"
+            selection_source = "prior_oos_only"
+
+        selected_candidate_rows.append(
+            {
+                "fold": fold_idx,
+                "selected_candidate": selected_name,
+                "selection_source": selection_source,
+                "prior_fold_counts": {
+                    name: len(rows) for name, rows in candidate_history.items()
+                },
+            }
+        )
+
+        base = candidate_metrics["current_feature_set"]
+        selected = candidate_metrics[selected_name]
+        augmented = candidate_metrics["temporal_full"]
         fold_rows.append(
             {
                 "fold": fold_idx,
@@ -195,13 +266,32 @@ def main() -> int:
                 "n_test": int(len(test)),
                 "base": base,
                 "temporal_augmented": augmented,
+                "prequential_selected": selected,
+                "prequential_selected_candidate": selected_name,
+                "candidate_metrics": candidate_metrics,
                 "delta_augmented_minus_base": {
                     metric: float(augmented[metric] - base[metric])
                     for metric in ("logloss", "brier", "ece", "accuracy")
                     if metric in augmented and metric in base
                 },
+                "delta_prequential_minus_base": {
+                    metric: float(selected[metric] - base[metric])
+                    for metric in ("logloss", "brier", "ece", "accuracy")
+                    if metric in selected and metric in base
+                },
             }
         )
+
+        for candidate_name, metrics in candidate_metrics.items():
+            candidate_history[candidate_name].append(
+                {
+                    "logloss": float(metrics["logloss"]),
+                    "brier": float(metrics["brier"]),
+                    "ece": float(metrics["ece"]),
+                    "accuracy": float(metrics["accuracy"]),
+                    "n_test": int(len(test)),
+                }
+            )
 
     if len(fold_rows) < min_folds:
         raise SystemExit(
@@ -213,9 +303,20 @@ def main() -> int:
     augmented_metrics = {
         m: _weighted_mean(fold_rows, "temporal_augmented", m) for m in metric_names
     }
+    prequential_metrics = {
+        m: _weighted_mean(fold_rows, "prequential_selected", m) for m in metric_names
+    }
     delta = {m: augmented_metrics[m] - base_metrics[m] for m in metric_names}
+    prequential_delta = {
+        m: prequential_metrics[m] - base_metrics[m] for m in metric_names
+    }
     relative_improvement = (
         (base_metrics["logloss"] - augmented_metrics["logloss"]) / base_metrics["logloss"]
+        if base_metrics["logloss"] > 0
+        else float("nan")
+    )
+    prequential_relative_improvement = (
+        (base_metrics["logloss"] - prequential_metrics["logloss"]) / base_metrics["logloss"]
         if base_metrics["logloss"] > 0
         else float("nan")
     )
@@ -235,13 +336,29 @@ def main() -> int:
         "min_oos_folds": min_folds,
         "folds": len(fold_rows),
         "temporal_state_features": list(TEMPORAL_STATE_COLUMNS),
+        "candidate_feature_sets": {
+            name: list(features) for name, features in temporal_feature_sets.items()
+        },
         "base_feature_count": len(base_features),
         "augmented_feature_count": len(augmented_features),
+        "prequential_selection": {
+            "selection_metric": "logloss",
+            "selection_protocol": "prior_oos_only",
+            "first_fold_anchor": "current_feature_set",
+            "current_fold_outcomes_used_for_selection": False,
+            "candidate_history": {
+                name: rows for name, rows in candidate_history.items()
+            },
+            "selected_by_fold": selected_candidate_rows,
+        },
         "metrics": {
             "base": base_metrics,
             "temporal_augmented": augmented_metrics,
+            "prequential_selected": prequential_metrics,
             "delta_temporal_augmented_minus_base": delta,
+            "delta_prequential_minus_base": prequential_delta,
             "relative_logloss_improvement": float(relative_improvement),
+            "prequential_relative_logloss_improvement": float(prequential_relative_improvement),
         },
         "fold_metrics": fold_rows,
         "pit": {
