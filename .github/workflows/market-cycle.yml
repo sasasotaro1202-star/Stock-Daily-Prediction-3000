@@ -207,6 +207,11 @@ jobs:
         run: python scripts/bootstrap_frozen_holdout.py
       - name: Chronological OOS research
         run: python scripts/run_daily_research.py
+
+      - name: Audit generated OOS ledger PIT contract
+        env:
+          REQUIRE_PIT_LEDGER: "1"
+        run: python scripts/audit_research_pit_contract.py
       - name: Collect free SEC filing research inputs
         run: python scripts/sec_filings_research.py
 
