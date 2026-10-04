@@ -389,6 +389,36 @@ def run_extreme_pattern_suite(
             0.25 * sorted_current[:, -1] + 0.75 * equal
         )
 
+        # Additional orthogonal anchor mixtures: prediction geometry × prior-only anchors.
+        anchors = {
+            "neutral": np.full(len(y), 0.5, dtype=float),
+            "base_rate": np.full(len(y), base_rate, dtype=float),
+            "prior_mean": np.full(len(y), prior_mean, dtype=float),
+        }
+        geometric = {
+            "mean": equal,
+            "median": np.median(current, axis=1),
+            "logit": _safe_probability(_sigmoid(_logit(current).mean(axis=1))),
+            "rank": rank,
+        }
+        for gname, gpred in geometric.items():
+            for aname, anchor in anchors.items():
+                for alpha in (0.25, 0.50, 0.75):
+                    family[f"anchor_mix_{gname}_{aname}_{int(alpha * 100)}"] = _safe_probability(
+                        alpha * gpred + (1.0 - alpha) * anchor
+                    )
+
+        # Agreement-weighted transforms: let cross-model consensus alter the strength of a geometry.
+        disagreement = np.std(current, axis=1)
+        agreement = np.clip(1.0 - 4.0 * disagreement, 0.0, 1.0)
+        for base_name, gpred in geometric.items():
+            for strength in (0.25, 0.50, 0.75):
+                family[f"agreement_strength_{base_name}_{int(strength * 100)}"] = _safe_probability(
+                    0.5 + (gpred - 0.5) * (
+                        (1.0 - strength) + strength * agreement
+                    )
+                )
+
         # Register current-fold predictions.  Any fitted object above used only prior folds.
         is_locked = t >= locked_start
         if is_locked:
