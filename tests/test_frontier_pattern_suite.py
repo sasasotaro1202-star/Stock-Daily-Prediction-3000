@@ -90,3 +90,25 @@ def test_frontier_suite_blocks_insufficient_chronological_folds():
     assert result["status"] == "BLOCKED"
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
+
+
+def test_frontier_suite_preserves_evaluation_failures(monkeypatch):
+    import src.research.frontier_pattern_suite as module
+
+    original = module._evaluate_pattern
+    calls = {"n": 0}
+
+    def fail_once(*args, **kwargs):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("synthetic-evaluation-failure")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(module, "_evaluate_pattern", fail_once)
+    result = run_frontier_pattern_suite(_toy_bank(), locked_folds=2, min_folds=5)
+    assert result["execution_failures"]
+    failure = result["execution_failures"][0]
+    assert failure["error_type"] == "RuntimeError"
+    assert "synthetic-evaluation-failure" in failure["error"]
+    assert result["status"] == "EXECUTED_RESEARCH_PATTERN_MATRIX_WITH_FAILURES"
+    assert result["promotion_allowed"] is False
