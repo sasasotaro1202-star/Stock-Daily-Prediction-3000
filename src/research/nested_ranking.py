@@ -131,6 +131,7 @@ def nested_prequential_ranking_oos(
     return_predictions_by_fold: Mapping[
         int, Mapping[str, Mapping[str, Sequence[float]]]
     ],
+    model_fold_rows: Mapping[str, Sequence[Mapping[str, object]]],
     *,
     min_history_folds: int = 3,
     model_half_life_folds: float = 4.0,
