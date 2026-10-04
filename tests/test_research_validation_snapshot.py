@@ -65,6 +65,8 @@ def test_research_snapshot_persists_core_scores_and_integrity_metadata(
 ) -> None:
     source = _write_metrics(tmp_path, _payload())
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "research-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "987")
     main()
 
     out = json.loads(
@@ -73,6 +75,10 @@ def test_research_snapshot_persists_core_scores_and_integrity_metadata(
         )
     )
     assert out["selected_model"] == "hgb"
+    assert out["workflow_sha"] == "research-sha"
+    assert out["research_workflow_sha"] == "research-sha"
+    assert out["status_branch_main_sha"] is None
+    assert out["evidence_freshness"] == "UNKNOWN"
     assert out["selected_model_score"]["logloss"] == 0.61
     assert out["selected_model_score"]["brier"] == 0.21
     assert out["selected_model_score"]["ece"] == 0.04
@@ -107,3 +113,24 @@ def test_research_snapshot_fails_closed_on_missing_or_incomplete_evidence(
         main()
 
     assert not (tmp_path / "artifacts" / "research_validation_latest.json").exists()
+
+
+def test_research_snapshot_marks_stale_execution_sha(monkeypatch, tmp_path) -> None:
+    source = _write_metrics(tmp_path, _payload())
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "research-old")
+    monkeypatch.setattr(
+        "scripts.persist_research_validation_snapshot._git_head_sha",
+        lambda: "main-new",
+    )
+    main()
+    out = json.loads(
+        (tmp_path / "artifacts" / "research_validation_latest.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert out["research_workflow_sha"] == "research-old"
+    assert out["status_branch_main_sha"] == "main-new"
+    assert out["evidence_freshness"] == "STALE"
+    assert out["evidence_scope"]["freshness"] == "STALE"
+    assert hashlib.sha256(source.read_bytes()).hexdigest() == out["evidence_scope"]["source_sha256"]
