@@ -771,7 +771,6 @@ def nested_prequential_ranking_oos(
         "ranking_weight_selection_prequential": True,
         "model_selection_prequential": True,
         "return_estimator_selection_prequential": True,
-        "training_window_selection_prequential": training_window_selection_prequential,
         "research_positive": bool(
             training_window_selection_prequential
             and finite.size >= 5
