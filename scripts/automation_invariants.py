@@ -384,6 +384,16 @@ def main() -> int:
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
+    _assert_once(
+        validation_workflow,
+        '- "src/prediction/model_factories.py"',
+        "research_validation_triggers_on_model_factory_changes",
+    )
+    _assert_once(
+        validation_workflow,
+        "pytest -q tests/test_model_factories_contract.py",
+        "research_validation_runs_model_factory_contract",
+    )
     status_workflow = _read("research-validation-status.yml")
     _assert_absent(
         validation_workflow,
