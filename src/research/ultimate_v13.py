@@ -129,7 +129,7 @@ def build_ultimate_intelligence(
         ordered,
         locked_folds=2,
         min_folds=5,
-        minimum_patterns=80,
+        minimum_patterns=100,
     )
     result["frontier_extreme_patterns"] = extreme_patterns
     result["research_only"] = True
