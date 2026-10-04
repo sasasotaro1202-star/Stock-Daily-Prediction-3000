@@ -120,3 +120,24 @@ def test_extreme_suite_blocks_short_oos_history():
     )
     assert result["status"] == "BLOCKED"
     assert result["promotion_allowed"] is False
+
+
+def test_extreme_suite_preserves_generation_failures(monkeypatch):
+    import src.research.frontier_extreme_suite as module
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("synthetic-generation-failure")
+
+    monkeypatch.setattr(module, "_candidate_family", fail)
+    result = run_extreme_pattern_suite(
+        _toy_bank(),
+        locked_folds=2,
+        min_folds=5,
+        minimum_patterns=100,
+    )
+    assert result["execution_failures"]
+    failure = result["execution_failures"][0]
+    assert failure["error_type"] == "RuntimeError"
+    assert "synthetic-generation-failure" in failure["error"]
+    assert result["status"] == "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
+    assert result["promotion_allowed"] is False
