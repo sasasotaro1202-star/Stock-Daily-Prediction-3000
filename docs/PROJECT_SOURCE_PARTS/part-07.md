@@ -753,3 +753,20 @@ The winner-selection path is:
 This preserves a one-step-ahead selection contract inside development and makes adaptive selection visible in the evidence artifact.
 
 A large candidate matrix does not relax multiple-testing discipline. Locked OOS remains untouched and the existing production release gate remains mandatory.
+
+
+⸻
+
+123. FRONTIER CONTRACT ID / FAILURE PRESERVATION — 2026-10-04
+
+Each frontier research artifact must expose an explicit research_contract_id. The contract ID is part of artifact verification and prevents a result generated under one research schema from being silently interpreted as another schema.
+
+For candidate matrices, execution failures are evidence:
+
+* candidate exceptions must be retained with fold, candidate/family scope, error type and bounded error text;
+* insufficient-valid-fold candidates must be represented explicitly;
+* failures must not be silently dropped;
+* a matrix with recorded candidate failures is not a clean EXECUTED success state;
+* CI must require the pinned contract ID and zero execution failures before treating the matrix as successfully executed.
+
+This control is independent of performance. It prevents execution incompleteness from being mistaken for evidence of candidate superiority.
