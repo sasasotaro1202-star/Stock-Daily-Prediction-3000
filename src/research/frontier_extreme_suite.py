@@ -547,7 +547,12 @@ def run_extreme_pattern_suite(
         ),
         key=lambda row: (row["prequential_logloss"], row["name"]),
     )
-    prequential_selected_name = preq_rank[0]["name"] if preq_rank else None
+    # The candidate chosen for the final development decision is the candidate
+    # selected at the last prequential development fold. That fold is scored only
+    # after the decision, so its outcome cannot influence the final selection.
+    final_prequential_choice = preq_decisions[-1]["selected_name"] if preq_decisions else None
+    final_prequential_fold = int(preq_decisions[-1]["fold"]) if preq_decisions else None
+    prequential_selected_name = final_prequential_choice
     selection_trace = [d["selected_name"] for d in preq_decisions]
     selection_stability = {
         "decision_count": 0,
@@ -597,7 +602,7 @@ def run_extreme_pattern_suite(
             row["name"],
         ),
     )
-    selected_name = prequential_selected_name
+    selected_name = final_prequential_choice
     selected_locked = next(
         (row for row in summaries if row["name"] == selected_name),
         None,
@@ -631,6 +636,12 @@ def run_extreme_pattern_suite(
         "selection": {
             "source": "prequential_development_only",
             "selected_name": selected_name,
+            "final_prequential_selection": {
+                "source": "last_prequential_development_decision",
+                "decision_fold": final_prequential_fold,
+                "decision_outcome_used_for_selection": False,
+                "selected_before_scoring_decision_fold": True,
+            },
             "development_ranking": development_sorted,
             "prequential_ranking": preq_rank,
             "prequential_decisions": preq_decisions,
