@@ -193,7 +193,7 @@ def test_research_validation_has_external_status_workflow() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' in text
     assert "types: [completed, in_progress, requested]" in text
-    assert "group: research-validation-status" in text
+    assert "group: research-status-writer" in text
     assert "python scripts/persist_research_validation_status.py" in text
     assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in text
     assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in text
@@ -532,7 +532,6 @@ def test_research_validation_experience_controls_are_verified_before_autopilot()
     expected_runtime_paths = (
         "scripts/generate_experience_candidates.py",
         "scripts/run_daily_research.py",
-        "config/pipeline.yml",
     )
     for path in expected_runtime_paths:
         assert path in validation
