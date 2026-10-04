@@ -4,26 +4,26 @@
   "evidence_artifact_present": false,
   "evidence_artifact_raw_present": false,
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-04T05:13:16.795127+00:00",
-  "job_status": "cancelled",
+  "generated_at_utc": "2026-10-04T05:38:36.352887+00:00",
+  "job_status": "queued",
   "research_step": "unknown",
   "runtime_health": {
     "active_step": null,
     "active_step_elapsed_minutes": null,
     "active_step_started_at_utc": null,
-    "job_elapsed_minutes": 4.663252666666667,
-    "job_started_at_utc": "2026-10-04T05:08:37Z",
-    "job_status": "completed",
+    "job_elapsed_minutes": null,
+    "job_started_at_utc": null,
+    "job_status": "queued",
     "long_running_threshold_minutes": 60,
     "stale_risk_threshold_minutes": 240,
-    "state": "TERMINAL"
+    "state": "QUEUED"
   },
   "sec_ablation_step": "unknown",
   "sec_research_step": "unknown",
   "status_lookup_error": null,
   "status_lookup_ok": true,
-  "workflow_conclusion": "cancelled",
-  "workflow_run_id": "37178605614",
-  "workflow_sha": "6b0ba64f8829f36b9b8689195f0ad60d1606acc3",
-  "workflow_status": "completed"
+  "workflow_conclusion": null,
+  "workflow_run_id": "37180383012",
+  "workflow_sha": "fdc710ea88ca169860e30f448bd57a9756cfa6d9",
+  "workflow_status": "queued"
 }
