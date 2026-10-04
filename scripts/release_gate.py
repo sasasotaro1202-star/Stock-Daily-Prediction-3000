@@ -59,11 +59,24 @@ def main():
     if quality.get("status")!="PASS": reasons.append("data_quality_not_pass")
     if universe.get("status")!="PASS": reasons.append("universe_quality_not_pass")
     if context.get("status")!="PASS": reasons.append("market_context_quality_not_pass")
-    if pit_audit.get("status") == "FAIL":
-        reasons.append("research_pit_contract_audit_failed")
+    pit_schema = pit_audit.get("schema_version")
+    if pit_schema != 1:
+        reasons.append("research_pit_contract_audit_schema_invalid")
+    if pit_audit.get("research_only") is not True:
+        reasons.append("research_pit_contract_audit_not_research_only")
+    if pit_audit.get("production_changed") is not False:
+        reasons.append("research_pit_contract_audit_claims_production_change")
+    if pit_audit.get("promotion_allowed") is not False:
+        reasons.append("research_pit_contract_audit_allows_promotion")
+    if pit_audit.get("status") not in {"PASS", "RESEARCH_ONLY_UNVERIFIED"}:
+        reasons.append("research_pit_contract_audit_status_invalid")
+    if isinstance(pit_audit.get("source_config"), dict) and pit_audit["source_config"].get("status") == "FAIL":
+        reasons.append("research_pit_source_config_failed")
     pit_ledger = pit_audit.get("prediction_ledger", {}) if isinstance(pit_audit.get("prediction_ledger"), dict) else {}
     if pit_ledger.get("status") != "PASS":
         reasons.append("research_pit_prediction_ledger_not_pass")
+    if int(pit_ledger.get("violation_count", 1)) != 0:
+        reasons.append("research_pit_prediction_ledger_has_violations")
     if manifest.get("status")!="REPRODUCIBLE_MANIFEST_CREATED":
         reasons.append("manifest_invalid")
     manifest_fp=manifest.get("code_fingerprint_sha256")
