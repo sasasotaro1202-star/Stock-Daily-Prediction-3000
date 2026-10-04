@@ -227,10 +227,12 @@ def test_nested_ranking_reports_aligned_model_window_identity_when_production_ma
 def test_nested_window_candidates_are_declared_before_bank_use_and_reuse_is_explicit():
     text = RUNNER.read_text(encoding="utf-8")
     declaration = text.index("window_candidates = (252, 504, 756, 0)")
-    nested_bank_use = text.index("for lookback in window_candidates:")
-    assert declaration < nested_bank_use
+    first_window_loop = text.index("for lookback in window_candidates:")
+    nested_bank = text.index("nested_ranking_window_predictions_by_fold: dict[")
+    reuse_site = text.index("nested_reuse = (")
+    assert declaration < first_window_loop
+    assert nested_bank < reuse_site
     assert "nested_ranking_window_predictions_by_fold" in text
-    assert "nested_reuse = (" in text
     assert ".get(global_selected)" in text
     assert '"prediction_window_reuse"' in text
     assert "exact fold-local calibrated probability vector" in text
