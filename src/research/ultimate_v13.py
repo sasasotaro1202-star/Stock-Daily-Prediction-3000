@@ -13,6 +13,7 @@ import pandas as pd
 
 from src.research.ultimate_control_v13 import evaluate_v13
 from src.research.ultimate_v13_extensions import augment_v13_result
+from src.research.frontier_pattern_suite import run_frontier_pattern_suite
 from src.research.v13_governance import (
     experiment_record,
     safety_governance,
@@ -117,6 +118,12 @@ def build_ultimate_intelligence(
         result["promotion_allowed"] = False
         return result
     result = augment_v13_result(bank, result)
+    frontier_patterns = run_frontier_pattern_suite(
+        ordered,
+        locked_folds=2,
+        min_folds=5,
+    )
+    result["frontier_patterns"] = frontier_patterns
     result["research_only"] = True
     result["production_changed"] = False
     result["promotion_allowed"] = False
@@ -199,6 +206,7 @@ def build_ultimate_intelligence(
         ("expert_loss_routing_oos.json", "expert_loss_routing_oos"),
         ("case_risk_oos.json", "case_risk_oos"),
         ("learned_case_risk_oos.json", "learned_case_risk_oos"),
+        ("frontier_pattern_suite.json", "frontier_patterns"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -243,6 +251,7 @@ def build_ultimate_intelligence(
             "expert_loss_routing_oos.json",
             "case_risk_oos.json",
             "learned_case_risk_oos.json",
+            "frontier_pattern_suite.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
