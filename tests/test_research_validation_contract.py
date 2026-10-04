@@ -69,3 +69,19 @@ def test_nested_ranking_freeze_gate_requires_structural_evidence():
     assert 'nested_ranking.get("model_selection_prequential") is not True' in locker
     assert 'nested_ranking.get("return_estimator_selection_prequential") is not True' in locker
     assert 'bootstrap_probability < 0.90 or bootstrap_p05 <= 0.0' in locker
+
+
+def test_nested_ranking_runs_after_production_candidate_configuration_is_available():
+    source = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
+    call = source.index("nested_ranking_selection_research = nested_prequential_ranking_oos(")
+    assert source.index("selected_training_window =", 0, call) < call
+    assert source.index("selected_rank_weight =", 0, call) < call
+    assert source.index("selected_uncertainty_penalty =", 0, call) < call
+    assert source.rfind("selected_return_estimator =", 0, call) < call
+    assert '"classifier_training_window_sessions": selected_training_window' in source
+
+
+def test_nested_ranking_freeze_gate_requires_identity_alignment():
+    locker = (ROOT / "scripts/lock_frozen_model.py").read_text(encoding="utf-8")
+    assert 'identity = nested_ranking.get("production_identity_alignment")' in locker
+    assert 'identity.get("aligned") is not True' in locker
