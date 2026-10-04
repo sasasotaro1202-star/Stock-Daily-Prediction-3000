@@ -485,6 +485,56 @@ def run_extreme_pattern_suite(
         )
     )
 
+    # Prequential development selection. Each development fold is scored only
+    # after selecting a candidate from strictly earlier development folds.
+    preq_scores = {}
+    preq_decisions = []
+    for eval_t in range(1, locked_start):
+        eligible = {}
+        for name, rows in pattern_rows.items():
+            prior_rows = [
+                r for r in rows
+                if (not r["is_locked"]) and int(r["fold"]) < eval_t
+            ]
+            vals = [
+                float(r["metrics"]["logloss"])
+                for r in prior_rows
+                if np.isfinite(r["metrics"].get("logloss", np.nan))
+            ]
+            if vals:
+                eligible[name] = float(np.mean(vals))
+        if not eligible:
+            continue
+        chosen = min(eligible, key=lambda name: (eligible[name], name))
+        target = next(
+            (r for r in pattern_rows[chosen] if int(r["fold"]) == eval_t),
+            None,
+        )
+        if target is None:
+            continue
+        ll = float(target["metrics"]["logloss"])
+        if np.isfinite(ll):
+            preq_scores.setdefault(chosen, []).append(ll)
+            preq_decisions.append({
+                "fold": int(eval_t),
+                "selected_name": chosen,
+                "selection_source": "strictly_prior_development_folds",
+                "logloss": ll,
+            })
+    preq_rank = sorted(
+        (
+            {
+                "name": name,
+                "prequential_logloss": float(np.mean(vals)),
+                "evaluated_folds": int(len(vals)),
+            }
+            for name, vals in preq_scores.items()
+            if vals
+        ),
+        key=lambda row: (row["prequential_logloss"], row["name"]),
+    )
+    prequential_selected_name = preq_rank[0]["name"] if preq_rank else None
+
     development_candidates = []
     for name, rows in sorted(pattern_rows.items()):
         dev = [r["metrics"] for r in rows if not r["is_locked"]]
@@ -511,7 +561,7 @@ def run_extreme_pattern_suite(
             row["name"],
         ),
     )
-    selected_name = development_sorted[0]["name"] if development_sorted else None
+    selected_name = prequential_selected_name or (development_sorted[0]["name"] if development_sorted else None)
     selected_locked = next(
         (row for row in summaries if row["name"] == selected_name),
         None,
@@ -539,9 +589,11 @@ def run_extreme_pattern_suite(
         "best_research_pattern": selected_locked,
         "best_locked_diagnostic": best_locked_diagnostic,
         "selection": {
-            "source": "development_only",
+            "source": "prequential_development_only",
             "selected_name": selected_name,
             "development_ranking": development_sorted,
+            "prequential_ranking": preq_rank,
+            "prequential_decisions": preq_decisions,
         },
         "baseline": {
             "name": "mean",
@@ -558,6 +610,7 @@ def run_extreme_pattern_suite(
             "promotion_allowed": False,
             "locked_outcomes_used_for_selection": False,
             "best_research_pattern_selected_from_development_only": True,
+            "winner_selection_is_prequential_development_only": True,
         },
         "session_cluster": {
             "cluster_unit": "session_date",
