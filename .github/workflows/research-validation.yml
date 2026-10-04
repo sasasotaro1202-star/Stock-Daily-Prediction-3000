@@ -300,7 +300,6 @@ jobs:
               "expert_loss_routing_oos.json",
               "case_risk_oos.json",
               "learned_case_risk_oos.json",
-          }
               "frontier_pattern_suite.json",
               "frontier_extreme_pattern_suite.json",
           }
