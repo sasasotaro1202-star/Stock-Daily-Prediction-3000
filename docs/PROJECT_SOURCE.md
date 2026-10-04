@@ -49,3 +49,7 @@ Current GitHub code/config/tests/workflows/actions/artifacts/registries/measurem
 
 ## 2026-10-04 chronological ranking evidence hardening
 The research runner no longer reuses the globally selected calibration method when evaluating ranking-weight candidates on the same chronological OOS folds. Ranking-fold calibration now comes from the prior-fold temporal calibration router, with the current fold scored only after that pre-test selection. The final global calibration method remains a separate configuration-selection artifact and is still subject to the frozen release evidence gate. This is research/evaluation hardening only; no production model, frozen holdout, or live routing state is mutated by the change.
+
+
+## 2026-10-04 challenger ecology expansion
+The configured research candidate set already included XGBoost and CatBoost, but the model factory previously exposed neither and the research extra dependencies did not install them. The research environment now installs both packages and the factory exposes conservative deterministic XGBoost/CatBoost challengers. They remain optional research candidates: chronological OOS/WFO selection, PIT checks, calibration, robustness and frozen-holdout gates remain unchanged, and factory availability alone never promotes a challenger.
