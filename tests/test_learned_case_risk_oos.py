@@ -271,3 +271,23 @@ def test_learned_case_risk_rejects_non_pit_feature_lineage():
     result = analyze_learned_case_risk(rows)
     assert result["status"] == "BLOCKED_INVALID_LOCKED_CASES"
 
+
+
+def test_learned_case_risk_reports_session_cluster_bootstrap_evidence():
+    rows = _development_rows()
+    for i in range(5):
+        row = _row(6, i, locked=True, risk=0.8, result=i % 2, p=0.9 if i % 2 else 0.1)
+        day = 2 + i
+        timestamp = f"2026-02-{day:02d}T00:00:00+00:00"
+        row["prediction_time"] = timestamp
+        row["prediction_cutoff"] = timestamp
+        rows.append(row)
+
+    result = analyze_learned_case_risk(rows)
+    assert result["status"] == "EVALUATED"
+    bootstrap = result["locked_logloss_bootstrap"]
+    assert bootstrap["status"] == "EVALUATED"
+    assert bootstrap["clusters"] == 5
+    assert bootstrap["bootstrap_method"] == "moving_block"
+    assert 0.0 <= bootstrap["bootstrap_probability_improvement"] <= 1.0
+    assert bootstrap["bootstrap_p05_improvement"] == bootstrap["bootstrap_p05_improvement"]
