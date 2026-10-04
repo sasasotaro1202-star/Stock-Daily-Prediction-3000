@@ -121,6 +121,12 @@ def main():
         raise SystemExit(
             "DEFERRED: nested ranking bootstrap evidence does not support promotion"
         )
+    identity = nested_ranking.get("production_identity_alignment") or {}
+    if identity.get("aligned") is not True:
+        raise SystemExit(
+            "DEFERRED: nested ranking evidence is not identity-aligned with "
+            "the frozen production candidate"
+        )
     if payload.get("ranking_selection_ready_for_production") is not True:
         raise SystemExit(
             "DEFERRED: ranking selection lacks explicit production binding approval"
