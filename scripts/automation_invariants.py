@@ -353,6 +353,11 @@ def main() -> int:
     )
     _assert_once(
         nested_ranking,
+        '"window_selection_requires_contiguous_prior_folds": True',
+        "nested_ranking_window_selection_requires_contiguous_evidence",
+    )
+    _assert_once(
+        nested_ranking,
         "moving_block_bootstrap_mean(",
         "nested_ranking_bootstrap_evidence",
     )

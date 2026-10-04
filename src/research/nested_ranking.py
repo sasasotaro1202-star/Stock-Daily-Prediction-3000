@@ -65,9 +65,24 @@ def _select_prior_model_window(
     stability_penalty: float,
 ) -> tuple[str, int] | None:
     candidates: dict[tuple[str, int], float] = {}
+    required_prior_folds = list(
+        range(
+            int(current_fold) - int(min_history_folds),
+            int(current_fold),
+        )
+    )
     for (model_name, window), rows in history.items():
-        prior = [row for row in rows if int(row["fold"]) < current_fold]
-        if len(prior) < min_history_folds:
+        prior = [
+            row
+            for row in rows
+            if int(row["fold"]) in required_prior_folds
+            and int(row["fold"]) < current_fold
+        ]
+        prior_folds = [int(row["fold"]) for row in prior]
+        if (
+            len(prior) < min_history_folds
+            or sorted(prior_folds) != required_prior_folds
+        ):
             continue
         candidates[(str(model_name), int(window))] = _weighted_loss_score(
             prior,
@@ -719,6 +734,22 @@ def nested_prequential_ranking_oos(
             for fold, status in sorted(window_selection_status_by_fold.items())
         },
         "training_window_selection_prequential": training_window_selection_prequential,
+        "window_evidence_coverage": {
+            str(window): {
+                str(model_name): sorted(
+                    int(row["fold"])
+                    for row in rows
+                )
+                for (model_name, candidate_window), rows in sorted(
+                    model_window_history.items()
+                )
+                if int(candidate_window) == int(window)
+            }
+            for window in sorted({
+                int(candidate_window)
+                for (_model_name, candidate_window) in model_window_history
+            })
+        },
         "prediction_generation_training_window_sessions": (
             int(prediction_generation_training_window_sessions)
             if prediction_generation_training_window_sessions is not None
@@ -736,6 +767,7 @@ def nested_prequential_ranking_oos(
             else "not_selected_from same OOS; ranking evaluation consumes fold-local model predictions"
         ),
         "same_oos_global_model_or_window_reuse": False,
+        "window_selection_requires_contiguous_prior_folds": True,
         "ranking_weight_selection_prequential": True,
         "model_selection_prequential": True,
         "return_estimator_selection_prequential": True,
