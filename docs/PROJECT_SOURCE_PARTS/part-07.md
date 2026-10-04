@@ -692,3 +692,21 @@ PIT-safe population
 までを一体で管理する。
 
 これをFuture Generalization × Case-Level Correctness × Calibration × Predictability × Uncertainty × Robustness × PIT Integrity × Information Efficiency × Operational Reliability × Reproducibilityの基準とする。
+
+
+⸻
+
+119. NESTED-RANKING COMPUTE REUSE / EXECUTION INTEGRITY — 2026-10-04
+
+Nested model × training-window research may reuse an already-materialized fold-local calibrated probability vector when the later global window scoring requests the identical fold, training window, and selected classifier.
+
+This is a compute-only optimization. It must satisfy all of the following:
+
+* the probability vector was generated from the same fold-local pre-test core and calibration slice;
+* the vector shape exactly matches the later test slice;
+* no current-fold outcome is introduced into model, window, calibration, or ranking selection;
+* fit_rows remains available for diagnostics even when prediction reuse is taken;
+* non-reusable cases fall back to the original fit/calibrate/predict path;
+* reused fold/window pairs are recorded in research evidence for auditability.
+
+The optimization changes neither PIT boundaries nor the nested prior-fold evidence contract. It is not performance evidence and cannot by itself justify promotion.

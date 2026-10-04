@@ -192,7 +192,7 @@ def test_resolve_context_fails_closed_on_lookup_error(monkeypatch, tmp_path) -> 
 def test_research_validation_has_external_status_workflow() -> None:
     text = STATUS_WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' in text
-    assert "types: [completed, in_progress]" in text
+    assert "types: [completed, in_progress, requested]" in text
     assert "group: research-validation-status" in text
     assert "python scripts/persist_research_validation_status.py" in text
     assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in text
