@@ -172,6 +172,24 @@ def _risk_ood(current_risk: np.ndarray, prior_risks: Sequence[np.ndarray]) -> np
     return np.clip(rms / 4.0, 0.0, 1.0)
 
 
+def _risk_ood_missingness_aware_scale(
+    current_risk: np.ndarray,
+    risk_ood: np.ndarray,
+    *,
+    ood_scale: float = 0.75,
+    completeness_floor: float = 0.75,
+) -> np.ndarray:
+    """Research-only shrink scale separating neutral OOD from missingness."""
+    completeness = 1.0 - _incomplete_score(current_risk)
+    floor = float(np.clip(completeness_floor, 0.0, 1.0))
+    scale = np.exp(
+        -max(float(ood_scale), 0.0)
+        * np.clip(np.asarray(risk_ood, dtype=float), 0.0, 1.0)
+    )
+    factor = floor + (1.0 - floor) * np.clip(completeness, 0.0, 1.0)
+    return np.clip(scale * factor, 0.0, 1.0)
+
+
 def _difficulty(p_matrix: np.ndarray, risk: np.ndarray) -> np.ndarray:
     mean_p = p_matrix.mean(axis=1)
     uncertainty = p_matrix.std(axis=1)
@@ -672,6 +690,23 @@ def run_frontier_pattern_suite(
                 0.5 + (equal - 0.5) * np.exp(-0.75 * risk_ood),
                 "ood_uncertainty",
                 {"scale": 0.75, "fit_policy": "prior_risk_state_only"},
+                None,
+            )
+
+            missingness_aware_scale = _risk_ood_missingness_aware_scale(
+                risk,
+                risk_ood,
+                ood_scale=0.75,
+                completeness_floor=0.75,
+            )
+            patterns["risk_ood_missingness_aware_shrink"] = (
+                0.5 + (equal - 0.5) * missingness_aware_scale,
+                "ood_uncertainty",
+                {
+                    "scale": 0.75,
+                    "completeness_floor": 0.75,
+                    "fit_policy": "prior_risk_state_plus_current_coverage",
+                },
                 None,
             )
 

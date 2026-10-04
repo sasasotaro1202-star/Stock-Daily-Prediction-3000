@@ -789,7 +789,7 @@ The control preserves the distinction between unavailable, unknown and observed 
 
 ⸻
 
-123. RESEARCH EVIDENCE FRESHNESS — 2026-10-04
+125. RESEARCH EVIDENCE FRESHNESS — 2026-10-04
 
 Research validation results are evidence artifacts, not current-state truth by default.
 
@@ -805,3 +805,16 @@ When the two SHAs differ:
 When either SHA cannot be established, evidence_freshness = UNKNOWN and the result is fail-closed for release decisions.
 
 This is a governance layer only. It does not retune frozen holdout evidence and does not mutate Production.
+
+
+⸻
+
+126. RISK-OOD MISSINGNESS-AWARE SHRINK RESEARCH CONTROL — 2026-10-04
+
+Risk-derived OOD remains finite-neutral when historical/current risk evidence is unavailable. That neutral numeric value is not evidence that the case is fully observed or low-risk.
+
+The frontier research layer now includes a research-only candidate that combines prior-risk OOD distance with current risk completeness without imputing unavailable dimensions.
+
+When risk is fully observed, the candidate behaves as ordinary OOD shrinkage. When risk evidence is missing, the OOD component remains neutral while a conservative completeness factor still applies shrinkage toward 0.5.
+
+This candidate does not alter production prediction and remains subject to chronological OOS/WFO, calibration, robustness, PIT and frozen-holdout evidence gates.

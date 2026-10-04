@@ -3,7 +3,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.research.frontier_pattern_suite import _risk_ood, run_frontier_pattern_suite
+from src.research.frontier_pattern_suite import (
+    _risk_ood,
+    _risk_ood_missingness_aware_scale,
+    run_frontier_pattern_suite,
+)
 
 
 def _toy_bank():
@@ -54,6 +58,7 @@ def test_frontier_suite_executes_broad_matrix_without_production_mutation():
     assert "regime_recent_mix_50" in names
     assert "difficulty_shrink_40" in names
     assert "risk_ood_shrink" in names
+    assert "risk_ood_missingness_aware_shrink" in names
     assert "logit_median" in names
     assert "winsorized_probability_mean" in names
     assert "prior_outcome_base_rate_shrink_25" in names
@@ -142,3 +147,21 @@ def test_frontier_risk_ood_handles_mixed_missing_dimensions():
     # contribute; unavailable dimensions are neutral rather than imputed.
     assert result[0] == 0.0
     assert result[1] > 0.0
+
+
+def test_risk_ood_missingness_aware_scale_separates_missingness_from_neutral_ood():
+    missing = np.full((2, 3), np.nan, dtype=float)
+    observed = np.ones((2, 3), dtype=float)
+    neutral = np.zeros(2, dtype=float)
+    shifted = np.array([0.0, 0.5], dtype=float)
+
+    missing_scale = _risk_ood_missingness_aware_scale(missing, neutral)
+    observed_scale = _risk_ood_missingness_aware_scale(observed, shifted)
+
+    assert np.isfinite(missing_scale).all()
+    assert np.isfinite(observed_scale).all()
+    assert np.allclose(missing_scale, 0.75)
+    assert np.isclose(observed_scale[0], 1.0)
+    assert observed_scale[1] < observed_scale[0]
+    assert np.all((missing_scale >= 0.0) & (missing_scale <= 1.0))
+    assert np.all((observed_scale >= 0.0) & (observed_scale <= 1.0))
