@@ -83,6 +83,12 @@ def test_frontier_suite_learned_components_are_prior_only_by_contract():
     assert result["selection"]["source"] == "prequential_development_only"
     assert "prequential_selection_stability" in result["selection"]
     assert result["selection"]["prequential_selection_stability"]["decision_count"] >= 0
+    final_sel = result["selection"]["final_prequential_selection"]
+    decisions = result["selection"]["prequential_decisions"]
+    assert final_sel["source"] == "last_prequential_development_decision"
+    assert final_sel["decision_outcome_used_for_selection"] is False
+    assert final_sel["decision_fold"] == decisions[-1]["fold"]
+    assert result["selection"]["selected_name"] == decisions[-1]["selected_name"]
 
 
 def test_frontier_suite_blocks_insufficient_chronological_folds():
