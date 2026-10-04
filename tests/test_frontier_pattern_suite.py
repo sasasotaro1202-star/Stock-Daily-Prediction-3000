@@ -75,6 +75,9 @@ def test_frontier_suite_learned_components_are_prior_only_by_contract():
     assert contracts["calibration_fit_only_on_strictly_prior_rows"] is True
     assert contracts["selective_thresholds_fit_only_on_prior_state"] is True
     assert contracts["locked_outcomes_used_for_tuning"] is False
+    assert contracts["locked_outcomes_used_for_selection"] is False
+    assert contracts["best_research_pattern_selected_from_development_only"] is True
+    assert result["selection"]["source"] == "development_only"
 
 
 def test_frontier_suite_blocks_insufficient_chronological_folds():
