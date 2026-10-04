@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import time
 import urllib.error
 import urllib.request
@@ -68,6 +69,26 @@ def _lookup_run_artifacts() -> tuple[list[dict], str | None]:
     except (OSError, urllib.error.URLError, urllib.error.HTTPError) as exc:
         return [], f"{type(exc).__name__}:{exc}"
     return payload.get("artifacts", []) or [], None
+
+
+def _git_head_sha() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _evidence_freshness(research_sha: str | None, current_sha: str | None) -> str:
+    if research_sha and current_sha:
+        return "FRESH" if research_sha == current_sha else "STALE"
+    return "UNKNOWN"
 
 
 def _runtime_health(job: dict, workflow_status: str = "") -> dict:
@@ -185,8 +206,13 @@ def main() -> int:
         evidence_state = "PARTIAL"
     else:
         evidence_state = "MISSING"
+    research_sha = os.environ.get("RESEARCH_WORKFLOW_SHA", "").strip() or None
+    current_main_sha = _git_head_sha()
     status = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "research_workflow_sha": research_sha,
+        "status_branch_main_sha": current_main_sha,
+        "evidence_freshness": _evidence_freshness(research_sha, current_main_sha),
         "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID") or os.environ.get("GITHUB_RUN_ID", ""),
         "workflow_sha": os.environ.get("RESEARCH_WORKFLOW_SHA") or os.environ.get("GITHUB_SHA", ""),
         "workflow_status": workflow_status or "unknown",
