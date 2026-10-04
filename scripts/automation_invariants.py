@@ -362,6 +362,31 @@ def main() -> int:
         "freeze_requires_nested_ranking_evidence",
     )
     _assert_once(
+        locker,
+        'if nested_ranking.get("same_oos_global_model_or_window_reuse") is not False:',
+        "freeze_rejects_same_oos_ranking_reuse",
+    )
+    _assert_once(
+        locker,
+        'if nested_ranking.get("ranking_weight_selection_prequential") is not True:',
+        "freeze_requires_prequential_ranking_weights",
+    )
+    _assert_once(
+        locker,
+        'if nested_ranking.get("model_selection_prequential") is not True:',
+        "freeze_requires_prequential_ranking_model_selection",
+    )
+    _assert_once(
+        locker,
+        'if nested_ranking.get("return_estimator_selection_prequential") is not True:',
+        "freeze_requires_prequential_ranking_return_selection",
+    )
+    _assert_once(
+        locker,
+        'bootstrap_probability < 0.90 or bootstrap_p05 <= 0.0',
+        "freeze_requires_positive_bootstrap_ranking_evidence",
+    )
+    _assert_once(
         watchdog,
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
