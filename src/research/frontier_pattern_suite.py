@@ -448,6 +448,7 @@ def run_frontier_pattern_suite(
     ordered = [dict(bank[k]) for k in sorted(bank, key=lambda x: int(x))] if isinstance(bank, Mapping) else [dict(x) for x in bank]
     base = {
         "schema_version": 1,
+        "research_contract_id": "frontier-pattern-ecology-v1",
         "status": "BLOCKED",
         "research_only": True,
         "production_changed": False,
@@ -468,6 +469,7 @@ def run_frontier_pattern_suite(
     locked_start = len(ordered) - locked
 
     per_pattern: dict[str, list[dict[str, Any]]] = {}
+    execution_failures: list[dict[str, Any]] = []
     training_trace: dict[str, list[dict[str, Any]]] = {}
     locked_rows: dict[str, list[float]] = {}
     locked_y: list[int] = []
@@ -818,16 +820,25 @@ def run_frontier_pattern_suite(
             locked_sessions.extend([str(x) for x in session_ids])
 
         for name, (pred, category, meta, active) in patterns.items():
-            row = _evaluate_pattern(
-                name,
-                category,
-                y,
-                pred,
-                equal,
-                session_ids,
-                meta=meta,
-                active=active,
-            )
+            try:
+                row = _evaluate_pattern(
+                    name,
+                    category,
+                    y,
+                    pred,
+                    equal,
+                    session_ids,
+                    meta=meta,
+                    active=active,
+                )
+            except Exception as exc:
+                execution_failures.append({
+                    "fold": int(t),
+                    "candidate": name,
+                    "error_type": type(exc).__name__,
+                    "error": str(exc)[:500],
+                })
+                continue
             row["fold"] = int(t)
             row["is_locked"] = bool(t >= locked_start)
             per_pattern.setdefault(name, []).append(row)
@@ -1021,7 +1032,7 @@ def run_frontier_pattern_suite(
 
     return {
         **base,
-        "status": "EXECUTED_RESEARCH_PATTERN_MATRIX",
+        "status": "EXECUTED_RESEARCH_PATTERN_MATRIX_WITH_FAILURES" if execution_failures else "EXECUTED_RESEARCH_PATTERN_MATRIX",
         "evaluation_mode": "chronological_oos_same_observations",
         "models": models,
         "fold_count": len(ordered),
@@ -1029,6 +1040,7 @@ def run_frontier_pattern_suite(
         "locked_folds": locked,
         "pattern_count": len(summary_sorted),
         "patterns": summary_sorted,
+        "execution_failures": execution_failures,
         "best_research_pattern": selected_locked,
         "best_locked_diagnostic": best_locked_diagnostic,
         "selection": {
