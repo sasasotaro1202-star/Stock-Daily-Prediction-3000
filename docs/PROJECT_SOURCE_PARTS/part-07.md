@@ -739,6 +739,8 @@ All tuned components remain prior-only, all candidates share locked OOS observat
 
 122. PREQUENTIAL FRONTIER WINNER SELECTION — 2026-10-04
 
+The final research winner is the candidate selected at the last prequential development decision before that decision fold is scored. The outcome of that decision fold is therefore excluded from the winner choice. Any candidate-level aggregate of folds on which the candidate happened to be selected is diagnostic only and cannot define the winner.
+
 For broad frontier matrices, locked OOS may be used for final diagnostic comparison but never for winner selection.
 
 The winner-selection path is:
