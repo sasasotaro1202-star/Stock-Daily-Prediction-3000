@@ -3,7 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 
-WORKFLOW = Path(".github/workflows/research-validation.yml")
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = ROOT / ".github/workflows/research-validation.yml"
 
 
 def test_research_validation_requires_integrated_case_risk_artifacts() -> None:
