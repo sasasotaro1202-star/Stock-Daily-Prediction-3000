@@ -49,7 +49,7 @@ def test_extreme_suite_has_broad_mechanism_coverage():
         _toy_bank(),
         locked_folds=2,
         min_folds=5,
-        minimum_patterns=80,
+        minimum_patterns=100,
     )
     assert result["status"] == "EXECUTED_EXTREME_PATTERN_MATRIX"
     assert result["pattern_count"] >= 100
@@ -78,7 +78,7 @@ def test_extreme_suite_uses_same_locked_cases():
         _toy_bank(),
         locked_folds=2,
         min_folds=5,
-        minimum_patterns=80,
+        minimum_patterns=100,
     )
     locked_cases = {row["locked_cases"] for row in result["patterns"]}
     assert locked_cases == {40}
@@ -91,7 +91,7 @@ def test_extreme_suite_never_opens_production_or_holdout():
         _toy_bank(),
         locked_folds=2,
         min_folds=5,
-        minimum_patterns=80,
+        minimum_patterns=100,
     )
     contracts = result["contracts"]
     assert contracts["current_fold_outcomes_used_for_pattern_tuning"] is False
@@ -108,7 +108,7 @@ def test_extreme_suite_blocks_short_oos_history():
         _toy_bank()[:4],
         locked_folds=2,
         min_folds=5,
-        minimum_patterns=80,
+        minimum_patterns=100,
     )
     assert result["status"] == "BLOCKED"
     assert result["promotion_allowed"] is False
