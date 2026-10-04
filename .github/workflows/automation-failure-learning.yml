@@ -3,6 +3,7 @@ name: Automation failure learning
 on:
   workflow_run:
     workflows:
+      - "Repository verification"
       - "Research validation"
       - "Market cycle"
       - "U.S. close prediction"
