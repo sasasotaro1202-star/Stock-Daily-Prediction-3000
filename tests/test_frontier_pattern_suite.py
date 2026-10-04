@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from src.research.frontier_pattern_suite import run_frontier_pattern_suite
+from src.research.frontier_pattern_suite import _risk_ood, run_frontier_pattern_suite
 
 
 def _toy_bank():
@@ -112,3 +112,12 @@ def test_frontier_suite_preserves_evaluation_failures(monkeypatch):
     assert "synthetic-evaluation-failure" in failure["error"]
     assert result["status"] == "EXECUTED_RESEARCH_PATTERN_MATRIX_WITH_FAILURES"
     assert result["promotion_allowed"] is False
+
+
+def test_frontier_risk_ood_returns_finite_neutral_score_for_all_missing_history():
+    current = np.full((3, 3), np.nan, dtype=float)
+    prior = [np.full((4, 3), np.nan, dtype=float) for _ in range(2)]
+    result = _risk_ood(current, prior)
+    assert result.shape == (3,)
+    assert np.isfinite(result).all()
+    assert np.array_equal(result, np.zeros(3, dtype=float))
