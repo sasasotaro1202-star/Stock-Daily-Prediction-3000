@@ -42,6 +42,8 @@ def _toy_bank():
 def test_frontier_suite_executes_broad_matrix_without_production_mutation():
     result = run_frontier_pattern_suite(_toy_bank(), locked_folds=2, min_folds=5)
     assert result["status"] == "EXECUTED_RESEARCH_PATTERN_MATRIX"
+    assert result["research_contract_id"] == "frontier-pattern-ecology-v1"
+    assert result["execution_failures"] == []
     assert result["research_only"] is True
     assert result["production_changed"] is False
     assert result["promotion_allowed"] is False
@@ -79,6 +81,7 @@ def test_frontier_suite_learned_components_are_prior_only_by_contract():
     assert contracts["best_research_pattern_selected_from_development_only"] is True
     assert contracts["winner_selection_is_prequential_development_only"] is True
     assert result["selection"]["source"] == "prequential_development_only"
+    assert "prequential_selection_stability" in result["selection"]
     assert result["selection"]["prequential_selection_stability"]["decision_count"] >= 0
 
 
