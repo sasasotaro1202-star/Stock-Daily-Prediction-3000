@@ -75,6 +75,17 @@ def main():
     if not isinstance(rank_uncertainty_penalty,(int,float)) or not 0.0 <= float(rank_uncertainty_penalty) <= 1.0:
         raise SystemExit("FAIL: OOS did not produce a valid ranking uncertainty penalty")
     lock["rank_uncertainty_penalty"]=float(rank_uncertainty_penalty)
+    ranking_protocol = str(payload.get("ranking_oos_calibration_protocol", "")).strip()
+    if not ranking_protocol.startswith("prequential_temporal_calibration_per_fold;"):
+        raise SystemExit(
+            "DEFERRED: ranking OOS evidence is missing the prequential calibration contract"
+        )
+    if payload.get("ranking_selection_ready_for_production") is not True:
+        raise SystemExit(
+            "DEFERRED: ranking selection lacks nested/prequential evidence for production freeze"
+        )
+    lock["ranking_selection_ready_for_production"] = True
+    lock["ranking_oos_calibration_protocol"] = ranking_protocol
     vol_threshold_source=payload.get("regime_vol_threshold_source")
     if vol_threshold_source != "oos_fold_train_median":
         raise SystemExit("FAIL: regime volatility threshold is not OOS-train-derived")
