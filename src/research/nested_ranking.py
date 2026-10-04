@@ -4,6 +4,8 @@ from typing import Mapping, Sequence
 
 import numpy as np
 
+from src.research.statistics import moving_block_bootstrap_mean
+
 
 def _weighted_loss_score(
     fold_rows: Sequence[Mapping[str, object]],
@@ -457,6 +459,25 @@ def nested_prequential_ranking_oos(
         if np.isfinite(mean_delta) and np.isfinite(baseline_mean) and baseline_mean != 0.0
         else float("nan")
     )
+    bootstrap_probability = 0.0
+    bootstrap_p05 = float("-inf")
+    if finite.size >= 5 and np.isfinite(finite).all():
+        bootstrap_probability, bootstrap_p05 = moving_block_bootstrap_mean(
+            finite,
+            n_bootstrap=4000,
+            seed=20261004,
+        )
+
+    final_rank_parameters = None
+    if outer_rows:
+        last = outer_rows[-1]
+        final_rank_parameters = {
+            "probability_weight": float(last["probability_weight"]),
+            "uncertainty_penalty": float(last["uncertainty_penalty"]),
+            "selection_fold": int(last["fold"]),
+            "model": str(last["model"]),
+            "return_estimator": str(last["return_estimator"]),
+        }
 
     return {
         "status": "EVALUATED",
@@ -481,6 +502,10 @@ def nested_prequential_ranking_oos(
         "mean_rank_ic_improvement_vs_fixed_baseline": mean_delta,
         "relative_rank_ic_improvement_vs_fixed_baseline": relative,
         "positive_fold_share": positive_share,
+        "bootstrap_probability_improvement": bootstrap_probability,
+        "bootstrap_p05_improvement": bootstrap_p05,
+        "bootstrap_method": "moving_block",
+        "final_prequential_ranking_parameters": final_rank_parameters,
         "training_window_policy": "not_selected_from_same OOS; ranking evaluation consumes fold-local model predictions",
         "same_oos_global_model_or_window_reuse": False,
         "ranking_weight_selection_prequential": True,
@@ -491,5 +516,7 @@ def nested_prequential_ranking_oos(
             and positive_share >= 0.70
             and np.isfinite(mean_delta)
             and mean_delta > 0.0
+            and bootstrap_probability >= 0.90
+            and bootstrap_p05 > 0.0
         ),
     }
