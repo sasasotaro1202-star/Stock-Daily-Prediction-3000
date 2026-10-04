@@ -11,6 +11,12 @@ used for tuning.
 import math
 from typing import Any, Mapping, Sequence
 
+try:
+    from scipy.special import ndtr, ndtri
+except Exception:  # pragma: no cover - deterministic logit fallback
+    ndtr = None
+    ndtri = None
+
 import numpy as np
 
 from src.research.frontier_pattern_suite import (
@@ -44,13 +50,13 @@ def _entropy(p: np.ndarray) -> np.ndarray:
 
 
 def _probit_mean(p_matrix: np.ndarray) -> np.ndarray:
-    """Normal-score aggregation with a dependency-light approximation."""
+    """Aggregate probabilities in normal-score space."""
     x = _safe_probability(p_matrix)
-    z = np.sqrt(2.0) * np.vectorize(math.erfinv)(2.0 * x - 1.0) if hasattr(math, "erfinv") else None
-    if z is None:
-        # Deterministic fallback that still changes the probability geometry.
+    if ndtri is None or ndtr is None:
         z = _logit(x)
-    return _safe_probability(_sigmoid(np.mean(z, axis=1)))
+        return _safe_probability(_sigmoid(np.mean(z, axis=1)))
+    z = ndtri(x)
+    return _safe_probability(ndtr(np.mean(z, axis=1)))
 
 
 def _power_mean(p_matrix: np.ndarray, power: float) -> np.ndarray:
