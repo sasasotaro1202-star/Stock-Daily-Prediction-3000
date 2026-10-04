@@ -56,3 +56,15 @@ def test_nested_ranking_selection_is_prequential():
     assert '"ranking_selection_ready_for_production": False' in source
     assert "same-OOS model/window selection" in helper or "globally selected model" in helper
     assert '"same_oos_global_model_or_window_reuse": False' in helper
+
+
+
+def test_nested_ranking_freeze_gate_requires_structural_evidence():
+    locker = (ROOT / "scripts/lock_frozen_model.py").read_text(encoding="utf-8")
+    assert 'nested_ranking = payload.get("nested_ranking_selection_research")' in locker
+    assert 'nested_ranking.get("status") != "EVALUATED"' in locker
+    assert 'nested_ranking.get("same_oos_global_model_or_window_reuse") is not False' in locker
+    assert 'nested_ranking.get("ranking_weight_selection_prequential") is not True' in locker
+    assert 'nested_ranking.get("model_selection_prequential") is not True' in locker
+    assert 'nested_ranking.get("return_estimator_selection_prequential") is not True' in locker
+    assert 'bootstrap_probability < 0.90 or bootstrap_p05 <= 0.0' in locker
