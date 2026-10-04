@@ -639,6 +639,7 @@ def run_extreme_pattern_suite(
             "current_fold_outcomes_used_for_pattern_tuning": False,
             "learned_patterns_fit_only_on_strictly_prior_folds": True,
             "calibration_fit_only_on_strictly_prior_rows": True,
+            "selective_thresholds_fit_only_on_prior_state": True,
             "locked_outcomes_used_for_tuning": False,
             "same_locked_oos_observations_for_all_patterns": True,
             "frozen_holdout_used": False,
