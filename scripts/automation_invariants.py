@@ -338,6 +338,16 @@ def main() -> int:
         "run: python scripts/run_temporal_state_oos.py",
         "temporal_state_oos_runs_automatically",
     )
+    _assert_once(
+        validation_workflow,
+        "selection.get(\"selection_metric\") == \"logloss\"",
+        "temporal_state_prequential_selection_contract",
+    )
+    _assert_once(
+        validation_workflow,
+        "selection.get(\"current_fold_outcomes_used_for_selection\") is False",
+        "temporal_state_blocks_current_fold_selection",
+    )
     _assert_contains(
         validation_workflow,
         "data/research/temporal_state_oos.json",
