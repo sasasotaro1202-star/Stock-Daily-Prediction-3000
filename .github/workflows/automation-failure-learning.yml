@@ -1,6 +1,9 @@
 name: Automation failure learning
 
 on:
+  # Manual dispatch is retained for bounded recovery/debugging when a workflow_run
+  # delivery is missed. Normal operation is driven automatically by workflow_run.
+  workflow_dispatch:
   workflow_run:
     workflows:
       - "Repository verification"
