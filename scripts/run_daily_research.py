@@ -1751,6 +1751,107 @@ def main():
         for name, value in model_results.items()
         if name in balanced_candidates
     }
+    # Build window-conditioned classifier predictions for nested ranking. Window
+    # 0 reuses the existing fold-local OOS bank; non-zero windows are refit
+    # from each fold's own pre-test core/calibration slices. Current outcomes
+    # are never used to construct these probabilities.
+    nested_ranking_window_predictions_by_fold: dict[
+        int, dict[int, dict[str, np.ndarray]]
+    ] = {
+        int(fold_idx): {}
+        for fold_idx in range(len(folds))
+    }
+    for fold_idx, fold in enumerate(folds):
+        test_dates = set(dates[fold.test_start : fold.test_end])
+        test = df[df.session_date.isin(test_dates)].reset_index(drop=True)
+        fold_bank = online_prediction_by_fold.get(fold_idx, {})
+        if len(test) < 100 or not fold_bank:
+            continue
+
+        for lookback in window_candidates:
+            nested_ranking_window_predictions_by_fold[fold_idx][
+                int(lookback)
+            ] = {}
+
+            if lookback == 0:
+                for model_name in sequential_model_names:
+                    existing = fold_bank.get("predictions", {}).get(model_name)
+                    if existing is None:
+                        continue
+                    existing_array = np.asarray(existing, dtype=float)
+                    if existing_array.shape == (len(test),):
+                        nested_ranking_window_predictions_by_fold[
+                            fold_idx
+                        ][0][model_name] = existing_array.copy()
+                continue
+
+            train_dates = dates[: fold.train_end]
+            usable_train_dates = train_dates[-lookback:]
+            cal_n = max(20, int(len(usable_train_dates) * 0.2))
+            if len(usable_train_dates) - cal_n < 40:
+                continue
+            core_dates = set(usable_train_dates[:-cal_n])
+            cal_dates = set(usable_train_dates[-cal_n:])
+            core = df[df.session_date.isin(core_dates)]
+            cal = df[df.session_date.isin(cal_dates)]
+            if min(len(core), len(cal), len(test)) < 100:
+                continue
+            if (
+                core.target_up_1d.nunique() < 2
+                or cal.target_up_1d.nunique() < 2
+            ):
+                continue
+
+            for model_name in sequential_model_names:
+                factory = candidate_models.get(model_name)
+                if factory is None:
+                    continue
+                fit_rows = cap_training_rows(
+                    core,
+                    max_rows=300_000,
+                    recent_sessions=min(252, lookback),
+                )
+                nested_model = factory()
+                fit_classifier(
+                    nested_model,
+                    model_name,
+                    fit_rows[FEATURE_COLUMNS],
+                    fit_rows.target_up_1d.astype(int),
+                    fit_rows["session_date"],
+                    half_life_sessions=int(
+                        model_cfg.get(
+                            "recency_weight_half_life_sessions", 252
+                        )
+                    ),
+                )
+                cal_p = nested_model.predict_proba(
+                    cal[FEATURE_COLUMNS]
+                )[:, 1]
+                raw_test_p = nested_model.predict_proba(
+                    test[FEATURE_COLUMNS]
+                )[:, 1]
+                nested_calibrator = make_calibrator("platt").fit(
+                    cal_p,
+                    cal.target_up_1d.astype(int),
+                )
+                nested_probability = nested_calibrator.predict(raw_test_p)
+                nested_ranking_window_predictions_by_fold[
+                    fold_idx
+                ][int(lookback)][model_name] = np.asarray(
+                    nested_probability,
+                    dtype=float,
+                )
+
+    nested_ranking_prediction_window_manifest = {
+        str(fold_idx): {
+            str(window): sorted(str(name) for name in per_window)
+            for window, per_window in sorted(per_fold.items())
+        }
+        for fold_idx, per_fold in sorted(
+            nested_ranking_window_predictions_by_fold.items()
+        )
+    }
+
     sequential_selection_research = chronological_policy_oos(
         sequential_model_names,
         min_history_folds=sequential_min_history,
@@ -3291,6 +3392,7 @@ def main():
         min_history_folds=sequential_min_history,
         model_half_life_folds=sequential_half_life,
         model_stability_penalty=sequential_stability,
+        window_predictions_by_fold=nested_ranking_window_predictions_by_fold,
         production_identity={
             "selected_model": global_selected,
             "classifier_training_window_sessions": selected_training_window,
@@ -3298,8 +3400,11 @@ def main():
             "rank_probability_weight": selected_rank_weight,
             "rank_uncertainty_penalty": selected_uncertainty_penalty,
         },
-        prediction_generation_training_window_sessions=0,
+        prediction_generation_training_window_sessions=None,
     )
+    nested_ranking_selection_research[
+        "prediction_window_bank_manifest"
+    ] = nested_ranking_prediction_window_manifest
 
     conformal_prediction_research = {
         "research_only": True,
@@ -3441,6 +3546,7 @@ def main():
         "nested_ranking_selection_research": nested_ranking_selection_research,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
+        "nested_ranking_prediction_window_manifest": nested_ranking_prediction_window_manifest,
         "calibration_method": selected_calibration_method,
         "calibration_method_candidates": calibration_candidates,
         "rank_probability_weight": selected_rank_weight,
@@ -3460,9 +3566,9 @@ def main():
         "ranking_selection_ready_for_production": False,
         "ranking_selection_block_reason": (
             "nested prequential ranking evidence is now computed, but production "
-            "ranking is still blocked until the selected ranking evidence is "
-            "identity-bound to the frozen classifier training window and return "
-            "estimator and passes the frozen-holdout gate"
+            "ranking remains blocked until the model × training-window identity, "
+            "return estimator, ranking parameters, robustness, and frozen-holdout "
+            "release gates all pass"
         ),
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,

@@ -8,12 +8,17 @@ from src.research.nested_ranking import nested_prequential_ranking_oos
 def _fixture():
     predictions = {}
     returns = {}
+    window_predictions = {}
     model_rows = {
         "model_a": [],
         "model_b": [],
     }
     for fold in range(5):
         y = np.asarray([0, 1, 0, 1], dtype=int)
+        window_predictions[fold] = {
+            0: {},
+            252: {},
+        }
         target_returns = np.asarray([-0.02, 0.03, -0.01, 0.04], dtype=float)
         predictions[fold] = {
             "y": y,
@@ -26,6 +31,14 @@ def _fixture():
                 "model_a": np.asarray([0.20, 0.80, 0.35, 0.75]),
                 "model_b": np.asarray([0.70, 0.30, 0.65, 0.25]),
             },
+        }
+        window_predictions[fold][0] = {
+            "model_a": predictions[fold]["predictions"]["model_a"],
+            "model_b": predictions[fold]["predictions"]["model_b"],
+        }
+        window_predictions[fold][252] = {
+            "model_a": np.asarray([0.10, 0.90, 0.25, 0.85]),
+            "model_b": np.asarray([0.65, 0.35, 0.55, 0.45]),
         }
         returns[fold] = {
             "q50": {
@@ -55,15 +68,16 @@ def _fixture():
         }
         model_rows["model_a"].append({"fold": fold, "logloss": 0.60 - 0.01 * fold})
         model_rows["model_b"].append({"fold": fold, "logloss": 0.80 - 0.005 * fold})
-    return predictions, returns, model_rows
+    return predictions, returns, model_rows, window_predictions
 
 
 def test_nested_ranking_is_prequential_and_research_only():
-    predictions, returns, model_rows = _fixture()
+    predictions, returns, model_rows, window_predictions = _fixture()
     result = nested_prequential_ranking_oos(
         predictions,
         returns,
         model_rows,
+        window_predictions_by_fold=window_predictions,
         min_history_folds=2,
     )
 
@@ -76,14 +90,17 @@ def test_nested_ranking_is_prequential_and_research_only():
     assert result["model_selection_prequential"] is True
     assert result["return_estimator_selection_prequential"] is True
     assert len(result["outer_metrics"]) >= 3
+    assert result["training_window_selection_prequential"] is True
+    assert result["final_prequential_ranking_parameters"]["training_window_sessions"] == 252
 
 
 def test_current_fold_outcome_does_not_change_current_fold_selection():
-    predictions, returns, model_rows = _fixture()
+    predictions, returns, model_rows, window_predictions = _fixture()
     baseline = nested_prequential_ranking_oos(
         predictions,
         returns,
         model_rows,
+        window_predictions_by_fold=window_predictions,
         min_history_folds=2,
     )
 
@@ -130,11 +147,12 @@ def test_current_fold_outcome_does_not_change_current_fold_selection():
 
 
 def test_nested_ranking_requires_bootstrap_evidence_for_positive_candidate():
-    predictions, returns, model_rows = _fixture()
+    predictions, returns, model_rows, window_predictions = _fixture()
     result = nested_prequential_ranking_oos(
         predictions,
         returns,
         model_rows,
+        window_predictions_by_fold=window_predictions,
         min_history_folds=2,
     )
     assert "bootstrap_probability_improvement" in result
@@ -147,11 +165,12 @@ def test_nested_ranking_requires_bootstrap_evidence_for_positive_candidate():
 
 
 def test_production_identity_alignment_is_fail_closed():
-    predictions, returns, model_rows = _fixture()
+    predictions, returns, model_rows, window_predictions = _fixture()
     result = nested_prequential_ranking_oos(
         predictions,
         returns,
         model_rows,
+        window_predictions_by_fold=window_predictions,
         min_history_folds=2,
         production_identity={
             "selected_model": "not_the_final_model",
@@ -160,11 +179,42 @@ def test_production_identity_alignment_is_fail_closed():
             "rank_probability_weight": 0.99,
             "rank_uncertainty_penalty": 0.99,
         },
-        prediction_generation_training_window_sessions=0,
+        prediction_generation_training_window_sessions=None,
     )
 
     alignment = result["production_identity_alignment"]
     assert alignment["provided"] is True
     assert alignment["aligned"] is False
-    assert alignment["checks"]["classifier_training_window_matches_prediction_generation"] is False
+    assert alignment["checks"]["training_window_selection_is_prequential"] is True
+    assert alignment["checks"]["classifier_training_window_matches_final_prequential_window"] is False
 
+
+
+def test_nested_ranking_reports_aligned_model_window_identity_when_production_matches():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    probe = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+    final_params = probe["final_prequential_ranking_parameters"]
+    aligned = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+        production_identity={
+            "selected_model": final_params["model"],
+            "classifier_training_window_sessions": final_params[
+                "training_window_sessions"
+            ],
+            "return_estimator": final_params["return_estimator"],
+            "rank_probability_weight": final_params["probability_weight"],
+            "rank_uncertainty_penalty": final_params["uncertainty_penalty"],
+        },
+        prediction_generation_training_window_sessions=None,
+    )
+    assert aligned["production_identity_alignment"]["aligned"] is True
