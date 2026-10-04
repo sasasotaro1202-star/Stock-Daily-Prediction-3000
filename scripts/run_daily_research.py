@@ -1789,22 +1789,6 @@ def main():
         "outcome is added only after scoring. Research-only; no production change."
     )
 
-    # Research-only ranking selection with a genuinely prequential outer loop.
-    # Unlike the legacy ranking diagnostic below, this selector never receives
-    # the globally-selected model or globally-selected training window. The
-    # classifier is selected from prior-fold LogLoss, the return estimator from
-    # prior-fold Rank IC, and ranking weights/uncertainty penalties from prior
-    # outer-fold ranking results. Current-fold outcomes enter history only after
-    # the untouched ranking score has been recorded.
-    nested_ranking_selection_research = nested_prequential_ranking_oos(
-        online_prediction_by_fold,
-        return_predictions_by_fold,
-        sequential_model_names,
-        min_history_folds=sequential_min_history,
-        model_half_life_folds=sequential_half_life,
-        model_stability_penalty=sequential_stability,
-    )
-
     # Research-only temporal confidence-risk layer. It predicts the
     # probability that the selected model's directional decision will be
     # wrong, using only prior OOS prediction/context rows. It may shrink
@@ -3295,6 +3279,27 @@ def main():
     else:
         selected_rank_weight = 0.50
         selected_uncertainty_penalty = 0.0
+
+    # Research-only nested ranking is evaluated only after the candidate
+    # production configuration is fully materialized. This allows the result
+    # to carry an explicit identity-alignment audit without using the frozen
+    # holdout for selection.
+    nested_ranking_selection_research = nested_prequential_ranking_oos(
+        online_prediction_by_fold,
+        return_predictions_by_fold,
+        sequential_model_names,
+        min_history_folds=sequential_min_history,
+        model_half_life_folds=sequential_half_life,
+        model_stability_penalty=sequential_stability,
+        production_identity={
+            "selected_model": global_selected,
+            "classifier_training_window_sessions": selected_training_window,
+            "return_estimator": selected_return_estimator,
+            "rank_probability_weight": selected_rank_weight,
+            "rank_uncertainty_penalty": selected_uncertainty_penalty,
+        },
+        prediction_generation_training_window_sessions=252,
+    )
 
     conformal_prediction_research = {
         "research_only": True,
