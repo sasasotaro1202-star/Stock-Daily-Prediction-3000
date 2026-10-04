@@ -46,3 +46,34 @@ Use IMPLEMENTED / EXECUTED / VERIFIED / PERFORMANCE_VERIFIED / PROMOTION_CANDIDA
 
 ## Loop
 MONITOR → DETECT → TRIAGE → RESEARCH → IMPLEMENT → TEST → PIT → OOS/WFO → CALIBRATION → ROBUSTNESS → HOLDOUT → ADOPT/HOLD/REJECT → RELEASE → PRODUCTION → RECONCILE → FAILURE ANALYSIS → MEMORY → NEXT RESEARCH.
+
+## Cross-project validated operating contracts
+
+The following patterns are adopted as reusable controls after comparison with the current main branches of BTC-Prediction-Research, 7-Sport-Prediction-Research, Soccer-Prediction-Research and Baseball-Prediction-System. Transfer mechanisms, not performance claims.
+
+- PIT maturity firewall: prior outcomes used to train any meta-model, confidence-risk model, predictability model, routing layer or calibration layer must be demonstrably mature by the target prediction cutoff. A row whose outcome became known after its own prediction cutoff is not eligible merely because it is earlier in dataframe order. Missing or contradictory maturity timestamps fail closed.
+- Partial-failure semantics: a selected universe member, source batch, enrichment batch or required acquisition error must be surfaced as DEGRADED/FAILED rather than converted to OK because other rows succeeded. Required failure must propagate to the workflow exit and downstream evidence gate.
+- Long-running OOS continuity: chronological OOS workflows must not be cancelled by ordinary main-branch commits. They may remain valid across explicitly allowlisted control-plane-only changes only when the changed files cannot affect runtime data, features, targets, PIT, scoring, routing, calibration, selection, adoption or candidate identity. Evidence-affecting changes invalidate the run and require fresh OOS.
+- Evidence freshness: any change capable of altering OOS selection, calibration, scoring, routing, adoption gates, PIT semantics, candidate identity or runtime feature schema must trigger the relevant validation/OOS workflow before prior evidence is considered current.
+- Feature runtime contract: production features must have a canonical manifest plus machine-readable policy, deterministic assembly order and a runtime schema/hash that can be reconciled with the frozen candidate. A feature name in source code is not evidence of production use.
+- Analysis/evidence identity: analysis artifacts must bind to the exact code/config SHA that performed the analysis. Later bot commits that publish or summarize evidence are separate commits and must not silently replace the analysis identity.
+- Concurrency and durable state: critical checkpoint/state writes use single-writer or compare-and-reconcile semantics. A stale collector/OOS process must not overwrite a newer remote snapshot.
+- Research handoff: expensive OOS may run only after explicit TESTS_PASSED and AUDIT_PASSED prerequisites; absent/invalid handoff is BLOCKED rather than an assumed pass.
+- Cross-project evidence is mechanism-level only. A successful method in another repository never enters Stock Production without local compatibility checks, local PIT audit, chronological OOS/WFO, calibration, robustness, frozen holdout and release-gate evidence.
+
+## Current priority hierarchy
+
+PIT integrity > apparent backtest gain.
+Future generalization > historical fit.
+Case-level correctness > aggregate-only optimization.
+Calibration and predictability awareness > raw confidence.
+Independent evidence > source count.
+Robustness > single-period improvement.
+Safe degradation > forced prediction.
+Reproducibility and state consistency > convenient output.
+Failure learning > repeated failure.
+
+## Production-readiness invariant
+
+A candidate is not production-eligible unless the complete bundle is internally consistent across model, training window, target, features/schema, calibration, routing, uncertainty policy, universe/scope, source/PIT policy, frozen holdout, reproducibility manifest, release gate, monitoring and rollback target.
+
