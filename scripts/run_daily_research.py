@@ -3085,6 +3085,18 @@ def main():
     # Select the final production ranking blend on chronological OOS.
     # Each fold trains once; multiple score configurations are then evaluated,
     # so adding ranking candidates does not multiply model fitting cost.
+    #
+    # IMPORTANT: ranking evidence must not reuse the globally selected
+    # calibration method from the same OOS outcomes. For every ranking fold,
+    # use only the calibration method selected from strictly prior OOS folds
+    # by the temporal calibration router; the current fold is then scored
+    # untouched. This keeps the ranking-selection evidence prequential.
+    temporal_calibration_method_by_fold = {
+        int(row["fold"]): str(row["method"])
+        for row in temporal_calibration_rows
+        if "fold" in row and "method" in row
+    }
+    ranking_oos_calibration_methods = {}
     ranking_candidates = {}
     rank_weight_grid = (0.25, 0.50, 0.75)
     uncertainty_penalty_grid = (0.0, 0.05, 0.10)
@@ -3127,7 +3139,16 @@ def main():
             half_life_sessions=int(model_cfg.get("recency_weight_half_life_sessions", 252)),
         )
         cal_p = model.predict_proba(cal[FEATURE_COLUMNS])[:, 1]
-        calibrator = make_calibrator(selected_calibration_method).fit(
+        fold_calibration_method = temporal_calibration_method_by_fold.get(
+            int(fold_idx),
+            "platt",
+        )
+        if fold_calibration_method not in CALIBRATION_METHODS:
+            raise SystemExit(
+                "FAIL: ranking OOS received an invalid prequential calibration method"
+            )
+        ranking_oos_calibration_methods[int(fold_idx)] = fold_calibration_method
+        calibrator = make_calibrator(fold_calibration_method).fit(
             cal_p, cal.target_up_1d.astype(int)
         )
         p = calibrator.predict(
@@ -3403,6 +3424,16 @@ def main():
         "rank_uncertainty_penalty": selected_uncertainty_penalty,
         "minimum_scoped_oos_improvement_logloss": scope_improvement,
         "ranking_weight_candidates": ranking_candidates,
+        "ranking_oos_calibration_methods": {
+            str(fold): method
+            for fold, method in sorted(ranking_oos_calibration_methods.items())
+        },
+        "ranking_oos_calibration_protocol": (
+            "prequential_temporal_calibration_per_fold; "
+            "method for fold t is selected from OOS folds < t; "
+            "current test outcomes are never used before scoring; "
+            "global selected_calibration_method is not reused for ranking evidence"
+        ),
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
         "online_expert_balanced_research": online_expert_balanced_research,
