@@ -668,7 +668,7 @@ def run_frontier_pattern_suite(
                     None,
                 )
 
-            // Prior failure/difficulty gate: calibrate toward 0.5 when the row is difficult.
+            # Prior failure/difficulty gate: calibrate toward 0.5 when the row is difficult.
             difficulty_scale = np.clip(difficulty, 0.0, 1.0)
             for strength in (0.20, 0.40, 0.60, 0.80):
                 patterns[f"difficulty_shrink_{int(strength*100)}"] = (
@@ -772,7 +772,7 @@ def run_frontier_pattern_suite(
                 None,
             )
 
-            // Direction-vote probability with confidence-weighted vote strength.
+            # Direction-vote probability with confidence-weighted vote strength.
             votes = (p_matrix >= 0.5).astype(float)
             vote_rate = votes.mean(axis=1)
             strength = np.mean(np.abs(p_matrix - 0.5) * 2.0, axis=1)
