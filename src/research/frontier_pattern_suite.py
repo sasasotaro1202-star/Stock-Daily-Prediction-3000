@@ -532,6 +532,18 @@ def run_frontier_pattern_suite(
             None,
         )
 
+        prob_q10 = np.quantile(p_matrix, 0.10, axis=1)
+        prob_q90 = np.quantile(p_matrix, 0.90, axis=1)
+        winsorized_probability = np.clip(
+            p_matrix, prob_q10[:, None], prob_q90[:, None]
+        )
+        patterns["winsorized_probability_mean"] = (
+            np.mean(winsorized_probability, axis=1),
+            "probability_geometry",
+            {"space": "probability", "winsorize": [0.10, 0.90]},
+            None,
+        )
+
         for power in (0.50, 2.00):
             transformed = np.power(np.clip(p_matrix, EPS, 1.0), power).mean(axis=1)
             power_mean = np.power(np.clip(transformed, EPS, 1.0), 1.0 / power)
