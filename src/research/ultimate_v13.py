@@ -199,6 +199,8 @@ def build_ultimate_intelligence(
         ("expert_loss_routing_oos.json", "expert_loss_routing_oos"),
         ("case_risk_oos.json", "case_risk_oos"),
         ("learned_case_risk_oos.json", "learned_case_risk_oos"),
+        ("frontier_pattern_suite.json", "frontier_patterns"),
+        ("frontier_extreme_pattern_suite.json", "frontier_extreme_patterns"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -243,6 +245,8 @@ def build_ultimate_intelligence(
             "expert_loss_routing_oos.json",
             "case_risk_oos.json",
             "learned_case_risk_oos.json",
+            "frontier_pattern_suite.json",
+            "frontier_extreme_pattern_suite.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
