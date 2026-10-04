@@ -52,6 +52,8 @@ def test_extreme_suite_has_broad_mechanism_coverage():
         minimum_patterns=100,
     )
     assert result["status"] == "EXECUTED_EXTREME_PATTERN_MATRIX"
+    assert result["research_contract_id"] == "extreme-frontier-pattern-ecology-v1"
+    assert result["execution_failures"] == []
     assert result["pattern_count"] >= 100
     assert result["research_only"] is True
     assert result["production_changed"] is False
@@ -105,6 +107,7 @@ def test_extreme_suite_never_opens_production_or_holdout():
     assert contracts["best_research_pattern_selected_from_development_only"] is True
     assert contracts["winner_selection_is_prequential_development_only"] is True
     assert result["selection"]["source"] == "prequential_development_only"
+    assert "prequential_selection_stability" in result["selection"]
     assert result["selection"]["prequential_selection_stability"]["decision_count"] >= 0
 
 
