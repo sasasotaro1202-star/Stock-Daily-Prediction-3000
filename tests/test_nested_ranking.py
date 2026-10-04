@@ -144,3 +144,27 @@ def test_nested_ranking_requires_bootstrap_evidence_for_positive_candidate():
         result["bootstrap_probability_improvement"] >= 0.90
         and result["bootstrap_p05_improvement"] > 0.0
     )
+
+
+def test_production_identity_alignment_is_fail_closed():
+    predictions, returns, model_rows = _fixture()
+    result = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        min_history_folds=2,
+        production_identity={
+            "selected_model": "not_the_final_model",
+            "classifier_training_window_sessions": 504,
+            "return_estimator": "not_the_final_estimator",
+            "rank_probability_weight": 0.99,
+            "rank_uncertainty_penalty": 0.99,
+        },
+        prediction_generation_training_window_sessions=252,
+    )
+
+    alignment = result["production_identity_alignment"]
+    assert alignment["provided"] is True
+    assert alignment["aligned"] is False
+    assert alignment["checks"]["classifier_training_window_matches_prediction_generation"] is False
+
