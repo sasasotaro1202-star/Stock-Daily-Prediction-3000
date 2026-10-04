@@ -632,7 +632,7 @@ def run_frontier_pattern_suite(
                 None,
             )
 
-            // Consensus gating: use a prior-only threshold on row disagreement.
+            # Consensus gating: use a prior-only threshold on row disagreement.
             prior_disagreement = np.concatenate([
                 _fold_probabilities(prev, models).std(axis=1)
                 for prev in ordered[:t]
@@ -648,7 +648,7 @@ def run_frontier_pattern_suite(
                     None,
                 )
 
-            // Regime × recentness: mix regime expert weights with global recent expert weights.
+            # Regime × recentness: mix regime expert weights with global recent expert weights.
             reg_weights_arr = _regime_weights(
                 ordered[:t],
                 models,
