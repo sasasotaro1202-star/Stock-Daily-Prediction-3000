@@ -1,4 +1,5 @@
 name: 24H Research Marathon Watchdog
+# The watchdog is also the bounded stale-run recovery controller; ordinary pushes do not dispatch research.
 
 on:
   workflow_dispatch:
