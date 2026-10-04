@@ -9,19 +9,8 @@ name: Actions reliability watchdog
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/research_validation.trigger"
-      - ".github/workflows/actions-reliability-watchdog.yml"
-      - ".github/workflows/research-validation.yml"
-      - ".github/workflows/automation-failure-learning.yml"
-      - ".github/workflows/experience-review.yml"
-      # The watchdog installs and executes the automation contract; wake it
-      # immediately when that contract or its package environment changes.
-      - "scripts/automation_invariants.py"
-      - "scripts/project_source_contract.py"
-      - "scripts/production_invariants.py"
-      - "pyproject.toml"
+  # Scheduled recovery is the canonical trigger. This deliberately avoids a
+  # push-triggered watchdog competing with Repository verification on every commit.
   schedule:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"

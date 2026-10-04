@@ -650,10 +650,15 @@ def main() -> int:
         "research_validation_no_direct_push_dispatch",
     )
 
+    _assert_absent(
+        watchdog,
+        '  push:\n    paths:',
+        "watchdog_has_no_push_trigger",
+    )
     _assert_once(
         watchdog,
-        '  push:\n    paths:\n      - ".github/research_validation.trigger"',
-        "watchdog_wakes_on_research_trigger",
+        '    - cron: "*/5 * * * *"',
+        "watchdog_canonical_schedule",
     )
     _assert_absent(
         watchdog,
@@ -806,6 +811,11 @@ def main() -> int:
         failure_workflow,
         'workflows:\n      - "Research validation"',
         "failure_learning_research_validation_trigger",
+    )
+    _assert_once(
+        failure_workflow,
+        '      - "Actions reliability watchdog"',
+        "failure_learning_watchdog_trigger",
     )
     _assert_once(
         failure_workflow,

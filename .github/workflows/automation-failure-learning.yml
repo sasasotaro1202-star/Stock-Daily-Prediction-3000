@@ -15,6 +15,7 @@ on:
       - "U.S. close prediction"
       - "Prediction monitoring"
       - "24H Research Marathon"
+      - "Actions reliability watchdog"
     types: [completed]
 
 permissions:
