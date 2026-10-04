@@ -183,9 +183,10 @@ jobs:
           mkdir -p data/research
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
-          incoming = Path("$GITHUB_WORKSPACE/data/research/automation_failure_records.jsonl")
+          incoming = Path(os.environ["GITHUB_WORKSPACE"]) / "data/research/automation_failure_records.jsonl"
           target = Path("data/research/automation_failure_memory.jsonl")
           existing_lines = target.read_text(encoding="utf-8").splitlines() if target.exists() else []
           existing_ids = set()
