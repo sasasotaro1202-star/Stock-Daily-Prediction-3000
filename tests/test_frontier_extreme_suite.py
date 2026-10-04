@@ -101,6 +101,9 @@ def test_extreme_suite_never_opens_production_or_holdout():
     assert contracts["frozen_holdout_used"] is False
     assert contracts["production_changed"] is False
     assert contracts["promotion_allowed"] is False
+    assert contracts["locked_outcomes_used_for_selection"] is False
+    assert contracts["best_research_pattern_selected_from_development_only"] is True
+    assert result["selection"]["source"] == "development_only"
 
 
 def test_extreme_suite_blocks_short_oos_history():
