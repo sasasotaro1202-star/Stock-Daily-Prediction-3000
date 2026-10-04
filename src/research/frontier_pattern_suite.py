@@ -475,7 +475,9 @@ def run_frontier_pattern_suite(
     locked_y: list[int] = []
     locked_sessions: list[str] = []
 
-    def add_locked(name: str, p: np.ndarray) -> None:
+    def add_locked(name: str, p: np.ndarray, _y: np.ndarray | None = None, _sessions: Sequence[str] | None = None) -> None:
+        # _y/_sessions are accepted for backward-compatible call sites; the common
+        # locked label/session vectors are registered once per locked fold below.
         locked_rows.setdefault(name, []).extend(np.asarray(p, dtype=float).tolist())
 
     for t, fold in enumerate(ordered):
