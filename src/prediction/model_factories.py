@@ -13,6 +13,16 @@ try:
 except ImportError:  # optional research dependency
     LGBMClassifier = None
 
+try:
+    from xgboost import XGBClassifier
+except ImportError:  # optional research dependency
+    XGBClassifier = None
+
+try:
+    from catboost import CatBoostClassifier
+except ImportError:  # optional research dependency
+    CatBoostClassifier = None
+
 
 
 class SoftBlendClassifier:
@@ -113,6 +123,46 @@ def models():
             ),
         ),
     }
+    if XGBClassifier is not None:
+        def make_xgboost():
+            return make_pipeline(
+                SimpleImputer(strategy="median"),
+                XGBClassifier(
+                    n_estimators=450,
+                    max_depth=4,
+                    learning_rate=0.03,
+                    min_child_weight=20,
+                    subsample=0.90,
+                    colsample_bytree=0.80,
+                    reg_alpha=0.10,
+                    reg_lambda=2.0,
+                    objective="binary:logistic",
+                    eval_metric="logloss",
+                    tree_method="hist",
+                    random_state=42,
+                    n_jobs=-1,
+                ),
+            )
+        out["xgboost"] = make_xgboost
+
+    if CatBoostClassifier is not None:
+        def make_catboost():
+            return make_pipeline(
+                SimpleImputer(strategy="median"),
+                CatBoostClassifier(
+                    iterations=500,
+                    depth=6,
+                    learning_rate=0.03,
+                    l2_leaf_reg=5.0,
+                    loss_function="Logloss",
+                    verbose=False,
+                    random_seed=42,
+                    thread_count=-1,
+                    allow_writing_files=False,
+                ),
+            )
+        out["catboost"] = make_catboost
+
     if LGBMClassifier is not None:
         def make_lightgbm():
             return make_pipeline(
