@@ -601,15 +601,13 @@ def run_extreme_pattern_suite(
     pattern_count = len(summaries)
     if prequential_selected_name is None:
         status = "BLOCKED_INSUFFICIENT_PREQUENTIAL_DEVELOPMENT_SELECTION"
+    elif pattern_count < int(minimum_patterns):
+        status = "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
+    elif execution_failures:
+        status = "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
     else:
-        status = (
-            "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
-        if execution_failures and pattern_count >= int(minimum_patterns)
-        else (
-            "EXECUTED_EXTREME_PATTERN_MATRIX"
-            if pattern_count >= int(minimum_patterns)
-            else "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
-            )
+        status = "EXECUTED_EXTREME_PATTERN_MATRIX"
+
     return {
         **base,
         "status": status,
