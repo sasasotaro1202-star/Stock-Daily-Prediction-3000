@@ -167,6 +167,8 @@ jobs:
         run: pytest -q tests/test_research_validation_contract.py
       - name: Nested prequential ranking unit tests
         run: pytest -q tests/test_nested_ranking.py
+      - name: Learned case-risk unit tests
+        run: pytest -q tests/test_learned_case_risk_oos.py
       - name: Model factory challenger contract tests
         run: pytest -q tests/test_model_factories_contract.py
       - name: Ultimate v13 adversarial structural robustness
