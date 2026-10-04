@@ -28,5 +28,5 @@ def test_research_provenance_changes_are_covered_by_verification_autopilot():
     assert "github.event.workflow_run.conclusion == 'success'" in autopilot
 
     # Provenance execution remains part of the Research validation workflow.
-    assert '"scripts/finalize_research_run_provenance.py"' in validation
+    assert "run: python scripts/finalize_research_run_provenance.py" in validation
     assert "Finalize OOS provenance" in validation

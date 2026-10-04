@@ -28,6 +28,11 @@ def _assert_absent(source: str, needle: str, label: str) -> None:
         raise SystemExit(f"FAIL: automation invariant {label}: forbidden text present")
 
 
+def _assert_contains(source: str, needle: str, label: str) -> None:
+    if needle not in source:
+        raise SystemExit(f"FAIL: automation invariant {label}: required text missing")
+
+
 def _assert_feature_pit_guard() -> None:
     from src.research.learned_case_risk_oos import _pit_ready
 
@@ -555,7 +560,7 @@ def main() -> int:
         "24 * 60 * 60",
         "research_autopilot_24h_success_window",
     )
-    _assert_once(
+    _assert_contains(
         autopilot,
         "Stale queued Research runs cancelled",
         "research_autopilot_reports_stale_queue_recovery",

@@ -67,7 +67,8 @@ def test_watchdog_recovers_failure_learning_and_experience_review() -> None:
 def test_failure_learning_reconciliation_safety_net() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert '    - cron: "*/15 * * * *"' in text
-    assert "python scripts/reconcile_automation_failures.py" in text
+    assert "python -m scripts.reconcile_automation_failures" in text
+    assert "python -m scripts.triage_automation_failures" in text
     assert "github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'" in text
 
 

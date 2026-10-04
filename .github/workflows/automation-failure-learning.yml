@@ -143,7 +143,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
-        run: python scripts/reconcile_automation_failures.py
+        run: python -m scripts.reconcile_automation_failures
       - name: Validate reconciled failure records
         run: |
           python - <<'PY'
@@ -163,7 +163,7 @@ jobs:
           print("reconciled_failure_records=PASS", len(rows))
           PY
       - name: Build failure triage and research backlog
-        run: python scripts/triage_automation_failures.py
+        run: python -m scripts.triage_automation_failures
       - name: Validate failure triage
         run: |
           python - <<'PY'

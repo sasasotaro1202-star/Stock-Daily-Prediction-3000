@@ -1052,15 +1052,24 @@ def test_status_script_fails_closed_on_api_lookup_error(monkeypatch, tmp_path) -
     assert "URLError" in payload["status_lookup_error"]
 
 
-def test_research_validation_triggers_on_experience_control_changes() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
-    expected_paths = (
-        '      - "scripts/experience_*.py"\n',
-        '      - "src/research/experience_*.py"\n',
-        '      - "scripts/monitor_predictions.py"\n',
-        '      - "src/research/ultimate_v13.py"\n',
-        '      - "scripts/run_daily_research.py"\n',
-        '      - "config/pipeline.yml"\n',
+def test_research_validation_experience_controls_flow_through_verified_autopilot() -> None:
+    validation = WORKFLOW.read_text(encoding="utf-8")
+    verification = (ROOT / ".github" / "workflows" / "repository-verification.yml").read_text(encoding="utf-8")
+    autopilot = (ROOT / ".github" / "workflows" / "research-autopilot.yml").read_text(encoding="utf-8")
+
+    # Research validation is intentionally not push-triggered. Every main change
+    # is first checked by Repository verification, and only a successful
+    # current-main verification may dispatch the Research validation workflow.
+    assert "  push:" not in validation
+    assert '  push:\n    branches: [main]' in verification
+    assert 'workflows: ["Repository verification"]' in autopilot
+    assert "github.event.workflow_run.conclusion == 'success'" in autopilot
+
+    # The experience/research runtime remains explicitly present in the
+    # Research validation execution itself.
+    expected_runtime_paths = (
+        "scripts/generate_experience_candidates.py",
+        "scripts/run_daily_research.py",
     )
-    for path in expected_paths:
-        assert path in text
+    for path in expected_runtime_paths:
+        assert path in validation
