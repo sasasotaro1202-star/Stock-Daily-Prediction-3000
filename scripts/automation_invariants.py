@@ -179,6 +179,9 @@ def main() -> int:
     research = str(
         (ROOT / "scripts" / "run_daily_research.py").read_text(encoding="utf-8")
     )
+    release_gate = str(
+        (ROOT / "scripts" / "release_gate.py").read_text(encoding="utf-8")
+    )
     locker = str(
         (ROOT / "scripts" / "lock_frozen_model.py").read_text(encoding="utf-8")
     )
@@ -209,6 +212,21 @@ def main() -> int:
         locker,
         "global OOS model selection lacks statistically supported",
         "freeze_requires_selection_evidence",
+    )
+    _assert_once(
+        release_gate,
+        'pit_audit_path=Path("data/research/research_pit_contract_audit.json")',
+        "release_gate_requires_pit_audit",
+    )
+    _assert_once(
+        release_gate,
+        'reasons.append("research_pit_contract_audit_failed")',
+        "release_gate_fails_on_pit_audit_failure",
+    )
+    _assert_once(
+        release_gate,
+        'reasons.append("research_pit_prediction_ledger_not_pass")',
+        "release_gate_requires_pit_ledger_pass",
     )
     _assert_once(
         pipeline,
