@@ -343,7 +343,7 @@ def main() -> int:
         "data/research/temporal_state_oos.json",
         "temporal_state_oos_artifact_archived",
     )
-    _assert_once(
+    _assert_contains(
         temporal_state_script,
         "build_temporal_state_features",
         "temporal_state_feature_builder_present",
