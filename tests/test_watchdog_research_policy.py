@@ -5,7 +5,7 @@ from pathlib import Path
 WORKFLOW = Path(".github/workflows/actions-reliability-watchdog.yml")
 
 
-def test_active_research_is_not_cancelled_just_for_newer_main_sha() -> None:
+def test_active_research_preserves_control_plane_only_changes() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     start = text.index(
         '            if [ -n "$active_run_id" ]; then',
@@ -13,10 +13,19 @@ def test_active_research_is_not_cancelled_just_for_newer_main_sha() -> None:
     )
     end = text.index("            local current_sha_queued=false", start)
     block = text[start:end]
-    assert "superseded active run" not in block
+    assert "control-plane-only main changes" in block
+    assert "evidence-affecting changes invalidate the run" in block
     assert 'gh run cancel "$active_run_id"' in block
     assert "350 minutes" in block
-    assert "Preserve a running chronological OOS" in block
+
+
+def test_watchdog_mirrors_evidence_fingerprint_scope_for_active_run_invalidation() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "evidence_diff_state()" in text
+    assert 'pyproject.toml)' in text
+    assert "config/*|src/*|scripts/*|.github/workflows/*" in text
+    assert "*.py|*.yml|*.yaml" in text
+    assert "Full history is required" in text
 
 
 def test_watchdog_still_cancels_only_hard_age_expired_active_research() -> None:
