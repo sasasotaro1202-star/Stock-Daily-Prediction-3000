@@ -239,8 +239,10 @@ The nested model × training-window selector now requires the immediately preced
 
 
 
-## 104. Nested ranking: compute-only reuse of exact window predictions
+## 104. Nested ranking: initialization and compute-only prediction reuse
 
-The nested ranking window-conditioned bank reuses the exact calibrated probability vector already materialized by the same fold/window evaluation when the candidate model is the globally selected classifier. The reuse is keyed by outer fold and non-zero training window and is copied into the nested bank; it does not import any current-fold outcome into model/window selection.
+The candidate training-window tuple `(252, 504, 756, 0)` is declared before the nested window-conditioned prediction bank is constructed. This ordering is part of the executable research contract; the bank must never depend on a later local definition.
 
-This is an execution optimization only. The nested selector, contiguous prior-fold evidence gate, model × window LogLoss history, PIT boundary, production identity audit, and promotion gate are unchanged. The artifact records the reused fold/window pairs and an explicit research-only reuse contract so compute savings remain inspectable rather than implicit.
+After the nested bank has materialized, the later global classifier-window scoring step reuses the exact fold-local calibrated probability vector for the globally selected classifier on non-zero windows instead of refitting the same model/window/calibration path a second time. This is compute-only reuse. It does not add current outcomes to selection history and does not alter the nested selector's prior-fold-only contract.
+
+The research artifact records the reused fold/window pairs. PIT boundaries, model × window LogLoss evidence, contiguous prior-fold requirement, production identity audit, and promotion gate are unchanged.
