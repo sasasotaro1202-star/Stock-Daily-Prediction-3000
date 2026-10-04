@@ -586,6 +586,12 @@ def nested_prequential_ranking_oos(
             if prediction_generation_training_window_sessions is not None
             else None
         ),
+        "prediction_generation_training_window_policy": (
+            "full_eligible_pre_test_core_history; "
+            "recent_sessions=252 is used only by cap_training_rows when the row cap is exceeded"
+            if prediction_generation_training_window_sessions == 0
+            else "explicit_session_lookback"
+        ),
         "training_window_policy": "not_selected_from same OOS; ranking evaluation consumes fold-local model predictions",
         "same_oos_global_model_or_window_reuse": False,
         "ranking_weight_selection_prequential": True,
