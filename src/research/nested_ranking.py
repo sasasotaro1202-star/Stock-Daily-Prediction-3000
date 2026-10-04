@@ -155,12 +155,11 @@ def nested_prequential_ranking_oos(
     training-window value for the nested selection itself. An optional
     production_identity is used only after scoring to audit whether the nested
     evidence is aligned with the eventual frozen production configuration.
+    Training-window semantics follow the research runner: 0 means the full
+    eligible pre-test core history, subject to deterministic row-count caps.
+    The recent_sessions=252 argument in cap_training_rows is a sampling
+    safeguard when the row cap is exceeded, not a 252-session training window.
     """
-    The prediction-bank window uses the same semantics as the research
-    runner: 0 means the full eligible pre-test core history, subject only
-    to the deterministic row-count cap. The recent_sessions=252 argument
-    used by cap_training_rows is a sampling safeguard, not a 252-session
-    training-window restriction.
     if min_history_folds < 1:
         raise ValueError("min_history_folds must be >= 1")
     if not np.isfinite(model_half_life_folds) or model_half_life_folds <= 0:
