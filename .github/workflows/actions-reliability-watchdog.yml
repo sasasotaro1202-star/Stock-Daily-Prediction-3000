@@ -16,6 +16,12 @@ on:
       - ".github/workflows/research-validation.yml"
       - ".github/workflows/automation-failure-learning.yml"
       - ".github/workflows/experience-review.yml"
+      # The watchdog installs and executes the automation contract; wake it
+      # immediately when that contract or its package environment changes.
+      - "scripts/automation_invariants.py"
+      - "scripts/project_source_contract.py"
+      - "scripts/production_invariants.py"
+      - "pyproject.toml"
   schedule:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"

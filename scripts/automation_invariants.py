@@ -513,6 +513,26 @@ def main() -> int:
         '".github/workflows/automation-failure-learning.yml"',
         "watchdog_wakes_on_failure_learning_changes",
     )
+    _assert_once(
+        watchdog,
+        '"scripts/automation_invariants.py"',
+        "watchdog_wakes_on_automation_invariant_changes",
+    )
+    _assert_once(
+        watchdog,
+        '"scripts/project_source_contract.py"',
+        "watchdog_wakes_on_project_source_contract_changes",
+    )
+    _assert_once(
+        watchdog,
+        '"scripts/production_invariants.py"',
+        "watchdog_wakes_on_production_invariant_changes",
+    )
+    _assert_once(
+        watchdog,
+        '"pyproject.toml"',
+        "watchdog_wakes_on_package_environment_changes",
+    )
 
     _assert_once(
         autopilot,
