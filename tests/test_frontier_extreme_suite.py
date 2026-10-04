@@ -60,17 +60,16 @@ def test_extreme_suite_has_broad_mechanism_coverage():
     assert result["promotion_allowed"] is False
     names = {row["name"] for row in result["patterns"]}
     for name in (
-        "extreme_probit_mean",
-        "extreme_arcsine_mean",
-        "hedge_0p25",
-        "minimax_t0p05",
-        "individual_platt_equal",
-        "individual_temperature_quality",
-        "contextual_correctness_logistic",
-        "contextual_correctness_tree",
-        "selective_disagreement_q90",
-        "selective_margin_q80",
-        "rank_blend_50",
+        "probit_mean",
+        "minimax_t0.05",
+        "cal_platt_equal",
+        "cal_temperature_quality",
+        "rank_hybrid_50",
+        "vote_100",
+        "shrink_base_rate_20",
+        "case_high_uncertainty_20",
+        "agreement_strength_logit_50",
+        "anchor_mix_logit_base_rate_50",
     ):
         assert name in names
 
@@ -139,5 +138,6 @@ def test_extreme_suite_preserves_generation_failures(monkeypatch):
     failure = result["execution_failures"][0]
     assert failure["error_type"] == "RuntimeError"
     assert "synthetic-generation-failure" in failure["error"]
-    assert result["status"] == "EXECUTED_EXTREME_PATTERN_MATRIX_WITH_FAILURES"
+    assert result["status"] == "BLOCKED_INSUFFICIENT_PATTERN_BREADTH"
+    assert result["pattern_count"] < 100
     assert result["promotion_allowed"] is False
