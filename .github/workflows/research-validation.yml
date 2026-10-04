@@ -344,7 +344,7 @@ jobs:
               raise SystemExit("FAIL: frontier selection used locked outcomes")
           if frontier_contracts.get("best_research_pattern_selected_from_development_only") is not True:
               raise SystemExit("FAIL: frontier winner is not development-only")
-          if (frontier.get("selection") or {}).get("source") != "development_only":
+          if (frontier.get("selection") or {}).get("source") != "prequential_development_only":
               raise SystemExit("FAIL: frontier selection source is not development_only")
           extreme = json.loads(frontier_extreme_pattern_suite.read_text(encoding="utf-8"))
           if extreme.get("status") != "EXECUTED_EXTREME_PATTERN_MATRIX":
@@ -358,7 +358,7 @@ jobs:
               raise SystemExit("FAIL: extreme selection used locked outcomes")
           if extreme_contracts.get("best_research_pattern_selected_from_development_only") is not True:
               raise SystemExit("FAIL: extreme winner is not development-only")
-          if (extreme.get("selection") or {}).get("source") != "development_only":
+          if (extreme.get("selection") or {}).get("source") != "prequential_development_only":
               raise SystemExit("FAIL: extreme selection source is not development_only")
           if extreme.get("frozen_holdout_used") is not False:
               raise SystemExit("FAIL: extreme frontier pattern matrix used frozen holdout")
