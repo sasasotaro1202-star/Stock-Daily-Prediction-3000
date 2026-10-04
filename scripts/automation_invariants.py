@@ -314,6 +314,16 @@ def main() -> int:
         "market_cycle_runs_pit_contract_audit_before_release_gate",
     )
     _assert_once(
+        research,
+        '"ranking_selection_ready_for_production": False',
+        "ranking_selection_is_not_production_ready_without_nested_oos",
+    )
+    _assert_once(
+        locker,
+        'if payload.get("ranking_selection_ready_for_production") is not True:',
+        "freeze_requires_nested_ranking_evidence",
+    )
+    _assert_once(
         watchdog,
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
