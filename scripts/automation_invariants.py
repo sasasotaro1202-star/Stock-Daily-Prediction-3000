@@ -65,7 +65,8 @@ def main() -> int:
     source_discovery_script = str(
         (ROOT / "scripts" / "discover_free_data_sources.py").read_text(encoding="utf-8")
     )
-\n    project_source = (ROOT / "PROJECT_SOURCE.md").read_text(encoding="utf-8")
+
+    project_source = (ROOT / "PROJECT_SOURCE.md").read_text(encoding="utf-8")
     project_source_contract = str(
         (ROOT / "scripts" / "project_source_contract.py").read_text(encoding="utf-8")
     )
