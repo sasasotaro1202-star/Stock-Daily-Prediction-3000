@@ -1,1 +1,1 @@
-research-validation-trigger-evidence-aware-watchdog-2026-10-04
+research-validation-trigger-terminal-event-stale-guard-2026-10-04
