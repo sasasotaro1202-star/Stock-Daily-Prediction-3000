@@ -122,6 +122,15 @@ online_ensemble_research:
   # Target t (t+1 close) is available before prediction t+1 because live predictions run after the session close.
   outcome_delay_sessions: 0
   production_changed: false
+temporal_state_research:
+  enabled: true
+  research_only: true
+  production_changed: false
+  data_granularity: daily_ohlcv
+  horizons_sessions: [1, 2, 3, 5, 10]
+  min_oos_folds: 5
+  compare_against: current_feature_set
+  intraday_data_required: false
 
 sequential_selection_research:
   research_only: true
