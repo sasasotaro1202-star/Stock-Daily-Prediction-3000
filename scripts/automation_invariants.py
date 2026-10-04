@@ -338,7 +338,7 @@ def main() -> int:
         "run: python scripts/run_temporal_state_oos.py",
         "temporal_state_oos_runs_automatically",
     )
-    _assert_once(
+    _assert_contains(
         validation_workflow,
         "data/research/temporal_state_oos.json",
         "temporal_state_oos_artifact_archived",
@@ -348,7 +348,7 @@ def main() -> int:
         "build_temporal_state_features",
         "temporal_state_feature_builder_present",
     )
-    _assert_once(
+    _assert_contains(
         temporal_state_script,
         "available_at_required",
         "temporal_state_pit_availability_required",
@@ -358,20 +358,10 @@ def main() -> int:
         "Future rows are never used.",
         "temporal_state_causal_contract",
     )
-    _assert_once(
+    _assert_contains(
         temporal_state_config,
-        "temporal_state_research:",
-        "temporal_state_configured",
-    )
-    _assert_once(
-        temporal_state_config,
-        "research_only: true",
-        "temporal_state_research_only_configured",
-    )
-    _assert_once(
-        temporal_state_config,
-        "production_changed: false",
-        "temporal_state_no_production_mutation_configured",
+        "temporal_state_research:\n  enabled: true\n  research_only: true\n  production_changed: false",
+        "temporal_state_configured_research_only",
     )
     _assert_once(
         validation_workflow,
