@@ -356,6 +356,32 @@ def main() -> int:
         '"bootstrap_method": "moving_block"',
         "nested_ranking_bootstrap_method_recorded",
     )
+    learned_case_risk = str(
+        (ROOT / "src" / "research" / "learned_case_risk_oos.py").read_text(encoding="utf-8")
+    )
+    _assert_once(
+        learned_case_risk,
+        "from src.research.statistics import moving_block_bootstrap_mean",
+        "learned_case_risk_bootstrap_dependency",
+    )
+    _assert_once(
+        learned_case_risk,
+        "def _cluster_bootstrap_delta(",
+        "learned_case_risk_session_cluster_bootstrap",
+    )
+    _assert_once(
+        learned_case_risk,
+        ""locked_logloss_bootstrap": locked_logloss_bootstrap",
+        "learned_case_risk_bootstrap_artifact",
+    )
+    validation_learned_case = _read(
+        "research-validation.yml",
+    )
+    _assert_once(
+        validation_learned_case,
+        "pytest -q tests/test_learned_case_risk_oos.py",
+        "research_validation_runs_learned_case_risk_tests",
+    )
     _assert_once(
         locker,
         'if payload.get("ranking_selection_ready_for_production") is not True:',
