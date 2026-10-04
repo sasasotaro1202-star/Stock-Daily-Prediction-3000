@@ -121,3 +121,24 @@ def test_frontier_risk_ood_returns_finite_neutral_score_for_all_missing_history(
     assert result.shape == (3,)
     assert np.isfinite(result).all()
     assert np.array_equal(result, np.zeros(3, dtype=float))
+
+
+def test_frontier_risk_ood_handles_mixed_missing_dimensions():
+    current = np.array(
+        [[2.0, np.nan, 0.5], [np.nan, 1.0, np.nan]],
+        dtype=float,
+    )
+    prior = [
+        np.array(
+            [[1.0, 3.0, np.nan], [3.0, np.nan, 0.5]],
+            dtype=float,
+        )
+    ]
+    result = _risk_ood(current, prior)
+    assert result.shape == (2,)
+    assert np.isfinite(result).all()
+    assert (result >= 0.0).all() and (result <= 1.0).all()
+    # Only dimensions with both historical and current finite evidence may
+    # contribute; unavailable dimensions are neutral rather than imputed.
+    assert result[0] > 0.0
+    assert result[1] == 0.0
