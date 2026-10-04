@@ -912,9 +912,9 @@ def run_frontier_pattern_suite(
                 if (not r["is_locked"]) and int(r["fold"]) < eval_t
             ]
             vals = [
-                float(r["logloss"])
+                float(r["metrics"]["logloss"])
                 for r in prior_rows
-                if np.isfinite(r.get("logloss", np.nan))
+                if np.isfinite(r.get("metrics", {}).get("logloss", np.nan))
             ]
             if vals:
                 eligible[name] = float(np.mean(vals))
@@ -927,7 +927,7 @@ def run_frontier_pattern_suite(
         )
         if target is None:
             continue
-        ll = float(target["logloss"])
+        ll = float(target["metrics"]["logloss"])
         if np.isfinite(ll):
             preq_scores.setdefault(chosen, []).append(ll)
             preq_decisions.append({
@@ -950,7 +950,13 @@ def run_frontier_pattern_suite(
     )
     prequential_selected_name = preq_rank[0]["name"] if preq_rank else None
     selection_trace = [d["selected_name"] for d in preq_decisions]
-    selection_stability = {}
+    selection_stability = {
+        "decision_count": 0,
+        "unique_selected_patterns": 0,
+        "top_selection_share": 0.0,
+        "switch_count": 0,
+        "selection_counts": {},
+    }
     if selection_trace:
         counts = {}
         for selected in selection_trace:
