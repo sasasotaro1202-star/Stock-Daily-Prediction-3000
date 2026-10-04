@@ -35,6 +35,7 @@ from src.research.rolling_residual_conformal import (
 )
 from src.research.sequential_selection import chronological_policy_oos
 from src.research.nested_policy import nested_sequential_policy_oos
+from src.research.nested_ranking import nested_prequential_ranking_oos
 from src.research.blend_prediction_cache import (
     CACHEABLE_BLEND_COMPONENTS,
     resolve_cached_blend_predictions,
@@ -1788,6 +1789,22 @@ def main():
         "outcome is added only after scoring. Research-only; no production change."
     )
 
+    # Research-only ranking selection with a genuinely prequential outer loop.
+    # Unlike the legacy ranking diagnostic below, this selector never receives
+    # the globally-selected model or globally-selected training window. The
+    # classifier is selected from prior-fold LogLoss, the return estimator from
+    # prior-fold Rank IC, and ranking weights/uncertainty penalties from prior
+    # outer-fold ranking results. Current-fold outcomes enter history only after
+    # the untouched ranking score has been recorded.
+    nested_ranking_selection_research = nested_prequential_ranking_oos(
+        online_prediction_by_fold,
+        return_predictions_by_fold,
+        sequential_model_names,
+        min_history_folds=sequential_min_history,
+        model_half_life_folds=sequential_half_life,
+        model_stability_penalty=sequential_stability,
+    )
+
     # Research-only temporal confidence-risk layer. It predicts the
     # probability that the selected model's directional decision will be
     # wrong, using only prior OOS prediction/context rows. It may shrink
@@ -3416,6 +3433,7 @@ def main():
         "global_selection_evidence": global_selection_evidence,
         "sequential_selection_research": sequential_selection_research,
         "nested_sequential_selection_research": nested_selection_research,
+        "nested_ranking_selection_research": nested_ranking_selection_research,
         "classifier_training_window_sessions": selected_training_window,
         "classifier_training_window_candidates": window_metrics,
         "calibration_method": selected_calibration_method,
@@ -3436,9 +3454,10 @@ def main():
         ),
         "ranking_selection_ready_for_production": False,
         "ranking_selection_block_reason": (
-            "current ranking evidence still conditions on globally selected model "
-            "and training window from the same OOS run; nested prequential ranking "
-            "selection is required before production freeze"
+            "nested prequential ranking evidence is now computed, but production "
+            "ranking is still blocked until the selected ranking evidence is "
+            "identity-bound to the frozen classifier training window and return "
+            "estimator and passes the frozen-holdout gate"
         ),
         "selective_probability_research": selective_probability_research,
         "online_expert_research": online_expert_research,
