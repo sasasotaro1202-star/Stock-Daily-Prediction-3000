@@ -28,3 +28,12 @@ def test_research_validation_checks_case_risk_safety_contracts() -> None:
     assert 'if data.get("promotion_allowed") is not False' in text
     assert 'if data.get("frozen_holdout_used") is not False' in text
     assert "Research validation workflow contract tests" in text
+
+
+def test_ranking_oos_calibration_is_prequential():
+    source = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
+    assert "temporal_calibration_method_by_fold" in source
+    assert 'temporal_calibration_rows' in source
+    assert 'fold_calibration_method = temporal_calibration_method_by_fold.get(' in source
+    assert 'global selected_calibration_method is not reused for ranking evidence' in source
+    assert '"ranking_oos_calibration_protocol"' in source
