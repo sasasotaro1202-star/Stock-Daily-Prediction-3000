@@ -86,6 +86,13 @@ A candidate is not production-eligible unless the complete bundle is internally 
 
 
 
+## Temporal state research layer
+
+時間方向の情報は、日次OHLCVで確認できる範囲から段階的に拡張する。現在は `temporal_state_research` をResearch-only Challengerとして運用し、過去数セッションのリターン、経路リターン、方向持続性、リターン加速度、ボラティリティ遷移、出来高圧力、日中レンジ変化、終値位置変化を因果的に生成する。
+
+この層は `available_at` の存在を必須とし、retrieved_atを過去時点の可用性証拠として代用しない。将来行を参照しないことを構造テストで監査し、current feature setとの同一chronological OOS比較を行う。Frozen holdoutは使用せず、production_changed=false、promotion_allowed=falseを維持する。
+
+将来intradayデータを利用できる場合も、1つの巨大モデルへ直接統合せず、複数時間粒度のstate encoder、state transition、dynamic expert routing、predictability/uncertaintyをResearch-firstで段階検証する。時間粒度の追加自体を成果とせず、LogLoss、Brier、ECE、Accuracy、case-level stability、robustness、PITを含むincremental OOS valueで判断する。
 ## Frontier research ecology
 
 When broad research is requested, search beyond ordinary hyperparameter tuning. Explore materially different mechanisms across probability geometry, robust aggregation, prior/recency expert weighting, diversity-aware weighting, calibration order, case-level shrinkage, selective prediction, ranking transforms, and regime/uncertainty interactions.
