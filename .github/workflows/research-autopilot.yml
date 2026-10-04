@@ -3,12 +3,11 @@ name: Research autopilot controller
 # GitHub-side autonomous Research loop.
 # Expensive chronological OOS is dispatched only after current-main repository
 # verification has completed successfully. This workflow owns the dispatch
-# decision; Research validation itself is intentionally not push-triggered.
+# decision; Repository verification is the event-driven entry point, with a
+# daily schedule as a missed-trigger safety net.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
   schedule:
     - cron: "17 12 * * *"
       timezone: "Asia/Tokyo"

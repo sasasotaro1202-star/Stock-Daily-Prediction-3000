@@ -453,6 +453,12 @@ def main() -> int:
         'inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true',
         "watchdog_recovers_stale_marathon_queue",
     )
+    _assert_once(
+        str((WORKFLOWS / "24h-research-marathon-watchdog.yml").read_text(encoding="utf-8")),
+        'HOLD marathon; verification_passed=',
+        "marathon_watchdog_research_priority_hold",
+    )
+
 
     _assert_once(
         watchdog,
@@ -465,6 +471,12 @@ def main() -> int:
         '    - cron: "17 12 * * *"',
         "research_autopilot_daily_schedule",
     )
+    _assert_absent(
+        autopilot,
+        "  push:\n    branches: [main]",
+        "research_autopilot_no_direct_push_trigger",
+    )
+
     _assert_once(
         autopilot,
         'workflows: ["Repository verification"]',

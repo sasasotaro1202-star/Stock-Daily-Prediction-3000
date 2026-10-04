@@ -903,3 +903,19 @@ For current-main Repository verification and Research autopilot, the reliability
 * leaves a second failure explicitly FAILED.
 
 Research/OOS execution itself remains governed by its separate stale-run and evidence-integrity policy; expensive research failures are not indiscriminately retried as if they were transient.
+
+
+⸻
+
+132. RESEARCH QUEUE PRIORITY — 2026-10-04
+
+The GitHub control plane uses one primary expensive Research lane.
+
+* Repository verification must pass for current main before Research validation is dispatched.
+* Research validation is the primary chronological OOS lane.
+* The 24H Research Marathon is an extended secondary research lane and must yield while primary Research validation is active or current-main verification is not PASS.
+* The autopilot is event-driven from Repository verification completion plus one daily safety schedule; it does not directly trigger on every main push.
+* Stale queued verification/autopilot entries are recoverable through the Actions reliability watchdog.
+* Queue cleanup, retry and dispatch states never count as research or performance evidence.
+
+This priority reduces redundant runner consumption without relaxing research correctness, PIT, calibration, robustness, frozen-holdout or release-gate requirements.

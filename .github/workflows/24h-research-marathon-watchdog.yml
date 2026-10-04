@@ -99,6 +99,46 @@ jobs:
                       print(json.dumps({"action":"WAIT","reason":"cycle_within_window","age_minutes":round(age,1)}))
           PY
 
+          # The 24H Marathon is an extended research lane, not a second
+          # production/research trigger. Do not start it while the main
+          # Research validation lane is active, or before current-main
+          # Repository verification has succeeded.
+          CURRENT_SHA="$MAIN_SHA"
+          verification_passed="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/repository-verification.yml/runs?branch=main&per_page=20" |
+            jq -r --arg sha "$CURRENT_SHA" '
+              [ .workflow_runs[]
+                | select(.head_sha == $sha)
+                | select(.status == "completed")
+              ]
+              | sort_by(.run_number)
+              | last
+              | if . == null then "false"
+                elif .conclusion == "success" then "true"
+                else "false"
+                end
+            '
+          )"
+          research_active="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/research-validation.yml/runs?branch=main&per_page=50" |
+            jq '[ .workflow_runs[]
+              | select(.status == "queued" or .status == "pending" or .status == "waiting" or .status == "requested" or .status == "in_progress")
+            ] | length'
+          )"
+
+          if [ "$verification_passed" != "true" ] || [ "$research_active" -gt 0 ]; then
+            echo "WATCHDOG: HOLD marathon; verification_passed=$verification_passed research_active=$research_active"
+            {
+              echo "## 24H Research Marathon watchdog"
+              echo "- Action: `HOLD_RESEARCH_PRIORITY`"
+              echo "- Current main: `$CURRENT_SHA`"
+              echo "- Repository verification PASS: `$verification_passed`"
+              echo "- Active Research validation runs: `$research_active`"
+              echo "- Marathon dispatch suppressed to protect the primary Research lane"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
           cat /tmp/decision.json
           action="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["action"])')"
           run_id="$(python -c 'import json; print(json.load(open("/tmp/decision.json")).get("run_id",""))')"
