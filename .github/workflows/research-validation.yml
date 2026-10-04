@@ -167,6 +167,34 @@ jobs:
         env:
           RESEARCH_OOS_OUTCOME: ${{ steps.research_oos.outcome }}
         run: python scripts/finalize_research_run_provenance.py
+      - name: Run causal temporal state OOS challenger
+        if: always()
+        run: python scripts/run_temporal_state_oos.py
+      - name: Validate temporal state challenger safety
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/temporal_state_oos.json")
+          if not p.exists():
+              print("temporal_state_oos_artifact=missing_or_deferred")
+              raise SystemExit(0)
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d.get("schema_version") == 1
+          assert d.get("research_only") is True
+          assert d.get("production_changed") is False
+          assert d.get("promotion_allowed") is False
+          assert d.get("frozen_holdout_used") is False
+          assert d.get("intraday_data_used") is False
+          assert d.get("pit", {}).get("available_at_required") is True
+          assert d.get("pit", {}).get("future_row_reference") is False
+          assert d.get("oos_protocol") == "chronological_walk_forward_same_data_population"
+          print("temporal_state_oos_safety=PASS")
+          print("temporal_state_relative_logloss_improvement=", (d.get("metrics") or {}).get("relative_logloss_improvement"))
+          PY
 
       - name: Evaluate experience-driven candidates against chronological OOS
         if: steps.research_oos.outcome == 'success'
@@ -532,4 +560,5 @@ jobs:
             data/research/ultimate_v13/**
             data/research/oos_run_manifest.json
             data/research/oos_progress.json
+            data/research/temporal_state_oos.json
           retention-days: 14
