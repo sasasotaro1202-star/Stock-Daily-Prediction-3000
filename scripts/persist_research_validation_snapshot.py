@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -31,6 +32,26 @@ def _require_completed_oos(payload: dict) -> None:
         raise SystemExit(
             "FAIL: selected model is missing its OOS LogLoss evidence"
         )
+
+
+def _git_head_sha() -> str | None:
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    value = result.stdout.strip()
+    return value or None
+
+
+def _evidence_freshness(research_sha: str | None, current_sha: str | None) -> str:
+    if research_sha and current_sha:
+        return "FRESH" if research_sha == current_sha else "STALE"
+    return "UNKNOWN"
 
 
 def main() -> None:
@@ -99,10 +120,20 @@ def main() -> None:
         if field in return_metrics
     }
 
+    research_workflow_sha = (
+        os.environ.get("RESEARCH_WORKFLOW_SHA", "").strip()
+        or str(payload.get("workflow_sha") or "").strip()
+        or None
+    )
+    current_main_sha = _git_head_sha()
     snapshot = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
-        "workflow_run_id": os.environ.get("GITHUB_RUN_ID", ""),
-        "workflow_sha": os.environ.get("GITHUB_SHA", ""),
+        "workflow_run_id": os.environ.get("RESEARCH_WORKFLOW_RUN_ID", "").strip()
+        or os.environ.get("GITHUB_RUN_ID", ""),
+        "workflow_sha": research_workflow_sha or "",
+        "research_workflow_sha": research_workflow_sha,
+        "status_branch_main_sha": current_main_sha,
+        "evidence_freshness": _evidence_freshness(research_workflow_sha, current_main_sha),
         "status": payload.get("status", "UNKNOWN"),
         "selected_model": selected_model,
         "selected_model_score": selected_score,
@@ -116,6 +147,9 @@ def main() -> None:
         "evidence_scope": {
             "source": "data/research/latest_metrics.json",
             "source_sha256": hashlib.sha256(raw).hexdigest(),
+            "research_workflow_sha": research_workflow_sha,
+            "status_branch_main_sha": current_main_sha,
+            "freshness": _evidence_freshness(research_workflow_sha, current_main_sha),
             "frozen_holdout_excluded_from_selection": True,
             "research_only_layers": True,
             "snapshot_contract": "OOS_COMPLETE_selected_model_logloss_required",
