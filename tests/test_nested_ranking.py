@@ -1,6 +1,10 @@
 from __future__ import annotations
 
 import numpy as np
+from pathlib import Path
+
+
+RUNNER = Path("scripts/run_daily_research.py")
 
 from src.research.nested_ranking import (
     _select_prior_model_window,
