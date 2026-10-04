@@ -610,6 +610,20 @@ def run_frontier_pattern_suite(
 
         if t:
             prior_risks = [_risk_matrix(prev, len(np.asarray(prev.get("y", []), dtype=int))) for prev in ordered[:t]]
+
+            prior_outcomes = np.concatenate([
+                np.asarray(prev.get("y", []), dtype=int)
+                for prev in ordered[:t]
+                if len(np.asarray(prev.get("y", []), dtype=int))
+            ]) if ordered[:t] else np.array([], dtype=int)
+            prior_base_rate = float(np.mean(prior_outcomes)) if len(prior_outcomes) else 0.5
+            for strength in (0.10, 0.25, 0.40):
+                patterns[f"prior_outcome_base_rate_shrink_{int(strength*100)}"] = (
+                    (1.0 - strength) * equal + strength * prior_base_rate,
+                    "outcome_base_rate_calibration",
+                    {"strength": strength, "fit_source": "strictly_prior_oos_outcomes"},
+                    None,
+                )
             risk_ood = _risk_ood(risk, prior_risks)
             patterns["risk_ood_shrink"] = (
                 0.5 + (equal - 0.5) * np.exp(-0.75 * risk_ood),
@@ -644,7 +658,7 @@ def run_frontier_pattern_suite(
                 _softmax(-recency_losses, 0.05)[None, :],
                 (len(y), 1),
             )
-            for mix in (0.25, 0.50, 0.75):
+            for mix in (0.10, 0.25, 0.50, 0.75, 0.90):
                 mix_weights = mix * reg_weights_arr + (1.0 - mix) * recent_weights
                 mix_weights /= np.clip(mix_weights.sum(axis=1, keepdims=True), EPS, None)
                 patterns[f"regime_recent_mix_{int(mix*100)}"] = (
@@ -656,7 +670,7 @@ def run_frontier_pattern_suite(
 
             // Prior failure/difficulty gate: calibrate toward 0.5 when the row is difficult.
             difficulty_scale = np.clip(difficulty, 0.0, 1.0)
-            for strength in (0.20, 0.40, 0.60):
+            for strength in (0.20, 0.40, 0.60, 0.80):
                 patterns[f"difficulty_shrink_{int(strength*100)}"] = (
                     0.5 + (equal - 0.5) * (1.0 - strength * difficulty_scale),
                     "case_level_risk_control",
@@ -789,7 +803,7 @@ def run_frontier_pattern_suite(
                 _difficulty(_fold_probabilities(prev, models), _risk_matrix(prev, len(np.asarray(prev.get("y", []), dtype=int))))
                 for prev in ordered[:t]
             ])
-            for q in (0.60, 0.70, 0.75, 0.85, 0.90, 0.95):
+            for q in (0.50, 0.60, 0.70, 0.75, 0.85, 0.90, 0.95, 0.975):
                 threshold = float(np.quantile(prior_difficulty, q)) if len(prior_difficulty) else 1.0
                 active = difficulty <= threshold
                 patterns[f"selective_difficulty_q{int(q*100)}"] = (
