@@ -348,6 +348,11 @@ def main() -> int:
     )
     _assert_once(
         nested_ranking,
+        '"training_window_selection_prequential": training_window_selection_prequential',
+        "nested_ranking_training_window_selection_is_prequential",
+    )
+    _assert_once(
+        nested_ranking,
         "moving_block_bootstrap_mean(",
         "nested_ranking_bootstrap_evidence",
     )
