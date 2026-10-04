@@ -368,6 +368,16 @@ def main() -> int:
     )
     _assert_once(
         locker,
+        'identity = nested_ranking.get("production_identity_alignment")',
+        "freeze_reads_nested_ranking_identity_alignment",
+    )
+    _assert_once(
+        locker,
+        'identity.get("aligned") is not True',
+        "freeze_requires_nested_ranking_identity_alignment",
+    )
+    _assert_once(
+        locker,
         'if nested_ranking.get("ranking_weight_selection_prequential") is not True:',
         "freeze_requires_prequential_ranking_weights",
     )
