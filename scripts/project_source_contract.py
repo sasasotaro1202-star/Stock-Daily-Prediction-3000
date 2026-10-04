@@ -24,6 +24,107 @@ REQUIRED_TERMS = (
     "Safe Degradation > Forced Prediction",
 )
 
+CANONICAL_SECTION_HEADINGS = (
+    "SYSTEM MISSION",
+    "CURRENT REPOSITORY INTEGRATION",
+    "UNIVERSE MASTER CONTRACT",
+    "SURVIVORSHIP-BIAS CONTRACT",
+    "CORPORATE ACTIONS",
+    "MARKET CALENDAR",
+    "PREDICTION CUTOFF",
+    "TIME MODEL",
+    "PIT CONTRACT",
+    "FINANCIAL STATEMENT / SEC / DISCLOSURE TIME",
+    "MACRO / CENTRAL BANK / TREASURY",
+    "FINRA / SHORT INTEREST / MARKET STRUCTURE",
+    "DATA SOURCE REGISTRY",
+    "SOURCE INDEPENDENCE",
+    "DATA QUALITY CONTRACT",
+    "MISSING DATA",
+    "INSTRUMENT IDENTITY",
+    "TARGET DEFINITIONS",
+    "DIRECTION TARGET CONTRACT",
+    "RETURN / PRICE CONSISTENCY",
+    "CROSS-SECTIONAL RANKING",
+    "FEATURE ECOSYSTEM",
+    "ROLLING FEATURE CONTRACT",
+    "FEATURE LINEAGE",
+    "FEATURE ABLATION",
+    "BASELINE MODELS",
+    "CHALLENGER MODELS",
+    "MODEL ECOLOGY",
+    "ROUTING POLICY",
+    "ROUTING SELECTION SCORE",
+    "REGIME INTELLIGENCE",
+    "DRIFT",
+    "PREDICTABILITY",
+    "UNCERTAINTY DECOMPOSITION",
+    "MODEL DISAGREEMENT",
+    "EVENT INTELLIGENCE",
+    "INFORMATION VALUE",
+    "INFORMATION ACQUISITION POLICY",
+    "FORECAST LIFETIME",
+    "SELECTIVE PREDICTION",
+    "CONFIDENCE-RISK LAYER",
+    "CONFORMAL / RISK CONTROL",
+    "OOS / WFO STANDARD",
+    "OOS RECORD CONTRACT",
+    "DIRECTION METRICS",
+    "RETURN METRICS",
+    "PRICE METRICS",
+    "QUANTILE METRICS",
+    "RANKING METRICS",
+    "ECONOMIC USEFULNESS",
+    "CALIBRATION",
+    "MULTI-MARKET EVALUATION",
+    "EXPERIENCE MEMORY",
+    "RECONCILIATION",
+    "FAILURE TAXONOMY",
+    "FAILURE MEMORY",
+    "COUNTERFACTUAL FAILURE ANALYSIS",
+    "COVERAGE DIGITAL TWIN",
+    "UNIVERSE FRONTIER",
+    "RESEARCH FRONTIERS",
+    "RESEARCH ROUTER",
+    "RESEARCH PORTFOLIO",
+    "EXTERNAL RESEARCH INGESTION",
+    "EVIDENCE LEVEL",
+    "NEGATIVE KNOWLEDGE",
+    "CROSS-PROJECT TRANSFER",
+    "SOURCE VALUE / EXPERIMENT VALUE",
+    "STATISTICAL INTEGRITY",
+    "ROBUSTNESS",
+    "ADVERSARIAL VALIDATION",
+    "FROZEN HOLDOUT FIREWALL",
+    "ADOPTION GATE",
+    "FREEZE / RELEASE",
+    "PRODUCTION REGISTRY",
+    "PRODUCTION OUTPUT INTEGRITY",
+    "CURRENT-DATA SAFETY",
+    "FAIL-CLOSED",
+    "FALLBACK CHAIN",
+    "AUTOMATION RELIABILITY",
+    "SINGLE-WRITER",
+    "CACHE / EFFICIENCY",
+    "AUTOMATION QUALITY",
+    "COST FIREWALL",
+    "SECURITY / GOVERNANCE",
+    "REPRODUCIBILITY",
+    "ARTIFACT INTEGRITY",
+    "NO-FAKE-SUCCESS",
+    "STATUS TAXONOMY",
+    "PERFORMANCE CHANGE REPORT",
+    "CHANGE INTERPRETATION",
+    "POLICY REGRET",
+    "RESEARCH STOPPING",
+    "SELF-EVOLUTION",
+    "COVERAGE / RESEARCH DEBT",
+    "UNKNOWN FRONTIER",
+    "COMPLETION DEFINITION",
+    "FINAL OPERATING LOOP",
+    "ULTIMATE PRINCIPLE",
+)
+
 def validate_source_text(text: str) -> list[str]:
     errors: list[str] = []
     if "=== COPY START ===" in text or "=== COPY END ===" in text:
@@ -32,10 +133,14 @@ def validate_source_text(text: str) -> list[str]:
         errors.append("project_name_missing")
     if "https://github.com/sasasotaro1202-star/Stock-Daily-Prediction-3000" not in text:
         errors.append("target_repository_missing")
-    section_numbers = [int(match.group(1)) for match in re.finditer(r"(?m)^(\d+)\.\s+[A-Z][A-Z0-9 /&._-]*$", text)]
-    expected = list(range(1, 99))
-    if section_numbers != expected:
+    sections = [(int(match.group(1)), match.group(2).strip()) for match in re.finditer(r"(?m)^(\d+)\.\s+([A-Z][A-Z0-9 /&._-]*)$", text)]
+    section_numbers = [number for number, _ in sections]
+    section_headings = [heading for _, heading in sections]
+    expected_numbers = list(range(1, 99))
+    if section_numbers != expected_numbers:
         errors.append("section_sequence_invalid:" + ",".join(map(str, section_numbers[:110])))
+    if tuple(section_headings) != CANONICAL_SECTION_HEADINGS:
+        errors.append("section_headings_invalid")
     for term in REQUIRED_TERMS:
         if term not in text:
             errors.append(f"required_term_missing:{term}")
@@ -55,7 +160,7 @@ def build_contract() -> dict[str, Any]:
         "source": str(SOURCE_PATH.relative_to(ROOT)),
         "sha256": digest,
         "line_count": len(text.splitlines()),
-        "section_count": len(re.findall(r"(?m)^\d+\.\s+[A-Z][A-Z0-9 /&._-]*$", text)),
+        "section_count": len(CANONICAL_SECTION_HEADINGS),
         "required_terms": list(REQUIRED_TERMS),
         "validation_errors": errors,
         "git_sha": os.environ.get("GITHUB_SHA"),
