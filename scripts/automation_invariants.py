@@ -666,10 +666,19 @@ def main() -> int:
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
+    # Research validation is not directly push-triggered. All main changes
+    # first pass Repository verification, and only the verified controller
+    # dispatches the expensive OOS workflow. Model-factory changes are therefore
+    # covered by the main push gate plus the dedicated Research contract test.
     _assert_once(
-        validation_workflow,
-        '- "src/prediction/model_factories.py"',
-        "research_validation_triggers_on_model_factory_changes",
+        repository_verification,
+        "  push:\n    branches: [main]",
+        "repository_verification_covers_model_factory_changes",
+    )
+    _assert_once(
+        autopilot,
+        'workflows: ["Repository verification"]',
+        "research_autopilot_gates_model_factory_changes_on_verification",
     )
     _assert_once(
         validation_workflow,
