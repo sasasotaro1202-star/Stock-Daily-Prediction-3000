@@ -887,8 +887,37 @@ def run_frontier_pattern_suite(
         ),
     )
 
-    best = summary_sorted[0] if summary_sorted else None
-    best_name = best["name"] if best else None
+    development_candidates = []
+    for name, rows in per_pattern.items():
+        dev = [r["metrics"] for r in rows if not r["is_locked"]]
+        if not dev:
+            continue
+        ll = [float(r["logloss"]) for r in dev if np.isfinite(r.get("logloss", np.nan))]
+        br = [float(r["brier"]) for r in dev if np.isfinite(r.get("brier", np.nan))]
+        ec = [float(r["ece"]) for r in dev if np.isfinite(r.get("ece", np.nan))]
+        if not ll:
+            continue
+        development_candidates.append({
+            "name": name,
+            "development_metrics": {
+                "logloss": float(np.mean(ll)),
+                "brier": float(np.mean(br)) if br else float("nan"),
+                "ece": float(np.mean(ec)) if ec else float("nan"),
+                "folds": int(sum(1 for r in rows if not r["is_locked"])),
+            },
+        })
+    development_sorted = sorted(
+        development_candidates,
+        key=lambda r: (
+            r["development_metrics"]["logloss"],
+            r["development_metrics"]["brier"] if np.isfinite(r["development_metrics"]["brier"]) else float("inf"),
+            r["development_metrics"]["ece"] if np.isfinite(r["development_metrics"]["ece"]) else float("inf"),
+            r["name"],
+        ),
+    )
+    selected_name = development_sorted[0]["name"] if development_sorted else None
+    selected_locked = next((r for r in summary_sorted if r["name"] == selected_name), None)
+    best_locked_diagnostic = summary_sorted[0] if summary_sorted else None
 
     diagnostics = {
         "oracle_best_per_case_accuracy": None,
@@ -934,7 +963,13 @@ def run_frontier_pattern_suite(
         "locked_folds": locked,
         "pattern_count": len(summary_sorted),
         "patterns": summary_sorted,
-        "best_research_pattern": best,
+        "best_research_pattern": selected_locked,
+        "best_locked_diagnostic": best_locked_diagnostic,
+        "selection": {
+            "source": "development_only",
+            "selected_name": selected_name,
+            "development_ranking": development_sorted,
+        },
         "baseline": {
             "name": "equal_mean",
             "locked_metrics": _metrics(locked_y_arr, equal_locked) if len(equal_locked) else {},
@@ -950,6 +985,8 @@ def run_frontier_pattern_suite(
             "frozen_holdout_used": False,
             "production_changed": False,
             "promotion_allowed": False,
+            "locked_outcomes_used_for_selection": False,
+            "best_research_pattern_selected_from_development_only": True,
         },
     }
 
