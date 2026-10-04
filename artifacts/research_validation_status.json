@@ -6,7 +6,7 @@
   "evidence_freshness": "STALE",
   "evidence_freshness_basis": "execution_sha",
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-04T08:39:09.266416+00:00",
+  "generated_at_utc": "2026-10-04T08:43:26.682531+00:00",
   "job_status": "in_progress",
   "research_evidence_fingerprint_sha256": null,
   "research_step": "unknown",
