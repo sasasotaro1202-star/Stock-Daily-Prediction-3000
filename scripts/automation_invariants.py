@@ -220,8 +220,8 @@ def main() -> int:
     )
     _assert_once(
         release_gate,
-        'reasons.append("research_pit_contract_audit_failed")',
-        "release_gate_fails_on_pit_audit_failure",
+        'if pit_audit.get("status") not in {"PASS", "RESEARCH_ONLY_UNVERIFIED"}:',
+        "release_gate_rejects_failed_pit_audit",
     )
     _assert_once(
         release_gate,
