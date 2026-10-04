@@ -77,3 +77,10 @@ Failure learning > repeated failure.
 
 A candidate is not production-eligible unless the complete bundle is internally consistent across model, training window, target, features/schema, calibration, routing, uncertainty policy, universe/scope, source/PIT policy, frozen holdout, reproducibility manifest, release gate, monitoring and rollback target.
 
+
+
+## Frontier research ecology
+
+When broad research is requested, search beyond ordinary hyperparameter tuning. Explore materially different mechanisms across probability geometry, robust aggregation, prior/recency expert weighting, diversity-aware weighting, calibration order, case-level shrinkage, selective prediction, ranking transforms, and regime/uncertainty interactions.
+
+Every candidate must use the same chronological OOS case set where feasible. Learned or tuned quantities must use strictly prior evidence. Frozen holdout remains untouched until candidate specification is locked. External methods are discovery inputs only; external performance is never local evidence.

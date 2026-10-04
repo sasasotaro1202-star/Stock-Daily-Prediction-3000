@@ -710,3 +710,63 @@ This is a compute-only optimization. It must satisfy all of the following:
 * reused fold/window pairs are recorded in research evidence for auditability.
 
 The optimization changes neither PIT boundaries nor the nested prior-fold evidence contract. It is not performance evidence and cannot by itself justify promotion. Reuse is valid only when fold, training-window, model identity, calibration path, and output shape all match exactly; otherwise the original computation path is required.
+
+
+⸻
+
+120. FRONTIER PATTERN SEARCH MATRIX — 2026-10-04
+
+The research layer must test mechanism-level pattern families rather than only hyperparameter variants.
+
+Active families include probability-space transforms, robust/tail aggregation, prior-quality and recency weighting, minimax and diversity-aware expert weighting, calibration-before-blending, blend-level calibration, rank/probability hybrids, case-level shrinkage, selective prediction, and direction voting.
+
+The matrix is research-only. Candidate breadth is not evidence by itself and does not alter the production release gate.
+
+⸻
+
+121. EXTREME PATTERN ECOLOGY / EXTERNAL-METHOD TRANSFER — 2026-10-04
+
+External forecasting research is used for mechanism discovery only. Ideas related to forecastability-aware sparse routing, expert-loss routing and time-series dependence-aware uncertainty evaluation may be translated into small local candidates, but external reported performance never substitutes for local PIT/WFO/OOS evidence.
+
+Required sequence:
+
+DISCOVER → VERIFY → ABSTRACT → PIT/COST CHECK → LOCAL TEST → CHRONOLOGICAL OOS → ROBUSTNESS → FROZEN HOLDOUT → ADOPT/HOLD/REJECT
+
+All tuned components remain prior-only, all candidates share locked OOS observations, and production promotion remains blocked until the existing independent release gate is satisfied.
+
+
+⸻
+
+122. PREQUENTIAL FRONTIER WINNER SELECTION — 2026-10-04
+
+For broad frontier matrices, locked OOS may be used for final diagnostic comparison but never for winner selection.
+
+The winner-selection path is:
+
+1. For each development fold t, inspect only folds < t.
+2. Select the candidate with the best prior development LogLoss.
+3. Evaluate that selected candidate on fold t.
+4. Record the decision, selected pattern, fold and score.
+5. Aggregate only these prequential development decisions to choose the research winner.
+6. Evaluate the frozen locked suffix only after the candidate is fixed.
+
+This preserves a one-step-ahead selection contract inside development and makes adaptive selection visible in the evidence artifact.
+
+A large candidate matrix does not relax multiple-testing discipline. Locked OOS remains untouched and the existing production release gate remains mandatory.
+
+
+⸻
+
+123. FRONTIER CONTRACT ID / FAILURE PRESERVATION — 2026-10-04
+
+Each frontier research artifact must expose an explicit research_contract_id. The contract ID is part of artifact verification and prevents a result generated under one research schema from being silently interpreted as another schema.
+
+For candidate matrices, execution failures are evidence:
+
+* candidate exceptions must be retained with fold, candidate/family scope, error type and bounded error text;
+* insufficient-valid-fold candidates must be represented explicitly;
+* failures must not be silently dropped;
+* a matrix with recorded candidate failures is not a clean EXECUTED success state;
+* CI must require the pinned contract ID and zero execution failures before treating the matrix as successfully executed.
+
+This control is independent of performance. It prevents execution incompleteness from being mistaken for evidence of candidate superiority.

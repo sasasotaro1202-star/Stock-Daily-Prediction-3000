@@ -13,6 +13,8 @@ import pandas as pd
 
 from src.research.ultimate_control_v13 import evaluate_v13
 from src.research.ultimate_v13_extensions import augment_v13_result
+from src.research.frontier_pattern_suite import run_frontier_pattern_suite
+from src.research.frontier_extreme_suite import run_extreme_pattern_suite
 from src.research.v13_governance import (
     experiment_record,
     safety_governance,
@@ -117,6 +119,19 @@ def build_ultimate_intelligence(
         result["promotion_allowed"] = False
         return result
     result = augment_v13_result(bank, result)
+    frontier_patterns = run_frontier_pattern_suite(
+        ordered,
+        locked_folds=2,
+        min_folds=5,
+    )
+    extreme_patterns = run_extreme_pattern_suite(
+        ordered,
+        locked_folds=2,
+        min_folds=5,
+        minimum_patterns=100,
+    )
+    result["frontier_patterns"] = frontier_patterns
+    result["frontier_extreme_patterns"] = extreme_patterns
     result["research_only"] = True
     result["production_changed"] = False
     result["promotion_allowed"] = False
@@ -199,6 +214,8 @@ def build_ultimate_intelligence(
         ("expert_loss_routing_oos.json", "expert_loss_routing_oos"),
         ("case_risk_oos.json", "case_risk_oos"),
         ("learned_case_risk_oos.json", "learned_case_risk_oos"),
+        ("frontier_pattern_suite.json", "frontier_patterns"),
+        ("frontier_extreme_pattern_suite.json", "frontier_extreme_patterns"),
     ):
         (out / name).write_text(
             json.dumps(_json_safe(result.get(key, {})), indent=2, sort_keys=True),
@@ -208,6 +225,10 @@ def build_ultimate_intelligence(
         "version": "ultimate_v13_control_plane",
         "schema_version": result.get("schema_version"),
         "fold_count": len(ordered),
+        "research_contracts": {
+            "frontier_pattern_suite": "frontier-pattern-ecology-v1",
+            "frontier_extreme_pattern_suite": "extreme-frontier-pattern-ecology-v1",
+        },
         "artifacts": [
             "ultimate_summary.json",
             "model_disagreement.json",
@@ -243,6 +264,8 @@ def build_ultimate_intelligence(
             "expert_loss_routing_oos.json",
             "case_risk_oos.json",
             "learned_case_risk_oos.json",
+            "frontier_pattern_suite.json",
+            "frontier_extreme_pattern_suite.json",
         ],
         "production_changed": False,
         "promotion_allowed": False,
