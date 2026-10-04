@@ -88,7 +88,7 @@ def main() -> int:
         "CANONICAL_SECTION_HEADINGS = (",
         "project_source_contract_locks_exact_headings",
     )
-    source_section_count = len(re.findall(r"(?m)^(\\d+)\\.\\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
+    source_section_count = len(re.findall(r"(?m)^(\d+)\.\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
     if source_section_count != 98:
         raise SystemExit(
             f"FAIL: canonical Project Source section count expected 98, got {source_section_count}"
