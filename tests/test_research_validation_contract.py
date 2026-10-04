@@ -85,3 +85,14 @@ def test_nested_ranking_freeze_gate_requires_identity_alignment():
     locker = (ROOT / "scripts/lock_frozen_model.py").read_text(encoding="utf-8")
     assert 'identity = nested_ranking.get("production_identity_alignment")' in locker
     assert 'identity.get("aligned") is not True' in locker
+
+
+def test_nested_ranking_uses_full_history_window_semantics_for_prediction_bank():
+    source = (ROOT / "scripts/run_daily_research.py").read_text(encoding="utf-8")
+    helper = (ROOT / "src/research/nested_ranking.py").read_text(encoding="utf-8")
+    call_start = source.index("nested_ranking_selection_research = nested_prequential_ranking_oos(")
+    call_end = source.index("\n    )", call_start) + 6
+    call = source[call_start:call_end]
+    assert "prediction_generation_training_window_sessions=0" in call
+    assert "prediction_generation_training_window_sessions=252" not in call
+    assert "sampling safeguard, not a 252-session" in helper
