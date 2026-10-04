@@ -56,6 +56,49 @@ def _select_prior_model(
     return min(candidates, key=lambda name: (candidates[name], name))
 
 
+def _select_prior_model_window(
+    history: Mapping[tuple[str, int], list[dict[str, object]]],
+    current_fold: int,
+    *,
+    min_history_folds: int,
+    half_life_folds: float,
+    stability_penalty: float,
+) -> tuple[str, int] | None:
+    candidates: dict[tuple[str, int], float] = {}
+    for (model_name, window), rows in history.items():
+        prior = [row for row in rows if int(row["fold"]) < current_fold]
+        if len(prior) < min_history_folds:
+            continue
+        candidates[(str(model_name), int(window))] = _weighted_loss_score(
+            prior,
+            current_fold,
+            half_life_folds,
+            stability_penalty,
+        )
+    if not candidates:
+        return None
+    return min(
+        candidates,
+        key=lambda key: (candidates[key], key[0], key[1]),
+    )
+
+
+def _binary_logloss(y: np.ndarray, probability: np.ndarray) -> float:
+    y = np.asarray(y, dtype=float)
+    probability = np.asarray(probability, dtype=float)
+    if y.size == 0 or probability.shape != y.shape:
+        return float("nan")
+    if not np.isfinite(probability).all() or not np.isin(y, [0.0, 1.0]).all():
+        return float("nan")
+    clipped = np.clip(probability, 1e-15, 1.0 - 1e-15)
+    return float(
+        -np.mean(
+            y * np.log(clipped)
+            + (1.0 - y) * np.log1p(-clipped)
+        )
+    )
+
+
 def _select_prior_return_estimator(
     history: Mapping[str, list[dict[str, object]]],
     current_fold: int,
@@ -133,6 +176,9 @@ def nested_prequential_ranking_oos(
     ],
     model_fold_rows: Mapping[str, Sequence[Mapping[str, object]]],
     *,
+    window_predictions_by_fold: Mapping[
+        int, Mapping[int, Mapping[str, Sequence[float]]]
+    ] | None = None,
     min_history_folds: int = 3,
     production_identity: Mapping[str, object] | None = None,
     prediction_generation_training_window_sessions: int | None = 0,
@@ -157,8 +203,12 @@ def nested_prequential_ranking_oos(
     evidence is aligned with the eventual frozen production configuration.
     Training-window semantics follow the research runner: 0 means the full
     eligible pre-test core history, subject to deterministic row-count caps.
-    The recent_sessions=252 argument in cap_training_rows is a sampling
-    safeguard when the row cap is exceeded, not a 252-session training window.
+    When window_predictions_by_fold is supplied, model and training-window
+    selection are jointly prequential: both are selected only from earlier
+    fold LogLoss, and all current-fold outcomes are added only after the fold
+    is scored. The prediction bank must therefore contain fold-local
+    predictions for each candidate model/window pair. The legacy fixed-window
+    argument is retained only for backward-compatible unit-test callers.
     """
     if min_history_folds < 1:
         raise ValueError("min_history_folds must be >= 1")
@@ -180,8 +230,13 @@ def nested_prequential_ranking_oos(
         }
 
     model_history: dict[str, list[dict[str, object]]] = {}
+    model_window_history: dict[
+        tuple[str, int], list[dict[str, object]]
+    ] = {}
     return_history: dict[str, list[dict[str, object]]] = {}
     selected_model_by_fold: dict[int, str] = {}
+    selected_window_by_fold: dict[int, int] = {}
+    window_selection_status_by_fold: dict[int, str] = {}
     selected_return_by_fold: dict[int, str] = {}
     selected_rank_by_fold: dict[int, tuple[float, float]] = {}
     rank_history_by_candidate: dict[str, list[dict[str, object]]] = {
@@ -261,6 +316,12 @@ def nested_prequential_ranking_oos(
             if fold >= min_history_folds
             else None
         )
+        selected_window = (
+            0
+            if prediction_generation_training_window_sessions is None
+            else int(prediction_generation_training_window_sessions)
+        )
+        window_selection_status = "LEGACY_FIXED_WINDOW"
         return_estimator = (
             _select_prior_return_estimator(
                 return_history,
@@ -270,6 +331,24 @@ def nested_prequential_ranking_oos(
             if fold >= min_history_folds
             else None
         )
+
+        if window_predictions_by_fold is not None:
+            pair = _select_prior_model_window(
+                model_window_history,
+                fold,
+                min_history_folds=min_history_folds,
+                half_life_folds=model_half_life_folds,
+                stability_penalty=model_stability_penalty,
+            )
+            if pair is not None:
+                model, selected_window = pair
+                window_selection_status = "PREQUENTIAL_SELECTED"
+            elif model is not None:
+                selected_window = 0
+                window_selection_status = "WARMUP_DEFAULT_FULL_HISTORY"
+            else:
+                selected_window = 0
+                window_selection_status = "WARMUP_NO_MODEL"
 
         # All ranking hyperparameters are selected from ranking outcomes of
         # earlier outer folds only. There is no access to the current fold
@@ -303,11 +382,19 @@ def nested_prequential_ranking_oos(
             if return_estimator is not None
             else None
         )
-        probabilities = (
-            np.asarray(bank.get("predictions", {}).get(model, []), dtype=float)
-            if model is not None
-            else np.empty((0,), dtype=float)
-        )
+        if window_predictions_by_fold is not None and model is not None:
+            probabilities = np.asarray(
+                window_predictions_by_fold.get(fold, {})
+                .get(int(selected_window), {})
+                .get(model, []),
+                dtype=float,
+            )
+        else:
+            probabilities = (
+                np.asarray(bank.get("predictions", {}).get(model, []), dtype=float)
+                if model is not None
+                else np.empty((0,), dtype=float)
+            )
         expected = (
             np.asarray(return_bank.get("pred", []), dtype=float)
             if return_bank is not None
@@ -363,12 +450,16 @@ def nested_prequential_ranking_oos(
                 "fold": fold,
                 "model": model,
                 "return_estimator": return_estimator,
+                "training_window_sessions": int(selected_window),
+                "window_selection_status": window_selection_status,
                 "probability_weight": rank_weight,
                 "uncertainty_penalty": rank_penalty,
                 "rank_ic": selected_rank_ic,
                 "baseline_rank_ic": baseline_rank_ic,
             })
             selected_model_by_fold[fold] = model
+            selected_window_by_fold[fold] = int(selected_window)
+            window_selection_status_by_fold[fold] = window_selection_status
             selected_return_by_fold[fold] = return_estimator
             selected_rank_by_fold[fold] = (rank_weight, rank_penalty)
 
@@ -435,6 +526,26 @@ def nested_prequential_ranking_oos(
                         "rank_ic": estimator_rank_ic,
                     })
 
+        if window_predictions_by_fold is not None:
+            current_window_banks = window_predictions_by_fold.get(fold, {}) or {}
+            for window_value, per_model in current_window_banks.items():
+                for model_name, probability_values in per_model.items():
+                    candidate_logloss = _binary_logloss(
+                        y,
+                        np.asarray(probability_values, dtype=float),
+                    )
+                    if not np.isfinite(candidate_logloss):
+                        continue
+                    model_window_history.setdefault(
+                        (str(model_name), int(window_value)),
+                        [],
+                    ).append(
+                        {
+                            "fold": int(fold),
+                            "logloss": float(candidate_logloss),
+                        }
+                    )
+
     if len(outer_rows) < min_history_folds:
         return {
             "status": "INSUFFICIENT_OOS",
@@ -485,7 +596,20 @@ def nested_prequential_ranking_oos(
             "selection_fold": int(last["fold"]),
             "model": str(last["model"]),
             "return_estimator": str(last["return_estimator"]),
+            "training_window_sessions": int(last["training_window_sessions"]),
+            "window_selection_status": str(last["window_selection_status"]),
         }
+
+    prequential_window_rows = [
+        row
+        for row in outer_rows
+        if str(row.get("window_selection_status"))
+        == "PREQUENTIAL_SELECTED"
+    ]
+    training_window_selection_prequential = bool(
+        window_predictions_by_fold is not None
+        and len(prequential_window_rows) >= min_history_folds
+    )
 
     production_identity_alignment = {
         "provided": production_identity is not None,
@@ -493,7 +617,7 @@ def nested_prequential_ranking_oos(
         "checks": {
             "selected_model_matches_final_prequential_model": False,
             "selected_return_estimator_matches_final_prequential_estimator": False,
-            "classifier_training_window_matches_prediction_generation": False,
+            "classifier_training_window_matches_final_prequential_window": False,
             "rank_probability_weight_matches_final_prequential_parameter": False,
             "rank_uncertainty_penalty_matches_final_prequential_parameter": False,
         },
@@ -526,11 +650,10 @@ def nested_prequential_ranking_oos(
                 production_return
                 == str(final_rank_parameters["return_estimator"])
             ),
-            "classifier_training_window_matches_prediction_generation": (
+            "classifier_training_window_matches_final_prequential_window": (
                 production_window is not None
-                and prediction_generation_training_window_sessions is not None
-                and production_window
-                == int(prediction_generation_training_window_sessions)
+                and int(final_rank_parameters["training_window_sessions"])
+                == production_window
             ),
             "rank_probability_weight_matches_final_prequential_parameter": (
                 production_weight is not None
@@ -581,6 +704,15 @@ def nested_prequential_ranking_oos(
         "bootstrap_method": "moving_block",
         "final_prequential_ranking_parameters": final_rank_parameters,
         "production_identity_alignment": production_identity_alignment,
+        "selected_training_window_by_fold": {
+            str(fold): int(window)
+            for fold, window in sorted(selected_window_by_fold.items())
+        },
+        "training_window_selection_status_by_fold": {
+            str(fold): status
+            for fold, status in sorted(window_selection_status_by_fold.items())
+        },
+        "training_window_selection_prequential": training_window_selection_prequential,
         "prediction_generation_training_window_sessions": (
             int(prediction_generation_training_window_sessions)
             if prediction_generation_training_window_sessions is not None
@@ -592,13 +724,19 @@ def nested_prequential_ranking_oos(
             if prediction_generation_training_window_sessions == 0
             else "explicit_session_lookback"
         ),
-        "training_window_policy": "not_selected_from same OOS; ranking evaluation consumes fold-local model predictions",
+        "training_window_policy": (
+            "joint_model_and_training_window_selection_from_prior_oos"
+            if window_predictions_by_fold is not None
+            else "not_selected_from same OOS; ranking evaluation consumes fold-local model predictions"
+        ),
         "same_oos_global_model_or_window_reuse": False,
         "ranking_weight_selection_prequential": True,
         "model_selection_prequential": True,
         "return_estimator_selection_prequential": True,
+        "training_window_selection_prequential": training_window_selection_prequential,
         "research_positive": bool(
-            finite.size >= 5
+            training_window_selection_prequential
+            and finite.size >= 5
             and positive_share >= 0.70
             and np.isfinite(mean_delta)
             and mean_delta > 0.0
