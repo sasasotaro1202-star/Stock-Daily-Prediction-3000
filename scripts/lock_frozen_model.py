@@ -80,9 +80,50 @@ def main():
         raise SystemExit(
             "DEFERRED: ranking OOS evidence is missing the prequential calibration contract"
         )
+    nested_ranking = payload.get("nested_ranking_selection_research")
+    if not isinstance(nested_ranking, dict):
+        raise SystemExit(
+            "DEFERRED: nested prequential ranking evidence is missing"
+        )
+    if nested_ranking.get("status") != "EVALUATED":
+        raise SystemExit(
+            "DEFERRED: nested prequential ranking evidence is not evaluated"
+        )
+    if nested_ranking.get("same_oos_global_model_or_window_reuse") is not False:
+        raise SystemExit(
+            "FAIL: nested ranking evidence permits same-OOS global model/window reuse"
+        )
+    for flag in (
+        "ranking_weight_selection_prequential",
+        "model_selection_prequential",
+        "return_estimator_selection_prequential",
+    ):
+        if nested_ranking.get(flag) is not True:
+            raise SystemExit(
+                f"DEFERRED: nested ranking evidence missing {flag}"
+            )
+    if int(nested_ranking.get("folds", 0)) < 5:
+        raise SystemExit(
+            "DEFERRED: nested ranking evidence requires at least 5 outer folds"
+        )
+    try:
+        bootstrap_probability = float(
+            nested_ranking.get("bootstrap_probability_improvement")
+        )
+        bootstrap_p05 = float(
+            nested_ranking.get("bootstrap_p05_improvement")
+        )
+    except (TypeError, ValueError):
+        raise SystemExit(
+            "DEFERRED: nested ranking bootstrap evidence is incomplete"
+        )
+    if bootstrap_probability < 0.90 or bootstrap_p05 <= 0.0:
+        raise SystemExit(
+            "DEFERRED: nested ranking bootstrap evidence does not support promotion"
+        )
     if payload.get("ranking_selection_ready_for_production") is not True:
         raise SystemExit(
-            "DEFERRED: ranking selection lacks nested/prequential evidence for production freeze"
+            "DEFERRED: ranking selection lacks explicit production binding approval"
         )
     lock["ranking_selection_ready_for_production"] = True
     lock["ranking_oos_calibration_protocol"] = ranking_protocol
