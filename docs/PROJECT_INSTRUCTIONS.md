@@ -29,6 +29,9 @@ For research-only frontier matrices, the final winner is the candidate selected 
 ## Risk/OOD missingness
 Risk-derived OOD must distinguish missing evidence from neutral observed OOD. When risk history/current values are unavailable, the underlying OOD score stays finite-neutral; any missingness-aware shrink is an explicit research candidate and must not silently convert missingness into observed risk.
 
+## GitHub-side research autopilot
+The Research validation workflow is not directly push-triggered. `research-autopilot.yml` owns autonomous dispatch: it runs daily and after current-main Repository verification completes, requires verification PASS before expensive OOS, suppresses duplicate current-main runs, and cancels only stale queued Research entries on superseded SHAs. Active research runs remain under the dedicated evidence-fingerprint/stale-run watchdog policy.
+
 ## Reliability state
 Requested, queued, pending, waiting and in-progress research runs are transient active states. Long-running chronological OOS is preserved across ordinary main-branch commits; stale recovery must be bounded and must not create self-recovery loops. Terminal workflow_run events must not overwrite a newer active Research run; compare verifiable Research run numbers when terminal and active contexts race. Failed, cancelled, skipped and stale evidence remains non-success until independently rerun and verified.
 

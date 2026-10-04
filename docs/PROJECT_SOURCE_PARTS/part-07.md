@@ -830,3 +830,24 @@ The status resolver therefore keeps the event-provided run context and, when tha
 Active requested/pending/queued/waiting/in_progress event contexts remain directly usable because the stale-event write guard in status persistence also prevents an older run from overwriting a newer persisted status.
 
 This control is operational status integrity only. It does not alter prediction, OOS metrics, calibration, frozen holdout or production state.
+
+
+⸻
+
+128. GITHUB-SIDE RESEARCH AUTOPILOT — 2026-10-04
+
+Research validation must be runnable without ChatGPT intervention.
+
+The GitHub-side Research autopilot controller:
+
+* runs daily at a canonical Asia/Tokyo schedule;
+* wakes when current-main Repository verification completes;
+* requires Repository verification = PASS for the exact current main SHA before dispatching expensive chronological OOS;
+* dispatches Research validation explicitly on `main`;
+* suppresses duplicate queued/running Research validation for the current main SHA;
+* cancels queued/pending Research entries that target superseded SHAs, while leaving active runs to the evidence-fingerprint/stale-run watchdog;
+* skips a new run when the current main SHA already has a successful Research validation within the last 24 hours.
+
+The Research validation workflow therefore does not need a direct push trigger. Main-branch changes wake the controller, verification completion wakes it again, and the daily schedule provides a missed-trigger safety net.
+
+This is an operational scheduling/control-plane contract only. It does not establish performance verification, promotion readiness, or Production status. All existing PIT, OOS/WFO, calibration, robustness, frozen-holdout and release-gate requirements remain mandatory.

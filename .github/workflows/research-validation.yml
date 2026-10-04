@@ -2,47 +2,8 @@ name: Research validation
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - ".github/research_validation.trigger"
-      - ".github/workflows/research-validation.yml"
-      - ".github/workflows/experience-review.yml"
-      - ".github/workflows/prediction-monitoring.yml"
-      - "scripts/experience_*.py"
-      - "scripts/monitor_predictions.py"
-      - "src/research/experience_*.py"
-      - "src/research/ultimate_v13.py"
-      - "src/research/frontier_pattern_suite.py"
-      - "src/research/frontier_extreme_suite.py"
-      - "src/research/ultimate_v13_extensions.py"
-      - "src/research/case_risk_oos.py"
-      - "src/research/learned_case_risk_oos.py"
-      - "src/research/nested_ranking.py"
-      - "src/prediction/model_factories.py"
-      - "src/research/expert_loss_routing_oos.py"
-      - "src/research/run_provenance.py"
-      - "src/research/v13_governance.py"
-      - "src/research/pit_lineage.py"
-      - "src/research/pit_contract.py"
-      - "scripts/run_daily_research.py"
-      - "scripts/run_case_risk_oos_audit.py"
-      - "scripts/run_learned_case_risk_oos.py"
-      - "scripts/finalize_research_run_provenance.py"
-      - "scripts/audit_research_pit_contract.py"
-      - "tests/test_case_risk_oos.py"
-      - "tests/test_run_provenance.py"
-      - "tests/test_learned_case_risk_oos.py"
-      - "tests/test_expert_loss_routing_oos.py"
-      - "tests/test_ultimate_v13.py"
-      - "tests/test_frontier_pattern_suite.py"
-      - "tests/test_frontier_extreme_suite.py"
-      - "tests/test_pit_contract.py"
-      - "tests/test_research_validation_contract.py"
-      - "tests/test_nested_ranking.py"
-      - "tests/test_audit_research_pit_contract.py"
-      - "tests/test_pit_lineage.py"
-      - "config/pipeline.yml"
+  # Automatic dispatch is owned by .github/workflows/research-autopilot.yml.
+  # That controller waits for current-main Repository verification to PASS.
 
 permissions:
   actions: read

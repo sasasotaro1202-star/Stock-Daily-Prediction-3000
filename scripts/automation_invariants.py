@@ -61,6 +61,7 @@ def main() -> int:
     recovery = _read("bounded-production-recovery.yml")
     price_restore = str((WORKFLOWS.parent.parent / "scripts" / "restore_latest_price_state.py").read_text(encoding="utf-8"))
     source_discovery = _read("free-data-source-discovery.yml")
+    autopilot = _read("research-autopilot.yml")
     source_discovery_script = str(
         (ROOT / "scripts" / "discover_free_data_sources.py").read_text(encoding="utf-8")
     )
@@ -436,6 +437,62 @@ def main() -> int:
         watchdog,
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
+    )
+
+    _assert_once(
+        autopilot,
+        '    - cron: "17 12 * * *"',
+        "research_autopilot_daily_schedule",
+    )
+    _assert_once(
+        autopilot,
+        'workflows: ["Repository verification"]',
+        "research_autopilot_verification_event",
+    )
+    _assert_once(
+        autopilot,
+        "types: [completed]",
+        "research_autopilot_verification_completed_event",
+    )
+    _assert_once(
+        autopilot,
+        "actions: write",
+        "research_autopilot_can_recover_queues_and_dispatch",
+    )
+    _assert_once(
+        autopilot,
+        'gh workflow run research-validation.yml --repo "$GITHUB_REPOSITORY" --ref main',
+        "research_autopilot_dispatches_current_main",
+    )
+    _assert_once(
+        autopilot,
+        'if [ "$verification_state" != "PASS" ]; then',
+        "research_autopilot_requires_current_main_verification",
+    )
+    _assert_once(
+        autopilot,
+        'if [ "$active_current" -gt 0 ]; then',
+        "research_autopilot_suppresses_duplicate_current_runs",
+    )
+    _assert_once(
+        autopilot,
+        "24 * 60 * 60",
+        "research_autopilot_24h_success_window",
+    )
+    _assert_once(
+        autopilot,
+        "stale queued Research runs cancelled",
+        "research_autopilot_reports_stale_queue_recovery",
+    )
+    _assert_once(
+        research,
+        "workflow_dispatch:",
+        "research_validation_manual_dispatch_retained",
+    )
+    _assert_absent(
+        research,
+        "  push:\n    branches: [main]",
+        "research_validation_no_direct_push_dispatch",
     )
 
     _assert_once(
