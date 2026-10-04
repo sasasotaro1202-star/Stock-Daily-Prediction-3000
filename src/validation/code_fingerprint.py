@@ -6,6 +6,8 @@ from pathlib import Path
 
 ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
 RESEARCH_ROOTS=(Path("config"),Path("src"),Path("scripts"))
+EVIDENCE_ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
+EVIDENCE_FILES=(Path("pyproject.toml"),)
 
 
 def file_hash(path: Path) -> str:
@@ -36,6 +38,15 @@ def research_file_fingerprint() -> dict[str,str]:
     return _fingerprint_rows(RESEARCH_ROOTS)
 
 
+def evidence_file_fingerprint() -> dict[str,str]:
+    """Fingerprint files capable of changing research/OOS evidence."""
+    rows = _fingerprint_rows(EVIDENCE_ROOTS)
+    for path in EVIDENCE_FILES:
+        if path.exists() and path.is_file():
+            rows[str(path)] = file_hash(path)
+    return rows
+
+
 def fingerprint_sha256(rows: dict[str,str] | None = None) -> str:
     payload=rows if rows is not None else file_fingerprint()
     raw=json.dumps(payload,sort_keys=True,separators=(",",":")).encode()
@@ -46,4 +57,11 @@ def research_fingerprint_sha256(
     rows: dict[str,str] | None = None,
 ) -> str:
     payload=rows if rows is not None else research_file_fingerprint()
+    return fingerprint_sha256(payload)
+
+
+def evidence_fingerprint_sha256(
+    rows: dict[str,str] | None = None,
+) -> str:
+    payload = rows if rows is not None else evidence_file_fingerprint()
     return fingerprint_sha256(payload)

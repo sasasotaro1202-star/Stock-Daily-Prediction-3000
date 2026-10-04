@@ -91,6 +91,7 @@ from src.research.regime_threshold import (
     volatility_threshold_from_training,
 )
 from src.research.run_provenance import write_manifest, write_progress
+from src.validation.code_fingerprint import evidence_fingerprint_sha256
 from src.validation.leakage import audit_feature_columns, audit_target_separation
 from src.validation.walk_forward import make_date_folds
 
@@ -3642,6 +3643,7 @@ def main():
         "status": "OOS_COMPLETE",
     }
 
+    payload["evidence_code_fingerprint_sha256"] = evidence_fingerprint_sha256()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     write_progress(

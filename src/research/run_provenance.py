@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from src.validation.code_fingerprint import evidence_fingerprint_sha256
+
 SCHEMA_VERSION = 1
 MANIFEST_PATH = Path("data/research/oos_run_manifest.json")
 PROGRESS_PATH = Path("data/research/oos_progress.json")
@@ -81,6 +83,7 @@ def build_manifest(
         "runtime": _runtime_context(),
         "artifact_integrity": {
             "hash_algorithm": "sha256",
+            "evidence_code_fingerprint_sha256": evidence_fingerprint_sha256(),
             "tracked_files": tracked,
             "missing_tracked_files": sorted(
                 path for path, digest in tracked.items() if digest is None
