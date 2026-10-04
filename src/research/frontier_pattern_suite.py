@@ -977,9 +977,9 @@ def run_frontier_pattern_suite(
         dev = [r["metrics"] for r in rows if not r["is_locked"]]
         if not dev:
             continue
-        ll = [float(r["logloss"]) for r in dev if np.isfinite(r.get("logloss", np.nan))]
-        br = [float(r["brier"]) for r in dev if np.isfinite(r.get("brier", np.nan))]
-        ec = [float(r["ece"]) for r in dev if np.isfinite(r.get("ece", np.nan))]
+        ll = [float(m["logloss"]) for m in dev if np.isfinite(m.get("logloss", np.nan))]
+        br = [float(m["brier"]) for m in dev if np.isfinite(m.get("brier", np.nan))]
+        ec = [float(m["ece"]) for m in dev if np.isfinite(m.get("ece", np.nan))]
         if not ll:
             continue
         development_candidates.append({
