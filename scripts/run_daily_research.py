@@ -2674,6 +2674,15 @@ def main():
                 or test.target_up_1d.nunique() < 2
             ):
                 continue
+            fit_rows = restrict_to_lookback(
+                core,
+                None if lookback == 0 else lookback,
+            )
+            fit_rows = cap_training_rows(
+                fit_rows,
+                max_rows=300_000,
+                recent_sessions=min(252, lookback or 252),
+            )
             nested_reuse = (
                 nested_ranking_window_predictions_by_fold
                 .get(int(fold_idx), {})
@@ -2688,15 +2697,6 @@ def main():
                 factory = candidate_models.get(global_selected)
                 if factory is None:
                     continue
-                fit_rows = restrict_to_lookback(
-                    core,
-                    None if lookback == 0 else lookback,
-                )
-                fit_rows = cap_training_rows(
-                    fit_rows,
-                    max_rows=300_000,
-                    recent_sessions=min(252, lookback or 252),
-                )
                 model = factory()
                 fit_classifier(
                     model,
