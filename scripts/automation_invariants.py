@@ -347,6 +347,16 @@ def main() -> int:
         "nested_ranking_return_selection_is_prequential",
     )
     _assert_once(
+        nested_ranking,
+        "moving_block_bootstrap_mean(",
+        "nested_ranking_bootstrap_evidence",
+    )
+    _assert_once(
+        nested_ranking,
+        '"bootstrap_method": "moving_block"',
+        "nested_ranking_bootstrap_method_recorded",
+    )
+    _assert_once(
         locker,
         'if payload.get("ranking_selection_ready_for_production") is not True:',
         "freeze_requires_nested_ranking_evidence",
