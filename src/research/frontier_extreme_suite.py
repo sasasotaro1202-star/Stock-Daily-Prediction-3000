@@ -674,26 +674,38 @@ def run_extreme_pattern_suite(
                     if blend == "equal":
                         pred = calibrated.mean(axis=1)
                     else:
-                        cal_losses = []
-                        for j in range(len(models)):
-                            vals = []
-                            for prev in ordered[:t]:
-                                yy = np.asarray(prev.get("y", []), dtype=int)
-                                if not len(yy):
-                                    continue
-                                raw = _fold_probabilities(prev, models)[:, j]
+                        prior_calibrated_by_model = [[] for _ in models]
+                        prior_y_parts = []
+                        for prev in ordered[:t]:
+                            yy = np.asarray(prev.get("y", []), dtype=int)
+                            if not len(yy):
+                                continue
+                            prev_matrix = _fold_probabilities(prev, models)
+                            prior_y_parts.append(yy)
+                            for j in range(len(models)):
                                 if method == "platt":
-                                    cp = _fit_platt(
-                                        np.vstack([_fold_probabilities(z, models) for z in ordered[:t]])[:, j],
-                                        np.concatenate([np.asarray(z.get("y", []), dtype=int) for z in ordered[:t]]),
-                                        np.vstack([_fold_probabilities(z, models) for z in ordered[:t]])[:, j],
-                                    )
-                                    cp = np.asarray(cp, dtype=float)
-                                    vals.append(float(np.mean(-(yy * np.log(_safe_probability(raw)) + (1-yy) * np.log(1-_safe_probability(raw))))))
+                                    cp_prev = _fit_platt(prev_matrix[:, j], yy, prev_matrix[:, j])
+                                elif method == "beta":
+                                    cp_prev = _fit_beta(prev_matrix[:, j], yy, prev_matrix[:, j])
+                                elif method == "isotonic":
+                                    cp_prev = _fit_isotonic(prev_matrix[:, j], yy, prev_matrix[:, j])
+                                elif method == "temperature":
+                                    cp_prev, _ = _fit_temperature(prev_matrix[:, j], yy, prev_matrix[:, j])
                                 else:
-                                    vals.append(float(_metrics(yy, raw)["logloss"]))
-                            cal_losses.append(float(np.mean(vals)) if vals else math.log(2.0))
-                        w = _softmax(-np.asarray(cal_losses), 0.05)
+                                    cp_prev = prev_matrix[:, j]
+                                prior_calibrated_by_model[j].append(np.asarray(cp_prev, dtype=float))
+                        prior_yy = np.concatenate(prior_y_parts) if prior_y_parts else np.array([], dtype=int)
+                        cal_losses = np.asarray([
+                            float(_metrics(
+                                prior_yy,
+                                np.concatenate(prior_calibrated_by_model[j])
+                                if prior_calibrated_by_model[j]
+                                else np.full(len(prior_yy), 0.5),
+                            )["logloss"])
+                            if len(prior_yy) else math.log(2.0)
+                            for j in range(len(models))
+                        ])
+                        w = _softmax(-cal_losses, 0.05)
                         pred = calibrated @ w
                     patterns[f"individual_{method}_{blend}"] = (
                         _safe_probability(pred),
