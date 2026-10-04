@@ -493,6 +493,21 @@ def main() -> int:
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
     )
+    _assert_once(
+        watchdog,
+        'inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true',
+        "watchdog_recovers_stale_failure_learning",
+    )
+    _assert_once(
+        watchdog,
+        'inspect_workflow "experience-review.yml" "Experience review" true true',
+        "watchdog_recovers_stale_experience_review",
+    )
+    _assert_once(
+        watchdog,
+        '".github/workflows/automation-failure-learning.yml"',
+        "watchdog_wakes_on_failure_learning_changes",
+    )
 
     _assert_once(
         autopilot,
@@ -668,6 +683,11 @@ def main() -> int:
         experience_workflow,
         "github.event.workflow_run.conclusion == 'success'",
         "experience_review_requires_successful_monitoring",
+    )
+    _assert_once(
+        failure_workflow,
+        "  workflow_dispatch:",
+        "failure_learning_manual_recovery_trigger",
     )
     _assert_once(
         failure_workflow,
