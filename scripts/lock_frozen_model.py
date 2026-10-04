@@ -97,6 +97,7 @@ def main():
         "ranking_weight_selection_prequential",
         "model_selection_prequential",
         "return_estimator_selection_prequential",
+        "training_window_selection_prequential",
     ):
         if nested_ranking.get(flag) is not True:
             raise SystemExit(
