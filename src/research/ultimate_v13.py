@@ -13,6 +13,8 @@ import pandas as pd
 
 from src.research.ultimate_control_v13 import evaluate_v13
 from src.research.ultimate_v13_extensions import augment_v13_result
+from src.research.frontier_pattern_suite import run_frontier_pattern_suite
+from src.research.frontier_extreme_suite import run_extreme_pattern_suite
 from src.research.v13_governance import (
     experiment_record,
     safety_governance,
@@ -117,6 +119,19 @@ def build_ultimate_intelligence(
         result["promotion_allowed"] = False
         return result
     result = augment_v13_result(bank, result)
+    frontier_patterns = run_frontier_pattern_suite(
+        ordered,
+        locked_folds=2,
+        min_folds=5,
+    )
+    extreme_patterns = run_extreme_pattern_suite(
+        ordered,
+        locked_folds=2,
+        min_folds=5,
+        minimum_patterns=100,
+    )
+    result["frontier_patterns"] = frontier_patterns
+    result["frontier_extreme_patterns"] = extreme_patterns
     result["research_only"] = True
     result["production_changed"] = False
     result["promotion_allowed"] = False
