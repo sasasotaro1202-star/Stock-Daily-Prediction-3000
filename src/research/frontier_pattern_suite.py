@@ -143,12 +143,33 @@ def _risk_ood(current_risk: np.ndarray, prior_risks: Sequence[np.ndarray]) -> np
     if not prior:
         return np.zeros(len(current_risk), dtype=float)
     hist = np.vstack(prior)
-    med = np.nanmedian(hist, axis=0)
-    sd = np.nanstd(hist, axis=0)
+    valid_hist = np.isfinite(hist).any(axis=0)
+    if not valid_hist.any():
+        return np.zeros(len(current_risk), dtype=float)
+
+    med = np.zeros(dim, dtype=float)
+    sd = np.ones(dim, dtype=float)
+    med[valid_hist] = np.nanmedian(hist[:, valid_hist], axis=0)
+    sd[valid_hist] = np.nanstd(hist[:, valid_hist], axis=0)
     sd[~np.isfinite(sd) | (sd < 1e-6)] = 1.0
-    cur = np.nan_to_num(current_risk, nan=med[None, :])
-    z = np.abs((cur - med[None, :]) / sd[None, :])
-    return np.clip(np.sqrt(np.mean(z * z, axis=1)) / 4.0, 0.0, 1.0)
+
+    cur = np.asarray(current_risk, dtype=float)
+    valid_cur = np.isfinite(cur) & valid_hist[None, :]
+    if not valid_cur.any(axis=1).any():
+        return np.zeros(len(cur), dtype=float)
+
+    z = np.zeros_like(cur, dtype=float)
+    z[valid_cur] = np.abs(
+        (cur[valid_cur] - np.broadcast_to(med, cur.shape)[valid_cur])
+        / np.broadcast_to(sd, cur.shape)[valid_cur]
+    )
+    counts = valid_cur.sum(axis=1)
+    rms = np.sqrt(np.divide(
+        np.sum(z * z, axis=1),
+        np.maximum(counts, 1),
+    ))
+    rms[counts == 0] = 0.0
+    return np.clip(rms / 4.0, 0.0, 1.0)
 
 
 def _difficulty(p_matrix: np.ndarray, risk: np.ndarray) -> np.ndarray:
