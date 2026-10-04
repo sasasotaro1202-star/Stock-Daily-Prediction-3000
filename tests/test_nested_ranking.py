@@ -127,3 +127,20 @@ def test_current_fold_outcome_does_not_change_current_fold_selection():
     assert baseline["selected_ranking_parameters_by_fold"]["4"] == changed[
         "selected_ranking_parameters_by_fold"
     ]["4"]
+
+
+def test_nested_ranking_requires_bootstrap_evidence_for_positive_candidate():
+    predictions, returns, model_rows = _fixture()
+    result = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        min_history_folds=2,
+    )
+    assert "bootstrap_probability_improvement" in result
+    assert "bootstrap_p05_improvement" in result
+    assert result["bootstrap_method"] == "moving_block"
+    assert result["research_positive"] is False or (
+        result["bootstrap_probability_improvement"] >= 0.90
+        and result["bootstrap_p05_improvement"] > 0.0
+    )
