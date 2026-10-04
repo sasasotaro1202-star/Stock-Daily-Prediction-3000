@@ -306,6 +306,11 @@ jobs:
           }
           if not required_artifacts.issubset(set(manifest_data.get("artifacts") or [])):
               raise SystemExit("FAIL: v13 manifest missing required governance/history artifacts")
+          contracts = manifest_data.get("research_contracts") or {}
+          if contracts.get("frontier_pattern_suite") != "frontier-pattern-ecology-v1":
+              raise SystemExit("FAIL: v13 manifest frontier research contract mismatch")
+          if contracts.get("frontier_extreme_pattern_suite") != "extreme-frontier-pattern-ecology-v1":
+              raise SystemExit("FAIL: v13 manifest extreme research contract mismatch")
           governance = json.loads(v13_governance.read_text(encoding="utf-8"))
           if governance.get("contracts", {}).get("research_only") is not True:
               raise SystemExit("FAIL: v13 governance research_only contract missing")
