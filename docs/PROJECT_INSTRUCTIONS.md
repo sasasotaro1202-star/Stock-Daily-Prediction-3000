@@ -30,7 +30,7 @@ For research-only frontier matrices, the final winner is the candidate selected 
 Risk-derived OOD must distinguish missing evidence from neutral observed OOD. When risk history/current values are unavailable, the underlying OOD score stays finite-neutral; any missingness-aware shrink is an explicit research candidate and must not silently convert missingness into observed risk.
 
 ## Reliability state
-Requested, queued, pending, waiting and in-progress research runs are transient active states. Long-running chronological OOS is preserved across ordinary main-branch commits; stale recovery must be bounded and must not create self-recovery loops. Failed, cancelled, skipped and stale evidence remains non-success until independently rerun and verified.
+Requested, queued, pending, waiting and in-progress research runs are transient active states. Long-running chronological OOS is preserved across ordinary main-branch commits; stale recovery must be bounded and must not create self-recovery loops. Terminal workflow_run events must not overwrite a newer active Research run; compare verifiable Research run numbers when terminal and active contexts race. Failed, cancelled, skipped and stale evidence remains non-success until independently rerun and verified.
 
 ## Evidence identity and freshness
 Research evidence records the exact execution SHA plus an evidence-affecting fingerprint. Evidence is FRESH when the execution fingerprint matches the current main fingerprint, even if commit SHAs differ because of non-evidence-affecting control-plane changes. Any runtime/config/workflow/dependency fingerprint mismatch requires fresh validation/OOS. Unknown fingerprint provenance is fail-closed.

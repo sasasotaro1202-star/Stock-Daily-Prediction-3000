@@ -813,3 +813,20 @@ The frontier research layer now includes a research-only candidate that combines
 When risk is fully observed, the candidate behaves as ordinary OOD shrinkage. When risk evidence is missing, the OOD component remains neutral while a conservative completeness factor still applies shrinkage toward 0.5.
 
 This candidate does not alter production prediction and remains subject to chronological OOS/WFO, calibration, robustness, PIT and frozen-holdout evidence gates.
+
+
+⸻
+
+127. RESEARCH STATUS TERMINAL-EVENT STALE GUARD — 2026-10-04
+
+Research validation status events can arrive out of order. A completed/cancelled event for an older run must not overwrite a newer active Research validation run.
+
+The status resolver therefore keeps the event-provided run context and, when that event is terminal, checks the current active Research validation set. The resolver compares the verifiable Research run_number values:
+
+* newer active run > terminal event → persist the active run context;
+* terminal event >= active run → preserve the terminal event context;
+* missing/unverifiable terminal run number or SHA with active context unavailable → BLOCKED / fail-closed.
+
+Active requested/pending/queued/waiting/in_progress event contexts remain directly usable because the stale-event write guard in status persistence also prevents an older run from overwriting a newer persisted status.
+
+This control is operational status integrity only. It does not alter prediction, OOS metrics, calibration, frozen holdout or production state.

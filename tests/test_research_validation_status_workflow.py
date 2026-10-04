@@ -59,6 +59,7 @@ def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     start = text.index("      - name: Resolve Research status context")
     resolve_block = text[start:text.index("      - name: Download completed OOS evidence", start)]
     assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in resolve_block
+    assert "RESEARCH_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.run_number || '' }}" in resolve_block
     assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in resolve_block
     assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}" in resolve_block
     assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}" in resolve_block
@@ -136,3 +137,47 @@ def test_status_persistence_reads_evidence_fingerprint_from_completed_metrics() 
     assert "def _load_research_evidence_fingerprint()" in script
     assert 'payload.get("evidence_code_fingerprint_sha256")' in script
 
+
+
+def test_status_resolver_prefers_newer_active_run_over_terminal_event(monkeypatch, tmp_path) -> None:
+    from scripts import resolve_research_status_context as resolver
+
+    monkeypatch.setenv("GITHUB_TOKEN", "token")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "owner/repo")
+    monkeypatch.setenv("GITHUB_API_URL", "https://api.github.com")
+    monkeypatch.setenv("GITHUB_ENV", str(tmp_path / "github_env"))
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_ID", "100")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_RUN_NUMBER", "244")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_SHA", "old-sha")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_STATUS", "completed")
+    monkeypatch.setenv("RESEARCH_WORKFLOW_CONCLUSION", "cancelled")
+
+    calls = 0
+
+    def fake_request_json(url, token):
+        nonlocal calls
+        calls += 1
+        if "status=pending" in url:
+            return {
+                "workflow_runs": [
+                    {
+                        "name": "Research validation",
+                        "status": "pending",
+                        "run_number": 245,
+                        "id": 200,
+                        "head_sha": "new-sha",
+                    }
+                ]
+            }
+        return {"workflow_runs": []}
+
+    monkeypatch.setattr(resolver, "_request_json", fake_request_json)
+
+    assert resolver.main() == 0
+
+    env = (tmp_path / "github_env").read_text(encoding="utf-8")
+    assert "RESEARCH_WORKFLOW_RUN_ID=200\n" in env
+    assert "RESEARCH_WORKFLOW_RUN_NUMBER=245\n" in env
+    assert "RESEARCH_WORKFLOW_SHA=new-sha\n" in env
+    assert "RESEARCH_WORKFLOW_STATUS=pending\n" in env
+    assert calls == 5

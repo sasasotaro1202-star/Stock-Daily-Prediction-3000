@@ -41,6 +41,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
           RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          RESEARCH_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.run_number || '' }}
           RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}
           RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}
           RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
