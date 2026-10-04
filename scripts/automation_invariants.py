@@ -324,6 +324,60 @@ def main() -> int:
 
     market_cycle = _read("market-cycle.yml")
     validation_workflow = _read("research-validation.yml")
+    temporal_state_script = str(
+        (ROOT / "scripts" / "run_temporal_state_oos.py").read_text(encoding="utf-8")
+    )
+    temporal_state_module = str(
+        (ROOT / "src" / "research" / "temporal_state.py").read_text(encoding="utf-8")
+    )
+    temporal_state_config = str(
+        (ROOT / "config" / "pipeline.yml").read_text(encoding="utf-8")
+    )
+    _assert_once(
+        validation_workflow,
+        "run: python scripts/run_temporal_state_oos.py",
+        "temporal_state_oos_runs_automatically",
+    )
+    _assert_once(
+        validation_workflow,
+        "data/research/temporal_state_oos.json",
+        "temporal_state_oos_artifact_archived",
+    )
+    _assert_once(
+        temporal_state_script,
+        "build_temporal_state_features",
+        "temporal_state_feature_builder_present",
+    )
+    _assert_once(
+        temporal_state_script,
+        "available_at_required",
+        "temporal_state_pit_availability_required",
+    )
+    _assert_once(
+        temporal_state_module,
+        "Future rows are never used.",
+        "temporal_state_causal_contract",
+    )
+    _assert_once(
+        temporal_state_config,
+        "temporal_state_research:",
+        "temporal_state_configured",
+    )
+    _assert_once(
+        temporal_state_config,
+        "research_only: true",
+        "temporal_state_research_only_configured",
+    )
+    _assert_once(
+        temporal_state_config,
+        "production_changed: false",
+        "temporal_state_no_production_mutation_configured",
+    )
+    _assert_once(
+        validation_workflow,
+        "assert d.get(\"intraday_data_used\") is False",
+        "temporal_state_intraday_claim_is_explicit",
+    )
     quality_gate = str(
         (ROOT / "scripts" / "data_quality_gate.py").read_text(encoding="utf-8")
     )
