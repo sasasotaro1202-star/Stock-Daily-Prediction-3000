@@ -8,6 +8,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.research.statistics import moving_block_bootstrap_mean
+
 SCHEMA_VERSION = 1
 DEFAULT_QUANTILE = 0.75
 DEFAULT_MIN_TRAIN_ROWS = 240
@@ -180,6 +182,63 @@ def _risk_metrics(scores: np.ndarray, failed: np.ndarray) -> dict[str, float]:
     }
 
 
+def _cluster_bootstrap_delta(
+    rows: Sequence[tuple[Mapping[str, Any], float, float, int]],
+) -> dict[str, Any]:
+    """Bootstrap learned-minus-fixed improvements on ordered prediction sessions.
+
+    Each unique prediction_cutoff forms one dependence cluster. The cluster
+    delta is the mean fixed log-loss minus learned log-loss, so positive means
+    learned case-risk improves LogLoss. Moving-block bootstrap preserves
+    chronological dependence between adjacent sessions.
+    """
+    grouped: dict[str, list[tuple[float, float]]] = {}
+    order: list[str] = []
+    for row, learned_score, fixed_score, failed in rows:
+        key = str(row.get("prediction_cutoff") or row.get("prediction_time") or "").strip()
+        if not key:
+            continue
+        if key not in grouped:
+            grouped[key] = []
+            order.append(key)
+        p_learned = float(np.clip(learned_score, 1e-6, 1.0 - 1e-6))
+        p_fixed = float(np.clip(fixed_score, 1e-6, 1.0 - 1e-6))
+        failed = int(failed)
+        learned_loss = -(failed * np.log(p_learned) + (1 - failed) * np.log1p(-p_learned))
+        fixed_loss = -(failed * np.log(p_fixed) + (1 - failed) * np.log1p(-p_fixed))
+        grouped[key].append((float(fixed_loss), float(learned_loss)))
+
+    cluster_deltas: list[float] = []
+    for key in order:
+        values = grouped[key]
+        if not values:
+            continue
+        fixed = np.asarray([value[0] for value in values], dtype=float)
+        learned = np.asarray([value[1] for value in values], dtype=float)
+        if not np.isfinite(fixed).all() or not np.isfinite(learned).all():
+            continue
+        cluster_deltas.append(float(np.mean(fixed - learned)))
+
+    if len(cluster_deltas) < 5:
+        return {
+            "status": "INSUFFICIENT_CLUSTERS",
+            "clusters": int(len(cluster_deltas)),
+            "mean_delta_fixed_minus_learned": float(np.mean(cluster_deltas)) if cluster_deltas else None,
+            "bootstrap_probability_improvement": 0.0,
+            "bootstrap_p05_improvement": float("-inf"),
+            "bootstrap_method": "moving_block",
+        }
+
+    values = np.asarray(cluster_deltas, dtype=float)
+    probability, p05 = moving_block_bootstrap_mean(values, n_bootstrap=4000, seed=20261004)
+    return {
+        "status": "EVALUATED",
+        "clusters": int(len(values)),
+        "mean_delta_fixed_minus_learned": float(values.mean()),
+        "bootstrap_probability_improvement": float(probability),
+        "bootstrap_p05_improvement": float(p05),
+        "bootstrap_method": "moving_block",
+    }
 def _fold_stability(rows: Sequence[dict[str, Any]], key: str) -> dict[str, Any]:
     values = np.asarray(
         [float(row[key]) for row in rows if _finite(row.get(key))],
@@ -483,11 +542,15 @@ def analyze_learned_case_risk(
     fixed_risk_metrics = _risk_metrics(fixed_scores, locked_failed)
 
     locked_rows_by_fold: dict[int, list[tuple[float, float, int]]] = {}
+    locked_bootstrap_rows: list[tuple[Mapping[str, Any], float, float, int]] = []
     for (row, _, failed), learned_score, fixed_score in zip(
         valid_locked,
         learned_scores,
         fixed_scores,
     ):
+        locked_bootstrap_rows.append(
+            (row, float(learned_score), float(fixed_score), int(failed))
+        )
         locked_rows_by_fold.setdefault(
             int(row.get("fold", 0) or 0),
             [],
@@ -521,6 +584,8 @@ def analyze_learned_case_risk(
                 },
             }
         )
+
+    locked_logloss_bootstrap = _cluster_bootstrap_delta(locked_bootstrap_rows)
 
     return {
         **base,
@@ -663,6 +728,7 @@ def analyze_learned_case_risk(
                 else None
             ),
         },
+        "locked_logloss_bootstrap": locked_logloss_bootstrap,
         "contracts": {
             "development_model_training_uses_only_prior_folds": True,
             "development_threshold_uses_oof_risk_only": True,
