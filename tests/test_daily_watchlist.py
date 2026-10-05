@@ -29,6 +29,7 @@ def test_watchlist_has_all_requested_instruments():
     assert {x["symbol"] for x in us} == {
         "DIS","SBUX","MCD","NFLX","KO","TSLA","NKE","META","AMZN","GOOGL","MSFT","NVDA","AAPL",
     }
+    assert len(jp) + len(us) + len(markets) == 41
 
 
 def test_validate_items_rejects_duplicate():
@@ -144,3 +145,14 @@ def test_stale_market_context_is_deferred():
         expected_target_dates={"XTKS": "2026-09-01"},
     )
     assert rows[0]["prediction_status"] == "DEFERRED_STALE_CONTEXT"
+
+
+def test_main_binds_watchlist_items_from_config():
+    source = Path("scripts/generate_daily_watchlist.py").read_text(encoding="utf-8")
+    assert 'jp_items = cfg["equities"]["items"]' in source
+    assert 'us_items = cfg["us_equities"]["items"]' in source
+
+
+def test_workflow_runs_output_integrity_gate():
+    workflow = Path(".github/workflows/daily-watchlist.yml").read_text(encoding="utf-8")
+    assert "validate_daily_watchlist.py" in workflow
