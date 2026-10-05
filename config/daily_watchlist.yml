@@ -1,0 +1,83 @@
+schema_version: 1
+enabled: true
+
+output:
+  json: data/predictions/daily_watchlist.json
+  markdown: data/predictions/daily_watchlist.md
+
+equities:
+  require_official_universe: true
+  direction_threshold: 0.50
+  prediction_source: data/predictions
+  universe_source: data/universe/latest.json
+  items:
+    - {display_name: "三菱地所", symbol: "8802", asset_class: "jp_stock"}
+    - {display_name: "三井不動産", symbol: "8801", asset_class: "jp_stock"}
+    - {display_name: "テレビ朝日", symbol: "9409", asset_class: "jp_stock"}
+    - {display_name: "日本テレビ", symbol: "9404", asset_class: "jp_stock"}
+    - {display_name: "フジテレビ", symbol: "4676", asset_class: "jp_stock"}
+    - {display_name: "TBS", symbol: "9401", asset_class: "jp_stock"}
+    - {display_name: "キオクシア", symbol: "285A", asset_class: "jp_stock"}
+    - {display_name: "Umios", symbol: "1333", asset_class: "jp_stock"}
+    - {display_name: "味の素", symbol: "2802", asset_class: "jp_stock"}
+    - {display_name: "日清食品", symbol: "2897", asset_class: "jp_stock"}
+    - {display_name: "ホンダ", symbol: "7267", asset_class: "jp_stock"}
+    - {display_name: "日産", symbol: "7201", asset_class: "jp_stock"}
+    - {display_name: "LINEヤフー", symbol: "4689", asset_class: "jp_stock"}
+    - {display_name: "メルカリ", symbol: "4385", asset_class: "jp_stock"}
+    - {display_name: "タイミー", symbol: "215A", asset_class: "jp_stock"}
+    - {display_name: "dip", symbol: "2379", asset_class: "jp_stock"}
+    - {display_name: "ニトリ", symbol: "9843", asset_class: "jp_stock"}
+    - {display_name: "NTT", symbol: "9432", asset_class: "jp_stock"}
+    - {display_name: "パナソニック", symbol: "6752", asset_class: "jp_stock"}
+    - {display_name: "SONY", symbol: "6758", asset_class: "jp_stock"}
+    - {display_name: "東京エレクトロン", symbol: "8035", asset_class: "jp_stock"}
+    - {display_name: "アドバンテスト", symbol: "6857", asset_class: "jp_stock"}
+    - {display_name: "任天堂", symbol: "7974", asset_class: "jp_stock"}
+    - {display_name: "ソフトバンク", symbol: "9434", asset_class: "jp_stock"}
+    - {display_name: "トヨタ", symbol: "7203", asset_class: "jp_stock"}
+
+us_equities:
+  require_official_universe: true
+  direction_threshold: 0.50
+  items:
+    - {display_name: "ウォルトディズニー", symbol: "DIS", asset_class: "us_stock"}
+    - {display_name: "スターバックス", symbol: "SBUX", asset_class: "us_stock"}
+    - {display_name: "マクドナルド", symbol: "MCD", asset_class: "us_stock"}
+    - {display_name: "Netflix", symbol: "NFLX", asset_class: "us_stock"}
+    - {display_name: "コカ・コーラ", symbol: "KO", asset_class: "us_stock"}
+    - {display_name: "Tesla", symbol: "TSLA", asset_class: "us_stock"}
+    - {display_name: "NIKE", symbol: "NKE", asset_class: "us_stock"}
+    - {display_name: "Meta", symbol: "META", asset_class: "us_stock"}
+    - {display_name: "Amazon", symbol: "AMZN", asset_class: "us_stock"}
+    - {display_name: "Google", symbol: "GOOGL", asset_class: "us_stock"}
+    - {display_name: "Microsoft", symbol: "MSFT", asset_class: "us_stock"}
+    - {display_name: "NVIDIA", symbol: "NVDA", asset_class: "us_stock"}
+    - {display_name: "Apple", symbol: "AAPL", asset_class: "us_stock"}
+
+market_instruments:
+  direction_threshold: 0.50
+  pit_required: true
+  training_policy: "matured_rows_only"
+  research_only: true
+  promotion_allowed: false
+  instruments:
+    - display_name: "日経平均株価"
+      instrument_id: "JP-NIKKEI-225"
+      provider_symbol: "^N225"
+      context_family: "nikkei"
+      calendar: "XTKS"
+    - display_name: "S&P500"
+      instrument_id: "US-SP500"
+      provider_symbol: "^GSPC"
+      context_family: "sp500"
+      calendar: "XNYS"
+    - display_name: "ドル/円"
+      instrument_id: "FX-USDJPY"
+      provider_symbol: "USDJPY=X"
+      context_family: "usd_jpy"
+      calendar: "24/5"
+
+google_policy:
+  selected_symbol: "GOOGL"
+  note: "Google tracking uses Alphabet Class A (GOOGL) as the canonical equity instrument."

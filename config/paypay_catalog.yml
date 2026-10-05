@@ -1,0 +1,42 @@
+catalog:
+  provider: paypay_securities_official
+  refresh: daily
+  product_families:
+    - id: jp_equities
+      label: "日本株（個別株・ETF・REIT）"
+      source_url: "https://www.paypay-sec.co.jp/stock/list/"
+      prediction_mode: market_close
+      included_in_stock_model: true
+    - id: us_equities
+      label: "米国株（個別株・ETF）"
+      source_url: "https://www.paypay-sec.co.jp/us-stock/list/"
+      prediction_mode: market_close
+      included_in_stock_model: true
+    - id: mutual_funds
+      label: "投資信託"
+      source_url: "https://www.paypay-sec.co.jp/fund/list/"
+      prediction_mode: nav
+      included_in_stock_model: false
+    - id: jp_stock_cfd
+      label: "日本株CFD"
+      source_url: "https://www.paypay-sec.co.jp/cfd/list/"
+      prediction_mode: derivative
+      included_in_stock_model: false
+    - id: leveraged_cfd
+      label: "10倍CFD"
+      source_url: "https://www.paypay-sec.co.jp/indices/"
+      prediction_mode: derivative
+      included_in_stock_model: false
+    - id: ideco
+      label: "iDeCo"
+      source_url: "https://www.paypay-sec.co.jp/ideco/product/"
+      prediction_mode: retirement_nav
+      included_in_stock_model: false
+
+rules:
+  current_tradeable_products_only: true
+  preserve_snapshots: true
+  preserve_listing_history: true
+  preserve_delisted_history: true
+  no_cross_product_clock_mixing: true
+  no_fixed_security_count_limit: true

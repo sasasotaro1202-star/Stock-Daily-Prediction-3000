@@ -1,0 +1,43 @@
+name: Free Data Source Discovery
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5,17 * * *"
+      timezone: "Asia/Tokyo"
+  workflow_run:
+    workflows:
+      - "Research validation"
+      - "24H Research Marathon"
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: free-data-source-discovery
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Discover and rank free research sources
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_DISCOVERY_TIMEOUT: 12
+        run: python scripts/discover_free_data_sources.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: free-data-source-discovery-${{ github.run_id }}
+          path: data/research/source_discovery.json
+          if-no-files-found: warn
+          retention-days: 7
