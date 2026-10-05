@@ -116,6 +116,19 @@ jobs:
               fi
             done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
 
+            # Preserve queued work while another run is active. Otherwise a
+            # stale current-main queue could be cancelled and lost exactly while
+            # the active run is still blocking the workflow concurrency lane.
+            if [ "$active_any" = true ]; then
+              echo "$workflow_file: a run is active; preserve queued work and do not dispatch"
+              continue
+            fi
+
+            if [ "$fresh_current_queued" = true ]; then
+              echo "$workflow_file: current-main run already queued/recovered; no duplicate dispatch"
+              continue
+            fi
+
             for run_id in "${stale_queued_ids[@]}"; do
               [ -n "$run_id" ] || continue
               echo "::warning title=$workflow_file stale queue::cancelling queued run $run_id"
@@ -124,16 +137,6 @@ jobs:
                 failures=$((failures + 1))
               fi
             done
-
-            if [ "$active_any" = true ]; then
-              echo "$workflow_file: a run is active; no duplicate dispatch"
-              continue
-            fi
-
-            if [ "$fresh_current_queued" = true ]; then
-              echo "$workflow_file: current-main run already queued/recovered; no duplicate dispatch"
-              continue
-            fi
 
             if [ "${#stale_queued_ids[@]}" -gt 0 ]; then
               echo "$workflow_file: stale queue cleaned; dispatching current main"
