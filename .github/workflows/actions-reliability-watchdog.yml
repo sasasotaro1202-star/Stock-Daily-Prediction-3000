@@ -61,9 +61,10 @@ jobs:
           evidence_diff_state() {
             local base_sha="$1"
             local changed_path
-            # Mirror src.validation.code_fingerprint evidence scope exactly enough
-            # for invalidation decisions: config/src/scripts, workflow YAML and pyproject.toml.
-            # Documentation/status publication files are excluded from this decision.
+            # Mirror src.validation.code_fingerprint evidence scope. Explicitly
+            # allow only known control-plane-only workflow files to change without
+            # invalidating an active chronological OOS. Any unlisted workflow is
+            # evidence-affecting by default.
             if ! git cat-file -e "${base_sha}^{commit}" 2>/dev/null; then
               return 2
             fi
@@ -75,8 +76,18 @@ jobs:
                 pyproject.toml)
                   return 0
                   ;;
-                config/*|src/*|scripts/*|.github/workflows/*)
+                config/*|src/*|scripts/*)
                   case "$changed_path" in
+                    *.py|*.yml|*.yaml)
+                      return 0
+                      ;;
+                  esac
+                  ;;
+                .github/workflows/*)
+                  case "$changed_path" in
+                    .github/workflows/heartbeat.yml|                    .github/workflows/automation-supervisor.yml|                    .github/workflows/actions-reliability-watchdog.yml|                    .github/workflows/research-autopilot.yml|                    .github/workflows/long-research-recovery.yml|                    .github/workflows/automation-failure-learning.yml|                    .github/workflows/research-validation-status.yml|                    .github/workflows/24h-research-marathon-watchdog.yml|                    .github/workflows/bounded-production-recovery.yml)
+                      continue
+                      ;;
                     *.py|*.yml|*.yaml)
                       return 0
                       ;;
