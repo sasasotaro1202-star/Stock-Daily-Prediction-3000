@@ -61,7 +61,7 @@ jobs:
             fi
 
             local recent_cutoff="$(( $(date -u +%s) - max_age_minutes * 60 ))"
-            local active_found=false
+            local active_current_found=false
             local recent_current_found=false
 
             while IFS= read -r encoded; do
@@ -76,8 +76,8 @@ jobs:
               created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
               [ -n "$run_id" ] || continue
 
-              if [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "waiting" ] || [ "$status" = "requested" ] || [ "$status" = "in_progress" ]; then
-                active_found=true
+              if [ "$head_sha" = "$current_sha" ]                 && { [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "waiting" ] || [ "$status" = "requested" ] || [ "$status" = "in_progress" ]; }; then
+                active_current_found=true
                 continue
               fi
 
@@ -87,8 +87,8 @@ jobs:
               fi
             done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
 
-            if [ "$active_found" = true ]; then
-              echo "$workflow_name: active current-main or queued run exists; no recovery dispatch"
+            if [ "$active_current_found" = true ]; then
+              echo "$workflow_name: active/queued current-main run exists; no recovery dispatch"
               return
             fi
 
