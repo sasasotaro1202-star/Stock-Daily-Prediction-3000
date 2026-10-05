@@ -88,6 +88,8 @@ def latest_equity_prediction(
     files: list[Path],
     asset_class: str,
     symbol: str,
+    *,
+    cutoff: pd.Timestamp,
 ) -> tuple[pd.Series | None, str | None]:
     candidates: list[tuple[pd.Timestamp, Path, pd.Series]] = []
     symbol = symbol.upper()
@@ -110,7 +112,7 @@ def latest_equity_prediction(
             utc=True,
             errors="coerce",
         )
-        if pd.isna(prediction_time):
+        if pd.isna(prediction_time) or prediction_time > cutoff:
             continue
         candidates.append((prediction_time, path, match.iloc[0]))
     if not candidates:
@@ -134,6 +136,7 @@ def build_equity_rows(
     universe: set[tuple[str, str]],
     threshold: float,
     require_official_universe: bool,
+    cutoff: pd.Timestamp,
 ) -> list[dict[str, Any]]:
     expected_class = str(items[0].get("asset_class", "")) if items else "jp_stock"
     validate_items(items, expected_class)
@@ -168,7 +171,12 @@ def build_equity_rows(
             rows.append(base)
             continue
 
-        row, filename = latest_equity_prediction(files, asset_class, symbol)
+        row, filename = latest_equity_prediction(
+            files,
+            asset_class,
+            symbol,
+            cutoff=cutoff,
+        )
         if row is None:
             base["prediction_status"] = "DEFERRED_PREDICTION_HISTORY_MISSING"
             rows.append(base)
@@ -259,8 +267,19 @@ def prepare_market_frame(context: pd.DataFrame, family: str) -> pd.DataFrame:
 
 
 def next_session_date(date_value: Any, calendar_code: str) -> str:
-    calendar = get_calendar(calendar_code)
     start = pd.Timestamp(date_value).normalize()
+
+    # FX is quoted on the global 24/5 market and is not represented by the
+    # exchange_calendars stock-exchange calendar registry. Its next session
+    # is the next weekday; exchange holidays are not encoded because this
+    # pipeline's provider series is itself sampled on available FX sessions.
+    if calendar_code == "24/5":
+        candidate = start + pd.Timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate += pd.Timedelta(days=1)
+        return str(candidate.date())
+
+    calendar = get_calendar(calendar_code)
     sessions = calendar.sessions_in_range(start, start + pd.Timedelta(days=14))
     for session in sessions:
         candidate = pd.Timestamp(session)
@@ -420,12 +439,14 @@ def main() -> None:
         universe=universe,
         threshold=float(cfg["equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["equities"]["require_official_universe"]),
+        cutoff=cutoff,
     )
     us_rows = build_equity_rows(
         us_items,
         universe=universe,
         threshold=float(cfg["us_equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["us_equities"]["require_official_universe"]),
+        cutoff=cutoff,
     )
 
     if not CONTEXT_SOURCE.exists():
