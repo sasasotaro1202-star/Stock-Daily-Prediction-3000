@@ -590,8 +590,8 @@ def main() -> int:
 
     _assert_once(
         autopilot,
-        '    - cron: "17 12 * * *"',
-        "research_autopilot_daily_schedule",
+        '    - cron: "*/30 * * * *"',
+        "research_autopilot_30m_schedule",
     )
     _assert_absent(
         autopilot,
