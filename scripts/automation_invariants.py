@@ -817,7 +817,7 @@ def main() -> int:
     )
     _assert_once(
         long_research_recovery,
-        'gh run rerun "\$run_id" --repo "\$GITHUB_REPOSITORY" --failed',
+        'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed',
         "long_research_recovery_bounded_failed_rerun",
     )
     _assert_once(
@@ -832,7 +832,7 @@ def main() -> int:
     )
     _assert_once(
         long_research_recovery,
-        'gh workflow run "\$workflow_file" --repo "\$GITHUB_REPOSITORY" --ref main',
+        'gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main',
         "long_research_recovery_current_main_dispatch",
     )
     _assert_once(
