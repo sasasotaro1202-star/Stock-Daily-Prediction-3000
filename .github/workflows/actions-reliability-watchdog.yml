@@ -85,7 +85,7 @@ jobs:
                   ;;
                 .github/workflows/*)
                   case "$changed_path" in
-                    .github/workflows/heartbeat.yml|                    .github/workflows/automation-supervisor.yml|                    .github/workflows/actions-reliability-watchdog.yml|                    .github/workflows/research-autopilot.yml|                    .github/workflows/long-research-recovery.yml|                    .github/workflows/automation-failure-learning.yml|                    .github/workflows/research-validation-status.yml|                    .github/workflows/24h-research-marathon-watchdog.yml|                    .github/workflows/bounded-production-recovery.yml)
+                    .github/workflows/heartbeat.yml|.github/workflows/automation-supervisor.yml|.github/workflows/actions-reliability-watchdog.yml|.github/workflows/research-autopilot.yml|.github/workflows/long-research-recovery.yml|.github/workflows/automation-failure-learning.yml|.github/workflows/research-validation-status.yml|.github/workflows/24h-research-marathon-watchdog.yml|.github/workflows/bounded-production-recovery.yml)
                       continue
                       ;;
                     *.py|*.yml|*.yaml)
