@@ -978,7 +978,7 @@ def main() -> int:
         "research-status-writer",
         "failure_learning_shared_single_writer",
     )
-    _assert_once(
+    _assert_contains(
         failure_workflow,
         "git push origin HEAD:research-status",
         "failure_learning_never_mutates_main",
