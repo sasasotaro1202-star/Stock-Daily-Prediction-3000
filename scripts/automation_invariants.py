@@ -169,6 +169,11 @@ def main() -> int:
         '    - cron: "17 */6 * * *"',
         "heartbeat_6h_schedule",
     )
+    _assert_contains(
+        heartbeat,
+        "github.event.workflow_run.conclusion == 'success' ||",
+        "heartbeat_ignores_cancelled_control_plane_events",
+    )
 
     _assert_once(
         source_discovery,
