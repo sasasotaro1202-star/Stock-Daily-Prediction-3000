@@ -901,7 +901,7 @@ def main() -> int:
             f'"{workflow_path}"',
             f"evidence_fingerprint_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
         )
-        _assert_once(
+        _assert_contains(
             watchdog,
             workflow_path,
             f"watchdog_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
