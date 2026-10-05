@@ -32,6 +32,7 @@ NON_EVIDENCE_CONTROL_PLANE_WORKFLOWS=frozenset(
         ".github/workflows/research-validation-status.yml",
         ".github/workflows/24h-research-marathon-watchdog.yml",
         ".github/workflows/bounded-production-recovery.yml",
+        ".github/workflows/automation-activity-keepalive.yml",
     }
 )
 EVIDENCE_ROOTS=(Path("config"),Path("src"),Path("scripts"))
