@@ -1,0 +1,75 @@
+name: Repository automation keepalive
+
+on:
+  schedule:
+    - cron: "17 3 1 * *"
+      timezone: "Asia/Tokyo"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: automation-activity-keepalive
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Refresh dedicated repository activity branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          keepalive_branch="ops/automation-keepalive"
+
+          if git ls-remote --exit-code --heads origin "$keepalive_branch" >/dev/null 2>&1; then
+            git fetch --no-tags origin "$keepalive_branch"
+            git checkout -B "$keepalive_branch" "origin/$keepalive_branch"
+          else
+            git checkout --orphan "$keepalive_branch"
+          fi
+
+          mkdir -p ops
+          generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          main_sha="$(git rev-parse main)"
+          cat > ops/automation_keepalive.json <<EOF
+          {
+            "schema_version": 1,
+            "generated_at": "$generated_at",
+            "main_sha": "$main_sha",
+            "purpose": "repository_activity_keepalive",
+            "production_changed": false,
+            "model_changed": false,
+            "evidence_changed": false
+          }
+          EOF
+
+          git add ops/automation_keepalive.json
+          if git diff --cached --quiet; then
+            echo "automation keepalive: no change"
+            exit 0
+          fi
+
+          git commit -m "chore: refresh repository automation keepalive"
+          git push origin "HEAD:$keepalive_branch"
+
+      - name: Verify dedicated keepalive branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="ops/automation-keepalive"
+          actual="$(git branch --show-current)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error title=Keepalive branch mismatch::expected $expected got $actual"
+            exit 1
+          fi
+          echo "automation keepalive branch verified: $actual"
