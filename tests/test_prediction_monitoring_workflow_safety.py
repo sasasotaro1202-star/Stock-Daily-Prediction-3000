@@ -22,6 +22,11 @@ def test_monitoring_persists_experience_to_research_status_without_hashfiles_gat
     assert "steps.price_state.outputs.available == 'true'" in condition
 
 
+def test_monitoring_uses_shared_research_status_writer_lane():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "group: research-status-writer" in text
+
+
 def test_monitoring_artifacts_include_experience_candidates():
     steps = _steps()
     upload = next(step for step in steps if step.get("uses") == "actions/upload-artifact@v7")
