@@ -485,6 +485,8 @@ def main() -> None:
     current_jst_date = cutoff.tz_convert("Asia/Tokyo").date()
     expected_jp_target_date = expected_daily_target_date(current_jst_date, "XTKS")
     expected_us_target_date = expected_daily_target_date(current_jst_date, "XNYS")
+    jp_items = cfg["equities"]["items"]
+    us_items = cfg["us_equities"]["items"]
     jp_rows = build_equity_rows(
         jp_items,
         universe=universe,
