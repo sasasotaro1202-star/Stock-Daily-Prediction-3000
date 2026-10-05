@@ -24,6 +24,12 @@ from src.research.ultimate_control_v13 import (
 from src.research.case_risk_oos import analyze_case_risk
 from src.research.expert_loss_routing_oos import analyze_expert_loss_routing
 from src.research.learned_case_risk_oos import analyze_learned_case_risk
+from src.research.predictive_state import (
+    aggregate_uncertainty,
+    ensemble_disagreement,
+    normalized_entropy,
+    scenario_probabilities,
+)
 
 
 def _logit(p: np.ndarray) -> np.ndarray:
@@ -146,12 +152,44 @@ def _scenario_row(mean_p: float, dispersion: float, ood: float) -> dict[str, Any
     normal = 1.0 - tail
     bull_w = tail * directional
     bear_w = tail - bull_w
+
+    scenario = scenario_probabilities(
+        np.asarray([mean_p], dtype=float),
+        shock_probability=np.asarray([ood], dtype=float),
+        disagreement=np.asarray([dispersion], dtype=float),
+    )[0]
+    disagreement_value = float(ensemble_disagreement(
+        np.asarray([[mean_p - dispersion, mean_p + dispersion]], dtype=float)
+    )[0])
+    entropy_value = float(normalized_entropy(
+        np.asarray([[mean_p, 1.0 - mean_p]], dtype=float)
+    )[0])
+    uncertainty = aggregate_uncertainty(
+        {
+            "model_disagreement": np.asarray([disagreement_value], dtype=float),
+            "probability_entropy": np.asarray([entropy_value], dtype=float),
+            "ood_score": np.asarray([np.clip(ood, 0.0, 1.0)], dtype=float),
+        }
+    )[0]
+
     return {
         "status": "EXECUTED_HEURISTIC_SCENARIO_PROXY",
         "probability_proxy": {
             "normal": float(normal),
             "bullish": float(bull_w),
             "bearish": float(bear_w),
+        },
+        "scenario_probability_proxy": {
+            "continuation_up": float(scenario[0]),
+            "continuation_down": float(scenario[1]),
+            "range_neutral": float(scenario[2]),
+            "shock": float(scenario[3]),
+        },
+        "uncertainty_proxy": {
+            "model_disagreement": disagreement_value,
+            "probability_entropy": entropy_value,
+            "ood_score": float(np.clip(ood, 0.0, 1.0)),
+            "aggregate": float(uncertainty),
         },
         "level_proxy": {
             "normal": float(np.clip(mean_p, 0.001, 0.999)),
@@ -160,8 +198,8 @@ def _scenario_row(mean_p: float, dispersion: float, ood: float) -> dict[str, Any
         },
         "spread_proxy": spread,
         "calibrated": False,
+        "research_only": True,
     }
-
 
 def _parse_pit_timestamp(value: Any) -> datetime | None:
     """Parse an explicit timezone-aware PIT timestamp; invalid/naive values fail closed."""
