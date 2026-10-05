@@ -64,8 +64,9 @@ jobs:
             echo "=== $workflow_file ==="
             runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_file/runs?branch=main&per_page=50")"
 
+            active_any=false
             active_current=false
-            current_queued=false
+            fresh_current_queued=false
             stale_queued_ids=()
 
             while IFS= read -r encoded; do
@@ -81,6 +82,7 @@ jobs:
               [ -n "$run_id" ] || continue
 
               if [ "$status" = "in_progress" ]; then
+                active_any=true
                 if [ "$head_sha" = "$current_sha" ]; then
                   active_current=true
                 fi
@@ -88,9 +90,11 @@ jobs:
                 continue
               fi
 
-              if [ "$status" = "queued" ] || [ "$status" = "pending" ]; then
+              if [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "waiting" ] || [ "$status" = "requested" ]; then
                 if [ "$head_sha" = "$current_sha" ]; then
-                  current_queued=true
+                  if [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -ge "$queue_cutoff" ]; then
+                    fresh_current_queued=true
+                  fi
                 fi
                 if [ "$created_epoch" -gt 0 ] && [ "$created_epoch" -lt "$queue_cutoff" ]; then
                   stale_queued_ids+=( "$run_id" )
@@ -107,7 +111,7 @@ jobs:
                   failures=$((failures + 1))
                 fi
                 # At most one recovery action per workflow on each watchdog tick.
-                current_queued=true
+                fresh_current_queued=true
                 break
               fi
             done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
@@ -121,12 +125,12 @@ jobs:
               fi
             done
 
-            if [ "$active_current" = true ]; then
-              echo "$workflow_file: current-main run active; no duplicate dispatch"
+            if [ "$active_any" = true ]; then
+              echo "$workflow_file: a run is active; no duplicate dispatch"
               continue
             fi
 
-            if [ "$current_queued" = true ]; then
+            if [ "$fresh_current_queued" = true ]; then
               echo "$workflow_file: current-main run already queued/recovered; no duplicate dispatch"
               continue
             fi
