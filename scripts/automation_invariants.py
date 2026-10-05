@@ -132,6 +132,11 @@ def main() -> int:
     )
     _assert_once(
         monitoring,
+        "group: research-status-writer",
+        "prediction_monitoring_shared_status_writer",
+    )
+    _assert_once(
+        monitoring,
         'git -C "$worktree_dir" push origin HEAD:research-status',
         "prediction_monitoring_persists_experience_on_research_status",
     )
