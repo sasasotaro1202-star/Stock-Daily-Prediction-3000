@@ -46,8 +46,9 @@ jobs:
           RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}
           RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
         run: python scripts/resolve_research_status_context.py
+      # Success can arrive through workflow_run or through scheduled/manual reconciliation.
       - name: Download completed OOS evidence
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
         uses: actions/download-artifact@v7
         with:
           name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}
@@ -56,7 +57,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}
       - name: Restore OOS metrics for longitudinal snapshot
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
         shell: bash
         run: |
           set -euo pipefail
