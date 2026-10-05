@@ -675,6 +675,16 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
+        'current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq \'.object.sha\')"' ,
+        "watchdog_resolves_live_main_head",
+    )
+    _assert_absent(
+        watchdog,
+        'current_sha="$GITHUB_SHA"',
+        "watchdog_does_not_use_stale_workflow_sha_as_current_main",
+    )
+    _assert_once(
+        watchdog,
         "current-SHA queued run already exists after stale queue cleanup; suppressing duplicate dispatch",
         "watchdog_reports_duplicate_dispatch_suppression",
     )
