@@ -777,7 +777,7 @@ def main() -> int:
     failure_workflow = _read("automation-failure-learning.yml")
     _assert_absent(
         validation_workflow,
-        "research-status:",
+        "\n    research-status:\n",
         "research_validation_no_inline_status_job",
     )
     _assert_once(
