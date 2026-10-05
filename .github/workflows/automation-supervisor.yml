@@ -1,1 +1,121 @@
-name: Automation supervisor\n\n# Independent lightweight control-plane supervisor.\n# It exists so a failed/missed 5-minute watchdog can itself be recovered.\n# This workflow never mutates production evidence or prediction state.\n\non:\n  workflow_dispatch:\n  schedule:\n    - cron: "*/10 * * * *"\n      timezone: "Asia/Tokyo"\n\npermissions:\n  actions: write\n  contents: read\n\nconcurrency:\n  group: automation-supervisor\n  cancel-in-progress: true\n\njobs:\n  supervise:\n    runs-on: ubuntu-latest\n    timeout-minutes: 5\n    steps:\n      - name: Recover control-plane scheduler gaps\n        env:\n          GH_TOKEN: ${{ github.token }}\n          GITHUB_REPOSITORY: ${{ github.repository }}\n        shell: bash\n        run: |\n          set -euo pipefail\n\n          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"\n          now_epoch="$(date -u +%s)"\n          failures=0\n\n          recover_controller() {\n            local workflow_file="$1"\n            local workflow_name="$2"\n            local cadence_minutes="$3"\n            local max_age_minutes="$4"\n            local runs\n            if ! runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_file/runs?branch=main&per_page=20" 2>/dev/null)"; then\n              echo "::error title=$workflow_name supervisor API unavailable::unable to inspect controller runs"\n              failures=$((failures + 1))\n              return\n            fi\n\n            local recent_cutoff_epoch="$((now_epoch - max_age_minutes * 60))"\n            local active_found=false\n            local recent_current_found=false\n\n            while IFS= read -r encoded; do\n              [ -n "$encoded" ] || continue\n              local run_json\n              run_json="$(printf '%s' "$encoded" | base64 -d)"\n              local run_id status head_sha created created_epoch conclusion attempt\n              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"\n              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"\n              head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"\n              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"\n              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"\n              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"\n              attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"\n              [ -n "$run_id" ] || continue\n\n              if [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "in_progress" ]; then\n                active_found=true\n                continue\n              fi\n\n              if [ "$head_sha" = "$current_sha" ] && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then\n                recent_current_found=true\n              fi\n\n              # Only retry a first completed failure. Never loop on attempt >= 2.\n              if [ "$head_sha" = "$current_sha" ] \\n                && [ "$status" = "completed" ] \\n                && { [ "$conclusion" = "failure" ] || [ "$conclusion" = "startup_failure" ] || [ "$conclusion" = "timed_out" ]; } \\n                && [ "$attempt" -lt 2 ] \\n                && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then\n                echo "::warning title=$workflow_name bounded failure recovery::rerunning attempt-1 failure $run_id"\n                if ! gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed; then\n                  echo "::error title=$workflow_name bounded failure recovery failed::unable to rerun $run_id"\n                  failures=$((failures + 1))\n                fi\n                return\n              fi\n            done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')\n\n            if [ "$active_found" = true ]; then\n              echo "$workflow_name: active run exists; no duplicate recovery"\n              return\n            fi\n\n            if [ "$recent_current_found" = true ]; then\n              echo "$workflow_name: current-main run is within ${max_age_minutes}m controller window"\n              return\n            fi\n\n            echo "::warning title=$workflow_name scheduler gap::no current-main run within cadence window; dispatching bounded recovery (cadence=${cadence_minutes}m max_age=${max_age_minutes}m)"\n            if ! gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then\n              echo "::error title=$workflow_name scheduler gap recovery failed::unable to dispatch current-main controller run"\n              failures=$((failures + 1))\n            fi\n          }\n\n          # Independent control-plane chain:\n          # supervisor -> watchdog -> controller loops.\n          recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20\n          recover_controller "research-autopilot.yml" "Research autopilot" 30 120\n          recover_controller "long-research-recovery.yml" "Long research recovery" 10 45\n          recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75\n\n          if [ "$failures" -gt 0 ]; then\n            echo "Automation supervisor: FAIL failures=$failures"\n            exit 1\n          fi\n\n          echo "Automation supervisor: PASS"
+name: Automation supervisor
+
+# Independent lightweight control-plane supervisor.
+# It exists so a failed/missed 5-minute watchdog can itself be recovered.
+# This workflow never mutates production evidence or prediction state.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/10 * * * *"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: automation-supervisor
+  cancel-in-progress: true
+
+jobs:
+  supervise:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Recover control-plane scheduler gaps
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          now_epoch="$(date -u +%s)"
+          failures=0
+
+          recover_controller() {
+            local workflow_file="$1"
+            local workflow_name="$2"
+            local cadence_minutes="$3"
+            local max_age_minutes="$4"
+            local runs
+            if ! runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_file/runs?branch=main&per_page=20" 2>/dev/null)"; then
+              echo "::error title=$workflow_name supervisor API unavailable::unable to inspect controller runs"
+              failures=$((failures + 1))
+              return
+            fi
+
+            local recent_cutoff_epoch="$((now_epoch - max_age_minutes * 60))"
+            local active_found=false
+            local recent_current_found=false
+
+            while IFS= read -r encoded; do
+              [ -n "$encoded" ] || continue
+              local run_json
+              run_json="$(printf '%s' "$encoded" | base64 -d)"
+              local run_id status head_sha created created_epoch conclusion attempt
+              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
+              head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
+              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
+              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
+              attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
+              [ -n "$run_id" ] || continue
+
+              if [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "in_progress" ]; then
+                active_found=true
+                continue
+              fi
+
+              if [ "$head_sha" = "$current_sha" ] && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then
+                recent_current_found=true
+              fi
+
+              # Only retry a first completed failure. Never loop on attempt >= 2.
+              if [ "$head_sha" = "$current_sha" ] \
+                && [ "$status" = "completed" ] \
+                && { [ "$conclusion" = "failure" ] || [ "$conclusion" = "startup_failure" ] || [ "$conclusion" = "timed_out" ]; } \
+                && [ "$attempt" -lt 2 ] \
+                && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then
+                echo "::warning title=$workflow_name bounded failure recovery::rerunning attempt-1 failure $run_id"
+                if ! gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed; then
+                  echo "::error title=$workflow_name bounded failure recovery failed::unable to rerun $run_id"
+                  failures=$((failures + 1))
+                fi
+                return
+              fi
+            done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+
+            if [ "$active_found" = true ]; then
+              echo "$workflow_name: active run exists; no duplicate recovery"
+              return
+            fi
+
+            if [ "$recent_current_found" = true ]; then
+              echo "$workflow_name: current-main run is within ${max_age_minutes}m controller window"
+              return
+            fi
+
+            echo "::warning title=$workflow_name scheduler gap::no current-main run within cadence window; dispatching bounded recovery (cadence=${cadence_minutes}m max_age=${max_age_minutes}m)"
+            if ! gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+              echo "::error title=$workflow_name scheduler gap recovery failed::unable to dispatch current-main controller run"
+              failures=$((failures + 1))
+            fi
+          }
+
+          # Independent control-plane chain:
+          # supervisor -> watchdog -> controller loops.
+          recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20
+          recover_controller "research-autopilot.yml" "Research autopilot" 30 120
+          recover_controller "long-research-recovery.yml" "Long research recovery" 10 45
+          recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75
+
+          if [ "$failures" -gt 0 ]; then
+            echo "Automation supervisor: FAIL failures=$failures"
+            exit 1
+          fi
+
+          echo "Automation supervisor: PASS"
