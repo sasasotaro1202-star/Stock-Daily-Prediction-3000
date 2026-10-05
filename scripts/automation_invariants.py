@@ -915,6 +915,12 @@ def main() -> int:
         'recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75',
         "automation_supervisor_recovers_failure_learning",
     )
+
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "automation-activity-keepalive.yml" "Repository automation keepalive" 43200 64800',
+        "automation_supervisor_recovers_long_horizon_keepalive",
+    )
     _assert_once(
         automation_supervisor,
         'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed',
