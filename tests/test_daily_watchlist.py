@@ -45,7 +45,7 @@ def test_validate_items_rejects_duplicate():
 
 
 def test_market_baseline_has_direction_and_pit_cutoff():
-    n = 160
+    n = 190
     dates = pd.date_range("2026-01-01", periods=n, freq="B").date
     context = pd.DataFrame(
         {
