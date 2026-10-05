@@ -6,7 +6,25 @@ from pathlib import Path
 
 ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
 RESEARCH_ROOTS=(Path("config"),Path("src"),Path("scripts"))
-EVIDENCE_ROOTS=(Path("config"),Path("src"),Path("scripts"),Path(".github/workflows"))
+
+# Workflow files that only supervise/reconcile the control plane and cannot
+# change model, feature, target, PIT, scoring, routing, calibration, selection,
+# adoption, or candidate identity. Keep this explicit and fail-closed for any
+# new/unlisted workflow: unknown workflow changes remain evidence-affecting.
+NON_EVIDENCE_CONTROL_PLANE_WORKFLOWS=frozenset(
+    {
+        ".github/workflows/heartbeat.yml",
+        ".github/workflows/automation-supervisor.yml",
+        ".github/workflows/actions-reliability-watchdog.yml",
+        ".github/workflows/research-autopilot.yml",
+        ".github/workflows/long-research-recovery.yml",
+        ".github/workflows/automation-failure-learning.yml",
+        ".github/workflows/research-validation-status.yml",
+        ".github/workflows/24h-research-marathon-watchdog.yml",
+        ".github/workflows/bounded-production-recovery.yml",
+    }
+)
+EVIDENCE_ROOTS=(Path("config"),Path("src"),Path("scripts"))
 EVIDENCE_FILES=(Path("pyproject.toml"),)
 
 
@@ -39,8 +57,21 @@ def research_file_fingerprint() -> dict[str,str]:
 
 
 def evidence_file_fingerprint() -> dict[str,str]:
-    """Fingerprint files capable of changing research/OOS evidence."""
+    """Fingerprint files capable of changing research/OOS evidence.
+
+    Control-plane-only workflow changes are deliberately excluded via an
+    explicit allowlist. Any unlisted workflow remains evidence-affecting.
+    """
     rows = _fingerprint_rows(EVIDENCE_ROOTS)
+    workflows = Path(".github/workflows")
+    if workflows.exists():
+        for path in sorted(workflows.rglob("*")):
+            if not path.is_file() or path.suffix not in {".py", ".yml", ".yaml"}:
+                continue
+            path_str = str(path)
+            if path_str in NON_EVIDENCE_CONTROL_PLANE_WORKFLOWS:
+                continue
+            rows[path_str] = file_hash(path)
     for path in EVIDENCE_FILES:
         if path.exists() and path.is_file():
             rows[str(path)] = file_hash(path)
