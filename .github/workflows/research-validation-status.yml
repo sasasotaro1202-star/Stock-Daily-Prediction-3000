@@ -35,6 +35,60 @@ jobs:
           cache: pip
       - name: Install project package for status helpers
         run: pip install -e .
+      - name: Recover latest terminal Research context on scheduled reconciliation
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")"
+          active_count="$(
+            printf '%s' "$runs" | jq '[.workflow_runs[]
+              | select(.name == "Research validation")
+              | select(.status == "requested" or .status == "pending" or .status == "queued" or .status == "waiting" or .status == "in_progress")]
+              | length'
+          )"
+          if [ "$active_count" -gt 0 ]; then
+            echo "scheduled reconciliation: active Research run exists; preserve active context discovery"
+            exit 0
+          fi
+
+          latest_terminal="$(
+            printf '%s' "$runs" | jq -c '
+              [ .workflow_runs[]
+                | select(.name == "Research validation")
+                | select(.status == "completed")
+              ]
+              | sort_by(.run_number)
+              | last // empty
+            '
+          )"
+          if [ -z "$latest_terminal" ]; then
+            echo "scheduled reconciliation: no completed Research validation run found"
+            exit 0
+          fi
+
+          run_id="$(printf '%s' "$latest_terminal" | jq -r '.id // empty')"
+          run_number="$(printf '%s' "$latest_terminal" | jq -r '.run_number // empty')"
+          head_sha="$(printf '%s' "$latest_terminal" | jq -r '.head_sha // empty')"
+          conclusion="$(printf '%s' "$latest_terminal" | jq -r '.conclusion // empty')"
+
+          if [ -z "$run_id" ] || [ -z "$run_number" ] || [ -z "$head_sha" ]; then
+            echo "::error title=Research status reconciliation invalid terminal run::latest completed Research run lacks id/run_number/head_sha"
+            exit 1
+          fi
+
+          {
+            echo "RESEARCH_WORKFLOW_RUN_ID=$run_id"
+            echo "RESEARCH_WORKFLOW_RUN_NUMBER=$run_number"
+            echo "RESEARCH_WORKFLOW_SHA=$head_sha"
+            echo "RESEARCH_WORKFLOW_STATUS=completed"
+            echo "RESEARCH_WORKFLOW_CONCLUSION=$conclusion"
+            echo "RESEARCH_STATUS_CONTEXT_FOUND=true"
+          } >> "$GITHUB_ENV"
+          echo "scheduled reconciliation: selected latest terminal Research run=$run_id run_number=$run_number conclusion=$conclusion"
       - name: Resolve Research status context
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
