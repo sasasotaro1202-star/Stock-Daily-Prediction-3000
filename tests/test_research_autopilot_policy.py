@@ -31,6 +31,16 @@ def test_research_autopilot_does_not_retrigger_oos_for_control_plane_only_pushes
     assert '.github/workflows/automation-activity-keepalive.yml' in text
 
 
+def test_research_autopilot_keeps_run_number_before_extracting_head_sha() -> None:
+    text = (ROOT / ".github/workflows/research-autopilot.yml").read_text(encoding="utf-8")
+    start = text.index("latest_success_sha")
+    block = text[start:start + 1000]
+    assert "| sort_by(.run_number)" in block
+    assert "| last" in block
+    assert "| .head_sha // empty" in block
+    assert "| .head_sha\\n" not in block.split("| sort_by(.run_number)", 1)[0]
+
+
 def test_research_autopilot_orders_successful_research_by_run_number() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "| sort_by(.run_number)" in text
