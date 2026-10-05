@@ -562,16 +562,9 @@ def main() -> int:
         'inspect_workflow "experience-review.yml" "Experience review" true true',
         "watchdog_recovers_stale_experience_review",
     )
-    _assert_once(
-        watchdog,
-        '"scripts/automation_invariants.py"',
-        "watchdog_wakes_on_automation_invariant_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"pyproject.toml"',
-        "watchdog_wakes_on_package_environment_changes",
-    )
+    # Source/package changes are covered by Repository verification and the
+    # independent automation supervisor; the watchdog itself stays
+    # schedule/manual-triggered to avoid duplicate control-plane executions.
     # Controller changes are recovered through the independent scheduler supervisor,
     # while the watchdog itself intentionally remains schedule/manual-triggered.
     supervisor_contract = _read("automation-supervisor.yml")
