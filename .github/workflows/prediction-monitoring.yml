@@ -21,6 +21,26 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+      - name: Restore persistent research state from research-status
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data/research
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch --no-tags origin research-status
+            for path in \
+              data/research/experience_memory.json \
+              data/research/experience_candidates.json \
+              data/research/performance_snapshot.json; do
+              if git cat-file -e "origin/research-status:$path" 2>/dev/null; then
+                mkdir -p "$(dirname "$path")"
+                git show "origin/research-status:$path" > "$path"
+                echo "restored research-status:$path"
+              fi
+            done
+          else
+            echo "research-status branch not present; starting persistent experience state from local defaults"
+          fi
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
@@ -241,20 +261,38 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          added_any=false
+          generated=false
+          for path in             data/research/experience_memory.json             data/research/experience_candidates.json             data/research/performance_snapshot.json; do
+            if [ -f "$path" ]; then generated=true; fi
+          done
+          if [ "$generated" != "true" ]; then
+            echo "experience persistence: no generated files to persist"
+            exit 0
+          fi
+          worktree_dir="$(mktemp -d)"
+          cleanup() {
+            if ! git worktree remove --force "$worktree_dir" >/dev/null 2>&1; then
+              echo "::warning title=Experience persistence cleanup::unable to remove temporary worktree $worktree_dir"
+            fi
+          }
+          trap cleanup EXIT
+          git worktree add --detach "$worktree_dir" HEAD
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch --no-tags origin research-status
+            git -C "$worktree_dir" checkout -B research-status origin/research-status
+          else
+            git -C "$worktree_dir" checkout --orphan research-status
+          fi
           for path in             data/research/experience_memory.json             data/research/experience_candidates.json             data/research/performance_snapshot.json; do
             if [ -f "$path" ]; then
-              git add "$path"
-              added_any=true
+              mkdir -p "$worktree_dir/$(dirname "$path")"
+              cp "$path" "$worktree_dir/$path"
+              git -C "$worktree_dir" add "$path"
             fi
           done
-          if [ "$added_any" != "true" ]; then
-            echo "experience persistence: no generated files to commit"
+          if git -C "$worktree_dir" diff --cached --quiet; then
+            echo "experience-memory: no research-status change"
             exit 0
           fi
-          if git diff --cached --quiet; then
-            echo "experience-memory: no change"
-            exit 0
-          fi
-          git commit -m "chore: accumulate resolved prediction experience"
-          git push origin HEAD:main
+          git -C "$worktree_dir" commit -m "chore: accumulate resolved prediction experience"
+          git -C "$worktree_dir" push origin HEAD:research-status
