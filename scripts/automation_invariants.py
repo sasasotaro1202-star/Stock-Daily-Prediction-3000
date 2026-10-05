@@ -132,7 +132,7 @@ def main() -> int:
     )
     _assert_once(
         monitoring,
-        "git push origin HEAD:research-status",
+        'git -C "$worktree_dir" push origin HEAD:research-status',
         "prediction_monitoring_persists_experience_on_research_status",
     )
     _assert_absent(
