@@ -91,6 +91,7 @@ def latest_equity_prediction(
     *,
     cutoff: pd.Timestamp,
     expected_target_date: str | None = None,
+    calendar_code: str | None = None,
 ) -> tuple[pd.Series | None, str | None]:
     candidates: list[tuple[pd.Timestamp, Path, pd.Series]] = []
     symbol = symbol.upper()
@@ -116,6 +117,16 @@ def latest_equity_prediction(
         if pd.isna(prediction_time) or prediction_time > cutoff:
             continue
         target_date = str(match.iloc[0].get("target_date", "")).strip()
+        if not target_date and calendar_code:
+            session_date = pd.to_datetime(
+                match.iloc[0].get("session_date"),
+                errors="coerce",
+            )
+            if not pd.isna(session_date):
+                try:
+                    target_date = next_session_date(session_date.date(), calendar_code)
+                except SystemExit:
+                    target_date = ""
         if expected_target_date is not None and target_date != expected_target_date:
             continue
         candidates.append((prediction_time, path, match.iloc[0]))
@@ -182,6 +193,7 @@ def build_equity_rows(
             symbol,
             cutoff=cutoff,
             expected_target_date=expected_target_date,
+            calendar_code="XTKS" if asset_class == "jp_stock" else "XNYS",
         )
         if row is None:
             base["prediction_status"] = "DEFERRED_PREDICTION_HISTORY_MISSING"
