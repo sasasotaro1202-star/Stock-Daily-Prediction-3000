@@ -88,6 +88,7 @@ Universe
 * online ensemble
 * routing
 * sequential research
+* long-research self-recovery
 
 等のWorkflow/implementation系統が存在する。
 
