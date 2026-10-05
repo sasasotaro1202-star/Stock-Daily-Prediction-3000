@@ -4,7 +4,12 @@ import json
 import pandas as pd
 import pytest
 
-from scripts.generate_daily_watchlist import build_market_rows, load_config, validate_items
+from scripts.generate_daily_watchlist import (
+    build_market_rows,
+    load_config,
+    next_session_date,
+    validate_items,
+)
 
 
 def test_watchlist_has_all_requested_instruments():
@@ -78,3 +83,32 @@ def test_watchlist_workflow_contract():
     assert "update_market_context.py" in workflow
     assert "generate_daily_watchlist.py" in workflow
     assert "contents: read" in workflow
+
+
+def test_fx_24_5_next_session_skips_weekend():
+    assert next_session_date("2026-10-02", "24/5") == "2026-10-05"
+
+
+def test_equity_prediction_cutoff_is_never_from_the_future(tmp_path, monkeypatch):
+    import scripts.generate_daily_watchlist as module
+
+    prediction_path = tmp_path / "prediction_20990101T000000Z.parquet"
+    frame = pd.DataFrame(
+        {
+            "asset_class": ["jp_stock"],
+            "symbol": ["7203"],
+            "p_up_1d": [0.90],
+            "prediction_time": ["2099-01-01T00:00:00Z"],
+            "prediction_status": ["READY"],
+        }
+    )
+    frame.to_parquet(prediction_path, index=False)
+
+    row, filename = module.latest_equity_prediction(
+        [prediction_path],
+        "jp_stock",
+        "7203",
+        cutoff=pd.Timestamp("2026-10-05T08:00:00Z"),
+    )
+    assert row is None
+    assert filename is None
