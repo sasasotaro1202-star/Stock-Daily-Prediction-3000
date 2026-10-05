@@ -563,9 +563,10 @@ jobs:
             return 1
           }
 
-          # Keep the three control-plane loops alive even when a scheduled trigger
-          # is missed before GitHub creates a run record. A 4x-ish cadence allowance avoids
-          # duplicate executions while still recovering genuine scheduler gaps.
+          # Keep the independent supervisor and the three control-plane loops alive even when a scheduled trigger
+          # is missed before GitHub creates a run record. Conservative cadence windows avoid duplicate executions
+          # while still recovering genuine scheduler gaps.
+          recover_missing_periodic_controller "automation-supervisor.yml" "Automation supervisor" 10 45
           recover_missing_periodic_controller "research-autopilot.yml" "Research autopilot" 30 120
           recover_missing_periodic_controller "long-research-recovery.yml" "Long research recovery" 10 45
           recover_missing_periodic_controller "automation-failure-learning.yml" "Automation failure learning" 15 75
