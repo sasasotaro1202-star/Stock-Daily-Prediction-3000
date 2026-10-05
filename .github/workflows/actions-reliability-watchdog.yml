@@ -218,6 +218,7 @@ jobs:
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
           inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true
           inspect_workflow "experience-review.yml" "Experience review" true true
+          inspect_workflow "long-research-recovery.yml" "Long research recovery" true true
           # Short research collectors are safe for bounded first-failure retry and
           # stale-run recovery. Long OOS collectors remain failure-memory only
           # to avoid cancelling legitimate multi-hour research.
