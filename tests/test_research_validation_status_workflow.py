@@ -37,16 +37,17 @@ def test_missing_completed_evidence_fails_closed() -> None:
     assert "successful Research validation produced no latest_metrics.json artifact" in block
 
 
-def test_oos_restore_skips_non_success_workflow_run_events() -> None:
+def test_oos_restore_requires_resolved_success_context() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
-    start = text.index("      - name: Download completed OOS evidence")
-    block = text[start:text.index("      - name: Persist research validation status", start)]
-    assert block.count("github.event_name == 'workflow_run'") == 2
     artifact_block = _artifact_restore_block()
     restore_block = _restore_block()
-    assert artifact_block.count("github.event.workflow_run.conclusion == 'success'") == 1
+
+    assert "github.event_name == 'workflow_run'" not in artifact_block
+    assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in artifact_block
     assert "env.RESEARCH_WORKFLOW_CONCLUSION == 'success'" in restore_block
+    assert "github.event.workflow_run.conclusion == 'success'" not in artifact_block
     assert "github.event.workflow_run.conclusion == 'success'" not in restore_block
+
 
 def test_status_workflow_captures_requested_research_runs() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
