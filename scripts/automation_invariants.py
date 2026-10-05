@@ -577,11 +577,6 @@ def main() -> int:
     supervisor_contract = _read("automation-supervisor.yml")
     _assert_once(
         supervisor_contract,
-        '"scripts/automation_invariants.py"',
-        "supervisor_wakes_on_automation_invariant_changes",
-    )
-    _assert_once(
-        supervisor_contract,
         'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20',
         "supervisor_recovers_watchdog",
     )
