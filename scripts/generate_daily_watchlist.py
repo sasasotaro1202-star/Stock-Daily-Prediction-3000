@@ -90,6 +90,7 @@ def latest_equity_prediction(
     symbol: str,
     *,
     cutoff: pd.Timestamp,
+    expected_target_date: str | None = None,
 ) -> tuple[pd.Series | None, str | None]:
     candidates: list[tuple[pd.Timestamp, Path, pd.Series]] = []
     symbol = symbol.upper()
@@ -114,6 +115,9 @@ def latest_equity_prediction(
         )
         if pd.isna(prediction_time) or prediction_time > cutoff:
             continue
+        target_date = str(match.iloc[0].get("target_date", "")).strip()
+        if expected_target_date is not None and target_date != expected_target_date:
+            continue
         candidates.append((prediction_time, path, match.iloc[0]))
     if not candidates:
         return None, None
@@ -137,6 +141,7 @@ def build_equity_rows(
     threshold: float,
     require_official_universe: bool,
     cutoff: pd.Timestamp,
+    expected_target_date: str,
 ) -> list[dict[str, Any]]:
     expected_class = str(items[0].get("asset_class", "")) if items else "jp_stock"
     validate_items(items, expected_class)
@@ -176,6 +181,7 @@ def build_equity_rows(
             asset_class,
             symbol,
             cutoff=cutoff,
+            expected_target_date=expected_target_date,
         )
         if row is None:
             base["prediction_status"] = "DEFERRED_PREDICTION_HISTORY_MISSING"
@@ -424,6 +430,13 @@ def markdown(rows: list[dict[str, Any]], generated_at: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def expected_daily_target_date(current_date_jst: Any, calendar_code: str) -> str:
+    return next_session_date(
+        pd.Timestamp(current_date_jst).date() - pd.Timedelta(days=1),
+        calendar_code,
+    )
+
+
 def main() -> None:
     cfg = load_config()
     if not bool(cfg.get("enabled", True)):
@@ -431,15 +444,16 @@ def main() -> None:
 
     universe = load_universe()
     cutoff = now_utc()
-
-    jp_items = cfg["equities"]["items"]
-    us_items = cfg["us_equities"]["items"]
+    current_jst_date = cutoff.tz_convert("Asia/Tokyo").date()
+    expected_jp_target_date = expected_daily_target_date(current_jst_date, "XTKS")
+    expected_us_target_date = expected_daily_target_date(current_jst_date, "XNYS")
     jp_rows = build_equity_rows(
         jp_items,
         universe=universe,
         threshold=float(cfg["equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["equities"]["require_official_universe"]),
         cutoff=cutoff,
+        expected_target_date=expected_jp_target_date,
     )
     us_rows = build_equity_rows(
         us_items,
@@ -447,6 +461,7 @@ def main() -> None:
         threshold=float(cfg["us_equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["us_equities"]["require_official_universe"]),
         cutoff=cutoff,
+        expected_target_date=expected_us_target_date,
     )
 
     if not CONTEXT_SOURCE.exists():
@@ -467,6 +482,11 @@ def main() -> None:
         "status": "READY" if any(r.get("prediction_status") == "READY" for r in rows) else "DEFERRED",
         "generated_at": generated_at,
         "cutoff": generated_at,
+        "as_of_date_jst": str(current_jst_date),
+        "expected_equity_target_dates": {
+            "jp_stock": expected_jp_target_date,
+            "us_stock": expected_us_target_date,
+        },
         "universe_sha256": file_sha256(UNIVERSE_SOURCE),
         "market_context_sha256": file_sha256(CONTEXT_SOURCE),
         "rows": rows,
