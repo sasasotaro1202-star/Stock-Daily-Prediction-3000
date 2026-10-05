@@ -3,7 +3,9 @@ name: Automation heartbeat
 # Tertiary control-plane guard.
 # The supervisor and watchdog remain the primary recovery controllers. This
 # heartbeat exists specifically to recover when their scheduler deliveries are
-# missing or their control-plane runs are absent. It does not mutate model,
+# missing or their control-plane runs are absent. The push trigger below is also
+# an operator-independent bootstrap path that can re-arm the recovery chain when
+# scheduled delivery is temporarily absent. It does not mutate model,
 # production, or research evidence.
 on:
   workflow_dispatch:
