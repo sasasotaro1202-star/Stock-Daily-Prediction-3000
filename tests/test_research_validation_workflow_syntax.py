@@ -727,8 +727,9 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert "types: [completed, in_progress, requested]" in text
     assert "group: research-status-writer" in text
     assert "python scripts/persist_research_validation_status.py" in text
-    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in text
-    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in text
+    assert "Seed Research status context from workflow_run event" in text
+    assert "RESEARCH_WORKFLOW_RUN_ID=${{ github.event.workflow_run.id }}" in text
+    assert "RESEARCH_WORKFLOW_SHA=${{ github.event.workflow_run.head_sha }}" in text
     assert "name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
     assert "run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
     assert "github.event_name == 'workflow_run'" in text
