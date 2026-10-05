@@ -11,6 +11,16 @@ RESEARCH_ROOTS=(Path("config"),Path("src"),Path("scripts"))
 # change model, feature, target, PIT, scoring, routing, calibration, selection,
 # adoption, or candidate identity. Keep this explicit and fail-closed for any
 # new/unlisted workflow: unknown workflow changes remain evidence-affecting.
+# Source-only files used to verify automation/document contracts. They cannot alter
+# model, feature, target, PIT, scoring, routing, calibration, selection, or candidate
+# identity, so changing them must not invalidate active OOS/frozen research evidence.
+NON_EVIDENCE_CONTROL_PLANE_FILES=frozenset(
+    {
+        "scripts/automation_invariants.py",
+        "scripts/project_source_contract.py",
+    }
+)
+
 NON_EVIDENCE_CONTROL_PLANE_WORKFLOWS=frozenset(
     {
         ".github/workflows/heartbeat.yml",
@@ -36,14 +46,20 @@ def file_hash(path: Path) -> str:
     return h.hexdigest()
 
 
-def _fingerprint_rows(roots: tuple[Path, ...]) -> dict[str,str]:
+def _fingerprint_rows(
+    roots: tuple[Path, ...],
+    excluded_paths: frozenset[str] = frozenset(),
+) -> dict[str,str]:
     rows={}
     for root in roots:
         if not root.exists():
             continue
         for p in sorted(root.rglob("*")):
+            path_str = str(p)
+            if path_str in excluded_paths:
+                continue
             if p.is_file() and p.suffix in {".py",".yml",".yaml"}:
-                rows[str(p)]=file_hash(p)
+                rows[path_str]=file_hash(p)
     return rows
 
 
@@ -52,8 +68,8 @@ def file_fingerprint() -> dict[str,str]:
 
 
 def research_file_fingerprint() -> dict[str,str]:
-    """Fingerprint model/research code without workflow-only changes."""
-    return _fingerprint_rows(RESEARCH_ROOTS)
+    """Fingerprint model/research code while excluding control-plane contract scripts."""
+    return _fingerprint_rows(RESEARCH_ROOTS, NON_EVIDENCE_CONTROL_PLANE_FILES)
 
 
 def evidence_file_fingerprint() -> dict[str,str]:
@@ -62,7 +78,7 @@ def evidence_file_fingerprint() -> dict[str,str]:
     Control-plane-only workflow changes are deliberately excluded via an
     explicit allowlist. Any unlisted workflow remains evidence-affecting.
     """
-    rows = _fingerprint_rows(EVIDENCE_ROOTS)
+    rows = _fingerprint_rows(EVIDENCE_ROOTS, NON_EVIDENCE_CONTROL_PLANE_FILES)
     workflows = Path(".github/workflows")
     if workflows.exists():
         for path in sorted(workflows.rglob("*")):

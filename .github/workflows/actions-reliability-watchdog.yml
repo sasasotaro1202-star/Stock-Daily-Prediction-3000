@@ -78,6 +78,12 @@ jobs:
                   ;;
                 config/*|src/*|scripts/*)
                   case "$changed_path" in
+                    # These scripts only validate/document the automation contract;
+                    # they cannot change prediction/OOS evidence and therefore must
+                    # not cancel a valid active chronological OOS run.
+                    scripts/automation_invariants.py|scripts/project_source_contract.py)
+                      continue
+                      ;;
                     *.py|*.yml|*.yaml)
                       return 0
                       ;;
