@@ -12,7 +12,8 @@ permissions:
   contents: write
 
 concurrency:
-  group: prediction-monitoring
+  # Single-writer lane shared by all workflows that persist research-status state.
+  group: research-status-writer
   cancel-in-progress: false
 
 jobs:
