@@ -16,6 +16,7 @@ on:
       - "Prediction monitoring"
       - "24H Research Marathon"
       - "Actions reliability watchdog"
+      - "Long research recovery"
       - "Daily priority watchlist"
       - "Research validation status"
       - "Free Data Source Discovery"
