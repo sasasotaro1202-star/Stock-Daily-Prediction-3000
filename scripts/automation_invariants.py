@@ -1018,11 +1018,8 @@ def main() -> int:
         "if-no-files-found: warn",
         "research_validation_partial_evidence_warning",
     )
-    _assert_once(
-        validation_workflow,
-        '      - ".github/research_validation.trigger"',
-        "research_validation_explicit_trigger",
-    )
+    # Research validation is dispatched only by the verified Research autopilot
+    # (or manual workflow_dispatch); no inert trigger-file reference is required.
     _assert_absent(
         validation_workflow,
         "build_production_artifact.py",
