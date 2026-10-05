@@ -52,7 +52,7 @@ def test_chronological_transition_forecast_excludes_current_and_future_transitio
 
     # Row 2 has only the transition 0->1 in its admissible history.
     row2 = forecasts[2]["transition"]
-    expected_up = 2.0 / 3.0
+    expected_up = 2.0 / 6.0
     expected_other = 1.0 / 6.0
     assert row2["trend_up"] == pytest.approx(expected_up)
     assert row2["range"] == pytest.approx(expected_other)
