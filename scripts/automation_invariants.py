@@ -94,11 +94,23 @@ def main() -> int:
         "project_source_contract_locks_exact_headings",
     )
     source_section_count = len(re.findall(r"(?m)^(\d+)\.\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
-    if source_section_count != 98:
+    if source_section_count != 99:
         raise SystemExit(
-            f"FAIL: canonical Project Source section count expected 98, got {source_section_count}"
+            f"FAIL: canonical Project Source section count expected 99, got {source_section_count}"
         )
 
+    # The predictive-state architecture is research-only and remains outside production paths.
+    predictive_state = (ROOT / "src" / "research" / "predictive_state.py").read_text(encoding="utf-8")
+    _assert_contains(
+        predictive_state,
+        "chronological_transition_forecast",
+        "predictive_state_transition_contract",
+    )
+    _assert_contains(
+        predictive_state,
+        "Research-only soft regime posterior",
+        "predictive_state_research_only_documentation",
+    )
     # One canonical schedule per expensive/critical daily workflow. Missed
     # schedules are recovered by the watchdog rather than by duplicate cron
     # entries, which avoids needless queued/cancelled executions.

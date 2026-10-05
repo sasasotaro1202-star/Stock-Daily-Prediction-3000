@@ -2264,3 +2264,67 @@ Failure Learning > Repeated Failure
 その失敗を次の改善へどう変換するか
 
 まで制御できるAdaptive Stock Prediction Intelligenceを構築することを最終目標とする。
+
+⸻
+
+99. PREDICTIVE STATE / SCENARIO ARCHITECTURE
+
+ユーザー提供の研究アーキテクチャを、既存実装と重複しない研究専用の設計原則として採用する。
+
+既存の:
+
+* temporal state
+* regime intelligence
+* calibration
+* uncertainty decomposition
+* model disagreement
+* OOD/drift
+* selective prediction
+* conformal/risk control
+* event intelligence
+* case-risk
+
+を再利用し、次の層を追加研究できるようにする。
+
+* chronological latent-state transition probabilities
+* soft regime posterior
+* separately auditable uncertainty channels
+* information-action policy
+* multi-scenario probability distribution
+
+研究実装はPIT-safe prefixのみを入力とし、current/future outcomeで同一predictionを更新しない。
+
+state transitionは、prediction時点より前に観測されたstate transitionだけから推定する。
+
+uncertaintyは単一confidenceへ直ちに潰さず、少なくとも:
+
+* model disagreement
+* probability entropy
+* data uncertainty
+* regime uncertainty
+* OOD
+* volatility uncertainty
+
+を別々に保存・評価できる構造とする。
+
+information action候補:
+
+PREDICT
+ACQUIRE_MORE
+WAIT
+ABSTAIN
+
+はresearch-only policyとして評価し、production adoptionにはchronological OOS、robustness、calibration、frozen holdout、PIT auditを要求する。
+
+scenario候補:
+
+* continuation up
+* continuation down
+* range/neutral
+* shock
+
+をprobability simplexとして保持し、trigger/invalidation/timingを将来のtrained scenario modelへ交換可能な形で設計する。
+
+soft regime posteriorは説明可能なbaselineであり、trained latent-state modelの代替証明ではない。
+
+このsectionと関連実装はFYERS/FIA内部実装の開示ではなく、ユーザー提供の公開機能説明を研究設計へ抽象化したものとして扱う。
