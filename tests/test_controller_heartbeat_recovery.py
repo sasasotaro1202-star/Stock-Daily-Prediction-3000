@@ -36,3 +36,13 @@ def test_independent_supervisor_closes_watchdog_failure_gap() -> None:
 
     watchdog = WATCHDOG.read_text(encoding="utf-8")
     assert 'recover_missing_periodic_controller "automation-supervisor.yml" "Automation supervisor" 10 45' in watchdog
+
+
+def test_research_autopilot_bootstraps_watchdog_for_stale_active_research() -> None:
+    autopilot = ROOT / ".github/workflows/research-autopilot.yml"
+    text = autopilot.read_text(encoding="utf-8")
+    assert "stale_active_count=" in text
+    assert "fromdateiso8601" in text
+    assert "120 * 60" in text
+    assert 'gh workflow run actions-reliability-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main' in text
+    assert "BOOTSTRAP_STALE_ACTIVE_WATCHDOG" in text
