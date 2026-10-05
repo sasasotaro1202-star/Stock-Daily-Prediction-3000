@@ -300,6 +300,7 @@ def market_baseline(
     instrument: dict[str, Any],
     cutoff: pd.Timestamp,
     threshold: float,
+    expected_target_date: str,
 ) -> dict[str, Any]:
     usable = frame[frame["available_at"].le(cutoff)].copy()
     usable = usable.dropna(subset=FEATURES).sort_values("session_date").reset_index(drop=True)
@@ -354,6 +355,32 @@ def market_baseline(
     q10 = float(returns.quantile(0.10))
     q90 = float(returns.quantile(0.90))
     close = float(latest["close"])
+    target_date = next_session_date(
+        latest["session_date"],
+        str(instrument["calendar"]),
+    )
+    if target_date != expected_target_date:
+        return {
+            "instrument_type": "index_or_fx",
+            "display_name": str(instrument["display_name"]),
+            "symbol": str(instrument["provider_symbol"]),
+            "instrument_id": str(instrument["instrument_id"]),
+            "direction": None,
+            "p_up_1d": None,
+            "expected_return_1d": None,
+            "expected_close_1d": None,
+            "range_low_1d": None,
+            "range_high_1d": None,
+            "model_id": "logistic_regression_baseline_v1",
+            "uncertainty": None,
+            "prediction_status": "DEFERRED_STALE_CONTEXT",
+            "production_status": "RESEARCH_ONLY",
+            "session_date": str(latest["session_date"]),
+            "target_date": target_date,
+            "expected_target_date": expected_target_date,
+            "cutoff": str(cutoff),
+            "available_at": str(latest["available_at"]),
+        }
 
     return {
         "instrument_type": "index_or_fx",
@@ -371,7 +398,8 @@ def market_baseline(
         "prediction_status": "READY",
         "production_status": "RESEARCH_ONLY",
         "session_date": str(latest["session_date"]),
-        "target_date": next_session_date(latest["session_date"], str(instrument["calendar"])),
+        "target_date": target_date,
+        "expected_target_date": expected_target_date,
         "cutoff": str(cutoff),
         "available_at": str(latest["available_at"]),
         "provider_symbol": str(latest.get("provider_symbol", instrument["provider_symbol"])),
@@ -384,16 +412,26 @@ def build_market_rows(
     *,
     cutoff: pd.Timestamp,
     threshold: float,
+    expected_target_dates: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     rows = []
     for instrument in instruments:
         frame = prepare_market_frame(context, str(instrument["context_family"]))
+        calendar_code = str(instrument["calendar"])
+        if expected_target_dates is None or calendar_code not in expected_target_dates:
+            expected_target_date = next_session_date(
+                cutoff.tz_convert("Asia/Tokyo").date() - pd.Timedelta(days=1),
+                calendar_code,
+            )
+        else:
+            expected_target_date = expected_target_dates[calendar_code]
         rows.append(
             market_baseline(
                 frame,
                 instrument=instrument,
                 cutoff=cutoff,
                 threshold=threshold,
+                expected_target_date=expected_target_date,
             )
         )
     return rows
@@ -473,6 +511,11 @@ def main() -> None:
         markets["instruments"],
         cutoff=cutoff,
         threshold=float(markets["direction_threshold"]),
+        expected_target_dates={
+            "XTKS": expected_jp_target_date,
+            "XNYS": expected_us_target_date,
+            "24/5": expected_daily_target_date(current_jst_date, "24/5"),
+        },
     )
 
     rows = jp_rows + us_rows + market_rows
