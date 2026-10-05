@@ -1,0 +1,49 @@
+name: Daily priority watchlist
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "57 7 * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: daily-priority-watchlist
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore recent prediction history
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_prediction_history.py
+      - name: Restore bounded recent official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"
+        run: python scripts/restore_latest_universe_state.py
+      - name: Update free market context
+        run: python scripts/update_market_context.py
+      - name: Generate daily watchlist
+        run: python scripts/generate_daily_watchlist.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: daily-watchlist-${{ github.run_id }}
+          path: |
+            data/predictions/daily_watchlist.json
+            data/predictions/daily_watchlist.md
+          retention-days: 14
