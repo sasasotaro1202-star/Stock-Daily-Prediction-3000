@@ -928,7 +928,7 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        'latest_terminal_conclusion="cancelled"',
+        '[ "$latest_terminal_conclusion" = "cancelled" ]',
         "watchdog_tracks_research_cancelled_terminal",
     )
     _assert_once(
