@@ -45,8 +45,8 @@ def test_watchdog_recovers_research_without_workflow_run_self_trigger():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert 'workflows: ["Research validation"]' not in text
     assert "schedule:" in text
-    assert "push:" in text
-    assert ".github/research_validation.trigger" in text
+    assert "    - cron: \"*/5 * * * *\"" in text
+    assert "  push:" not in text
     assert "inspect_research_validation()" in text
 
 
