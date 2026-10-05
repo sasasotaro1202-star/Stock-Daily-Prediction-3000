@@ -835,6 +835,16 @@ def main() -> int:
     )
     _assert_once(
         autopilot,
+        "| sort_by(.run_number)",
+        "research_autopilot_latest_success_orders_by_run_number",
+    )
+    _assert_once(
+        autopilot,
+        "| last\n                | .head_sha // empty",
+        "research_autopilot_latest_success_extracts_sha_after_ordering",
+    )
+    _assert_once(
+        autopilot,
         "DEFERRED_COMPARE_UNVERIFIABLE",
         "research_autopilot_fail_closed_on_unverifiable_evidence_ancestry",
     )
