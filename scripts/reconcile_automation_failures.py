@@ -18,6 +18,7 @@ WATCHED_WORKFLOWS = (
     "us-close-prediction.yml",
     "prediction-monitoring.yml",
     "24h-research-marathon.yml",
+    "long-research-recovery.yml",
     "daily-watchlist.yml",
     "research-validation-status.yml",
     "free-data-source-discovery.yml",
