@@ -1106,6 +1106,11 @@ def main() -> int:
     )
     _assert_once(
         experience_workflow,
+        "Restore persistent experience memory from research-status",
+        "experience_review_restores_persistent_memory",
+    )
+    _assert_once(
+        experience_workflow,
         "github.event.workflow_run.conclusion == 'success'",
         "experience_review_requires_successful_monitoring",
     )
