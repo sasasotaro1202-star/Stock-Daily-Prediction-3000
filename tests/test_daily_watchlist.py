@@ -46,7 +46,9 @@ def test_validate_items_rejects_duplicate():
 
 def test_market_baseline_has_direction_and_pit_cutoff():
     n = 190
-    dates = pd.date_range("2026-01-01", periods=n, freq="B").date
+    # Start early enough that the July cutoff still contains the matured
+    # history required by the PIT baseline gate.
+    dates = pd.date_range("2025-11-01", periods=n, freq="B").date
     context = pd.DataFrame(
         {
             "session_date": dates,
@@ -119,7 +121,9 @@ def test_equity_prediction_cutoff_is_never_from_the_future(tmp_path, monkeypatch
 
 def test_stale_market_context_is_deferred():
     n = 160
-    dates = pd.date_range("2026-01-01", periods=n, freq="B").date
+    # Keep the context clearly stale relative to the requested September
+    # target while providing ample matured training history.
+    dates = pd.date_range("2025-10-01", periods=n, freq="B").date
     context = pd.DataFrame(
         {
             "session_date": dates,
