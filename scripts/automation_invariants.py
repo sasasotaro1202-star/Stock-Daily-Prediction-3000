@@ -768,6 +768,48 @@ def main() -> int:
         "research_status_writer_shared_concurrency",
     )
 
+    automation_supervisor = _read("automation-supervisor.yml")
+    _assert_once(
+        automation_supervisor,
+        '    - cron: "*/10 * * * *"',
+        "automation_supervisor_10m_schedule",
+    )
+    _assert_once(
+        automation_supervisor,
+        "Independent lightweight control-plane supervisor.",
+        "automation_supervisor_independent_control_plane",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20',
+        "automation_supervisor_recovers_watchdog",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "research-autopilot.yml" "Research autopilot" 30 120',
+        "automation_supervisor_recovers_autopilot",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "long-research-recovery.yml" "Long research recovery" 10 45',
+        "automation_supervisor_recovers_long_research",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75',
+        "automation_supervisor_recovers_failure_learning",
+    )
+    _assert_once(
+        automation_supervisor,
+        'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed',
+        "automation_supervisor_bounded_failure_retry",
+    )
+    _assert_once(
+        automation_supervisor,
+        "active run exists; no duplicate recovery",
+        "automation_supervisor_preserves_active_runs",
+    )
+
     long_research_recovery = _read("long-research-recovery.yml")
     _assert_once(
         long_research_recovery,
