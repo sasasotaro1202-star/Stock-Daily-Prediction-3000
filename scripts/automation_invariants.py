@@ -805,6 +805,34 @@ def main() -> int:
         "watchdog_recovers_long_research_recovery",
     )
 
+    # Controller heartbeat recovery ensures scheduled control-plane loops can self-heal
+    # when GitHub fails to materialize a scheduled run at all (no queue/failure exists to inspect).
+    for workflow_file, workflow_name, cadence, max_age in (
+        ("research-autopilot.yml", "Research autopilot", 30, 120),
+        ("long-research-recovery.yml", "Long research recovery", 10, 45),
+        ("automation-failure-learning.yml", "Automation failure learning", 15, 75),
+    ):
+        _assert_once(
+            watchdog,
+            f'recover_missing_periodic_controller "{workflow_file}" "{workflow_name}" {cadence} {max_age}',
+            f"watchdog_controller_heartbeat_{workflow_file.removesuffix('.yml').replace('-', '_')}",
+        )
+    _assert_once(
+        watchdog,
+        "recover_missing_periodic_controller() {",
+        "watchdog_controller_heartbeat_function",
+    )
+    _assert_once(
+        watchdog,
+        'active run exists; controller heartbeat recovery suppressed',
+        "watchdog_controller_heartbeat_preserves_active_runs",
+    )
+    _assert_once(
+        watchdog,
+        'no current-main run within cadence window; dispatching bounded recovery',
+        "watchdog_controller_heartbeat_dispatch_policy",
+    )
+
     # Keep short research/data collectors inside the bounded watchdog recovery
     # lane. Long OOS collectors remain reconciled by failure-learning without
     # the generic 120-minute watchdog cancellation policy.

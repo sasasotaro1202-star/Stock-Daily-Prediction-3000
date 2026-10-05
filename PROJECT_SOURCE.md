@@ -1771,6 +1771,7 @@ GitHub Actionsは:
 * exponential backoff
 * watchdog
 * heartbeat
+* scheduled controller heartbeat gap recovery
 * stale-run detection
 * bounded runtime
 * artifact preservation
@@ -1783,6 +1784,8 @@ GitHub Actionsは:
 * critical workflow failure reconciliation
 
 を実装・検証する。
+
+Research autopilot、Long Research Recovery、Automation Failure Learningのcontrol-plane scheduler gapは、保守的なcadence window内にcurrent-main実行が存在しない場合のみGitHub側でbounded recoveryする。
 
 長時間Research/Data Collectorは正当なactive OOSを中断しない一方、stale queueと初回failureはGitHub側で限定回復する。
 
