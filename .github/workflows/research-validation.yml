@@ -23,6 +23,22 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
+      - name: Restore persistent experience memory from research-status
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p data/research
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch --no-tags origin research-status
+            if git cat-file -e "origin/research-status:data/research/experience_memory.json" 2>/dev/null; then
+              git show "origin/research-status:data/research/experience_memory.json" > data/research/experience_memory.json
+              echo "restored research-status:data/research/experience_memory.json"
+            else
+              echo "research-status has no persisted experience memory; using repository default"
+            fi
+          else
+            echo "research-status branch not present; using repository default experience memory"
+          fi
       - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
