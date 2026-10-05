@@ -13,7 +13,7 @@ def _steps() -> list[dict]:
     return doc["jobs"]["monitor"]["steps"]
 
 
-def test_monitoring_persists_experience_without_hashfiles_gate():
+def test_monitoring_persists_experience_to_research_status_without_hashfiles_gate():
     steps = _steps()
     persist = next(step for step in steps if step.get("name") == "Persist accumulated experience")
     condition = str(persist.get("if", ""))
@@ -38,3 +38,5 @@ def test_monitoring_persistence_is_fail_closed_without_generated_files():
     assert 'if [ -f "$path" ]; then' in script
     assert 'experience persistence: no generated files to commit' in script
     assert 'git add "$path"' in script
+    assert "git push origin HEAD:research-status" in script
+    assert "git push origin HEAD:main" not in script
