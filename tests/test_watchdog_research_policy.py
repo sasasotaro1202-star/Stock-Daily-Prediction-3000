@@ -23,7 +23,8 @@ def test_watchdog_mirrors_evidence_fingerprint_scope_for_active_run_invalidation
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "evidence_diff_state()" in text
     assert 'pyproject.toml)' in text
-    assert "config/*|src/*|scripts/*|.github/workflows/*" in text
+    assert "config/*|src/*|scripts/*" in text
+    assert "scripts/automation_invariants.py|scripts/project_source_contract.py" in text
     assert "*.py|*.yml|*.yaml" in text
     assert "Full history is required" in text
 
