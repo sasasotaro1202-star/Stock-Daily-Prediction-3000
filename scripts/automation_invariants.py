@@ -979,6 +979,16 @@ def main() -> int:
     )
     _assert_once(
         automation_supervisor,
+        '&& [ "$status" = "completed" ]',
+        "automation_supervisor_health_requires_completed",
+    )
+    _assert_once(
+        automation_supervisor,
+        '&& [ "$conclusion" = "success" ]',
+        "automation_supervisor_health_requires_success",
+    )
+    _assert_once(
+        automation_supervisor,
         'local head_sha_required=true',
         "automation_supervisor_explicit_sha_requirement",
     )
@@ -1155,6 +1165,11 @@ def main() -> int:
         heartbeat,
         'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 20',
         "heartbeat_recovers_watchdog",
+    )
+    _assert_once(
+        watchdog,
+        '&& [ "$conclusion" = "success" ]',
+        "watchdog_controller_health_requires_success",
     )
     _assert_once(
         heartbeat,

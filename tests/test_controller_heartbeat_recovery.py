@@ -33,6 +33,8 @@ def test_independent_supervisor_closes_watchdog_failure_gap() -> None:
     assert 'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20' in text
     assert 'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed' in text
     assert "active run exists; no duplicate recovery" in text
+    assert '&& [ "$status" = "completed" ]' in text
+    assert '&& [ "$conclusion" = "success" ]' in text
 
 
 def test_keepalive_recovery_is_head_sha_agnostic_after_its_own_push() -> None:
@@ -50,6 +52,8 @@ def test_keepalive_recovery_is_head_sha_agnostic_after_its_own_push() -> None:
 
     watchdog = WATCHDOG.read_text(encoding="utf-8")
     assert 'recover_missing_periodic_controller "automation-supervisor.yml" "Automation supervisor" 10 45' in watchdog
+    assert '&& [ "$status" = "completed" ]' in watchdog
+    assert '&& [ "$conclusion" = "success" ]' in watchdog
 
 
 def test_research_autopilot_bootstraps_watchdog_for_stale_active_research() -> None:

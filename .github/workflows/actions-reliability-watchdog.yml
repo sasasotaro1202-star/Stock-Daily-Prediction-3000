@@ -605,12 +605,17 @@ jobs:
               created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
               local head_sha
               head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
+              local conclusion
+              conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
 
               if [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "in_progress" ]; then
                 active_found=true
                 continue
               fi
-              if [ "$head_sha" = "$current_sha" ] && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then
+              if [ "$head_sha" = "$current_sha" ] \
+                && [ "$status" = "completed" ] \
+                && [ "$conclusion" = "success" ] \
+                && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then
                 recent_current_found=true
               fi
             done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')

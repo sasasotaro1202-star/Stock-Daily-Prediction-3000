@@ -78,6 +78,8 @@ jobs:
               fi
 
               if { [ "$head_sha_required" = false ] || [ "$head_sha" = "$current_sha" ]; } \
+                && [ "$status" = "completed" ] \
+                && [ "$conclusion" = "success" ] \
                 && [ "$created_epoch" -ge "$recent_cutoff_epoch" ]; then
                 recent_current_found=true
               fi
