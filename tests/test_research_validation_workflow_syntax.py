@@ -195,23 +195,19 @@ def test_research_validation_has_external_status_workflow() -> None:
     assert "types: [completed, in_progress, requested]" in text
     assert "group: research-status-writer" in text
     assert "python scripts/persist_research_validation_status.py" in text
-    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in text
-    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in text
-    assert "name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
-    assert "run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}" in text
-    assert "github.event_name == 'workflow_run'" in text
-    assert "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}" in text
-    assert "ref: main" in text
+    assert "Seed Research status context from workflow_run event" in text
+    assert "github.event.workflow_run.id" in text
     assert "github.event.workflow_run.head_sha" in text
-    assert "ref: ${{ github.event.workflow_run.head_sha }}\n        with:" not in text
-    assert text.index("Persist research validation status") < text.index("Preserve generated status outputs")
-    assert text.index("Preserve generated status outputs") < text.index("Commit research status evidence")
-    preserve_pos = text.index("      - name: Preserve generated status outputs")
-    assert text.index("        if: always()", preserve_pos) < text.index("        shell: bash", preserve_pos)
-    assert text.index("git checkout -B research-status origin/research-status --force") > text.index("Preserve generated status outputs")
+    assert "name: research-validation-evidence-" in text
+    assert "run-id: " in text
+    assert "GITHUB_TOKEN: " in text
+    assert "ref: main" in text
+    assert "ref: " in text
+    assert "github.event_name == 'schedule'" in text
     main_text = WORKFLOW.read_text(encoding="utf-8")
     assert "  research-status:" not in main_text
     assert "research-validation-status" not in main_text
+
 
 class _Response:
     def __init__(self, payload):

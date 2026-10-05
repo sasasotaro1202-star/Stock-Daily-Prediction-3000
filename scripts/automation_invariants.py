@@ -792,6 +792,33 @@ def main() -> int:
         "research_status_terminal_run_orders_by_run_number",
     )
 
+    _assert_once(
+        status_workflow,
+        "repos/$GITHUB_REPOSITORY/actions/workflows/research-validation.yml/runs?branch=main&per_page=100",
+        "research_status_uses_workflow_scoped_run_reconciliation",
+    )
+    _assert_once(
+        status_workflow,
+        "Seed Research status context from workflow_run event",
+        "research_status_seeds_workflow_run_context",
+    )
+
+    _assert_once(
+        status_workflow,
+        "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+        "research_status_reconciles_schedule_and_manual_runs",
+    )
+    _assert_absent(
+        status_workflow,
+        "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}",
+        "research_status_does_not_override_reconciled_context",
+    )
+    _assert_absent(
+        status_workflow,
+        "github.event.workflow_run.conclusion == 'success'",
+        "research_status_no_event_only_evidence_download_gate",
+    )
+
     automation_supervisor = _read("automation-supervisor.yml")
     _assert_once(
         automation_supervisor,

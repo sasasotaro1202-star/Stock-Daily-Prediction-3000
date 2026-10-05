@@ -36,14 +36,14 @@ jobs:
       - name: Install project package for status helpers
         run: pip install -e .
       - name: Recover latest terminal Research context on scheduled reconciliation
-        if: github.event_name == 'schedule'
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         shell: bash
         run: |
           set -euo pipefail
-          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?per_page=100")"
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/research-validation.yml/runs?branch=main&per_page=100")"
           active_count="$(
             printf '%s' "$runs" | jq '[.workflow_runs[]
               | select(.name == "Research validation")
@@ -89,19 +89,26 @@ jobs:
             echo "RESEARCH_STATUS_CONTEXT_FOUND=true"
           } >> "$GITHUB_ENV"
           echo "scheduled reconciliation: selected latest terminal Research run=$run_id run_number=$run_number conclusion=$conclusion"
+      - name: Seed Research status context from workflow_run event
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "RESEARCH_WORKFLOW_RUN_ID=${{ github.event.workflow_run.id }}"
+            echo "RESEARCH_WORKFLOW_RUN_NUMBER=${{ github.event.workflow_run.run_number }}"
+            echo "RESEARCH_WORKFLOW_SHA=${{ github.event.workflow_run.head_sha }}"
+            echo "RESEARCH_WORKFLOW_STATUS=${{ github.event.workflow_run.status }}"
+            echo "RESEARCH_WORKFLOW_CONCLUSION=${{ github.event.workflow_run.conclusion || '' }}"
+          } >> "$GITHUB_ENV"
       - name: Resolve Research status context
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_API_URL: ${{ github.api_url }}
-          RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}
-          RESEARCH_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.run_number || '' }}
-          RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}
-          RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}
-          RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}
         run: python scripts/resolve_research_status_context.py
       - name: Download completed OOS evidence
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && env.RESEARCH_WORKFLOW_STATUS == 'completed' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
         uses: actions/download-artifact@v7
         with:
           name: research-validation-evidence-${{ env.RESEARCH_WORKFLOW_RUN_ID }}
@@ -110,7 +117,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ env.RESEARCH_WORKFLOW_RUN_ID }}
       - name: Restore OOS metrics for longitudinal snapshot
-        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && github.event_name == 'workflow_run' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
+        if: env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && env.RESEARCH_WORKFLOW_STATUS == 'completed' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'
         shell: bash
         run: |
           set -euo pipefail
