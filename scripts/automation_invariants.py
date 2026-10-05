@@ -879,6 +879,34 @@ def main() -> int:
         "watchdog_controller_heartbeat_dispatch_policy",
     )
 
+    # Evidence freshness and active-OOS invalidation must share the same
+    # explicit control-plane allowlist. Unknown workflow files remain evidence-affecting.
+    fingerprint = str(
+        (ROOT / "src" / "validation" / "code_fingerprint.py").read_text(encoding="utf-8")
+    )
+    control_plane_workflows = (
+        ".github/workflows/heartbeat.yml",
+        ".github/workflows/automation-supervisor.yml",
+        ".github/workflows/actions-reliability-watchdog.yml",
+        ".github/workflows/research-autopilot.yml",
+        ".github/workflows/long-research-recovery.yml",
+        ".github/workflows/automation-failure-learning.yml",
+        ".github/workflows/research-validation-status.yml",
+        ".github/workflows/24h-research-marathon-watchdog.yml",
+        ".github/workflows/bounded-production-recovery.yml",
+    )
+    for workflow_path in control_plane_workflows:
+        _assert_once(
+            fingerprint,
+            f'"{workflow_path}"',
+            f"evidence_fingerprint_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
+        )
+        _assert_once(
+            watchdog,
+            workflow_path,
+            f"watchdog_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
+        )
+
     # Tertiary heartbeat must be able to recover the supervisor/watchdog
     # scheduler itself when neither scheduled delivery materializes.
     _assert_once(
