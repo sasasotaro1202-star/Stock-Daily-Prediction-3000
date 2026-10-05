@@ -39,7 +39,7 @@ def test_temporal_state_is_causal() -> None:
 def test_temporal_state_has_expected_schema() -> None:
     out = build_temporal_state_features(_frame(list(np.linspace(100, 160, 60))))
     assert list(TEMPORAL_STATE_COLUMNS) == list(out[list(TEMPORAL_STATE_COLUMNS)].columns)
-    assert int(out[TEMPORAL_STATE_COLUMNS].notna().all(axis=1).sum()) > 0
+    assert int(out[list(TEMPORAL_STATE_COLUMNS)].notna().all(axis=1).sum()) > 0
 
 
 def test_temporal_state_audit_is_research_only() -> None:

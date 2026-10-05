@@ -45,8 +45,8 @@ def test_validate_items_rejects_duplicate():
 
 
 def test_market_baseline_has_direction_and_pit_cutoff():
-    n = 160
-    dates = pd.date_range("2026-01-01", periods=n, freq="B").date
+    n = 190
+    dates = pd.bdate_range(end="2026-06-30", periods=n).date
     context = pd.DataFrame(
         {
             "session_date": dates,
@@ -55,7 +55,7 @@ def test_market_baseline_has_direction_and_pit_cutoff():
             "close": [100.0 + 0.1 * i + (i % 4) for i in range(n)],
             "ret_1d": [0.003 if i % 2 else -0.002 for i in range(n)],
             "volatility_20": [0.01 + i * 0.00002 for i in range(n)],
-            "available_at": pd.date_range("2026-01-01", periods=n, freq="B", tz="UTC")
+            "available_at": pd.DatetimeIndex(pd.bdate_range(end="2026-06-30", periods=n)).tz_localize("UTC")
             + pd.Timedelta(hours=8),
         }
     )
@@ -125,11 +125,10 @@ def test_stale_market_context_is_deferred():
             "session_date": dates,
             "family": ["nikkei"] * n,
             "provider_symbol": ["^N225"] * n,
-            "close": [100.0 + 0.1 * i for i in range(n)],
+            "close": [100.0 + 0.1 * i + (i % 4) for i in range(n)],
             "ret_1d": [0.001 if i % 2 else -0.001 for i in range(n)],
             "volatility_20": [0.01] * n,
-            "available_at": pd.date_range("2026-01-01", periods=n, freq="B", tz="UTC")
-            + pd.Timedelta(hours=8),
+            "available_at": pd.to_datetime(dates).tz_localize("UTC") + pd.Timedelta(hours=8),
         }
     )
     rows = build_market_rows(

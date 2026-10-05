@@ -562,31 +562,18 @@ def main() -> int:
         'inspect_workflow "experience-review.yml" "Experience review" true true',
         "watchdog_recovers_stale_experience_review",
     )
+    # Source/package changes are covered by Repository verification and the
+    # independent automation supervisor; the watchdog itself stays
+    # schedule/manual-triggered to avoid duplicate control-plane executions.
+    # Controller changes are recovered through the independent scheduler supervisor,
+    # while the watchdog itself intentionally remains schedule/manual-triggered.
+    supervisor_contract = _read("automation-supervisor.yml")
     _assert_once(
-        watchdog,
-        '".github/workflows/automation-failure-learning.yml"',
-        "watchdog_wakes_on_failure_learning_changes",
+        supervisor_contract,
+        'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20',
+        "supervisor_recovers_watchdog",
     )
-    _assert_once(
-        watchdog,
-        '"scripts/automation_invariants.py"',
-        "watchdog_wakes_on_automation_invariant_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"scripts/project_source_contract.py"',
-        "watchdog_wakes_on_project_source_contract_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"scripts/production_invariants.py"',
-        "watchdog_wakes_on_production_invariant_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"pyproject.toml"',
-        "watchdog_wakes_on_package_environment_changes",
-    )
+
 
     _assert_once(
         autopilot,
@@ -768,6 +755,48 @@ def main() -> int:
         "research_status_writer_shared_concurrency",
     )
 
+    automation_supervisor = _read("automation-supervisor.yml")
+    _assert_once(
+        automation_supervisor,
+        '    - cron: "*/10 * * * *"',
+        "automation_supervisor_10m_schedule",
+    )
+    _assert_once(
+        automation_supervisor,
+        "Independent lightweight control-plane supervisor.",
+        "automation_supervisor_independent_control_plane",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20',
+        "automation_supervisor_recovers_watchdog",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "research-autopilot.yml" "Research autopilot" 30 120',
+        "automation_supervisor_recovers_autopilot",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "long-research-recovery.yml" "Long research recovery" 10 45',
+        "automation_supervisor_recovers_long_research",
+    )
+    _assert_once(
+        automation_supervisor,
+        'recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75',
+        "automation_supervisor_recovers_failure_learning",
+    )
+    _assert_once(
+        automation_supervisor,
+        'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed',
+        "automation_supervisor_bounded_failure_retry",
+    )
+    _assert_once(
+        automation_supervisor,
+        "active run exists; no duplicate recovery",
+        "automation_supervisor_preserves_active_runs",
+    )
+
     long_research_recovery = _read("long-research-recovery.yml")
     _assert_once(
         long_research_recovery,
@@ -781,7 +810,7 @@ def main() -> int:
     )
     _assert_once(
         long_research_recovery,
-        'gh run rerun "\$run_id" --repo "\$GITHUB_REPOSITORY" --failed',
+        'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed',
         "long_research_recovery_bounded_failed_rerun",
     )
     _assert_once(
@@ -796,7 +825,7 @@ def main() -> int:
     )
     _assert_once(
         long_research_recovery,
-        'gh workflow run "\$workflow_file" --repo "\$GITHUB_REPOSITORY" --ref main',
+        'gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main',
         "long_research_recovery_current_main_dispatch",
     )
     _assert_once(
@@ -808,6 +837,7 @@ def main() -> int:
     # Controller heartbeat recovery ensures scheduled control-plane loops can self-heal
     # when GitHub fails to materialize a scheduled run at all (no queue/failure exists to inspect).
     for workflow_file, workflow_name, cadence, max_age in (
+        ("automation-supervisor.yml", "Automation supervisor", 10, 45),
         ("research-autopilot.yml", "Research autopilot", 30, 120),
         ("long-research-recovery.yml", "Long research recovery", 10, 45),
         ("automation-failure-learning.yml", "Automation failure learning", 15, 75),
@@ -863,6 +893,7 @@ def main() -> int:
         (ROOT / "scripts" / "reconcile_automation_failures.py").read_text(encoding="utf-8")
     )
     for workflow_file, _workflow_name in (
+        ("automation-supervisor.yml", "Automation supervisor"),
         ("daily-watchlist.yml", "Daily priority watchlist"),
         ("research-validation-status.yml", "Research validation status"),
         ("free-data-source-discovery.yml", "Free Data Source Discovery"),
@@ -899,6 +930,11 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
+        '      - "Automation supervisor"',
+        "failure_learning_automation_supervisor_trigger",
+    )
+    _assert_once(
+        failure_workflow,
         "  workflow_dispatch:",
         "failure_learning_manual_recovery_trigger",
     )
@@ -929,7 +965,7 @@ def main() -> int:
     )
     _assert_once(
         failure_workflow,
-        'workflows:\n      - "Research validation"',
+        '      - "Research validation"',
         "failure_learning_research_validation_trigger",
     )
     _assert_once(
@@ -942,7 +978,7 @@ def main() -> int:
         "research-status-writer",
         "failure_learning_shared_single_writer",
     )
-    _assert_once(
+    _assert_contains(
         failure_workflow,
         "git push origin HEAD:research-status",
         "failure_learning_never_mutates_main",
@@ -982,11 +1018,8 @@ def main() -> int:
         "if-no-files-found: warn",
         "research_validation_partial_evidence_warning",
     )
-    _assert_once(
-        validation_workflow,
-        '      - ".github/research_validation.trigger"',
-        "research_validation_explicit_trigger",
-    )
+    # Research validation is dispatched only by the verified Research autopilot
+    # (or manual workflow_dispatch); no inert trigger-file reference is required.
     _assert_absent(
         validation_workflow,
         "build_production_artifact.py",

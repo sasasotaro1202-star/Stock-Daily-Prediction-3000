@@ -24,3 +24,15 @@ def test_control_plane_controller_cadences_are_explicit() -> None:
     )
     for line in expected:
         assert line in text
+
+
+def test_independent_supervisor_closes_watchdog_failure_gap() -> None:
+    supervisor = ROOT / ".github/workflows/automation-supervisor.yml"
+    text = supervisor.read_text(encoding="utf-8")
+    assert '    - cron: "*/10 * * * *"' in text
+    assert 'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20' in text
+    assert 'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed' in text
+    assert "active run exists; no duplicate recovery" in text
+
+    watchdog = WATCHDOG.read_text(encoding="utf-8")
+    assert 'recover_missing_periodic_controller "automation-supervisor.yml" "Automation supervisor" 10 45' in watchdog

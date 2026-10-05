@@ -17,6 +17,7 @@ on:
       - "24H Research Marathon"
       - "Actions reliability watchdog"
       - "Long research recovery"
+      - "Automation supervisor"
       - "Daily priority watchlist"
       - "Research validation status"
       - "Free Data Source Discovery"
