@@ -29,3 +29,8 @@ def test_research_autopilot_does_not_retrigger_oos_for_control_plane_only_pushes
     assert 'evidence_change=false' in text
     assert 'DEFERRED_COMPARE_UNVERIFIABLE' in text
     assert '.github/workflows/automation-activity-keepalive.yml' in text
+
+
+def test_research_autopilot_orders_successful_research_by_run_number() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "| sort_by(.run_number)" in text

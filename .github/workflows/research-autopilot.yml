@@ -69,7 +69,7 @@ jobs:
             {
               echo "## Research autopilot"
               echo "- Action: \`BLOCKED_VERIFICATION\`"
-              echo "- Current main: \`$current_sha\`"
+              echo "- Current main: $current_sha"
               echo "- Repository verification: \`$verification_state\`"
               echo "- Research dispatch: suppressed"
             } >> "$GITHUB_STEP_SUMMARY"
@@ -88,6 +88,8 @@ jobs:
                   | .head_sha
                 ]
                 | map(select(. != null and . != ""))
+                | sort_by(.run_number)
+                | map(.head_sha)
                 | last // empty
               '
             )"
