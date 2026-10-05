@@ -176,13 +176,14 @@ jobs:
               fi
               {
                 echo "## Research autopilot"
-                echo "- Action: `BOOTSTRAP_STALE_ACTIVE_WATCHDOG`"
-                echo "- Current main: `$current_sha`"
-                echo "- Stale active Research runs: `$stale_active_count`"
-                echo "- Watchdog recovery: `DISPATCHED`"
+                echo "- Action: BOOTSTRAP_STALE_ACTIVE_WATCHDOG"
+                echo "- Current main: $current_sha"
+                echo "- Stale active Research runs: $stale_active_count"
+                echo "- Watchdog recovery: DISPATCHED"
               } >> "$GITHUB_STEP_SUMMARY"
               exit 0
             fi
+          fi
 
           if [ "$active_any" -gt 0 ]; then
             echo "another Research validation is still active on a different SHA; watchdog owns stale/evidence invalidation"
