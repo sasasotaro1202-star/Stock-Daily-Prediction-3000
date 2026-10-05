@@ -179,23 +179,28 @@ def main() -> int:
 
     _assert_once(
         keepalive,
-        '    - cron: "17 3 1 * *"',
-        "automation_keepalive_monthly_schedule",
+        '    - cron: "17 3 * * 0"',
+        "automation_keepalive_weekly_schedule",
     )
     _assert_once(
         keepalive,
-        'git push origin "HEAD:$keepalive_branch"',
-        "automation_keepalive_pushes_dedicated_branch",
+        "git fetch --no-tags origin main",
+        "automation_keepalive_refreshes_default_branch",
     )
-    _assert_contains(
+    _assert_once(
         keepalive,
-        'keepalive_branch="ops/automation-keepalive"',
-        "automation_keepalive_dedicated_branch",
+        "git checkout -B main origin/main",
+        "automation_keepalive_rebases_to_latest_default_branch",
+    )
+    _assert_once(
+        keepalive,
+        "git push origin HEAD:main",
+        "automation_keepalive_updates_default_branch",
     )
     _assert_absent(
         keepalive,
-        "git push origin HEAD:main",
-        "automation_keepalive_does_not_mutate_main",
+        'keepalive_branch="ops/automation-keepalive"',
+        "automation_keepalive_no_dedicated_branch",
     )
     _assert_contains(
         keepalive,
