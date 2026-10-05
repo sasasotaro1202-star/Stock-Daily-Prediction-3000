@@ -767,6 +767,61 @@ def main() -> int:
         "group: research-status-writer",
         "research_status_writer_shared_concurrency",
     )
+
+    # Keep short research/data collectors inside the bounded watchdog recovery
+    # lane. Long OOS collectors remain reconciled by failure-learning without
+    # the generic 120-minute watchdog cancellation policy.
+    watchdog_recovery_workflows = (
+        ("daily-watchlist.yml", "Daily priority watchlist"),
+        ("research-validation-status.yml", "Research validation status"),
+        ("free-data-source-discovery.yml", "Free Data Source Discovery"),
+        ("boj-frontier-research.yml", "BOJ Frontier Research"),
+        ("estat-dashboard-research.yml", "e-Stat Dashboard Research"),
+        ("fred-cross-asset-research.yml", "FRED Cross-Asset Research"),
+        ("mof-fx-reserves-research.yml", "Japan MOF FX Intervention and Reserves Research"),
+        ("mof-securities-research.yml", "Japan MOF Securities Flow Research"),
+        ("sec-companyfacts-research.yml", "SEC XBRL Company Facts Research"),
+        ("sec-filings-research.yml", "SEC filings research"),
+        ("sec-submissions-research.yml", "SEC EDGAR Submissions Research"),
+        ("sec-insider-ownership-research.yml", "SEC Insider and Ownership Research"),
+        ("treasury-auction-research.yml", "U.S. Treasury Auction Research"),
+        ("treasury-rate-family-research.yml", "U.S. Treasury Rate Family Research"),
+    )
+    for workflow_file, workflow_name in watchdog_recovery_workflows:
+        _assert_once(
+            watchdog,
+            f'inspect_workflow "{workflow_file}" "{workflow_name}" true true',
+            f"watchdog_recovers_{workflow_file.removesuffix('.yml').replace('-', '_')}",
+        )
+
+    reconciliation_script = str(
+        (ROOT / "scripts" / "reconcile_automation_failures.py").read_text(encoding="utf-8")
+    )
+    for workflow_file, _workflow_name in (
+        ("daily-watchlist.yml", "Daily priority watchlist"),
+        ("research-validation-status.yml", "Research validation status"),
+        ("free-data-source-discovery.yml", "Free Data Source Discovery"),
+        ("boj-frontier-research.yml", "BOJ Frontier Research"),
+        ("boj-timeseries-research.yml", "BOJ time-series research"),
+        ("estat-dashboard-research.yml", "e-Stat Dashboard Research"),
+        ("finra-short-sale-research.yml", "FINRA short-sale research"),
+        ("fred-cross-asset-research.yml", "FRED Cross-Asset Research"),
+        ("mof-fx-reserves-research.yml", "Japan MOF FX Intervention and Reserves Research"),
+        ("mof-securities-research.yml", "Japan MOF Securities Flow Research"),
+        ("sec-company-events-research.yml", "SEC Company Event Filings Research"),
+        ("sec-companyfacts-research.yml", "SEC XBRL Company Facts Research"),
+        ("sec-filings-research.yml", "SEC filings research"),
+        ("sec-insider-ownership-research.yml", "SEC Insider and Ownership Research"),
+        ("sec-submissions-research.yml", "SEC EDGAR Submissions Research"),
+        ("treasury-auction-research.yml", "U.S. Treasury Auction Research"),
+        ("treasury-curve-research.yml", "Treasury curve research"),
+        ("treasury-rate-family-research.yml", "U.S. Treasury Rate Family Research"),
+    ):
+        _assert_contains(
+            reconciliation_script,
+            f'"{workflow_file}"',
+            f"failure_reconciliation_watches_{workflow_file.removesuffix('.yml').replace('-', '_')}",
+        )
     _assert_once(
         experience_workflow,
         'workflows: ["Prediction monitoring"]',

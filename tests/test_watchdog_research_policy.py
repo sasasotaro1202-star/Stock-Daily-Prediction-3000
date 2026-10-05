@@ -84,3 +84,17 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     assert "continue into queue" in preserve
     assert "return 0" not in preserve
     assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in queue_block
+
+
+def test_watchdog_covers_short_research_collectors_and_watchlist() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    expected = (
+        'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true',
+        'inspect_workflow "free-data-source-discovery.yml" "Free Data Source Discovery" true true',
+        'inspect_workflow "boj-frontier-research.yml" "BOJ Frontier Research" true true',
+        'inspect_workflow "fred-cross-asset-research.yml" "FRED Cross-Asset Research" true true',
+        'inspect_workflow "sec-filings-research.yml" "SEC filings research" true true',
+        'inspect_workflow "treasury-rate-family-research.yml" "U.S. Treasury Rate Family Research" true true',
+    )
+    for needle in expected:
+        assert needle in text

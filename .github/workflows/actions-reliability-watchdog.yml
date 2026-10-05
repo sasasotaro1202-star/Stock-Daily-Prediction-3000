@@ -218,6 +218,23 @@ jobs:
           inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
           inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true
           inspect_workflow "experience-review.yml" "Experience review" true true
+          # Short research collectors are safe for bounded first-failure retry and
+          # stale-run recovery. Long OOS collectors remain failure-memory only
+          # to avoid cancelling legitimate multi-hour research.
+          inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true
+          inspect_workflow "research-validation-status.yml" "Research validation status" true true
+          inspect_workflow "free-data-source-discovery.yml" "Free Data Source Discovery" true true
+          inspect_workflow "boj-frontier-research.yml" "BOJ Frontier Research" true true
+          inspect_workflow "estat-dashboard-research.yml" "e-Stat Dashboard Research" true true
+          inspect_workflow "fred-cross-asset-research.yml" "FRED Cross-Asset Research" true true
+          inspect_workflow "mof-fx-reserves-research.yml" "Japan MOF FX Intervention and Reserves Research" true true
+          inspect_workflow "mof-securities-research.yml" "Japan MOF Securities Flow Research" true true
+          inspect_workflow "sec-companyfacts-research.yml" "SEC XBRL Company Facts Research" true true
+          inspect_workflow "sec-filings-research.yml" "SEC filings research" true true
+          inspect_workflow "sec-submissions-research.yml" "SEC EDGAR Submissions Research" true true
+          inspect_workflow "sec-insider-ownership-research.yml" "SEC Insider and Ownership Research" true true
+          inspect_workflow "treasury-auction-research.yml" "U.S. Treasury Auction Research" true true
+          inspect_workflow "treasury-rate-family-research.yml" "U.S. Treasury Rate Family Research" true true
 
           inspect_research_validation() {
             local workflow_file="research-validation.yml"
