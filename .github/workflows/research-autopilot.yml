@@ -76,6 +76,86 @@ jobs:
             exit 0
           fi
 
+          # A Repository verification completion can be caused by a control-plane-only
+          # main commit (for example the long-lived automation keepalive). Such a commit
+          # must not trigger an unnecessary expensive OOS run. The normal 30-minute
+          # schedule still owns the recurring research cadence.
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            latest_success_sha="$(
+              printf '%s' "$research_runs" | jq -r '
+                [ .workflow_runs[]
+                  | select(.status == "completed" and .conclusion == "success")
+                  | .head_sha
+                ]
+                | map(select(. != null and . != ""))
+                | last // empty
+              '
+            )"
+
+            if [ -n "$latest_success_sha" ] && [ "$latest_success_sha" != "$current_sha" ]; then
+              compare_json="$(gh api "repos/$GITHUB_REPOSITORY/compare/$latest_success_sha...$current_sha" 2>/dev/null || true)"
+              compare_status="$(printf '%s' "$compare_json" | jq -r '.status // empty' 2>/dev/null || true)"
+              compare_too_large="$(printf '%s' "$compare_json" | jq -r '.too_large // false' 2>/dev/null || echo false)"
+
+              if [ "$compare_status" = "ahead" ] && [ "$compare_too_large" != "true" ]; then
+                evidence_change=false
+                while IFS= read -r changed_path; do
+                  [ -n "$changed_path" ] || continue
+                  case "$changed_path" in
+                    pyproject.toml)
+                      evidence_change=true
+                      ;;
+                    config/*|src/*|scripts/*)
+                      case "$changed_path" in
+                        scripts/automation_invariants.py|scripts/project_source_contract.py)
+                          ;;
+                        *)
+                          evidence_change=true
+                          ;;
+                      esac
+                      ;;
+                    .github/workflows/*)
+                      case "$changed_path" in
+                        .github/workflows/heartbeat.yml|.github/workflows/automation-supervisor.yml|.github/workflows/actions-reliability-watchdog.yml|.github/workflows/research-autopilot.yml|.github/workflows/long-research-recovery.yml|.github/workflows/automation-failure-learning.yml|.github/workflows/research-validation-status.yml|.github/workflows/24h-research-marathon-watchdog.yml|.github/workflows/bounded-production-recovery.yml|.github/workflows/automation-activity-keepalive.yml)
+                          ;;
+                        *)
+                          evidence_change=true
+                          ;;
+                      esac
+                      ;;
+                  esac
+                  [ "$evidence_change" = true ] && break
+                done < <(printf '%s' "$compare_json" | jq -r '.files[]?.filename // empty')
+
+                if [ "$evidence_change" = false ]; then
+                  echo "Repository verification changed only control-plane/non-evidence files since the last successful Research validation; suppressing push-triggered OOS dispatch"
+                  {
+                    echo "## Research autopilot"
+                    echo "- Action: `SKIPPED_CONTROL_PLANE_ONLY`"
+                    echo "- Current main: `$current_sha`"
+                    echo "- Last successful Research SHA: `$latest_success_sha`"
+                    echo "- Evidence-affecting changes: `false`"
+                    echo "- Push-triggered Research dispatch: suppressed"
+                    echo "- Recurring schedule remains responsible for the normal research cadence"
+                  } >> "$GITHUB_STEP_SUMMARY"
+                  exit 0
+                fi
+              else
+                # Do not infer evidence freshness when GitHub's compare response is
+                # unavailable/truncated. The scheduled controller will retry shortly.
+                echo "::warning title=Research autopilot compare unavailable::unable to prove control-plane-only ancestry for the push-triggered verification; deferring push-triggered Research dispatch to the scheduled controller"
+                {
+                  echo "## Research autopilot"
+                  echo "- Action: `DEFERRED_COMPARE_UNVERIFIABLE`"
+                  echo "- Current main: `$current_sha`"
+                  echo "- Last successful Research SHA: `$latest_success_sha`"
+                  echo "- Research dispatch: deferred"
+                } >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            fi
+          fi
+
           active_any="$(
             printf '%s' "$research_runs" | jq '[.workflow_runs[]
               | select(.status == "queued" or .status == "pending" or .status == "waiting" or .status == "requested" or .status == "in_progress")]

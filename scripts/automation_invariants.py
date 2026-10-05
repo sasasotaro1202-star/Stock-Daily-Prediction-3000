@@ -813,6 +813,26 @@ def main() -> int:
         "research_autopilot_gates_model_factory_changes_on_verification",
     )
     _assert_once(
+        autopilot,
+        "SKIPPED_CONTROL_PLANE_ONLY",
+        "research_autopilot_skips_control_plane_only_pushes",
+    )
+    _assert_once(
+        autopilot,
+        'gh api "repos/$GITHUB_REPOSITORY/compare/$latest_success_sha...$current_sha"',
+        "research_autopilot_compares_evidence_ancestry",
+    )
+    _assert_once(
+        autopilot,
+        "DEFERRED_COMPARE_UNVERIFIABLE",
+        "research_autopilot_fail_closed_on_unverifiable_evidence_ancestry",
+    )
+    _assert_once(
+        autopilot,
+        ".github/workflows/automation-activity-keepalive.yml",
+        "research_autopilot_excludes_keepalive_from_evidence_changes",
+    )
+    _assert_once(
         validation_workflow,
         "pytest -q tests/test_model_factories_contract.py",
         "research_validation_runs_model_factory_contract",

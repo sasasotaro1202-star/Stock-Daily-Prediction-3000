@@ -20,3 +20,12 @@ def test_research_autopilot_remains_fail_closed_on_verification() -> None:
     assert 'if [ "$verification_state" != "PASS" ]; then' in text
     assert 'gh workflow run research-validation.yml --repo "$GITHUB_REPOSITORY" --ref main' in text
     assert 'if [ "$active_current" -gt 0 ]; then' in text
+
+
+def test_research_autopilot_does_not_retrigger_oos_for_control_plane_only_pushes() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then' in text
+    assert 'SKIPPED_CONTROL_PLANE_ONLY' in text
+    assert 'evidence_change=false' in text
+    assert 'DEFERRED_COMPARE_UNVERIFIABLE' in text
+    assert '.github/workflows/automation-activity-keepalive.yml' in text
