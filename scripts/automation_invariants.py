@@ -835,7 +835,7 @@ def main() -> int:
     )
     _assert_once(
         autopilot,
-        "| sort_by(.run_number)",
+        "| sort_by(.run_number)\n                | last\n                | .head_sha // empty",
         "research_autopilot_latest_success_orders_by_run_number",
     )
     _assert_once(
