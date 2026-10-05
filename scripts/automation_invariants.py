@@ -771,6 +771,27 @@ def main() -> int:
         "research_status_writer_shared_concurrency",
     )
 
+    _assert_once(
+        status_workflow,
+        "Recover latest terminal Research context on scheduled reconciliation",
+        "research_status_reconciles_missed_terminal_events",
+    )
+    _assert_once(
+        status_workflow,
+        "[ .workflow_runs[]",
+        "research_status_terminal_run_scan",
+    )
+    _assert_once(
+        status_workflow,
+        'select(.status == "completed")',
+        "research_status_terminal_run_requires_completed",
+    )
+    _assert_once(
+        status_workflow,
+        "| sort_by(.run_number)",
+        "research_status_terminal_run_orders_by_run_number",
+    )
+
     automation_supervisor = _read("automation-supervisor.yml")
     _assert_once(
         automation_supervisor,
