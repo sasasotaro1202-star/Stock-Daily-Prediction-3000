@@ -850,6 +850,7 @@ def main() -> int:
     # Controller heartbeat recovery ensures scheduled control-plane loops can self-heal
     # when GitHub fails to materialize a scheduled run at all (no queue/failure exists to inspect).
     for workflow_file, workflow_name, cadence, max_age in (
+        ("automation-supervisor.yml", "Automation supervisor", 10, 45),
         ("research-autopilot.yml", "Research autopilot", 30, 120),
         ("long-research-recovery.yml", "Long research recovery", 10, 45),
         ("automation-failure-learning.yml", "Automation failure learning", 15, 75),
@@ -905,6 +906,7 @@ def main() -> int:
         (ROOT / "scripts" / "reconcile_automation_failures.py").read_text(encoding="utf-8")
     )
     for workflow_file, _workflow_name in (
+        ("automation-supervisor.yml", "Automation supervisor"),
         ("daily-watchlist.yml", "Daily priority watchlist"),
         ("research-validation-status.yml", "Research validation status"),
         ("free-data-source-discovery.yml", "Free Data Source Discovery"),
@@ -938,6 +940,11 @@ def main() -> int:
         experience_workflow,
         "github.event.workflow_run.conclusion == 'success'",
         "experience_review_requires_successful_monitoring",
+    )
+    _assert_once(
+        failure_workflow,
+        '      - "Automation supervisor"',
+        "failure_learning_automation_supervisor_trigger",
     )
     _assert_once(
         failure_workflow,
