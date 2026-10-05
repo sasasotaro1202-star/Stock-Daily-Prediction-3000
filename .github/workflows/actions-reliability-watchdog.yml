@@ -56,7 +56,14 @@ jobs:
           queued_cutoff="$(date -u -d '30 minutes ago' +%s)"
           stale_cutoff="$(date -u -d '120 minutes ago' +%s)"
           failures=0
-          current_sha="$GITHUB_SHA"
+          # The watchdog is a scheduled control-plane job; GITHUB_SHA may refer to
+          # the workflow checkout revision rather than the latest main branch head.
+          # Always resolve the live main ref before comparing/recovering any run.
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ -z "$current_sha" ]; then
+            echo "::error title=Watchdog current-main resolution failed::unable to resolve live main HEAD"
+            exit 1
+          fi
 
           evidence_diff_state() {
             local base_sha="$1"
