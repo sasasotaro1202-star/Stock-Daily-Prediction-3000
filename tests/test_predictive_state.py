@@ -134,4 +134,4 @@ def test_invalid_inputs_fail_closed() -> None:
         heuristic_regime_posterior(
             trend_score=np.asarray([0.0]),
             volatility_score=np.asarray([0.0, 1.0]),
-        )
+        )\n\ndef test_v13_scenario_row_exposes_new_research_signals() -> None:\n    from src.research.ultimate_v13_extensions import _scenario_row\n\n    row = _scenario_row(0.72, 0.10, 0.15)\n    scenario = row["scenario_probability_proxy"]\n    uncertainty = row["uncertainty_proxy"]\n    assert set(scenario) == {\n        "continuation_up",\n        "continuation_down",\n        "range_neutral",\n        "shock",\n    }\n    assert sum(scenario.values()) == pytest.approx(1.0)\n    assert 0.0 <= uncertainty["aggregate"] <= 1.0\n    assert row["research_only"] is True\n
