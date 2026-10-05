@@ -130,6 +130,16 @@ def main() -> int:
         '    - cron: "27 9 * * 1-5"',
         "prediction_monitoring_canonical_schedule",
     )
+    _assert_once(
+        monitoring,
+        "git push origin HEAD:research-status",
+        "prediction_monitoring_persists_experience_on_research_status",
+    )
+    _assert_absent(
+        monitoring,
+        "git push origin HEAD:main",
+        "prediction_monitoring_does_not_mutate_main",
+    )
     _assert_absent(
         monitoring,
         '    - cron: "17 9 * * 1-5"',
