@@ -267,7 +267,7 @@ jobs:
             if [ -f "$path" ]; then added_any=true; fi
           done
           if [ "$added_any" != "true" ]; then
-            echo "experience persistence: no generated files to persist"
+            echo "experience persistence: no generated files to commit"
             exit 0
           fi
           worktree_dir="$(mktemp -d)"
