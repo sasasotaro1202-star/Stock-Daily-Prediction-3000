@@ -57,13 +57,22 @@ def test_status_workflow_captures_requested_research_runs() -> None:
 
 def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
+
+    seed_start = text.index("      - name: Seed Research status context from workflow_run event")
+    seed_block = text[seed_start:text.index("      - name: Resolve Research status context", seed_start)]
+    assert "RESEARCH_WORKFLOW_RUN_ID=${{ github.event.workflow_run.id }}" in seed_block
+    assert "RESEARCH_WORKFLOW_RUN_NUMBER=${{ github.event.workflow_run.run_number }}" in seed_block
+    assert "RESEARCH_WORKFLOW_SHA=${{ github.event.workflow_run.head_sha }}" in seed_block
+    assert "RESEARCH_WORKFLOW_STATUS=${{ github.event.workflow_run.status }}" in seed_block
+    assert "RESEARCH_WORKFLOW_CONCLUSION=${{ github.event.workflow_run.conclusion || '' }}" in seed_block
+
     start = text.index("      - name: Resolve Research status context")
     resolve_block = text[start:text.index("      - name: Download completed OOS evidence", start)]
-    assert "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}" in resolve_block
-    assert "RESEARCH_WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.run_number || '' }}" in resolve_block
-    assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha || '' }}" in resolve_block
-    assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status || '' }}" in resolve_block
-    assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion || '' }}" in resolve_block
+    assert "RESEARCH_WORKFLOW_RUN_ID:" not in resolve_block
+    assert "RESEARCH_WORKFLOW_RUN_NUMBER:" not in resolve_block
+    assert "RESEARCH_WORKFLOW_SHA:" not in resolve_block
+    assert "RESEARCH_WORKFLOW_STATUS:" not in resolve_block
+    assert "RESEARCH_WORKFLOW_CONCLUSION:" not in resolve_block
 
     start = text.index("      - name: Persist research validation status")
     persist_block = text[start:text.index("      - name: Preserve generated status outputs", start)]
@@ -71,7 +80,6 @@ def test_workflow_run_context_is_captured_before_status_persistence() -> None:
     assert "RESEARCH_WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}" not in persist_block
     assert "RESEARCH_WORKFLOW_STATUS: ${{ github.event.workflow_run.status }}" not in persist_block
     assert "RESEARCH_WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}" not in persist_block
-
 
 def test_status_heartbeat_tracks_pending_research_runs() -> None:
     resolver = Path("scripts/resolve_research_status_context.py").read_text(encoding="utf-8")
