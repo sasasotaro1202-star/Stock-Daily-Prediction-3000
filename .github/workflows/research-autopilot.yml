@@ -68,9 +68,9 @@ jobs:
             echo "::warning title=Research autopilot blocked::current main has no successful Repository verification; refusing expensive OOS dispatch"
             {
               echo "## Research autopilot"
-              echo "- Action: `BLOCKED_VERIFICATION`"
-              echo "- Current main: `$current_sha`"
-              echo "- Repository verification: `$verification_state`"
+              echo "- Action: \`BLOCKED_VERIFICATION\`"
+              echo "- Current main: \`$current_sha\`"
+              echo "- Repository verification: \`$verification_state\`"
               echo "- Research dispatch: suppressed"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
@@ -112,10 +112,10 @@ jobs:
             echo "current-main Research run already active/queued; suppressing duplicate dispatch"
             {
               echo "## Research autopilot"
-              echo "- Action: `SKIPPED_ACTIVE`"
-              echo "- Current main: `$current_sha`"
-              echo "- Active Research runs on current main: `$active_current`"
-              echo "- Stale queued Research runs cancelled: `$cancelled_stale`"
+              echo "- Action: \`SKIPPED_ACTIVE\`"
+              echo "- Current main: \`$current_sha\`"
+              echo "- Active Research runs on current main: \`$active_current\`"
+              echo "- Stale queued Research runs cancelled: \`$cancelled_stale\`"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -144,10 +144,10 @@ jobs:
             echo "current-main Research already has a successful validation within 24 hours"
             {
               echo "## Research autopilot"
-              echo "- Action: `SKIPPED_RECENT_SUCCESS`"
-              echo "- Current main: `$current_sha`"
+              echo "- Action: \`SKIPPED_RECENT_SUCCESS\`"
+              echo "- Current main: \`$current_sha\`"
               echo "- Recent successful Research validation: true"
-              echo "- Stale queued Research runs cancelled: `$cancelled_stale`"
+              echo "- Stale queued Research runs cancelled: \`$cancelled_stale\`"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -156,11 +156,11 @@ jobs:
             echo "another Research validation is still active on a different SHA; watchdog owns stale/evidence invalidation"
             {
               echo "## Research autopilot"
-              echo "- Action: `SKIPPED_OLDER_ACTIVE`"
-              echo "- Current main: `$current_sha`"
-              echo "- Active Research runs on any SHA: `$active_any`"
-              echo "- Current-main active runs: `$active_current`"
-              echo "- Stale queued Research runs cancelled: `$cancelled_stale`"
+              echo "- Action: \`SKIPPED_OLDER_ACTIVE\`"
+              echo "- Current main: \`$current_sha\`"
+              echo "- Active Research runs on any SHA: \`$active_any\`"
+              echo "- Current-main active runs: \`$active_current\`"
+              echo "- Stale queued Research runs cancelled: \`$cancelled_stale\`"
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
@@ -170,9 +170,9 @@ jobs:
 
           {
             echo "## Research autopilot"
-            echo "- Action: `DISPATCHED`"
-            echo "- Current main: `$current_sha`"
-            echo "- Repository verification: `PASS`"
-            echo "- Stale queued Research runs cancelled: `$cancelled_stale`"
-            echo "- Research validation ref: `main`"
+            echo "- Action: \`DISPATCHED\`"
+            echo "- Current main: \`$current_sha\`"
+            echo "- Repository verification: \`PASS\`"
+            echo "- Stale queued Research runs cancelled: \`$cancelled_stale\`"
+            echo "- Research validation ref: \`main\`"
           } >> "$GITHUB_STEP_SUMMARY"
