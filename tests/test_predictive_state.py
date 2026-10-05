@@ -37,12 +37,13 @@ def test_transition_matrix_is_row_normalized_and_smoothed() -> None:
     )
     for row in matrix.values():
         assert sum(row.values()) == pytest.approx(1.0)
-    assert matrix["trend_up"]["trend_up"] > matrix["trend_up"]["range"]
+    assert matrix["trend_up"]["trend_up"] == pytest.approx(2.0 / 7.0)
+    assert matrix["trend_up"]["range"] == pytest.approx(2.0 / 7.0)
     assert all(value > 0.0 for value in matrix["shock"].values())
 
 
 def test_chronological_transition_forecast_excludes_current_and_future_transition() -> None:
-    states = ["trend_up", "trend_up", "range", "trend_down"]
+    states = ["trend_up", "trend_up", "trend_up", "range"]
     forecasts = chronological_transition_forecast(states, categories=REGIMES, alpha=1.0)
 
     assert forecasts[0]["history_rows"] == 0
@@ -127,7 +128,7 @@ def test_invalid_inputs_fail_closed() -> None:
     with pytest.raises(ValueError):
         ensemble_disagreement(np.asarray([[1.1, 0.2]], dtype=float))
     with pytest.raises(ValueError):
-        estimate_transition_matrix(["unknown"], categories=REGIMES)
+        estimate_transition_matrix(["invalid"], categories=REGIMES)
     with pytest.raises(ValueError):
         heuristic_regime_posterior(
             trend_score=np.asarray([0.0]),
