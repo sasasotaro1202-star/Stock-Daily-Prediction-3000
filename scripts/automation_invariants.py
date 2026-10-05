@@ -175,6 +175,36 @@ def main() -> int:
         "heartbeat_ignores_cancelled_control_plane_events",
     )
 
+    keepalive = _read("automation-activity-keepalive.yml")
+
+    _assert_once(
+        keepalive,
+        '    - cron: "17 3 1 * *"',
+        "automation_keepalive_monthly_schedule",
+    )
+    _assert_once(
+        keepalive,
+        'git push origin "HEAD:$keepalive_branch"',
+        "automation_keepalive_pushes_dedicated_branch",
+    )
+    _assert_contains(
+        keepalive,
+        'keepalive_branch="ops/automation-keepalive"',
+        "automation_keepalive_dedicated_branch",
+    )
+    _assert_absent(
+        keepalive,
+        "git push origin HEAD:main",
+        "automation_keepalive_does_not_mutate_main",
+    )
+    _assert_contains(
+        keepalive,
+        '"production_changed": false',
+        "automation_keepalive_no_production_change",
+    )
+
+
+
     _assert_once(
         source_discovery,
         '    - cron: "17 5,17 * * *"',
@@ -1013,6 +1043,7 @@ def main() -> int:
         ".github/workflows/research-validation-status.yml",
         ".github/workflows/24h-research-marathon-watchdog.yml",
         ".github/workflows/bounded-production-recovery.yml",
+        ".github/workflows/automation-activity-keepalive.yml",
     )
     for workflow_path in control_plane_workflows:
         _assert_once(
