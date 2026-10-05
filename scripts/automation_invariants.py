@@ -567,6 +567,10 @@ def main() -> int:
     # schedule/manual-triggered to avoid duplicate control-plane executions.
     # Controller changes are recovered through the independent scheduler supervisor,
     # while the watchdog itself intentionally remains schedule/manual-triggered.
+    # Step-summary Markdown must not accidentally execute shell command substitutions.
+    summary_echo_lines = [line for line in autopilot.splitlines() if line.lstrip().startswith("echo ")]
+    if any(re.search(r"(?<!\\)" + "`" + r"", line) for line in summary_echo_lines):
+        raise SystemExit("FAIL: unescaped backtick in Research autopilot echo summary")
     supervisor_contract = _read("automation-supervisor.yml")
     _assert_once(
         supervisor_contract,
