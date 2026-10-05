@@ -85,12 +85,10 @@ jobs:
               printf '%s' "$research_runs" | jq -r '
                 [ .workflow_runs[]
                   | select(.status == "completed" and .conclusion == "success")
-                  | .head_sha
                 ]
-                | map(select(. != null and . != ""))
                 | sort_by(.run_number)
-                | map(.head_sha)
-                | last // empty
+                | last
+                | .head_sha // empty
               '
             )"
 
