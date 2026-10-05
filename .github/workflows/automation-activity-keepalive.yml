@@ -45,6 +45,19 @@ jobs:
             git checkout -B main origin/main
 
             mkdir -p ops
+
+            # The supervisor can recover a missing weekly keepalive, while this
+            # workflow itself also remains idempotent. A fresh marker means a
+            # keepalive already ran recently; do not create a self-triggering
+            # commit storm just because main advanced to the marker commit.
+            if [ -f ops/automation_keepalive.json ]; then
+              marker_generated_at="$(jq -r '.generated_at // empty' ops/automation_keepalive.json 2>/dev/null || true)"
+              marker_epoch="$(date -u -d "$marker_generated_at" +%s 2>/dev/null || echo 0)"
+              if [ "$marker_epoch" -gt 0 ] && [ "$((marker_epoch + 6 * 24 * 60 * 60))" -gt "$(date -u +%s)" ]; then
+                echo "automation keepalive: marker is fresher than 6 days; no refresh needed"
+                exit 0
+              fi
+            fi
             generated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
             main_sha="$(git rev-parse main)"
             cat > ops/automation_keepalive.json <<EOF
