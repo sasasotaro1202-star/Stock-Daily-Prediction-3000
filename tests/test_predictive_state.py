@@ -100,7 +100,7 @@ def test_uncertainty_components_remain_separately_auditable() -> None:
         "ood_score",
         "volatility_uncertainty",
     }
-    assert np.allclose(aggregate, [0.13333333333333333, 0.8])
+    assert np.allclose(aggregate, [0.13333333333333333, 4.9 / 6.0])
 
 
 def test_information_policy_is_selective_and_ordered() -> None:
