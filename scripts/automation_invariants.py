@@ -802,6 +802,12 @@ def main() -> int:
         "Seed Research status context from workflow_run event",
         "research_status_seeds_workflow_run_context",
     )
+
+    _assert_once(
+        status_workflow,
+        "if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'",
+        "research_status_reconciles_schedule_and_manual_runs",
+    )
     _assert_absent(
         status_workflow,
         "RESEARCH_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id || '' }}",
