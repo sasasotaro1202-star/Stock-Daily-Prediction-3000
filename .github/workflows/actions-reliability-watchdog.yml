@@ -1,6 +1,7 @@
 name: Actions reliability watchdog
 
 # Recovery trigger: rerun watchdog on latest HEAD after research timeout-policy alignment.
+# Bootstrap trigger: also run after Repository verification completes so scheduler gaps cannot strand Research recovery.
 #
 # Research validation intentionally does not trigger this workflow via workflow_run.
 # The watchdog uses its 5-minute schedule (plus manual recovery trigger) to
@@ -15,6 +16,13 @@ on:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"
       timezone: "Asia/Tokyo"
+  # Verification completion is an independent recovery edge: it re-arms the
+  # watchdog immediately after a current-main verification, without depending on
+  # scheduler delivery of the 5-minute cadence.
+  workflow_run:
+    workflows:
+      - "Repository verification"
+    types: [completed]
 
 permissions:
   actions: write
