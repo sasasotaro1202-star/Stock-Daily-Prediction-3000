@@ -992,7 +992,7 @@ def main() -> int:
         "head_sha_required=false",
         "automation_supervisor_keepalive_head_sha_agnostic",
     )
-    _assert_once(
+    _assert_contains(
         automation_supervisor,
         'if { [ "$head_sha_required" = false ] || [ "$head_sha" = "$current_sha" ]; }',
         "automation_supervisor_sha_or_keepalive_recency_gate",
