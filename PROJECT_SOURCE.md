@@ -1790,6 +1790,8 @@ GitHub Actionsは:
 
 長時間Research/Data Collectorは正当なactive OOSを中断しない一方、stale queueと初回failureはGitHub側で限定回復する。
 
+さらに、Automation heartbeatを三次制御プレーンとして配置する。Supervisor/Watchdogの定期実行がGitHub側で欠落した場合、heartbeatは軽量な30分cadenceとSupervisor/Watchdogのworkflow_runイベントから現行mainのcontroller実行有無を確認し、active/新鮮な実行がなければbounded recovery dispatchを行う。重いrepository health testは従来どおり6時間cadenceに分離し、heartbeat recovery自体はproduction/model/research evidenceを変更しない。
+
 ⸻
 
 80. SINGLE-WRITER
