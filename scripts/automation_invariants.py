@@ -926,6 +926,26 @@ def main() -> int:
         'no current-main run within cadence window; dispatching bounded recovery',
         "watchdog_controller_heartbeat_dispatch_policy",
     )
+    _assert_once(
+        watchdog,
+        'latest_terminal_conclusion="cancelled"',
+        "watchdog_tracks_research_cancelled_terminal",
+    )
+    _assert_once(
+        watchdog,
+        'echo "${workflow_name}: bounded cancellation recovery dispatched on current main"',
+        "watchdog_recovers_cancelled_research_on_current_main",
+    )
+    _assert_once(
+        watchdog,
+        'latest_terminal_attempt" -eq 1',
+        "watchdog_cancelled_recovery_is_single_attempt_bounded",
+    )
+    _assert_once(
+        watchdog,
+        'latest_terminal_created_epoch" -le "$((now_epoch - 60 * 60))"',
+        "watchdog_cancelled_recovery_60m_cooldown",
+    )
 
     # Evidence freshness and active-OOS invalidation must share the same
     # explicit control-plane allowlist. Unknown workflow files remain evidence-affecting.

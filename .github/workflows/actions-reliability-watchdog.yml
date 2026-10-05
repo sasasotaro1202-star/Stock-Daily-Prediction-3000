@@ -280,6 +280,12 @@ jobs:
             local active_run_id=""
             local active_run_started_epoch=0
             local recovery_needed=false
+            local latest_terminal_id=""
+            local latest_terminal_run_number=0
+            local latest_terminal_attempt=1
+            local latest_terminal_conclusion=""
+            local latest_terminal_head_sha=""
+            local latest_terminal_created_epoch=0
             local queued_ids=()
             local queued_shas=()
             local queued_created_epochs=()
@@ -319,9 +325,54 @@ jobs:
                 queued_ids+=( "$run_id" )
                 queued_shas+=( "$head_sha" )
                 queued_created_epochs+=( "$created_epoch" )
+              elif [ "$status" = "completed" ]; then
+                terminal_run_number="$(printf '%s' "$run_json" | jq -r '.run_number // 0')"
+                if [ "$terminal_run_number" -gt "$latest_terminal_run_number" ]; then
+                  latest_terminal_id="$run_id"
+                  latest_terminal_run_number="$terminal_run_number"
+                  latest_terminal_attempt="$(printf '%s' "$run_json" | jq -r '.run_attempt // 1')"
+                  latest_terminal_conclusion="$(printf '%s' "$run_json" | jq -r '.conclusion // empty')"
+                  latest_terminal_head_sha="$head_sha"
+                  latest_terminal_created_epoch="$created_epoch"
+                fi
               fi
             done <<< "$run_entries"
 
+            # A cancelled Research validation can otherwise become a permanent dead-end:
+            # status reconciliation records the terminal state, while the normal queue/active
+            # watchdog path has nothing left to recover. Recover exactly one such cancellation
+            # by dispatching a fresh current-main validation, but only when no active/queued run
+            # exists, the cancelled run is the latest terminal Research run, and the cancelled
+            # run is either current-main or differs from current-main only through control-plane
+            # changes. A 60-minute cooldown suppresses cancellation storms.
+            if [ -z "$active_run_id" ] && [ "${#queued_ids[@]}" -eq 0 ] &&
+               [ -n "$latest_terminal_id" ] &&
+               [ "$latest_terminal_conclusion" = "cancelled" ] &&
+               [ "$latest_terminal_attempt" -eq 1 ] &&
+               [ "$latest_terminal_created_epoch" -gt 0 ] &&
+               [ "$latest_terminal_created_epoch" -le "$((now_epoch - 60 * 60))" ]; then
+              local cancellation_evidence_state=1
+              if evidence_diff_state "$latest_terminal_head_sha"; then
+                cancellation_evidence_state=0
+              else
+                cancellation_evidence_state=$?
+              fi
+              if [ "$cancellation_evidence_state" -eq 0 ]; then
+                echo "::warning title=${workflow_name} cancelled-run recovery::latest Research run $latest_terminal_id was cancelled without evidence-affecting changes; dispatching bounded current-main recovery"
+                if gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+                  echo "${workflow_name}: bounded cancellation recovery dispatched on current main"
+                  recovery_needed=true
+                else
+                  echo "::error title=${workflow_name} cancelled-run recovery failed::unable to dispatch current-main recovery"
+                  failures=$((failures + 1))
+                fi
+              elif [ "$cancellation_evidence_state" -eq 2 ]; then
+                echo "::error title=${workflow_name} cancelled-run recovery unverifiable::unable to compare cancelled run $latest_terminal_head_sha with current main $current_sha; failing closed"
+                failures=$((failures + 1))
+              else
+                echo "${workflow_name}: cancelled latest run has evidence-affecting changes; awaiting Repository verification/autopilot"
+              fi
+            fi
             if [ -n "$active_run_id" ]; then
               # Preserve an active chronological OOS across control-plane-only main changes.
               # Evidence-affecting changes invalidate the run and must release the concurrency
