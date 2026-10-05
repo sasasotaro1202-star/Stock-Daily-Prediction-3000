@@ -112,7 +112,7 @@ jobs:
           recover_controller "research-autopilot.yml" "Research autopilot" 30 120
           recover_controller "long-research-recovery.yml" "Long research recovery" 10 45
           recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75
-          recover_controller "automation-activity-keepalive.yml" "Repository automation keepalive" 43200 64800
+          recover_controller "automation-activity-keepalive.yml" "Repository automation keepalive" 10080 20160
 
           if [ "$failures" -gt 0 ]; then
             echo "Automation supervisor: FAIL failures=$failures"

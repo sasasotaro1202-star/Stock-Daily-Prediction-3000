@@ -923,8 +923,8 @@ def main() -> int:
 
     _assert_once(
         automation_supervisor,
-        'recover_controller "automation-activity-keepalive.yml" "Repository automation keepalive" 43200 64800',
-        "automation_supervisor_recovers_long_horizon_keepalive",
+        'recover_controller "automation-activity-keepalive.yml" "Repository automation keepalive" 10080 20160',
+        "automation_supervisor_recovers_long_horizon_keepalive_within_two_cycles",
     )
     _assert_once(
         automation_supervisor,
