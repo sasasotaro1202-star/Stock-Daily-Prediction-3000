@@ -792,6 +792,25 @@ def main() -> int:
         "research_status_terminal_run_orders_by_run_number",
     )
 
+    # A missed workflow_run delivery must not strand successful OOS evidence.
+    # Scheduled/manual reconciliation resolves the terminal run and must restore
+    # its artifact and longitudinal snapshot by the same run_id.
+    _assert_contains(
+        status_workflow,
+        "Success can arrive through workflow_run or through scheduled/manual reconciliation.",
+        "research_status_event_independent_artifact_recovery",
+    )
+    _assert_contains(
+        status_workflow,
+        "env.RESEARCH_STATUS_CONTEXT_FOUND == 'true' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'",
+        "research_status_success_restore_condition_is_event_independent",
+    )
+    _assert_absent(
+        status_workflow,
+        "github.event_name == 'workflow_run' && env.RESEARCH_WORKFLOW_CONCLUSION == 'success'",
+        "research_status_no_workflow_run_only_success_restore",
+    )
+
     automation_supervisor = _read("automation-supervisor.yml")
     _assert_once(
         automation_supervisor,
