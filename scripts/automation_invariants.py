@@ -879,6 +879,39 @@ def main() -> int:
         "watchdog_controller_heartbeat_dispatch_policy",
     )
 
+    # Tertiary heartbeat must be able to recover the supervisor/watchdog
+    # scheduler itself when neither scheduled delivery materializes.
+    _assert_once(
+        heartbeat,
+        '    - cron: "*/30 * * * *"',
+        "heartbeat_control_plane_30m_schedule",
+    )
+    _assert_once(
+        heartbeat,
+        "  workflow_run:",
+        "heartbeat_event_driven_control_plane_trigger",
+    )
+    _assert_once(
+        heartbeat,
+        "  actions: write",
+        "heartbeat_actions_write_permission",
+    )
+    _assert_once(
+        heartbeat,
+        'recover_controller "automation-supervisor.yml" "Automation supervisor" 40',
+        "heartbeat_recovers_automation_supervisor",
+    )
+    _assert_once(
+        heartbeat,
+        'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 20',
+        "heartbeat_recovers_watchdog",
+    )
+    _assert_once(
+        heartbeat,
+        '    - cron: "17 */6 * * *"',
+        "heartbeat_preserves_6h_deep_health_schedule",
+    )
+
     # Keep short research/data collectors inside the bounded watchdog recovery
     # lane. Long OOS collectors remain reconciled by failure-learning without
     # the generic 120-minute watchdog cancellation policy.
