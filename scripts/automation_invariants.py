@@ -768,6 +768,43 @@ def main() -> int:
         "research_status_writer_shared_concurrency",
     )
 
+    long_research_recovery = _read("long-research-recovery.yml")
+    _assert_once(
+        long_research_recovery,
+        '    - cron: "*/10 * * * *"',
+        "long_research_recovery_10m_schedule",
+    )
+    _assert_once(
+        long_research_recovery,
+        "Never cancel an in-progress long collector here.",
+        "long_research_recovery_never_cancels_active",
+    )
+    _assert_once(
+        long_research_recovery,
+        'gh run rerun "\$run_id" --repo "\$GITHUB_REPOSITORY" --failed',
+        "long_research_recovery_bounded_failed_rerun",
+    )
+    _assert_once(
+        long_research_recovery,
+        'run_attempt // 1',
+        "long_research_recovery_attempt_tracking",
+    )
+    _assert_once(
+        long_research_recovery,
+        "At most one recovery action per workflow on each watchdog tick.",
+        "long_research_recovery_one_action_per_tick",
+    )
+    _assert_once(
+        long_research_recovery,
+        'gh workflow run "\$workflow_file" --repo "\$GITHUB_REPOSITORY" --ref main',
+        "long_research_recovery_current_main_dispatch",
+    )
+    _assert_once(
+        watchdog,
+        'inspect_workflow "long-research-recovery.yml" "Long research recovery" true true',
+        "watchdog_recovers_long_research_recovery",
+    )
+
     # Keep short research/data collectors inside the bounded watchdog recovery
     # lane. Long OOS collectors remain reconciled by failure-learning without
     # the generic 120-minute watchdog cancellation policy.

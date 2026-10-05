@@ -88,6 +88,7 @@ Universe
 * online ensemble
 * routing
 * sequential research
+* long-research self-recovery
 
 等のWorkflow/implementation系統が存在する。
 
@@ -1777,8 +1778,13 @@ GitHub Actionsは:
 * concurrency control
 * recovery
 * rollback
+* long-research queue recovery
+* bounded first-failure retry
+* critical workflow failure reconciliation
 
 を実装・検証する。
+
+長時間Research/Data Collectorは正当なactive OOSを中断しない一方、stale queueと初回failureはGitHub側で限定回復する。
 
 ⸻
 
