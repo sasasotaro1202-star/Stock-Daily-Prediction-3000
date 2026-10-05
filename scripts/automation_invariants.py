@@ -884,6 +884,22 @@ def main() -> int:
     fingerprint = str(
         (ROOT / "src" / "validation" / "code_fingerprint.py").read_text(encoding="utf-8")
     )
+    control_plane_scripts = (
+        "scripts/automation_invariants.py",
+        "scripts/project_source_contract.py",
+    )
+    for script_path in control_plane_scripts:
+        _assert_once(
+            fingerprint,
+            f'"{script_path}"',
+            f"research_fingerprint_control_plane_script_{script_path.split("/")[-1].removesuffix(".py")}",
+        )
+        _assert_contains(
+            watchdog,
+            script_path,
+            f"watchdog_control_plane_script_allowlist_{script_path.split("/")[-1].removesuffix(".py")}",
+        )
+
     control_plane_workflows = (
         ".github/workflows/heartbeat.yml",
         ".github/workflows/automation-supervisor.yml",
