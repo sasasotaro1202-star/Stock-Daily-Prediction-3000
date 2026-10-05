@@ -88,6 +88,9 @@ def latest_equity_prediction(
     files: list[Path],
     asset_class: str,
     symbol: str,
+    *,
+    cutoff: pd.Timestamp,
+    expected_target_date: str | None = None,
 ) -> tuple[pd.Series | None, str | None]:
     candidates: list[tuple[pd.Timestamp, Path, pd.Series]] = []
     symbol = symbol.upper()
@@ -110,7 +113,10 @@ def latest_equity_prediction(
             utc=True,
             errors="coerce",
         )
-        if pd.isna(prediction_time):
+        if pd.isna(prediction_time) or prediction_time > cutoff:
+            continue
+        target_date = str(match.iloc[0].get("target_date", "")).strip()
+        if expected_target_date is not None and target_date != expected_target_date:
             continue
         candidates.append((prediction_time, path, match.iloc[0]))
     if not candidates:
@@ -134,6 +140,8 @@ def build_equity_rows(
     universe: set[tuple[str, str]],
     threshold: float,
     require_official_universe: bool,
+    cutoff: pd.Timestamp,
+    expected_target_date: str,
 ) -> list[dict[str, Any]]:
     expected_class = str(items[0].get("asset_class", "")) if items else "jp_stock"
     validate_items(items, expected_class)
@@ -168,7 +176,13 @@ def build_equity_rows(
             rows.append(base)
             continue
 
-        row, filename = latest_equity_prediction(files, asset_class, symbol)
+        row, filename = latest_equity_prediction(
+            files,
+            asset_class,
+            symbol,
+            cutoff=cutoff,
+            expected_target_date=expected_target_date,
+        )
         if row is None:
             base["prediction_status"] = "DEFERRED_PREDICTION_HISTORY_MISSING"
             rows.append(base)
@@ -259,8 +273,19 @@ def prepare_market_frame(context: pd.DataFrame, family: str) -> pd.DataFrame:
 
 
 def next_session_date(date_value: Any, calendar_code: str) -> str:
-    calendar = get_calendar(calendar_code)
     start = pd.Timestamp(date_value).normalize()
+
+    # FX is quoted on the global 24/5 market and is not represented by the
+    # exchange_calendars stock-exchange calendar registry. Its next session
+    # is the next weekday; exchange holidays are not encoded because this
+    # pipeline's provider series is itself sampled on available FX sessions.
+    if calendar_code == "24/5":
+        candidate = start + pd.Timedelta(days=1)
+        while candidate.weekday() >= 5:
+            candidate += pd.Timedelta(days=1)
+        return str(candidate.date())
+
+    calendar = get_calendar(calendar_code)
     sessions = calendar.sessions_in_range(start, start + pd.Timedelta(days=14))
     for session in sessions:
         candidate = pd.Timestamp(session)
@@ -275,6 +300,7 @@ def market_baseline(
     instrument: dict[str, Any],
     cutoff: pd.Timestamp,
     threshold: float,
+    expected_target_date: str,
 ) -> dict[str, Any]:
     usable = frame[frame["available_at"].le(cutoff)].copy()
     usable = usable.dropna(subset=FEATURES).sort_values("session_date").reset_index(drop=True)
@@ -329,6 +355,32 @@ def market_baseline(
     q10 = float(returns.quantile(0.10))
     q90 = float(returns.quantile(0.90))
     close = float(latest["close"])
+    target_date = next_session_date(
+        latest["session_date"],
+        str(instrument["calendar"]),
+    )
+    if target_date != expected_target_date:
+        return {
+            "instrument_type": "index_or_fx",
+            "display_name": str(instrument["display_name"]),
+            "symbol": str(instrument["provider_symbol"]),
+            "instrument_id": str(instrument["instrument_id"]),
+            "direction": None,
+            "p_up_1d": None,
+            "expected_return_1d": None,
+            "expected_close_1d": None,
+            "range_low_1d": None,
+            "range_high_1d": None,
+            "model_id": "logistic_regression_baseline_v1",
+            "uncertainty": None,
+            "prediction_status": "DEFERRED_STALE_CONTEXT",
+            "production_status": "RESEARCH_ONLY",
+            "session_date": str(latest["session_date"]),
+            "target_date": target_date,
+            "expected_target_date": expected_target_date,
+            "cutoff": str(cutoff),
+            "available_at": str(latest["available_at"]),
+        }
 
     return {
         "instrument_type": "index_or_fx",
@@ -346,7 +398,8 @@ def market_baseline(
         "prediction_status": "READY",
         "production_status": "RESEARCH_ONLY",
         "session_date": str(latest["session_date"]),
-        "target_date": next_session_date(latest["session_date"], str(instrument["calendar"])),
+        "target_date": target_date,
+        "expected_target_date": expected_target_date,
         "cutoff": str(cutoff),
         "available_at": str(latest["available_at"]),
         "provider_symbol": str(latest.get("provider_symbol", instrument["provider_symbol"])),
@@ -359,16 +412,26 @@ def build_market_rows(
     *,
     cutoff: pd.Timestamp,
     threshold: float,
+    expected_target_dates: dict[str, str] | None = None,
 ) -> list[dict[str, Any]]:
     rows = []
     for instrument in instruments:
         frame = prepare_market_frame(context, str(instrument["context_family"]))
+        calendar_code = str(instrument["calendar"])
+        if expected_target_dates is None or calendar_code not in expected_target_dates:
+            expected_target_date = next_session_date(
+                cutoff.tz_convert("Asia/Tokyo").date() - pd.Timedelta(days=1),
+                calendar_code,
+            )
+        else:
+            expected_target_date = expected_target_dates[calendar_code]
         rows.append(
             market_baseline(
                 frame,
                 instrument=instrument,
                 cutoff=cutoff,
                 threshold=threshold,
+                expected_target_date=expected_target_date,
             )
         )
     return rows
@@ -405,6 +468,13 @@ def markdown(rows: list[dict[str, Any]], generated_at: str) -> str:
     return "\n".join(lines) + "\n"
 
 
+def expected_daily_target_date(current_date_jst: Any, calendar_code: str) -> str:
+    return next_session_date(
+        pd.Timestamp(current_date_jst).date() - pd.Timedelta(days=1),
+        calendar_code,
+    )
+
+
 def main() -> None:
     cfg = load_config()
     if not bool(cfg.get("enabled", True)):
@@ -412,20 +482,24 @@ def main() -> None:
 
     universe = load_universe()
     cutoff = now_utc()
-
-    jp_items = cfg["equities"]["items"]
-    us_items = cfg["us_equities"]["items"]
+    current_jst_date = cutoff.tz_convert("Asia/Tokyo").date()
+    expected_jp_target_date = expected_daily_target_date(current_jst_date, "XTKS")
+    expected_us_target_date = expected_daily_target_date(current_jst_date, "XNYS")
     jp_rows = build_equity_rows(
         jp_items,
         universe=universe,
         threshold=float(cfg["equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["equities"]["require_official_universe"]),
+        cutoff=cutoff,
+        expected_target_date=expected_jp_target_date,
     )
     us_rows = build_equity_rows(
         us_items,
         universe=universe,
         threshold=float(cfg["us_equities"]["direction_threshold"]),
         require_official_universe=bool(cfg["us_equities"]["require_official_universe"]),
+        cutoff=cutoff,
+        expected_target_date=expected_us_target_date,
     )
 
     if not CONTEXT_SOURCE.exists():
@@ -437,6 +511,11 @@ def main() -> None:
         markets["instruments"],
         cutoff=cutoff,
         threshold=float(markets["direction_threshold"]),
+        expected_target_dates={
+            "XTKS": expected_jp_target_date,
+            "XNYS": expected_us_target_date,
+            "24/5": expected_daily_target_date(current_jst_date, "24/5"),
+        },
     )
 
     rows = jp_rows + us_rows + market_rows
@@ -446,6 +525,11 @@ def main() -> None:
         "status": "READY" if any(r.get("prediction_status") == "READY" for r in rows) else "DEFERRED",
         "generated_at": generated_at,
         "cutoff": generated_at,
+        "as_of_date_jst": str(current_jst_date),
+        "expected_equity_target_dates": {
+            "jp_stock": expected_jp_target_date,
+            "us_stock": expected_us_target_date,
+        },
         "universe_sha256": file_sha256(UNIVERSE_SOURCE),
         "market_context_sha256": file_sha256(CONTEXT_SOURCE),
         "rows": rows,

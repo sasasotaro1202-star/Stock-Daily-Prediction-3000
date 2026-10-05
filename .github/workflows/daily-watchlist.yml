@@ -3,7 +3,7 @@ name: Daily priority watchlist
 on:
   workflow_dispatch:
   schedule:
-    - cron: "57 7 * * 1-5"
+    - cron: "30 8 * * 1-5"
       timezone: "Asia/Tokyo"
 
 permissions:
