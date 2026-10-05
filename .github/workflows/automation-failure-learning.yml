@@ -16,6 +16,19 @@ on:
       - "Prediction monitoring"
       - "24H Research Marathon"
       - "Actions reliability watchdog"
+      - "Daily priority watchlist"
+      - "Research validation status"
+      - "Free Data Source Discovery"
+      - "BOJ Frontier Research"
+      - "e-Stat Dashboard Research"
+      - "FRED Cross-Asset Research"
+      - "Japan MOF FX Intervention and Reserves Research"
+      - "Japan MOF Securities Flow Research"
+      - "SEC XBRL Company Facts Research"
+      - "SEC filings research"
+      - "SEC EDGAR Submissions Research"
+      - "SEC Insider and Ownership Research"
+      - "U.S. Treasury Auction Research"
     types: [completed]
 
 permissions:
