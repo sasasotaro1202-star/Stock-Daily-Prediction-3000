@@ -8,6 +8,7 @@ from scripts.generate_daily_watchlist import (
     build_market_rows,
     load_config,
     next_session_date,
+    latest_equity_prediction,
     validate_items,
 )
 
@@ -156,3 +157,82 @@ def test_main_binds_watchlist_items_from_config():
 def test_workflow_runs_output_integrity_gate():
     workflow = Path(".github/workflows/daily-watchlist.yml").read_text(encoding="utf-8")
     assert "validate_daily_watchlist.py" in workflow
+
+
+def test_equity_target_date_is_derived_from_session_date():
+    path = Path("/tmp/unused.parquet")
+    frame = pd.DataFrame(
+        {
+            "asset_class": ["us_stock"],
+            "symbol": ["AAPL"],
+            "p_up_1d": [0.60],
+            "prediction_time": ["2026-10-05T07:17:00Z"],
+            "prediction_status": ["READY"],
+            "session_date": ["2026-10-02"],
+        }
+    )
+    temp = Path(__import__("tempfile").mkstemp(suffix=".parquet")[1])
+    try:
+        frame.to_parquet(temp, index=False)
+        row, filename = latest_equity_prediction(
+            [temp],
+            "us_stock",
+            "AAPL",
+            cutoff=pd.Timestamp("2026-10-05T08:00:00Z"),
+            expected_target_date="2026-10-05",
+            calendar_code="XNYS",
+        )
+        assert row is not None
+        assert filename == temp.name
+    finally:
+        temp.unlink(missing_ok=True)
+
+
+def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatch):
+    import scripts.validate_daily_watchlist as validator
+
+    config = {
+        "equities": {"items": [{"display_name": "A", "symbol": "7203", "asset_class": "jp_stock"}]},
+        "us_equities": {"items": [{"display_name": "B", "symbol": "AAPL", "asset_class": "us_stock"}]},
+        "market_instruments": {"instruments": [{"display_name": "FX", "provider_symbol": "USDJPY=X", "instrument_id": "FX", "calendar": "24/5"}]},
+    }
+    rows = [
+        {
+            "instrument_type": "equity",
+            "display_name": "A",
+            "symbol": "7203",
+            "prediction_status": "READY",
+            "p_up_1d": 0.6,
+            "direction": "UP",
+            "prediction_time": "2026-10-05T08:00:00Z",
+            "target_date": "2026-10-06",
+        },
+        {
+            "instrument_type": "equity",
+            "display_name": "B",
+            "symbol": "AAPL",
+            "prediction_status": "DEFERRED_PREDICTION_HISTORY_MISSING",
+        },
+        {
+            "instrument_type": "index_or_fx",
+            "display_name": "FX",
+            "symbol": "USDJPY=X",
+            "prediction_status": "DEFERRED_STALE_CONTEXT",
+        },
+    ]
+    cfg_path = tmp_path / "config.yml"
+    out_path = tmp_path / "watch.json"
+    cfg_path.write_text(__import__("yaml").safe_dump(config, allow_unicode=True), encoding="utf-8")
+    out_path.write_text(
+        __import__("json").dumps(
+            {
+                "cutoff": "2026-10-05T08:30:00+00:00",
+                "rows": rows,
+                "coverage": {"total": 3, "ready": 1, "deferred": 2},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(validator, "CONFIG", cfg_path)
+    monkeypatch.setattr(validator, "OUTPUT", out_path)
+    validator.main()

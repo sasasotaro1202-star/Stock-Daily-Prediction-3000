@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 CONFIG = Path("config/daily_watchlist.yml")
 OUTPUT = Path("data/predictions/daily_watchlist.json")
@@ -15,7 +16,7 @@ def main() -> None:
     if not OUTPUT.exists():
         raise SystemExit("FAIL: daily watchlist output is missing")
 
-    cfg = json.loads(json.dumps(__import__("yaml").safe_load(CONFIG.read_text(encoding="utf-8")) or {}))
+    cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
     expected = (
         len(cfg["equities"]["items"])
         + len(cfg["us_equities"]["items"])
@@ -35,7 +36,7 @@ def main() -> None:
     if len(set(keys)) != len(keys):
         raise SystemExit("FAIL: duplicate daily watchlist instrument keys")
 
-    cutoff = pd.Timestamp(payload.get("cutoff"), tz="UTC")
+    cutoff = pd.to_datetime(payload.get("cutoff"), utc=True, errors="coerce")
     if pd.isna(cutoff):
         raise SystemExit("FAIL: invalid watchlist cutoff")
 
