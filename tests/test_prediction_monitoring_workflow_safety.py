@@ -42,6 +42,6 @@ def test_monitoring_persistence_is_fail_closed_without_generated_files():
     assert 'added_any=false' in script
     assert 'if [ -f "$path" ]; then' in script
     assert 'experience persistence: no generated files to commit' in script
-    assert 'git add "$path"' in script
+    assert 'git -C "$worktree_dir" add "$path"' in script
     assert 'git -C "$worktree_dir" push origin HEAD:research-status' in script
     assert "git push origin HEAD:main" not in script
