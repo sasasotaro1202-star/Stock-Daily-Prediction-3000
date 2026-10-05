@@ -4,12 +4,12 @@ name: Research autopilot controller
 # Expensive chronological OOS is dispatched only after current-main repository
 # verification has completed successfully. This workflow owns the dispatch
 # decision; Repository verification is the event-driven entry point, with a
-# daily schedule as a missed-trigger safety net.
+# 30-minute schedule as a missed-trigger safety net.
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: "17 12 * * *"
+    - cron: "*/30 * * * *"
       timezone: "Asia/Tokyo"
   workflow_run:
     workflows: ["Repository verification"]
