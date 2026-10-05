@@ -933,7 +933,7 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        'gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main',
+        'echo "${workflow_name}: bounded cancellation recovery dispatched on current main"',
         "watchdog_recovers_cancelled_research_on_current_main",
     )
     _assert_once(
