@@ -748,6 +748,11 @@ def main() -> int:
         'pip install -e ".[dev,research]"',
         "research_validation_installs_test_dependencies",
     )
+    _assert_once(
+        validation_workflow,
+        "Restore persistent experience memory from research-status",
+        "research_validation_restores_persistent_memory",
+    )
     # Research validation is not directly push-triggered. All main changes
     # first pass Repository verification, and only the verified controller
     # dispatches the expensive OOS workflow. Model-factory changes are therefore
