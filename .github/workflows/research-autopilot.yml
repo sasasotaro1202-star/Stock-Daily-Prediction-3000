@@ -153,6 +153,38 @@ jobs:
           fi
 
           if [ "$active_any" -gt 0 ]; then
+            # Redundant stale-run bootstrap: when any active Research validation has
+            # stopped receiving Actions updates for 120 minutes, wake the watchdog.
+            # The watchdog remains responsible for PIT-safe evidence comparison and
+            # the actual cancel/recovery decision.
+            stale_active_count="$(
+              printf '%s' "$research_runs" | jq '
+                [
+                  .workflow_runs[]
+                  | select(.status == "queued" or .status == "pending" or .status == "waiting" or .status == "requested" or .status == "in_progress")
+                  | ((.updated_at // .created_at) | fromdateiso8601) as $updated
+                  | select($updated < (now - 120 * 60))
+                ]
+                | length
+              '
+            )"
+            if [ "$stale_active_count" -gt 0 ]; then
+              echo "::warning title=Research autopilot stale-active bootstrap::${stale_active_count} active Research run(s) have had no Actions update for over 120 minutes; waking watchdog"
+              if ! gh workflow run actions-reliability-watchdog.yml --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "::error title=Research autopilot stale-active bootstrap failed::unable to wake watchdog"
+                exit 1
+              fi
+              {
+                echo "## Research autopilot"
+                echo "- Action: `BOOTSTRAP_STALE_ACTIVE_WATCHDOG`"
+                echo "- Current main: `$current_sha`"
+                echo "- Stale active Research runs: `$stale_active_count`"
+                echo "- Watchdog recovery: `DISPATCHED`"
+              } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+
+          if [ "$active_any" -gt 0 ]; then
             echo "another Research validation is still active on a different SHA; watchdog owns stale/evidence invalidation"
             {
               echo "## Research autopilot"
