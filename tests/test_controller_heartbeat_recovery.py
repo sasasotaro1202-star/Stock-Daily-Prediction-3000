@@ -34,6 +34,20 @@ def test_independent_supervisor_closes_watchdog_failure_gap() -> None:
     assert 'gh run rerun "$run_id" --repo "$GITHUB_REPOSITORY" --failed' in text
     assert "active run exists; no duplicate recovery" in text
 
+
+def test_keepalive_recovery_is_head_sha_agnostic_after_its_own_push() -> None:
+    supervisor = ROOT / ".github/workflows/automation-supervisor.yml"
+    text = supervisor.read_text(encoding="utf-8")
+    assert 'local head_sha_required=true' in text
+    assert 'if [ "$workflow_name" = "Repository automation keepalive" ]; then' in text
+    assert "head_sha_required=false" in text
+    assert 'if { [ "$head_sha_required" = false ] || [ "$head_sha" = "$current_sha" ]; }' in text
+
+    keepalive = ROOT / ".github/workflows/automation-activity-keepalive.yml"
+    keepalive_text = keepalive.read_text(encoding="utf-8")
+    assert "marker is fresher than 6 days; no refresh needed" in keepalive_text
+    assert "do not create a self-triggering" in keepalive_text
+
     watchdog = WATCHDOG.read_text(encoding="utf-8")
     assert 'recover_missing_periodic_controller "automation-supervisor.yml" "Automation supervisor" 10 45' in watchdog
 
