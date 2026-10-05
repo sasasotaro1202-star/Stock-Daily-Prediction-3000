@@ -564,29 +564,28 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        '".github/workflows/automation-failure-learning.yml"',
-        "watchdog_wakes_on_failure_learning_changes",
-    )
-    _assert_once(
-        watchdog,
         '"scripts/automation_invariants.py"',
         "watchdog_wakes_on_automation_invariant_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"scripts/project_source_contract.py"',
-        "watchdog_wakes_on_project_source_contract_changes",
-    )
-    _assert_once(
-        watchdog,
-        '"scripts/production_invariants.py"',
-        "watchdog_wakes_on_production_invariant_changes",
     )
     _assert_once(
         watchdog,
         '"pyproject.toml"',
         "watchdog_wakes_on_package_environment_changes",
     )
+    # Controller changes are recovered through the independent scheduler supervisor,
+    # while the watchdog itself intentionally remains schedule/manual-triggered.
+    supervisor_contract = _read("automation-supervisor.yml")
+    _assert_once(
+        supervisor_contract,
+        '"scripts/automation_invariants.py"',
+        "supervisor_wakes_on_automation_invariant_changes",
+    )
+    _assert_once(
+        supervisor_contract,
+        'recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20',
+        "supervisor_recovers_watchdog",
+    )
+
 
     _assert_once(
         autopilot,
