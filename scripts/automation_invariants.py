@@ -208,6 +208,17 @@ def main() -> int:
         "automation_keepalive_no_production_change",
     )
 
+    _assert_contains(
+        keepalive,
+        "marker is fresher than 6 days; no refresh needed",
+        "automation_keepalive_idempotent_recent_marker",
+    )
+    _assert_contains(
+        keepalive,
+        "do not create a self-triggering",
+        "automation_keepalive_no_self_trigger_storm",
+    )
+
 
 
     _assert_once(
@@ -955,6 +966,26 @@ def main() -> int:
         automation_supervisor,
         "active run exists; no duplicate recovery",
         "automation_supervisor_preserves_active_runs",
+    )
+    _assert_once(
+        automation_supervisor,
+        'local head_sha_required=true',
+        "automation_supervisor_explicit_sha_requirement",
+    )
+    _assert_once(
+        automation_supervisor,
+        'if [ "$workflow_name" = "Repository automation keepalive" ]; then',
+        "automation_supervisor_keepalive_special_case",
+    )
+    _assert_once(
+        automation_supervisor,
+        "head_sha_required=false",
+        "automation_supervisor_keepalive_head_sha_agnostic",
+    )
+    _assert_once(
+        automation_supervisor,
+        'if { [ "$head_sha_required" = false ] || [ "$head_sha" = "$current_sha" ]; }',
+        "automation_supervisor_sha_or_keepalive_recency_gate",
     )
 
     long_research_recovery = _read("long-research-recovery.yml")
