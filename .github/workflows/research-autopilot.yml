@@ -133,10 +133,10 @@ jobs:
                   echo "Repository verification changed only control-plane/non-evidence files since the last successful Research validation; suppressing push-triggered OOS dispatch"
                   {
                     echo "## Research autopilot"
-                    echo "- Action: `SKIPPED_CONTROL_PLANE_ONLY`"
-                    echo "- Current main: `$current_sha`"
-                    echo "- Last successful Research SHA: `$latest_success_sha`"
-                    echo "- Evidence-affecting changes: `false`"
+                    echo "- Action: SKIPPED_CONTROL_PLANE_ONLY"
+                    echo "- Current main: $current_sha"
+                    echo "- Last successful Research SHA: $latest_success_sha"
+                    echo "- Evidence-affecting changes: false"
                     echo "- Push-triggered Research dispatch: suppressed"
                     echo "- Recurring schedule remains responsible for the normal research cadence"
                   } >> "$GITHUB_STEP_SUMMARY"
@@ -148,9 +148,9 @@ jobs:
                 echo "::warning title=Research autopilot compare unavailable::unable to prove control-plane-only ancestry for the push-triggered verification; deferring push-triggered Research dispatch to the scheduled controller"
                 {
                   echo "## Research autopilot"
-                  echo "- Action: `DEFERRED_COMPARE_UNVERIFIABLE`"
-                  echo "- Current main: `$current_sha`"
-                  echo "- Last successful Research SHA: `$latest_success_sha`"
+                  echo "- Action: DEFERRED_COMPARE_UNVERIFIABLE"
+                  echo "- Current main: $current_sha"
+                  echo "- Last successful Research SHA: $latest_success_sha"
                   echo "- Research dispatch: deferred"
                 } >> "$GITHUB_STEP_SUMMARY"
                 exit 0
