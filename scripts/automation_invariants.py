@@ -908,7 +908,7 @@ def main() -> int:
     )
     _assert_once(
         heartbeat,
-        "github.event.schedule == '17 */6 * * *'",
+        '    - cron: "17 */6 * * *"',
         "heartbeat_preserves_6h_deep_health_schedule",
     )
 
