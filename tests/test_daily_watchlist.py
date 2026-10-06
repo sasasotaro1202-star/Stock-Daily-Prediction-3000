@@ -88,6 +88,12 @@ def test_watchlist_workflow_contract():
     assert "restore_latest_price_state.py" in workflow
     assert "data/predictions/prediction_*.parquet" in workflow
     assert "data/predictions/latest.parquet" in workflow
+    assert 'PRICE_SHARD_COUNT: "4"' in workflow
+    assert "Rebuild missing price shards when restore is incomplete" in workflow
+    assert "python scripts/update_prices.py" in workflow
+    restore = Path("scripts/restore_latest_price_state.py").read_text(encoding="utf-8")
+    assert 'shard_count = max(1, int(os.environ.get("PRICE_SHARD_COUNT", "1")))' in restore
+    assert "restored_shards" in restore
     assert "restore_latest_universe_state.py" in workflow
     assert "update_market_context.py" in workflow
     assert "generate_daily_watchlist.py" in workflow
