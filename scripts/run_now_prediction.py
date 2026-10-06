@@ -190,6 +190,9 @@ def _predict_near_production(
     out["expected_close_1d"] = out["close"] * (1 + out["expected_return_1d"])
     out["range_low_1d"] = out["close"] * (1 + out["return_q10_1d"])
     out["range_high_1d"] = out["close"] * (1 + out["return_q90_1d"])
+    out["q10_1d"] = out["range_low_1d"]
+    out["q50_1d"] = out["expected_close_1d"]
+    out["q90_1d"] = out["range_high_1d"]
     out["model_id"] = model_name
     out["training_scope"] = "near_production_global"
     out["return_training_scope"] = "near_production_global"
@@ -318,9 +321,11 @@ def main() -> None:
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
     result.to_parquet(OUT, index=False)
+    stamp = pd.Timestamp.now(tz="UTC").strftime("%Y%m%dT%H%M%SZ")
+    result.to_parquet(OUT.parent / f"prediction_{stamp}.parquet", index=False)
     print(
         f"prediction-mode=NEAR_PRODUCTION rows={len(result)} "
-        f"model={model_name} source={source}"
+        f"model={model_name} source={source} snapshot={stamp}"
     )
 
 
