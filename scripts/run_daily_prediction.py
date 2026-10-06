@@ -248,6 +248,7 @@ def main():
     latest_returns = []
     return_scope = []
     latest_lows = []
+    latest_medians = []
     latest_highs = []
 
     for asset, group in latest[ready_mask].groupby("asset_class", sort=False):
@@ -255,18 +256,22 @@ def main():
         scope = f"asset:{asset}" if str(asset) in asset_qmodels else "global"
 
         lo = qmodels["q10"].predict(group[FEATURE_COLUMNS])
+        q50 = qmodels["q50"].predict(group[FEATURE_COLUMNS])
         mid = expected_return_predict(group[FEATURE_COLUMNS])
         hi = qmodels["q90"].predict(group[FEATURE_COLUMNS])
-        lo = np.minimum(lo, mid)
-        hi = np.maximum(hi, mid)
+        lo = np.minimum(np.minimum(lo, mid), q50)
+        hi = np.maximum(np.maximum(hi, mid), q50)
+        q50 = np.minimum(np.maximum(q50, lo), hi)
 
         latest_returns.extend(zip(group.index, mid))
         latest_lows.extend(zip(group.index, lo))
+        latest_medians.extend(zip(group.index, q50))
         latest_highs.extend(zip(group.index, hi))
         return_scope.extend(zip(group.index, [scope] * len(group)))
 
     ret_by_index = {idx: value for idx, value in latest_returns}
     low_by_index = {idx: value for idx, value in latest_lows}
+    median_by_index = {idx: value for idx, value in latest_medians}
     high_by_index = {idx: value for idx, value in latest_highs}
     scope_by_index = {idx: value for idx, value in return_scope}
 
@@ -278,6 +283,9 @@ def main():
     ]
     latest["return_q90_1d"] = [
         float(high_by_index.get(idx, np.nan)) for idx in latest.index
+    ]
+    latest["q50_return_1d"] = [
+        float(median_by_index.get(idx, np.nan)) for idx in latest.index
     ]
     latest["return_training_scope"] = [
         scope_by_index.get(idx, "") for idx in latest.index
@@ -312,12 +320,16 @@ def main():
         latest["close"] * (1 + latest["return_q90_1d"]),
         np.nan,
     )
-    # Explicit price-domain quantile contract aliases. q50 is the point
+    latest["q50_1d"] = np.where(
+        ready_mask,
+        latest["close"] * (1 + latest["q50_return_1d"]),
+        np.nan,
+    )
+    # Explicit price-domain quantile contract aliases. q50 is the model
     # estimate used as expected_close_1d; q10/q90 are the corresponding
     # lower/upper price quantiles. Keep them materialized in production
     # artifacts so downstream consumers do not have to infer semantics.
     latest["q10_1d"] = latest["range_low_1d"]
-    latest["q50_1d"] = latest["expected_close_1d"]
     latest["q90_1d"] = latest["range_high_1d"]
     latest["prediction_time"] = prediction_time
     latest["prediction_date"] = prediction_time.tz_convert("Asia/Tokyo").date()
@@ -345,6 +357,7 @@ def main():
         "q10_1d",
         "q50_1d",
         "q90_1d",
+        "q50_return_1d",
         "model_id",
         "training_scope",
         "return_training_scope",
