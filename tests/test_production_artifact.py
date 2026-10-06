@@ -64,10 +64,11 @@ def test_artifact_validation_requires_exact_required_classifier_set(
 
 def test_artifact_validation_requires_all_price_quantiles():
     import src.prediction.production_artifact as artifact_module
+    from src.features.technical import FEATURE_COLUMNS
 
     meta = {
         "artifact_version": 1,
-        "feature_columns": [],
+        "feature_columns": list(FEATURE_COLUMNS),
         "required_classifiers": ["hgb"],
         "selected_model": "hgb",
     }
