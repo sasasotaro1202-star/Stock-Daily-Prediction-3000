@@ -80,6 +80,9 @@ def validate_items(items: list[dict[str, Any]], expected_asset_class: str) -> No
         seen.add(key)
 
 
+USABLE_EQUITY_STATUSES = {"READY", "READY_NEAR_PRODUCTION"}
+
+
 def prediction_files() -> list[Path]:
     return sorted(PREDICTION_DIR.glob("prediction_*.parquet"))
 
@@ -220,14 +223,20 @@ def build_equity_rows(
                 "uncertainty": safe_num(row.get("model_disagreement")),
                 "prediction_status": status,
                 "production_status": (
-                    "PRODUCTION_PREDICTION_REFERENCE" if status == "READY" else "DEFERRED"
+                    "PRODUCTION_PREDICTION_REFERENCE"
+                    if status == "READY"
+                    else (
+                        "NEAR_PRODUCTION_PREDICTION_REFERENCE"
+                        if status == "READY_NEAR_PRODUCTION"
+                        else "DEFERRED"
+                    )
                 ),
                 "prediction_file": filename,
                 "prediction_time": str(row.get("prediction_time")),
                 "target_date": str(row.get("target_date", "")),
             }
         )
-        if status != "READY":
+        if status not in USABLE_EQUITY_STATUSES:
             base["direction"] = None
         rows.append(base)
 
@@ -471,7 +480,8 @@ def markdown(rows: list[dict[str, Any]], generated_at: str) -> str:
         [
             "",
             "Notes:",
-            "- Equity entries reference the latest available PIT-safe production prediction artifact; they are not recomputed here.",
+            "- Equity entries are regenerated before this watchlist and reference the latest PIT-safe prediction artifact.",
+            "- READY is production-reference; READY_NEAR_PRODUCTION is usable for daily monitoring but is not production evidence.",
             "- Nikkei 225, S&P 500, and USDJPY use a research-only logistic baseline based on matured market-context data.",
             "- Missing universe, prediction history, or PIT-safe market context is DEFERRED; no value is fabricated.",
             "- Google is represented by Alphabet Class A (GOOGL).",
@@ -534,9 +544,13 @@ def main() -> None:
 
     rows = jp_rows + us_rows + market_rows
     generated_at = cutoff.isoformat()
+    usable_statuses = {"READY", "READY_NEAR_PRODUCTION"}
+    production_ready = sum(r.get("prediction_status") == "READY" for r in rows)
+    usable = sum(r.get("prediction_status") in usable_statuses for r in rows)
+    status = "READY" if usable == len(rows) else ("DEGRADED" if usable > 0 else "DEFERRED")
     payload = {
         "schema_version": 1,
-        "status": "READY" if any(r.get("prediction_status") == "READY" for r in rows) else "DEFERRED",
+        "status": status,
         "generated_at": generated_at,
         "cutoff": generated_at,
         "as_of_date_jst": str(current_jst_date),
@@ -549,8 +563,9 @@ def main() -> None:
         "rows": rows,
         "coverage": {
             "total": len(rows),
-            "ready": sum(r.get("prediction_status") == "READY" for r in rows),
-            "deferred": sum(r.get("prediction_status") != "READY" for r in rows),
+            "ready": usable,
+            "production_ready": production_ready,
+            "deferred": len(rows) - usable,
         },
         "research_only_market_instruments": True,
         "promotion_allowed": False,
