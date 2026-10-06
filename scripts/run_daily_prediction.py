@@ -312,6 +312,13 @@ def main():
         latest["close"] * (1 + latest["return_q90_1d"]),
         np.nan,
     )
+    # Explicit price-domain quantile contract aliases. q50 is the point
+    # estimate used as expected_close_1d; q10/q90 are the corresponding
+    # lower/upper price quantiles. Keep them materialized in production
+    # artifacts so downstream consumers do not have to infer semantics.
+    latest["q10_1d"] = latest["range_low_1d"]
+    latest["q50_1d"] = latest["expected_close_1d"]
+    latest["q90_1d"] = latest["range_high_1d"]
     latest["prediction_time"] = prediction_time
     latest["prediction_date"] = prediction_time.tz_convert("Asia/Tokyo").date()
     latest["model_version"] = model_version
@@ -335,6 +342,9 @@ def main():
         "expected_close_1d",
         "range_low_1d",
         "range_high_1d",
+        "q10_1d",
+        "q50_1d",
+        "q90_1d",
         "model_id",
         "training_scope",
         "return_training_scope",
