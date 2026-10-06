@@ -174,6 +174,7 @@ def _predict_near_production(
     mid = np.full(len(out), np.nan, dtype=float)
     lo = np.full(len(out), np.nan, dtype=float)
     hi = np.full(len(out), np.nan, dtype=float)
+    q50_return = np.full(len(out), np.nan, dtype=float)
     if ready.any():
         frame = out.loc[ready, FEATURE_COLUMNS]
         mid_v = ret.predict(frame)
@@ -187,7 +188,6 @@ def _predict_near_production(
         q50_v = np.minimum(np.maximum(q50_v, lo_v), hi_v)
         idx = np.flatnonzero(ready.to_numpy())
         mid[idx], lo[idx], hi[idx] = mid_v, lo_v, hi_v
-        q50_return = np.full(len(out), np.nan, dtype=float)
         q50_return[idx] = q50_v
 
     out["expected_return_1d"] = mid
