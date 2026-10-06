@@ -79,4 +79,7 @@ jobs:
           path: |
             data/predictions/daily_watchlist.json
             data/predictions/daily_watchlist.md
-          retention-days: 14
+            data/predictions/latest.parquet
+            data/predictions/prediction_*.parquet
+          if-no-files-found: error
+          retention-days: 30
