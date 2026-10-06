@@ -62,6 +62,28 @@ def main():
             )
             return
         raise
+    except Exception as exc:
+        destination = Path("data/prices")
+        destination.mkdir(parents=True, exist_ok=True)
+        summary = {
+            "schema_version": 1,
+            "status": "DEFERRED",
+            "expected_shards": shard_count,
+            "restored_shards": 0,
+            "restored_files": 0,
+            "artifact_names": [],
+            "errors": [{"stage": "artifact_api", "error": repr(exc)}],
+        }
+        (destination / "price_state_restore.json").write_text(
+            json.dumps(summary, indent=2),
+            encoding="utf-8",
+        )
+        print(
+            "::warning title=Price state API unavailable::"
+            f"artifact lookup failed with {type(exc).__name__}; "
+            "falling back to bounded fresh price fetch"
+        )
+        return
 
     artifacts = [
         a for a in payload.get("artifacts", [])
