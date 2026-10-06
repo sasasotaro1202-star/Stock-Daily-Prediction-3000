@@ -58,7 +58,10 @@ jobs:
           ]
           cols = [c for c in cols if c in df.columns]
           out = df[cols].copy()
-          out = out.sort_values(["rank","p_up_1d"], ascending=[True,False], na_position="last")
+          sort_cols = [c for c in ("rank","p_up_1d","expected_return_1d") if c in out.columns]
+          if sort_cols:
+              ascending = [True] + [False] * (len(sort_cols) - 1)
+              out = out.sort_values(sort_cols, ascending=ascending, na_position="last")
           Path("data/predictions").mkdir(parents=True, exist_ok=True)
           out.to_csv("data/predictions/latest.csv", index=False)
           Path("data/predictions/latest.json").write_text(
