@@ -31,6 +31,8 @@ def test_watchlist_has_all_requested_instruments():
         "DIS","SBUX","MCD","NFLX","KO","TSLA","NKE","META","AMZN","GOOGL","MSFT","NVDA","AAPL",
     }
     assert len(jp) + len(us) + len(markets) == 41
+    assert cfg["priority_watchlist"]["mandatory_daily_prediction"] is True
+    assert int(cfg["priority_watchlist"]["expected_count"]) == 41
 
 
 def test_validate_items_rejects_duplicate():
@@ -80,7 +82,8 @@ def test_market_baseline_has_direction_and_pit_cutoff():
 
 def test_watchlist_workflow_contract():
     workflow = Path(".github/workflows/daily-watchlist.yml").read_text(encoding="utf-8")
-    assert 'cron: "30 8 * * 1-5"' in workflow
+    assert 'cron: "50 18 * * 1-5"' in workflow
+    assert 'timezone: "Asia/Tokyo"' in workflow
     assert "restore_prediction_history.py" in workflow
     assert "restore_latest_universe_state.py" in workflow
     assert "update_market_context.py" in workflow
@@ -191,6 +194,7 @@ def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatc
     import scripts.validate_daily_watchlist as validator
 
     config = {
+        "priority_watchlist": {"mandatory_daily_prediction": True, "expected_count": 3},
         "equities": {"items": [{"display_name": "A", "symbol": "7203", "asset_class": "jp_stock"}]},
         "us_equities": {"items": [{"display_name": "B", "symbol": "AAPL", "asset_class": "us_stock"}]},
         "market_instruments": {"instruments": [{"display_name": "FX", "provider_symbol": "USDJPY=X", "instrument_id": "FX", "calendar": "24/5"}]},
@@ -205,6 +209,7 @@ def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatc
             "direction": "UP",
             "prediction_time": "2026-10-05T08:00:00Z",
             "target_date": "2026-10-06",
+            "available_at": "2026-10-05T07:55:00Z",
         },
         {
             "instrument_type": "equity",
