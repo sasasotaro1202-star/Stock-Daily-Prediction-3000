@@ -55,10 +55,21 @@ def main() -> None:
         status = str(row.get("prediction_status", ""))
         if status in usable_statuses:
             ready += 1
+            production_status = str(row.get("production_status", "")).strip()
+            if status == "READY" and production_status != "PRODUCTION_PREDICTION_REFERENCE":
+                raise SystemExit(
+                    f"FAIL: READY row is not marked PRODUCTION_PREDICTION_REFERENCE for {row.get('display_name')}"
+                )
+            if (
+                status == "READY_NEAR_PRODUCTION"
+                and production_status != "NEAR_PRODUCTION_PREDICTION_REFERENCE"
+            ):
+                raise SystemExit(
+                    f"FAIL: READY_NEAR_PRODUCTION row is not marked NEAR_PRODUCTION_PREDICTION_REFERENCE for {row.get('display_name')}"
+                )
             if (
                 status == "READY"
-                and str(row.get("production_status", ""))
-                == "PRODUCTION_PREDICTION_REFERENCE"
+                and production_status == "PRODUCTION_PREDICTION_REFERENCE"
             ):
                 production_ready += 1
             p = pd.to_numeric(row.get("p_up_1d"), errors="coerce")
