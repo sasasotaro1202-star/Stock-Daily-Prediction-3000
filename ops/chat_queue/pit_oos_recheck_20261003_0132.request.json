@@ -1,9 +1,0 @@
-{
-  "schema_version": 1,
-  "task_id": "pit_oos_recheck_20261003_0132",
-  "task_type": "daily_research",
-  "requested_at": "2026-10-02T16:32:46.995Z",
-  "mode": "async",
-  "max_runtime_minutes": 50,
-  "arguments": {}
-}
