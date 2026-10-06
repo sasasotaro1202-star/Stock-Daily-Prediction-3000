@@ -1,6 +1,14 @@
 schema_version: 1
 enabled: true
 
+priority_watchlist:
+  id: "mandatory_daily_direction_41"
+  mandatory_daily_prediction: true
+  scheduled_time_jst: "18:50"
+  target_horizon: "next_business_session"
+  fail_closed_on_missing_data: true
+  expected_count: 41
+
 output:
   json: data/predictions/daily_watchlist.json
   markdown: data/predictions/daily_watchlist.md
