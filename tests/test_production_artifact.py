@@ -62,6 +62,28 @@ def test_artifact_validation_requires_exact_required_classifier_set(
         artifact_module.validate_artifact(payload)
 
 
+def test_artifact_validation_requires_all_price_quantiles():
+    import src.prediction.production_artifact as artifact_module
+
+    meta = {
+        "artifact_version": 1,
+        "feature_columns": [],
+        "required_classifiers": ["hgb"],
+        "selected_model": "hgb",
+    }
+    classifiers = {"hgb": {"model": object(), "calibrator": object()}}
+    quantile = {"global": {"q10": object(), "q90": object()}, "assets": {}}
+    return_section = {
+        "selected": "q50",
+        "global": {"mean": object(), "q50": object()},
+    }
+
+    with pytest.raises(RuntimeError, match="q10/q50/q90"):
+        artifact_module._validate_artifact_structure(
+            meta, classifiers, quantile, return_section
+        )
+
+
 def test_runtime_restores_lightgbm_for_recent_and_composite_routes():
     from pathlib import Path
     script = Path("scripts/install_production_runtime.py").read_text()
