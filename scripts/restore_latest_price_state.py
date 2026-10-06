@@ -47,10 +47,9 @@ def _get_json(url: str, token: str):
 
 def main():
     idx = int(os.environ.get("PRICE_SHARD_INDEX", "0"))
+    shard_count = max(1, int(os.environ.get("PRICE_SHARD_COUNT", "1")))
     repo = os.environ["GITHUB_REPOSITORY"]
     token = os.environ["GITHUB_TOKEN"]
-    preferred_name = f"price-state-shard-{idx}"
-    research_prefix = f"research-validation-price-{idx}-"
 
     query = f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100"
     try:
@@ -64,39 +63,75 @@ def main():
             return
         raise
 
-    candidates = [
+    artifacts = [
         a for a in payload.get("artifacts", [])
-        if (
-            not a.get("expired")
-            and (
+        if not a.get("expired")
+    ]
+
+    if shard_count == 1:
+        shard_indices = [idx]
+    else:
+        shard_indices = list(range(shard_count))
+
+    selected = []
+    for shard in shard_indices:
+        preferred_name = f"price-state-shard-{shard}"
+        research_prefix = f"research-validation-price-{shard}-"
+        candidates = [
+            a for a in artifacts
+            if (
                 a.get("name") == preferred_name
                 or str(a.get("name", "")).startswith(research_prefix)
             )
-        )
-    ]
-    if not candidates:
-        print("price-state: no previous artifact; initial 5y fetch will run")
-        return
-
-    artifact = max(candidates, key=lambda a: a.get("created_at", ""))
-    with tempfile.TemporaryDirectory() as tmp:
-        extract = Path(tmp) / "artifact"
-        download_workflow_artifact(repo, token, artifact, extract)
-        validate_extracted_tree(extract)
-        matches = [p for p in extract.rglob("*.parquet") if p.is_file()]
-        if not matches:
-            raise SystemExit(
-                f"DEFERRED: price-state artifact {artifact['id']} contains no parquet files"
+        ]
+        if candidates:
+            selected.append(
+                max(candidates, key=lambda a: a.get("created_at", ""))
             )
-        destination = Path("data/prices")
-        destination.mkdir(parents=True, exist_ok=True)
-        for source in matches:
-            shutil.copy2(source, destination / source.name)
 
-    print(
-        f"price-state: restored artifact_id={artifact['id']} "
-        f"created_at={artifact['created_at']} files={len(matches)}"
+    destination = Path("data/prices")
+    destination.mkdir(parents=True, exist_ok=True)
+    restored_shards = []
+    restored_files = 0
+
+    for artifact in selected:
+        with tempfile.TemporaryDirectory() as tmp:
+            extract = Path(tmp) / "artifact"
+            download_workflow_artifact(repo, token, artifact, extract)
+            validate_extracted_tree(extract)
+            matches = [p for p in extract.rglob("*.parquet") if p.is_file()]
+            if not matches:
+                raise SystemExit(
+                    f"DEFERRED: price-state artifact {artifact['id']} contains no parquet files"
+                )
+            for source in matches:
+                shutil.copy2(source, destination / source.name)
+            restored_files += len(matches)
+            restored_shards.append(
+                str(artifact.get("name") or artifact.get("id"))
+            )
+
+    status = "PASS" if len(selected) == len(shard_indices) else "DEFERRED"
+    summary = {
+        "schema_version": 1,
+        "status": status,
+        "expected_shards": len(shard_indices),
+        "restored_shards": len(selected),
+        "restored_files": restored_files,
+        "artifact_names": restored_shards,
+    }
+    (destination / "price_state_restore.json").write_text(
+        json.dumps(summary, indent=2),
+        encoding="utf-8",
     )
+
+    if not selected:
+        print("price-state: no previous artifact; initial full-universe refresh may be required")
+    else:
+        print(
+            f"price-state: restored_shards={len(selected)}/{len(shard_indices)} "
+            f"files={restored_files} status={status}"
+        )
 
 
 if __name__ == "__main__":
