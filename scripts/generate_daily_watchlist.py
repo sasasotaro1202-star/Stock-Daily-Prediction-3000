@@ -103,7 +103,7 @@ def latest_equity_prediction(
             frame = pd.read_parquet(path)
         except Exception:
             continue
-        required = {"asset_class", "symbol", "p_up_1d", "prediction_time", "prediction_status"}
+        required = {"asset_class", "symbol", "p_up_1d", "prediction_time", "prediction_status", "available_at"}
         if not required.issubset(frame.columns):
             continue
         match = frame[
@@ -117,7 +117,18 @@ def latest_equity_prediction(
             utc=True,
             errors="coerce",
         )
-        if pd.isna(prediction_time) or prediction_time > cutoff:
+        available_at = pd.to_datetime(
+            match.iloc[0]["available_at"],
+            utc=True,
+            errors="coerce",
+        )
+        if (
+            pd.isna(prediction_time)
+            or pd.isna(available_at)
+            or prediction_time > cutoff
+            or available_at > prediction_time
+            or available_at > cutoff
+        ):
             continue
         target_date = str(match.iloc[0].get("target_date", "")).strip()
         if not target_date and calendar_code:
@@ -182,6 +193,7 @@ def build_equity_rows(
             "prediction_status": None,
             "production_status": "DEFERRED",
             "prediction_file": None,
+            "available_at": None,
         }
 
         key = (asset_class, symbol)
@@ -233,6 +245,7 @@ def build_equity_rows(
                 ),
                 "prediction_file": filename,
                 "prediction_time": str(row.get("prediction_time")),
+                "available_at": str(row.get("available_at")),
                 "target_date": str(row.get("target_date", "")),
             }
         )
