@@ -99,3 +99,20 @@ A candidate is not production-eligible unless the complete bundle is internally 
 When broad research is requested, search beyond ordinary hyperparameter tuning. Explore materially different mechanisms across probability geometry, robust aggregation, prior/recency expert weighting, diversity-aware weighting, calibration order, case-level shrinkage, selective prediction, ranking transforms, and regime/uncertainty interactions.
 
 Every candidate must use the same chronological OOS case set where feasible. Learned or tuned quantities must use strictly prior evidence. Frozen holdout remains untouched until candidate specification is locked. External methods are discovery inputs only; external performance is never local evidence. For prequential frontier selection, the final research winner must be the candidate selected by the last development decision made before scoring that fold; the decision-fold outcome itself must never determine that selection. Any aggregate ranking of selected candidates is diagnostic only.
+
+
+## Mandatory daily priority prediction watchlist
+
+Every JP/US market day, the GitHub automation must first attempt an actual PIT-safe next-business-session prediction for the mandatory 41-instrument watchlist before generating the human-facing daily watchlist. The exact set is defined in config/daily_watchlist.yml: 25 JP equities, 13 US equities, Nikkei 225, S&P 500 and USD/JPY.
+
+JP: 三菱地所(8802), 三井不動産(8801), テレビ朝日(9409), 日本テレビ(9404), フジテレビ(4676), TBS(9401), キオクシア(285A), Umios(1333), 味の素(2802), 日清食品(2897), ホンダ(7267), 日産(7201), LINEヤフー(4689), メルカリ(4385), タイミー(215A), dip(2379), ニトリ(9843), NTT(9432), パナソニック(6752), SONY(6758), 東京エレクトロン(8035), アドバンテスト(6857), 任天堂(7974), ソフトバンク(9434), トヨタ(7203).
+
+US: ウォルトディズニー(DIS), スターバックス(SBUX), マクドナルド(MCD), Netflix(NFLX), コカ・コーラ(KO), Tesla(TSLA), NIKE(NKE), Meta(META), Amazon(AMZN), Google/Alphabet Class A(GOOGL), Microsoft(MSFT), NVIDIA(NVDA), Apple(AAPL).
+
+Market: 日経平均株価(^N225), S&P500(^GSPC), ドル/円(USDJPY=X).
+
+The scheduled priority run is 18:50 JST on JP/US business weekdays, after the canonical JP market-close cycle. It must regenerate the latest PIT-safe equity predictions before assembling the priority watchlist. Missing, stale, identity-inconsistent or PIT-unverifiable rows are explicit DEFERRED states; no value is fabricated.
+
+READY is production-reference. READY_NEAR_PRODUCTION is usable for daily monitoring but is never production evidence. Daily coverage must separately report total, usable, production-ready and deferred counts.
+
+This automation requirement is an execution/coverage guarantee, not a performance guarantee. Prediction quality still requires chronological OOS/WFO, calibration, robustness and frozen-holdout evidence.
