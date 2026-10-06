@@ -27,10 +27,28 @@ def api(url: str, token: str) -> dict:
 def main():
     repo=os.environ["GITHUB_REPOSITORY"]
     token=os.environ["GITHUB_TOKEN"]
-    artifacts=api(
-        f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100",
-        token,
-    ).get("artifacts",[])
+    try:
+        artifacts=api(
+            f"https://api.github.com/repos/{repo}/actions/artifacts?per_page=100",
+            token,
+        ).get("artifacts",[])
+    except Exception as exc:
+        target=Path("data/predictions")
+        target.mkdir(parents=True,exist_ok=True)
+        summary={
+            "status":"DEFERRED",
+            "restored_files":0,
+            "errors":[{"stage":"artifact_api","error":repr(exc)}],
+        }
+        (target.parent / "prediction_history_restore.json").write_text(
+            json.dumps(summary,indent=2),
+            encoding="utf-8",
+        )
+        print(
+            "prediction-history-restore: DEFERRED",
+            f"artifact_api_error={type(exc).__name__}",
+        )
+        return
     candidates=[
         a for a in artifacts
         if not a.get("expired")
