@@ -17,11 +17,19 @@ def main() -> None:
         raise SystemExit("FAIL: daily watchlist output is missing")
 
     cfg = yaml.safe_load(CONFIG.read_text(encoding="utf-8")) or {}
+    priority = cfg.get("priority_watchlist") or {}
+    if not bool(priority.get("mandatory_daily_prediction", False)):
+        raise SystemExit("FAIL: mandatory daily prediction is disabled")
     expected = (
         len(cfg["equities"]["items"])
         + len(cfg["us_equities"]["items"])
         + len(cfg["market_instruments"]["instruments"])
     )
+    configured_expected = int(priority.get("expected_count", expected))
+    if configured_expected != expected:
+        raise SystemExit(
+            f"FAIL: configured expected_count mismatch: expected={expected} configured={configured_expected}"
+        )
 
     payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
     rows = payload.get("rows")
@@ -72,6 +80,20 @@ def main() -> None:
             if prediction_time > cutoff:
                 raise SystemExit(
                     f"FAIL: future prediction_time for usable row {row.get('display_name')}"
+                )
+
+            available_at = pd.to_datetime(
+                row.get("available_at"),
+                utc=True,
+                errors="coerce",
+            )
+            if pd.isna(available_at):
+                raise SystemExit(
+                    f"FAIL: invalid available_at for usable row {row.get('display_name')}"
+                )
+            if available_at > prediction_time or available_at > cutoff:
+                raise SystemExit(
+                    f"FAIL: PIT availability violation for usable row {row.get('display_name')}"
                 )
 
             target_date = str(row.get("target_date", "")).strip()
