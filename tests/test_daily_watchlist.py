@@ -85,6 +85,9 @@ def test_watchlist_workflow_contract():
     assert 'cron: "50 18 * * 1-5"' in workflow
     assert 'timezone: "Asia/Tokyo"' in workflow
     assert "restore_prediction_history.py" in workflow
+    assert "restore_latest_price_state.py" in workflow
+    assert "data/predictions/prediction_*.parquet" in workflow
+    assert "data/predictions/latest.parquet" in workflow
     assert "restore_latest_universe_state.py" in workflow
     assert "update_market_context.py" in workflow
     assert "generate_daily_watchlist.py" in workflow
