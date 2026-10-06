@@ -87,6 +87,15 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in queue_block
 
 
+def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert 'local recover_superseded_failure="${5:-false}"' in text
+    assert "superseded_recent_failure_found=false" in text
+    assert "recent failure on superseded SHA" in text
+    assert "superseded-failure recovery dispatched on current main" in text
+    assert 'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true' in text
+
+
 def test_watchdog_covers_short_research_collectors_and_watchlist() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     expected = (
