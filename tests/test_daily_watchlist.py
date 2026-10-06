@@ -263,6 +263,48 @@ def test_near_production_prediction_writes_timestamped_snapshot_and_quantiles():
     assert 'out["q90_1d"] = out["range_high_1d"]' in source
 
 
+def test_validator_rejects_inconsistent_production_status(tmp_path, monkeypatch):
+    import scripts.validate_daily_watchlist as validator
+
+    config = {
+        "priority_watchlist": {"mandatory_daily_prediction": True, "expected_count": 1},
+        "equities": {
+            "items": [
+                {"display_name": "A", "symbol": "7203", "asset_class": "jp_stock"}
+            ]
+        },
+        "us_equities": {"items": []},
+        "market_instruments": {"instruments": []},
+    }
+    rows = [{
+        "instrument_type": "equity",
+        "display_name": "A",
+        "symbol": "7203",
+        "prediction_status": "READY",
+        "production_status": "NEAR_PRODUCTION_PREDICTION_REFERENCE",
+        "p_up_1d": 0.6,
+        "direction": "UP",
+        "prediction_time": "2026-10-05T08:00:00Z",
+        "available_at": "2026-10-05T07:55:00Z",
+        "target_date": "2026-10-06",
+        "q10_1d": 100.0,
+        "q50_1d": 101.0,
+        "q90_1d": 102.0,
+    }]
+    cfg_path = tmp_path / "config.yml"
+    out_path = tmp_path / "watch.json"
+    cfg_path.write_text(__import__("yaml").safe_dump(config, allow_unicode=True), encoding="utf-8")
+    out_path.write_text(__import__("json").dumps({
+        "cutoff": "2026-10-05T08:30:00+00:00",
+        "rows": rows,
+        "coverage": {"total": 1, "ready": 1, "production_ready": 0, "deferred": 0},
+    }), encoding="utf-8")
+    monkeypatch.setattr(validator, "CONFIG", cfg_path)
+    monkeypatch.setattr(validator, "OUTPUT", out_path)
+    with pytest.raises(SystemExit, match="not marked PRODUCTION_PREDICTION_REFERENCE"):
+        validator.main()
+
+
 def test_validator_excludes_research_only_market_rows_from_production_ready(tmp_path, monkeypatch):
     import scripts.validate_daily_watchlist as validator
 
