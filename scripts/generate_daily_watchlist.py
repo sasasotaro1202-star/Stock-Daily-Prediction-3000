@@ -490,11 +490,16 @@ def markdown(rows: list[dict[str, Any]], generated_at: str) -> str:
     return "\n".join(lines) + "\n"
 
 
-def expected_daily_target_date(current_date_jst: Any, calendar_code: str) -> str:
-    return next_session_date(
-        pd.Timestamp(current_date_jst).date() - pd.Timedelta(days=1),
-        calendar_code,
-    )
+def expected_daily_target_date(
+    current_date_jst: Any,
+    calendar_code: str,
+    *,
+    previous_day: bool = True,
+) -> str:
+    anchor = pd.Timestamp(current_date_jst).date()
+    if previous_day:
+        anchor = anchor - pd.Timedelta(days=1)
+    return next_session_date(anchor, calendar_code)
 
 
 def main() -> None:
@@ -505,8 +510,12 @@ def main() -> None:
     universe = load_universe()
     cutoff = now_utc()
     current_jst_date = cutoff.tz_convert("Asia/Tokyo").date()
-    expected_jp_target_date = expected_daily_target_date(current_jst_date, "XTKS")
-    expected_us_target_date = expected_daily_target_date(current_jst_date, "XNYS")
+    expected_jp_target_date = expected_daily_target_date(
+        current_jst_date, "XTKS", previous_day=False
+    )
+    expected_us_target_date = expected_daily_target_date(
+        current_jst_date, "XNYS", previous_day=True
+    )
     jp_items = cfg["equities"]["items"]
     us_items = cfg["us_equities"]["items"]
     jp_rows = build_equity_rows(
@@ -538,7 +547,9 @@ def main() -> None:
         expected_target_dates={
             "XTKS": expected_jp_target_date,
             "XNYS": expected_us_target_date,
-            "24/5": expected_daily_target_date(current_jst_date, "24/5"),
+            "24/5": expected_daily_target_date(
+                current_jst_date, "24/5", previous_day=False
+            ),
         },
     )
 
