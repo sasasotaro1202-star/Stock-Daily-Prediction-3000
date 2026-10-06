@@ -258,9 +258,13 @@ def test_watchlist_validator_rejects_non_monotone_quantiles(tmp_path, monkeypatc
 def test_near_production_prediction_writes_timestamped_snapshot_and_quantiles():
     source = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
     assert 'f"prediction_{stamp}.parquet"' in source
+    assert 'q50_v = qmodels["q50"].predict(frame)' in source
     assert 'out["q10_1d"] = out["range_low_1d"]' in source
-    assert 'out["q50_1d"] = out["expected_close_1d"]' in source
+    assert 'out["q50_1d"] = out["close"] * (1 + q50_return)' in source
     assert 'out["q90_1d"] = out["range_high_1d"]' in source
+    production = Path("scripts/run_daily_prediction.py").read_text(encoding="utf-8")
+    assert 'q50 = qmodels["q50"].predict(group[FEATURE_COLUMNS])' in production
+    assert 'latest["q50_1d"] = np.where(' in production
 
 
 def test_validator_rejects_inconsistent_production_status(tmp_path, monkeypatch):
