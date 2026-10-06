@@ -726,6 +726,21 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
+        "recover_daily_watchlist_missed_schedule()",
+        "watchdog_daily_watchlist_missing_schedule_recovery",
+    )
+    _assert_once(
+        watchdog,
+        'TZ=Asia/Tokyo date -d "${day_jst} 19:35:00" +%s',
+        "watchdog_daily_watchlist_recovery_threshold",
+    )
+    _assert_once(
+        watchdog,
+        "no Daily Priority Watchlist run was created in today's 18:40-19:35 JST schedule window",
+        "watchdog_daily_watchlist_schedule_miss_message",
+    )
+    _assert_once(
+        watchdog,
         '    - cron: "*/5 * * * *"',
         "watchdog_canonical_schedule",
     )

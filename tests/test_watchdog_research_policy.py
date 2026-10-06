@@ -96,6 +96,17 @@ def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
     assert 'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true' in text
 
 
+def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "recover_daily_watchlist_missed_schedule()" in text
+    assert 'workflow_file="daily-watchlist.yml"' in text
+    assert 'weekday="$(TZ=Asia/Tokyo date +%u)"' in text
+    assert "19:35:00" in text
+    assert "18:40:00" in text
+    assert "missed-schedule recovery dispatched on current main" in text
+    assert "no Daily Priority Watchlist run was created" in text
+
+
 def test_watchdog_covers_short_research_collectors_and_watchlist() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     expected = (

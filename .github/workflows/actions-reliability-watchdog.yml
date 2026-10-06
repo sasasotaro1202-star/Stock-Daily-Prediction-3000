@@ -273,6 +273,72 @@ jobs:
           inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true
           inspect_workflow "experience-review.yml" "Experience review" true true
           inspect_workflow "long-research-recovery.yml" "Long research recovery" true true
+          # GitHub may occasionally miss a scheduled workflow dispatch entirely.
+          # Failure recovery above only sees an existing run, so Daily Priority Watchlist
+          # gets a bounded schedule-miss detector after a 45-minute grace period.
+          recover_daily_watchlist_missed_schedule() {
+            local workflow_file="daily-watchlist.yml"
+            local workflow_name="Daily priority watchlist"
+            local runs
+            if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
+              echo "::error title=${workflow_name} schedule-miss API unavailable::unable to inspect today's Daily Priority Watchlist runs"
+              failures=$((failures + 1))
+              return 0
+            fi
+
+            local weekday
+            weekday="$(TZ=Asia/Tokyo date +%u)"
+            if [ "${weekday}" -ge 6 ]; then
+              return 0
+            fi
+
+            local now_epoch
+            now_epoch="$(date -u +%s)"
+            local day_jst
+            day_jst="$(TZ=Asia/Tokyo date +%Y-%m-%d)"
+            # Scheduled target is 18:50 JST. Give GitHub Actions a 45-minute grace period
+            # before declaring the schedule missing and dispatching one recovery run.
+            local recovery_after_epoch
+            recovery_after_epoch="$(TZ=Asia/Tokyo date -d "${day_jst} 19:35:00" +%s)"
+            if [ "${now_epoch}" -lt "${recovery_after_epoch}" ]; then
+              return 0
+            fi
+
+            local window_start_epoch
+            window_start_epoch="$(TZ=Asia/Tokyo date -d "${day_jst} 18:40:00" +%s)"
+            local scheduled_window_runs
+            scheduled_window_runs="$(
+              printf '%s' "${runs}" | jq --argjson start "${window_start_epoch}" --argjson now "${now_epoch}" '
+                [ .workflow_runs[]
+                  | select(.created_at != null)
+                  | ((.created_at | fromdateiso8601)) as $created
+                  | select($created >= $start and $created <= $now)
+                ] | length
+              '
+            )"
+
+            if [ "${scheduled_window_runs}" -eq 0 ]; then
+              echo "::warning title=${workflow_name} schedule miss::no Daily Priority Watchlist run was created in today's 18:40-19:35 JST schedule window; dispatching one current-main recovery"
+              if gh workflow run "${workflow_file}" --repo "${GITHUB_REPOSITORY}" --ref main; then
+                echo "${workflow_name}: missed-schedule recovery dispatched on current main"
+                {
+                  echo "## Daily priority watchlist schedule recovery"
+                  echo "- Action: MISSED_SCHEDULE_RECOVERY"
+                  echo "- Date (JST): ${day_jst}"
+                  echo "- Expected schedule: 18:50 JST"
+                  echo "- Recovery threshold: 19:35 JST"
+                  echo "- Current main: ${current_sha}"
+                  echo "- Existing runs in schedule window: 0"
+                } >> "$GITHUB_STEP_SUMMARY"
+              else
+                echo "::error title=${workflow_name} schedule-miss recovery failed::unable to dispatch current-main Daily Priority Watchlist"
+                failures=$((failures + 1))
+              fi
+            else
+              echo "${workflow_name}: today's scheduled/recovery run exists; no missed-schedule dispatch needed"
+            fi
+          }
+
           # Short research collectors are safe for bounded first-failure retry and
           # stale-run recovery. Long OOS collectors remain failure-memory only
           # to avoid cancelling legitimate multi-hour research.
