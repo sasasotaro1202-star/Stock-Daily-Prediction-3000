@@ -296,6 +296,9 @@ def main():
     latest["return_q10_1d"] = latest["return_q10_1d"].clip(
         lower=-0.99
     )
+    latest["q50_return_1d"] = latest["q50_return_1d"].clip(
+        lower=-0.99
+    )
     latest["return_q10_1d"] = np.minimum(
         latest["return_q10_1d"],
         latest["expected_return_1d"],
@@ -325,9 +328,9 @@ def main():
         latest["close"] * (1 + latest["q50_return_1d"]),
         np.nan,
     )
-    # Explicit price-domain quantile contract aliases. q50 is the model
-    # estimate used as expected_close_1d; q10/q90 are the corresponding
-    # lower/upper price quantiles. Keep them materialized in production
+    # Explicit price-domain quantile contract aliases. q50 is the
+    # model-derived median; expected_close_1d remains the separate point
+    # estimate; q10/q90 are the corresponding lower/upper price quantiles.
     # artifacts so downstream consumers do not have to infer semantics.
     latest["q10_1d"] = latest["range_low_1d"]
     latest["q90_1d"] = latest["range_high_1d"]
