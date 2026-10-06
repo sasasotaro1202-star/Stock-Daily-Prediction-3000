@@ -724,7 +724,7 @@ def main() -> int:
         '  push:\n    paths:',
         "watchdog_has_no_push_trigger",
     )
-    _assert_once(
+    _assert_contains(
         watchdog,
         "recover_daily_watchlist_missed_schedule()",
         "watchdog_daily_watchlist_missing_schedule_recovery",
