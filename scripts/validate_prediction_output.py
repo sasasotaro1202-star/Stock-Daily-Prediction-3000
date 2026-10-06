@@ -63,7 +63,7 @@ def main() -> None:
         bad = sorted(df.loc[~df["prediction_status"].isin(ALLOWED_STATUS), "prediction_status"].astype(str).unique())
         raise SystemExit(f"FAIL: unknown prediction_status values: {bad}")
 
-    ready = df["prediction_status"].eq("READY")
+    ready = df["prediction_status"].isin({"READY", "READY_NEAR_PRODUCTION"})
     if not ready.any():
         raise SystemExit("FAIL: prediction output contains no READY rows")
     expected_prediction_date = prediction_time.dt.tz_convert("Asia/Tokyo").dt.date.astype(str)
