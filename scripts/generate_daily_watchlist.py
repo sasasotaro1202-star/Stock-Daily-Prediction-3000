@@ -580,11 +580,7 @@ def main() -> None:
     rows = jp_rows + us_rows + market_rows
     generated_at = cutoff.isoformat()
     usable_statuses = {"READY", "READY_NEAR_PRODUCTION"}
-    production_ready = sum(
-        r.get("prediction_status") == "READY"
-        and r.get("production_status") == "PRODUCTION_PREDICTION_REFERENCE"
-        for r in rows
-    )
+    production_ready = sum(r.get("prediction_status") == "READY" for r in rows)
     usable = sum(r.get("prediction_status") in usable_statuses for r in rows)
     status = "READY" if usable == len(rows) else ("DEGRADED" if usable > 0 else "DEFERRED")
     payload = {

@@ -55,11 +55,7 @@ def main() -> None:
         status = str(row.get("prediction_status", ""))
         if status in usable_statuses:
             ready += 1
-            if (
-                status == "READY"
-                and str(row.get("production_status", ""))
-                == "PRODUCTION_PREDICTION_REFERENCE"
-            ):
+            if status == "READY":
                 production_ready += 1
             p = pd.to_numeric(row.get("p_up_1d"), errors="coerce")
             if pd.isna(p) or not 0.0 <= float(p) <= 1.0:

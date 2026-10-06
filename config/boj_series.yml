@@ -1,0 +1,17 @@
+version: 1
+research_only: true
+source_id: boj_timeseries
+base_url: "https://www.stat-search.boj.or.jp/api/v1/getDataCode"
+language: en
+availability_policy:
+  type: next_weekday
+  time_jst: "15:00"
+  rationale: "Conservative timestamp after BOJ Time-Series main-data update windows; exact release time is never inferred earlier."
+series_groups:
+  - name: call_rate
+    db: FM01
+    codes:
+      - STRDCLUCON
+      - STRDCLUCONH
+      - STRDCLUCONL
+    start_date: "199801"

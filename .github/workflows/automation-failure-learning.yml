@@ -1,0 +1,254 @@
+name: Automation failure learning
+
+on:
+  # workflow_dispatch and schedule are automatic safety nets for missed workflow_run
+  # deliveries. They reconcile recent failures from all watched critical workflows.
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+      timezone: "Asia/Tokyo"
+  workflow_run:
+    workflows:
+      - "Repository verification"
+      - "Research validation"
+      - "Market cycle"
+      - "U.S. close prediction"
+      - "Prediction monitoring"
+      - "24H Research Marathon"
+      - "Actions reliability watchdog"
+      - "Long research recovery"
+      - "Automation supervisor"
+      - "Daily priority watchlist"
+      - "Research validation status"
+      - "Free Data Source Discovery"
+      - "BOJ Frontier Research"
+      - "e-Stat Dashboard Research"
+      - "FRED Cross-Asset Research"
+      - "Japan MOF FX Intervention and Reserves Research"
+      - "Japan MOF Securities Flow Research"
+      - "SEC XBRL Company Facts Research"
+      - "SEC filings research"
+      - "SEC EDGAR Submissions Research"
+      - "SEC Insider and Ownership Research"
+      - "U.S. Treasury Auction Research"
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: research-status-writer
+  cancel-in-progress: false
+
+jobs:
+  record:
+    if: >-
+      github.event_name == 'workflow_run' &&
+      (
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out' ||
+      github.event.workflow_run.conclusion == 'startup_failure' ||
+      github.event.workflow_run.conclusion == 'action_required'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build immutable automation failure record
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          WORKFLOW_RUN_NUMBER: ${{ github.event.workflow_run.run_number }}
+          WORKFLOW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_RUN_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+          WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_CREATED_AT: ${{ github.event.workflow_run.created_at }}
+          WORKFLOW_UPDATED_AT: ${{ github.event.workflow_run.updated_at }}
+          WORKFLOW_EVENT: ${{ github.event.workflow_run.event }}
+        run: python scripts/record_automation_failure.py
+      - name: Validate failure record
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/automation_failure_record.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d["schema_version"] == 1
+          assert d["status"] == "FAILED"
+          assert d["failure_id"]
+          assert d["head_sha"]
+          assert d["workflow_run_id"]
+          assert d["research_only"] is True
+          assert d["production_mutation"] is False
+          print("automation_failure_record=PASS", d["failure_id"])
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: automation-failure-${{ github.event.workflow_run.id }}
+          path: data/research/automation_failure_record.json
+          retention-days: 90
+      - name: Persist failure memory on research-status branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          record="$(cat data/research/automation_failure_record.json)"
+          rm -rf /tmp/research-status-worktree
+          mkdir -p /tmp/research-status-worktree
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch origin research-status
+            git worktree add --detach /tmp/research-status-worktree origin/research-status
+          else
+            git worktree add --detach /tmp/research-status-worktree HEAD
+          fi
+          cd /tmp/research-status-worktree
+          mkdir -p data/research
+          python - "$record" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          record = json.loads(sys.argv[1])
+          path = Path("data/research/automation_failure_memory.jsonl")
+          existing = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+          if any(
+              record.get("failure_id") == json.loads(row).get("failure_id")
+              for row in existing
+              if row.strip()
+          ):
+              print("automation_failure_memory: duplicate suppressed")
+              raise SystemExit(0)
+          with path.open("a", encoding="utf-8") as handle:
+              handle.write(json.dumps(record, ensure_ascii=False, sort_keys=True) + "\n")
+          print("automation_failure_memory: appended", record["failure_id"])
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research/automation_failure_memory.jsonl
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "Record automation failure memory"
+          git push origin HEAD:research-status
+
+  reconcile:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Discover recent critical workflow failures
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_API_URL: ${{ github.api_url }}
+        run: python -m scripts.reconcile_automation_failures
+      - name: Validate reconciled failure records
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("data/research/automation_failure_records.jsonl")
+          rows = [
+              json.loads(line)
+              for line in path.read_text(encoding="utf-8").splitlines()
+              if line.strip()
+          ]
+          assert all(row.get("schema_version") == 1 for row in rows)
+          assert all(row.get("status") == "FAILED" for row in rows)
+          assert all(row.get("research_only") is True for row in rows)
+          assert all(row.get("production_mutation") is False for row in rows)
+          assert len({row.get("failure_id") for row in rows}) == len(rows)
+          print("reconciled_failure_records=PASS", len(rows))
+          PY
+      - name: Build failure triage and research backlog
+        run: python -m scripts.triage_automation_failures
+      - name: Validate failure triage
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path("data/research/automation_failure_triage.json").read_text(encoding="utf-8"))
+          assert payload.get("schema_version") == 1
+          assert payload.get("status") == "RECONCILED"
+          assert payload.get("research_only") is True
+          assert payload.get("production_mutation") is False
+          assert isinstance(payload.get("backlog"), list)
+          print("automation_failure_triage=PASS", len(payload["backlog"]))
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: automation-failure-reconciliation-${{ github.run_id }}
+          path: |
+            data/research/automation_failure_records.jsonl
+            data/research/automation_failure_triage.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Persist reconciled failure memory on research-status branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/research-status-worktree
+          mkdir -p /tmp/research-status-worktree
+          if git ls-remote --exit-code --heads origin research-status >/dev/null 2>&1; then
+            git fetch origin research-status
+            git worktree add --detach /tmp/research-status-worktree origin/research-status
+          else
+            git worktree add --detach /tmp/research-status-worktree HEAD
+          fi
+          cd /tmp/research-status-worktree
+          mkdir -p data/research
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          incoming = Path(os.environ["GITHUB_WORKSPACE"]) / "data/research/automation_failure_records.jsonl"
+          target = Path("data/research/automation_failure_memory.jsonl")
+          existing_lines = target.read_text(encoding="utf-8").splitlines() if target.exists() else []
+          existing_ids = set()
+          for line in existing_lines:
+              if not line.strip():
+                  continue
+              row = json.loads(line)
+              existing_ids.add(str(row.get("failure_id") or ""))
+
+          added = 0
+          with target.open("a", encoding="utf-8") as handle:
+              for line in incoming.read_text(encoding="utf-8").splitlines():
+                  if not line.strip():
+                      continue
+                  row = json.loads(line)
+                  failure_id = str(row.get("failure_id") or "")
+                  if not failure_id or failure_id in existing_ids:
+                      continue
+                  handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
+                  existing_ids.add(failure_id)
+                  added += 1
+          print("reconciled_failure_memory_added", added)
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/research/automation_failure_memory.jsonl
+          if git diff --cached --quiet; then
+            echo "automation failure memory: no new records"
+            exit 0
+          fi
+          git commit -m "Reconcile automation failure memory"
+          git push origin HEAD:research-status

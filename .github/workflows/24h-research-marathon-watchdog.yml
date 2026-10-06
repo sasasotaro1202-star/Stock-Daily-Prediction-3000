@@ -1,0 +1,211 @@
+name: 24H Research Marathon Watchdog
+# The watchdog is also the bounded stale-run recovery controller; ordinary pushes do not dispatch research.
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/24h-research-marathon-watchdog.yml"
+  schedule:
+    - cron: "*/15 * * * *"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: research-marathon-watchdog
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Inspect and recover marathon
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/24h-research-marathon.yml/runs?per_page=50")"
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          SELF_RUN_ID="$GITHUB_RUN_ID"
+
+          printf '%s' "$runs" > /tmp/marathon-runs.json
+          python - /tmp/marathon-runs.json "$MAIN_SHA" "$SELF_RUN_ID" <<'PY' > /tmp/decision.json
+          import json, sys
+          from datetime import datetime, timezone
+
+          runs=json.load(open(sys.argv[1],encoding="utf-8")).get("workflow_runs",[])
+          main_sha=sys.argv[2]
+          self_id=int(sys.argv[3])
+          now=datetime.now(timezone.utc)
+          active_statuses={"queued","pending","in_progress","waiting","requested"}
+
+          def parse_ts(row, field="updated_at"):
+              raw=row.get(field) or row.get("created_at")
+              return datetime.fromisoformat(raw.replace("Z","+00:00")) if raw else now
+
+          candidates=[r for r in runs if int(r.get("id",0) or 0) != self_id]
+          active=[r for r in candidates if r.get("status") in active_statuses]
+
+          stale=[]
+          for r in active:
+              status=r.get("status")
+              age=(now-parse_ts(r, "run_started_at" if status=="in_progress" else "updated_at")).total_seconds()/60
+              if status in {"queued","pending"} and age >= 30:
+                  stale.append((r,age,"queue"))
+              elif status=="in_progress" and age >= 350:
+                  stale.append((r,age,"active"))
+
+          if stale:
+              # Prefer stale in-progress runs over stale queued runs so an
+              # orphaned compute job is reclaimed before queue cleanup.
+              stale.sort(
+                  key=lambda item: (
+                      0 if item[2] == "active" else 1,
+                      -item[1],
+                  )
+              )
+              r,age,kind=stale[0]
+              print(json.dumps({"action":"CANCEL_AND_WAIT","run_id":int(r["id"]),"reason":f"stale_{kind}","age_minutes":round(age,1)}))
+          elif active:
+              print(json.dumps({"action":"WAIT","reason":"active_run_present"}))
+          else:
+              completed_main=[r for r in candidates if r.get("status")=="completed" and r.get("head_sha")==main_sha]
+              completed_main.sort(key=lambda r: parse_ts(r,"updated_at"), reverse=True)
+              if not completed_main:
+                  print(json.dumps({"action":"DISPATCH","reason":"no_completed_main_run"}))
+              else:
+                  latest=completed_main[0]
+                  age=(now-parse_ts(latest,"updated_at")).total_seconds()/60
+                  recent_failures=[
+                      r for r in completed_main
+                      if (now-parse_ts(r,"updated_at")).total_seconds() <= 6*3600
+                      and r.get("conclusion") in {"failure","cancelled","timed_out"}
+                  ]
+                  conclusion=latest.get("conclusion")
+                  if conclusion in {"failure","cancelled","timed_out"} and age >= 10 and len(recent_failures) < 3:
+                      print(json.dumps({"action":"DISPATCH","reason":"recent_failed_run_recovery","age_minutes":round(age,1)}))
+                  elif len(recent_failures) >= 3 and age < 360:
+                      print(json.dumps({"action":"HOLD","reason":"three_recent_failures_cooldown","failures":len(recent_failures)}))
+                  elif age >= 24*60:
+                      print(json.dumps({"action":"DISPATCH","reason":"24h_cycle_elapsed","age_minutes":round(age,1)}))
+                  else:
+                      print(json.dumps({"action":"WAIT","reason":"cycle_within_window","age_minutes":round(age,1)}))
+          PY
+
+          # The 24H Marathon is an extended research lane, not a second
+          # production/research trigger. Do not start it while the main
+          # Research validation lane is active, or before current-main
+          # Repository verification has succeeded.
+          CURRENT_SHA="$MAIN_SHA"
+          verification_passed="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/repository-verification.yml/runs?branch=main&per_page=20" |
+            jq -r --arg sha "$CURRENT_SHA" '
+              [ .workflow_runs[]
+                | select(.head_sha == $sha)
+                | select(.status == "completed")
+              ]
+              | sort_by(.run_number)
+              | last
+              | if . == null then "false"
+                elif .conclusion == "success" then "true"
+                else "false"
+                end
+            '
+          )"
+          research_active="$(
+            gh api "repos/$GITHUB_REPOSITORY/actions/workflows/research-validation.yml/runs?branch=main&per_page=50" |
+            jq '[ .workflow_runs[]
+              | select(.status == "queued" or .status == "pending" or .status == "waiting" or .status == "requested" or .status == "in_progress")
+            ] | length'
+          )"
+
+          if [ "$verification_passed" != "true" ] || [ "$research_active" -gt 0 ]; then
+            echo "WATCHDOG: HOLD marathon; verification_passed=$verification_passed research_active=$research_active"
+            {
+              echo "## 24H Research Marathon watchdog"
+              echo "- Action: `HOLD_RESEARCH_PRIORITY`"
+              echo "- Current main: `$CURRENT_SHA`"
+              echo "- Repository verification PASS: `$verification_passed`"
+              echo "- Active Research validation runs: `$research_active`"
+              echo "- Marathon dispatch suppressed to protect the primary Research lane"
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          cat /tmp/decision.json
+          action="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["action"])')"
+          run_id="$(python -c 'import json; print(json.load(open("/tmp/decision.json")).get("run_id",""))')"
+          reason="$(python -c 'import json; print(json.load(open("/tmp/decision.json"))["reason"])')"
+
+          dispatch_main() {
+            for attempt in 1 2 3 4; do
+              if gh workflow run 24h-research-marathon.yml --repo "$GITHUB_REPOSITORY" --ref main; then
+                echo "WATCHDOG: dispatched fresh 24H run (attempt $attempt/4)"
+                return 0
+              fi
+              sleep $((attempt * 4))
+            done
+            echo "WATCHDOG: bounded dispatch retries exhausted" >&2
+            return 1
+          }
+
+          case "$action" in
+            WAIT|HOLD)
+              echo "WATCHDOG: $action ($reason)"
+              ;;
+            CANCEL_AND_WAIT)
+              set +e
+              gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"
+              cancel_rc=$?
+              set -e
+              if [ "$cancel_rc" -ne 0 ]; then
+                echo "WATCHDOG: standard cancel request failed for stale run $run_id" >&2
+                exit "$cancel_rc"
+              fi
+
+              settled=0
+              for attempt in 1 2 3 4 5 6; do
+                sleep 10
+                current="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.status')"
+                echo "WATCHDOG: cancellation settle poll attempt=$attempt/6 status=$current"
+                if [ "$current" != "in_progress" ] && [ "$current" != "queued" ] && [ "$current" != "pending" ] && [ "$current" != "waiting" ] && [ "$current" != "requested" ]; then
+                  settled=1
+                  break
+                fi
+              done
+
+              if [ "$settled" -eq 0 ]; then
+                echo "WATCHDOG: standard cancel did not settle; issuing force-cancel for stale run $run_id"
+                gh api --method POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/force-cancel"
+                for attempt in 1 2 3 4; do
+                  sleep 10
+                  current="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.status')"
+                  echo "WATCHDOG: force-cancel settle poll attempt=$attempt/4 status=$current"
+                  if [ "$current" != "in_progress" ] && [ "$current" != "queued" ] && [ "$current" != "pending" ] && [ "$current" != "waiting" ] && [ "$current" != "requested" ]; then
+                    settled=1
+                    break
+                  fi
+                done
+              fi
+
+              if [ "$settled" -ne 1 ]; then
+                echo "WATCHDOG: stale run cancellation did not settle after bounded force-cancel recovery" >&2
+                exit 1
+              fi
+              echo "WATCHDOG: stale run $run_id cancellation settled; next tick may dispatch"
+              ;;
+            DISPATCH)
+              dispatch_main
+              ;;
+            *)
+              echo "WATCHDOG: unknown action $action" >&2
+              exit 1
+              ;;
+          esac

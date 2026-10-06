@@ -1,0 +1,37 @@
+name: FRED Cross-Asset Research
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "37 8 * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fred-cross-asset-research
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Collect FRED public Fed cross-asset series
+        env:
+          FRED_LOOKBACK_YEARS: "10"
+        run: python scripts/collect_fred_cross_asset_research.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: fred-cross-asset-research-${{ github.run_id }}
+          path: data/research/fred_cross_asset/
+          if-no-files-found: error
+          retention-days: 30

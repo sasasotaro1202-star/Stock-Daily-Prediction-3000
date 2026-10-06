@@ -1,0 +1,143 @@
+name: Automation heartbeat
+
+# Tertiary control-plane guard.
+# The supervisor and watchdog remain the primary recovery controllers. This
+# heartbeat exists specifically to recover when their scheduler deliveries are
+# missing or their control-plane runs are absent. The push trigger below is also
+# an operator-independent bootstrap path that can re-arm the recovery chain when
+# scheduled delivery is temporarily absent. It does not mutate model,
+# production, or research evidence.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/heartbeat.yml"
+  schedule:
+    # Lightweight control-plane recovery every 30 minutes.
+    - cron: "*/30 * * * *"
+    # Full repository health remains intentionally infrequent.
+    - cron: "17 */6 * * *"
+  workflow_run:
+    workflows:
+      - "Automation supervisor"
+      - "Actions reliability watchdog"
+    types: [completed]
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: automation-heartbeat
+  cancel-in-progress: false
+
+jobs:
+  control:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event.workflow_run.conclusion == 'failure' ||
+      github.event.workflow_run.conclusion == 'timed_out' ||
+      github.event.workflow_run.conclusion == 'startup_failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Recover missing control-plane runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          failures=0
+
+          recover_controller() {
+            local workflow_file="$1"
+            local workflow_name="$2"
+            local max_age_minutes="$3"
+            local runs
+            if ! runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$workflow_file/runs?branch=main&per_page=20" 2>/dev/null)"; then
+              echo "::error title=$workflow_name heartbeat API unavailable::unable to inspect controller runs"
+              failures=$((failures + 1))
+              return
+            fi
+
+            local recent_cutoff="$(( $(date -u +%s) - max_age_minutes * 60 ))"
+            local active_current_found=false
+            local recent_current_found=false
+
+            while IFS= read -r encoded; do
+              [ -n "$encoded" ] || continue
+              local run_json
+              run_json="$(printf '%s' "$encoded" | base64 -d)"
+              local run_id status head_sha created created_epoch
+              run_id="$(printf '%s' "$run_json" | jq -r '.id // empty')"
+              status="$(printf '%s' "$run_json" | jq -r '.status // empty')"
+              head_sha="$(printf '%s' "$run_json" | jq -r '.head_sha // empty')"
+              created="$(printf '%s' "$run_json" | jq -r '.created_at // empty')"
+              created_epoch="$(date -d "$created" +%s 2>/dev/null || echo 0)"
+              [ -n "$run_id" ] || continue
+
+              if [ "$head_sha" = "$current_sha" ]                 && { [ "$status" = "queued" ] || [ "$status" = "pending" ] || [ "$status" = "waiting" ] || [ "$status" = "requested" ] || [ "$status" = "in_progress" ]; }; then
+                active_current_found=true
+                continue
+              fi
+
+              if [ "$head_sha" = "$current_sha" ] && [ "$created_epoch" -ge "$recent_cutoff" ]; then
+                recent_current_found=true
+                break
+              fi
+            done < <(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')
+
+            if [ "$active_current_found" = true ]; then
+              echo "$workflow_name: active/queued current-main run exists; no recovery dispatch"
+              return
+            fi
+
+            if [ "$recent_current_found" = true ]; then
+              echo "$workflow_name: current-main controller run is fresh"
+              return
+            fi
+
+            echo "::warning title=$workflow_name scheduler gap::no recent current-main controller run; dispatching bounded heartbeat recovery"
+            if ! gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+              echo "::error title=$workflow_name heartbeat recovery failed::unable to dispatch current-main controller run"
+              failures=$((failures + 1))
+            else
+              echo "$workflow_name: bounded current-main recovery dispatched"
+            fi
+          }
+
+          # Tertiary chain:
+          # heartbeat -> supervisor/watchdog -> research/failure controllers.
+          recover_controller "automation-supervisor.yml" "Automation supervisor" 40
+          recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 20
+
+          if [ "$failures" -gt 0 ]; then
+            echo "Automation heartbeat control: FAIL failures=$failures"
+            exit 1
+          fi
+          echo "Automation heartbeat control: PASS"
+
+  health:
+    # Preserve the original deep health checks at the previous 6-hour cadence.
+    if: >-
+      github.event_name == 'schedule' &&
+      github.event.schedule == '17 */6 * * *'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev,research]"
+      - run: python -m compileall -q src scripts
+      - run: pytest -q
+      - run: python scripts/research_smoke.py
+      - run: python scripts/automation_invariants.py
+      - name: Verify production invariants
+        run: python scripts/production_invariants.py

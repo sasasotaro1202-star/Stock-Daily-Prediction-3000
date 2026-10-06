@@ -1,0 +1,37 @@
+name: Japan MOF Securities Flow Research
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "47 6 * * 1"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mof-securities-research
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Collect public MOF securities-flow datasets
+        env:
+          MOF_REQUEST_TIMEOUT_SECONDS: 30
+        run: python scripts/collect_mof_securities_research.py
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: mof-securities-research-${{ github.run_id }}
+          path: data/research/mof_securities/
+          if-no-files-found: error
+          retention-days: 30

@@ -1,0 +1,1 @@
+research-validation-trigger-terminal-event-stale-guard-2026-10-04
