@@ -81,7 +81,7 @@ def main():
         print(
             "::warning title=Price state API unavailable::"
             f"artifact lookup failed with {type(exc).__name__}; "
-            "falling back to bounded fresh price fetch"
+            "falling back to bounded free price refresh"
         )
         return
 
