@@ -731,6 +731,12 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
+        'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true\n          recover_daily_watchlist_missed_schedule()',
+        "watchdog_daily_watchlist_missing_schedule_recovery_invoked",
+    )
+
+    _assert_once(
+        watchdog,
         'TZ=Asia/Tokyo date -d "${day_jst} 19:35:00" +%s',
         "watchdog_daily_watchlist_recovery_threshold",
     )

@@ -107,6 +107,13 @@ def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
     assert "no Daily Priority Watchlist run was created" in text
 
 
+def test_daily_watchlist_missing_schedule_recovery_is_invoked() -> None:
+    text = WORKFLOW.read_text(encoding="utf-8")
+    anchor = 'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true'
+    assert anchor in text
+    assert text.index("recover_daily_watchlist_missed_schedule()", text.index(anchor)) > text.index(anchor)
+
+
 def test_watchdog_covers_short_research_collectors_and_watchlist() -> None:
     text = WORKFLOW.read_text(encoding="utf-8")
     expected = (
