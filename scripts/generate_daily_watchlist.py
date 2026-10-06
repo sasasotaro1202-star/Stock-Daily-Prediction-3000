@@ -187,6 +187,9 @@ def build_equity_rows(
             "expected_close_1d": None,
             "range_low_1d": None,
             "range_high_1d": None,
+            "q10_1d": None,
+            "q50_1d": None,
+            "q90_1d": None,
             "rank": None,
             "model_id": None,
             "uncertainty": None,
@@ -230,6 +233,9 @@ def build_equity_rows(
                 "expected_close_1d": safe_num(row.get("expected_close_1d")),
                 "range_low_1d": safe_num(row.get("range_low_1d")),
                 "range_high_1d": safe_num(row.get("range_high_1d")),
+                "q10_1d": safe_num(row.get("range_low_1d")),
+                "q50_1d": safe_num(row.get("expected_close_1d")),
+                "q90_1d": safe_num(row.get("range_high_1d")),
                 "rank": safe_num(row.get("rank")),
                 "model_id": str(row.get("model_id", "")),
                 "uncertainty": safe_num(row.get("model_disagreement")),
@@ -427,6 +433,9 @@ def market_baseline(
         "expected_close_1d": close * (1.0 + expected_return),
         "range_low_1d": close * (1.0 + q10),
         "range_high_1d": close * (1.0 + q90),
+        "q10_1d": close * (1.0 + q10),
+        "q50_1d": close * (1.0 + expected_return),
+        "q90_1d": close * (1.0 + q90),
         "model_id": "logistic_regression_baseline_v1",
         "uncertainty": None,
         "prediction_status": "READY",
@@ -477,16 +486,18 @@ def markdown(rows: list[dict[str, Any]], generated_at: str) -> str:
         "",
         f"generated_at: {generated_at}",
         "",
-        "| 対象 | 種別 | 方向 | UP確率 | 期待リターン | 予想終値/レート | 状態 |",
-        "|---|---|---|---:|---:|---:|---|",
+        "| 対象 | 種別 | 方向 | UP確率 | 期待リターン | q10 | q50 | q90 | 状態 |",
+        "|---|---|---|---:|---:|---:|---:|---:|---|",
     ]
     for row in rows:
         p = "-" if row.get("p_up_1d") is None else f"{float(row['p_up_1d']):.1%}"
         ret = "-" if row.get("expected_return_1d") is None else f"{float(row['expected_return_1d']):+.2%}"
-        close = "-" if row.get("expected_close_1d") is None else f"{float(row['expected_close_1d']):,.2f}"
+        q10 = "-" if row.get("q10_1d") is None else f"{float(row['q10_1d']):,.2f}"
+        q50 = "-" if row.get("q50_1d") is None else f"{float(row['q50_1d']):,.2f}"
+        q90 = "-" if row.get("q90_1d") is None else f"{float(row['q90_1d']):,.2f}"
         lines.append(
             f"| {row['display_name']} | {row['instrument_type']} | "
-            f"{row.get('direction') or '-'} | {p} | {ret} | {close} | "
+            f"{row.get('direction') or '-'} | {p} | {ret} | {q10} | {q50} | {q90} | "
             f"{row.get('prediction_status') or '-'} |"
         )
     lines.extend(
