@@ -233,8 +233,8 @@ def _predict_near_production(
     out["model_version"] = "near-production-runtime"
 
     cols = [
-        "symbol", "asset_class", "session_date", "close",
-        "prediction_time", "prediction_date", "model_version",
+        "symbol", "asset_class", "session_date", "close", "available_at",
+        "retrieved_at", "prediction_time", "prediction_date", "model_version",
         "p_up_1d", "expected_return_1d", "return_q10_1d", "return_q90_1d",
         "expected_close_1d", "range_low_1d", "range_high_1d", "model_id",
         "training_scope", "return_training_scope", "route_reason",
