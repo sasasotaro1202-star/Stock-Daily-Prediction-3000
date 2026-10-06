@@ -178,11 +178,17 @@ def _predict_near_production(
         frame = out.loc[ready, FEATURE_COLUMNS]
         mid_v = ret.predict(frame)
         lo_v = qmodels["q10"].predict(frame)
+        q50_v = qmodels["q50"].predict(frame)
         hi_v = qmodels["q90"].predict(frame)
-        lo_v = np.minimum(lo_v, mid_v)
-        hi_v = np.maximum(hi_v, mid_v)
+        # Keep the expected-return point estimate distinct from the
+        # model-derived median quantile while enforcing monotone quantiles.
+        lo_v = np.minimum(np.minimum(lo_v, mid_v), q50_v)
+        hi_v = np.maximum(np.maximum(hi_v, mid_v), q50_v)
+        q50_v = np.minimum(np.maximum(q50_v, lo_v), hi_v)
         idx = np.flatnonzero(ready.to_numpy())
         mid[idx], lo[idx], hi[idx] = mid_v, lo_v, hi_v
+        q50_return = np.full(len(out), np.nan, dtype=float)
+        q50_return[idx] = q50_v
 
     out["expected_return_1d"] = mid
     out["return_q10_1d"] = np.clip(lo, -0.99, None)
@@ -191,7 +197,7 @@ def _predict_near_production(
     out["range_low_1d"] = out["close"] * (1 + out["return_q10_1d"])
     out["range_high_1d"] = out["close"] * (1 + out["return_q90_1d"])
     out["q10_1d"] = out["range_low_1d"]
-    out["q50_1d"] = out["expected_close_1d"]
+    out["q50_1d"] = out["close"] * (1 + q50_return)
     out["q90_1d"] = out["range_high_1d"]
     out["model_id"] = model_name
     out["training_scope"] = "near_production_global"
