@@ -80,7 +80,14 @@ jobs:
               encoding="utf-8",
           )
           print(json.dumps(summary, ensure_ascii=False, indent=2))
-          PY
+          preview_cols = [c for c in [
+              "symbol","asset_class","close","p_up_1d","expected_return_1d",
+              "return_q10_1d","return_q90_1d","expected_close_1d",
+              "range_low_1d","range_high_1d","rank_score","regime",
+              "market_situation","prediction_status","prediction_mode"
+          ] if c in out.columns]
+          print(out[preview_cols].head(30).to_string(index=False))
+                    PY
       - uses: actions/upload-artifact@v7
         with:
           name: prediction-inspection-${{ github.run_id }}
