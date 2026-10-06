@@ -218,6 +218,43 @@ def test_equity_prediction_rejects_unavailable_before_cutoff(tmp_path):
     assert filename is None
 
 
+def test_watchlist_validator_rejects_non_monotone_quantiles(tmp_path, monkeypatch):
+    import scripts.validate_daily_watchlist as validator
+
+    config = {
+        "priority_watchlist": {"mandatory_daily_prediction": True, "expected_count": 1},
+        "equities": {"items": [{"display_name": "A", "symbol": "7203", "asset_class": "jp_stock"}]},
+        "us_equities": {"items": []},
+        "market_instruments": {"instruments": []},
+    }
+    rows = [{
+        "instrument_type": "equity",
+        "display_name": "A",
+        "symbol": "7203",
+        "prediction_status": "READY",
+        "p_up_1d": 0.6,
+        "direction": "UP",
+        "prediction_time": "2026-10-05T08:00:00Z",
+        "available_at": "2026-10-05T07:55:00Z",
+        "target_date": "2026-10-06",
+        "q10_1d": 102.0,
+        "q50_1d": 101.0,
+        "q90_1d": 103.0,
+    }]
+    cfg_path = tmp_path / "config.yml"
+    out_path = tmp_path / "watch.json"
+    cfg_path.write_text(__import__("yaml").safe_dump(config, allow_unicode=True), encoding="utf-8")
+    out_path.write_text(__import__("json").dumps({
+        "cutoff": "2026-10-05T08:30:00+00:00",
+        "rows": rows,
+        "coverage": {"total": 1, "ready": 1, "deferred": 0, "production_ready": 1},
+    }), encoding="utf-8")
+    monkeypatch.setattr(validator, "CONFIG", cfg_path)
+    monkeypatch.setattr(validator, "OUTPUT", out_path)
+    with pytest.raises(SystemExit, match="non-monotone q10/q50/q90"):
+        validator.main()
+
+
 def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatch):
     import scripts.validate_daily_watchlist as validator
 
@@ -238,6 +275,9 @@ def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatc
             "prediction_time": "2026-10-05T08:00:00Z",
             "target_date": "2026-10-06",
             "available_at": "2026-10-05T07:55:00Z",
+            "q10_1d": 100.0,
+            "q50_1d": 101.0,
+            "q90_1d": 102.0,
         },
         {
             "instrument_type": "equity",
