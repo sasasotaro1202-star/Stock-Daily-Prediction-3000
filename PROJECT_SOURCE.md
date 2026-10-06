@@ -2334,3 +2334,32 @@ scenario候補:
 soft regime posteriorは説明可能なbaselineであり、trained latent-state modelの代替証明ではない。
 
 このsectionと関連実装はFYERS/FIA内部実装の開示ではなく、ユーザー提供の公開機能説明を研究設計へ抽象化したものとして扱う。
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+100. MANDATORY DAILY PRIORITY WATCHLIST
+
+config/daily_watchlist.yml is the canonical exact target set for the mandatory daily prediction surface.
+
+The required 41 targets are:
+
+JP equities: 8802 三菱地所, 8801 三井不動産, 9409 テレビ朝日, 9404 日本テレビ, 4676 フジテレビ, 9401 TBS, 285A キオクシア, 1333 Umios, 2802 味の素, 2897 日清食品, 7267 ホンダ, 7201 日産, 4689 LINEヤフー, 4385 メルカリ, 215A タイミー, 2379 dip, 9843 ニトリ, 9432 NTT, 6752 パナソニック, 6758 SONY, 8035 東京エレクトロン, 6857 アドバンテスト, 7974 任天堂, 9434 ソフトバンク, 7203 トヨタ.
+
+US equities: DIS ウォルトディズニー, SBUX スターバックス, MCD マクドナルド, NFLX Netflix, KO コカ・コーラ, TSLA Tesla, NKE NIKE, META Meta, AMZN Amazon, GOOGL Google/Alphabet Class A, MSFT Microsoft, NVDA NVIDIA, AAPL Apple.
+
+Index/FX: ^N225 日経平均株価, ^GSPC S&P500, USDJPY=X ドル/円.
+
+Daily execution contract:
+
+* Run latest PIT-safe equity prediction generation before the human-facing priority watchlist is assembled.
+* Scheduled time is 18:50 JST on JP/US business weekdays.
+* JP equities target the next XTKS session from the latest completed JP session.
+* US equities target the next XNYS session from the latest completed US session.
+* USDJPY uses the next provider-observed 24/5 weekday session.
+* Missing, stale, identity-inconsistent or PIT-unverifiable rows remain explicit DEFERRED; no fabricated direction.
+* READY_NEAR_PRODUCTION is usable monitoring output only and never production evidence.
+* Daily coverage records total, usable, production-ready and deferred counts.
+* The daily surface preserves target date, prediction time and source/PIT lineage.
+
+The priority automation is an execution/coverage guarantee, not a performance guarantee. Performance still requires chronological OOS/WFO, calibration, robustness and frozen-holdout evidence.
