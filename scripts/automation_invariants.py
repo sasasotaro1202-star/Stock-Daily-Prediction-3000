@@ -977,11 +977,11 @@ def main() -> int:
         "active run exists; no duplicate recovery",
         "automation_supervisor_preserves_active_runs",
     )
-    _assert_once(
-        automation_supervisor,
-        '&& [ "$status" = "completed" ]',
-        "automation_supervisor_health_requires_completed",
-    )
+    if automation_supervisor.count('&& [ "$status" = "completed" ]') != 2:
+        raise SystemExit(
+            "FAIL: automation invariant automation_supervisor_completed_guards: "
+            "expected 2 occurrences (health + bounded retry)"
+        )
     _assert_once(
         automation_supervisor,
         '&& [ "$conclusion" = "success" ]',
