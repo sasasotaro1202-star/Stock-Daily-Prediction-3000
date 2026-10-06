@@ -255,6 +255,13 @@ def test_watchlist_validator_rejects_non_monotone_quantiles(tmp_path, monkeypatc
         validator.main()
 
 
+def test_near_production_output_contract_preserves_pit_timestamp():
+    source = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
+    assert '"available_at"' in source
+    assert '"retrieved_at"' in source
+    assert '"prediction_time"' in source
+
+
 def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatch):
     import scripts.validate_daily_watchlist as validator
 
