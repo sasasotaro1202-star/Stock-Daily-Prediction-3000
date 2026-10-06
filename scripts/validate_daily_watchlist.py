@@ -96,6 +96,20 @@ def main() -> None:
                     f"FAIL: PIT availability violation for usable row {row.get('display_name')}"
                 )
 
+            for q_key in ("q10_1d", "q50_1d", "q90_1d"):
+                value = pd.to_numeric(row.get(q_key), errors="coerce")
+                if pd.isna(value):
+                    raise SystemExit(
+                        f"FAIL: invalid {q_key} for usable row {row.get('display_name')}"
+                    )
+            q10 = float(row["q10_1d"])
+            q50 = float(row["q50_1d"])
+            q90 = float(row["q90_1d"])
+            if not (q10 <= q50 <= q90):
+                raise SystemExit(
+                    f"FAIL: non-monotone q10/q50/q90 for usable row {row.get('display_name')}"
+                )
+
             target_date = str(row.get("target_date", "")).strip()
             if not target_date:
                 raise SystemExit(
