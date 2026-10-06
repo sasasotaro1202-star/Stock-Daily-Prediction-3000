@@ -1,0 +1,264 @@
+from __future__ import annotations
+
+import numpy as np
+from pathlib import Path
+
+
+RUNNER = Path(__file__).resolve().parents[1] / "scripts" / "run_daily_research.py"
+
+from src.research.nested_ranking import (
+    _select_prior_model_window,
+    nested_prequential_ranking_oos,
+)
+
+
+def _fixture():
+    predictions = {}
+    returns = {}
+    window_predictions = {}
+    model_rows = {
+        "model_a": [],
+        "model_b": [],
+    }
+    for fold in range(5):
+        y = np.asarray([0, 1, 0, 1], dtype=int)
+        window_predictions[fold] = {
+            0: {},
+            252: {},
+        }
+        target_returns = np.asarray([-0.02, 0.03, -0.01, 0.04], dtype=float)
+        predictions[fold] = {
+            "y": y,
+            "session_dates": np.asarray(
+                [f"2026-01-0{fold + 1}"] * 4,
+                dtype=str,
+            ),
+            "asset_classes": np.asarray(["jp_stock"] * 4, dtype=str),
+            "predictions": {
+                "model_a": np.asarray([0.20, 0.80, 0.35, 0.75]),
+                "model_b": np.asarray([0.70, 0.30, 0.65, 0.25]),
+            },
+        }
+        window_predictions[fold][0] = {
+            "model_a": predictions[fold]["predictions"]["model_a"],
+            "model_b": predictions[fold]["predictions"]["model_b"],
+        }
+        window_predictions[fold][252] = {
+            "model_a": np.asarray([0.10, 0.90, 0.25, 0.85]),
+            "model_b": np.asarray([0.65, 0.35, 0.55, 0.45]),
+        }
+        returns[fold] = {
+            "q50": {
+                "y": target_returns,
+                "pred": np.asarray([-0.01, 0.025, -0.005, 0.03]),
+                "interval": np.asarray(
+                    [
+                        [-0.04, 0.02],
+                        [-0.01, 0.06],
+                        [-0.03, 0.02],
+                        [0.00, 0.07],
+                    ]
+                ),
+            },
+            "mean": {
+                "y": target_returns,
+                "pred": np.asarray([-0.015, 0.02, -0.002, 0.025]),
+                "interval": np.asarray(
+                    [
+                        [-0.04, 0.02],
+                        [-0.01, 0.06],
+                        [-0.03, 0.02],
+                        [0.00, 0.07],
+                    ]
+                ),
+            },
+        }
+        model_rows["model_a"].append({"fold": fold, "logloss": 0.60 - 0.01 * fold})
+        model_rows["model_b"].append({"fold": fold, "logloss": 0.80 - 0.005 * fold})
+    return predictions, returns, model_rows, window_predictions
+
+
+def test_nested_ranking_is_prequential_and_research_only():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    result = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+
+    assert result["status"] == "EVALUATED"
+    assert result["research_only"] is True
+    assert result["production_changed"] is False
+    assert result["promotion_allowed"] is False
+    assert result["same_oos_global_model_or_window_reuse"] is False
+    assert result["ranking_weight_selection_prequential"] is True
+    assert result["model_selection_prequential"] is True
+    assert result["return_estimator_selection_prequential"] is True
+    assert len(result["outer_metrics"]) >= 3
+    assert result["training_window_selection_prequential"] is True
+    assert result["final_prequential_ranking_parameters"]["training_window_sessions"] == 252
+
+
+def test_current_fold_outcome_does_not_change_current_fold_selection():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    baseline = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+
+    changed_predictions = {fold: dict(bank) for fold, bank in predictions.items()}
+    changed_returns = {
+        fold: {
+            name: dict(bank)
+            for name, bank in per_fold.items()
+        }
+        for fold, per_fold in returns.items()
+    }
+    # Alter only the final fold's realized outcome and model log-loss. There
+    # is no later fold, so this information must not affect final-fold choices.
+    changed_predictions[4] = dict(changed_predictions[4])
+    changed_predictions[4]["y"] = np.asarray([1, 0, 1, 0], dtype=int)
+    changed_returns[4] = {
+        name: {
+            **bank,
+            "y": np.asarray([0.20, -0.10, 0.15, -0.08], dtype=float),
+        }
+        for name, bank in changed_returns[4].items()
+    }
+    changed_model_rows = {
+        name: list(rows)
+        for name, rows in model_rows.items()
+    }
+    changed_model_rows["model_a"][-1] = {"fold": 4, "logloss": 9.0}
+    changed_model_rows["model_b"][-1] = {"fold": 4, "logloss": 0.01}
+
+    changed = nested_prequential_ranking_oos(
+        changed_predictions,
+        changed_returns,
+        changed_model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+
+    assert baseline["selected_model_by_fold"][4] == changed["selected_model_by_fold"][4]
+    assert baseline["selected_return_estimator_by_fold"][4] == changed[
+        "selected_return_estimator_by_fold"
+    ][4]
+    assert baseline["selected_ranking_parameters_by_fold"]["4"] == changed[
+        "selected_ranking_parameters_by_fold"
+    ]["4"]
+
+
+def test_nested_ranking_requires_bootstrap_evidence_for_positive_candidate():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    result = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+    assert "bootstrap_probability_improvement" in result
+    assert "bootstrap_p05_improvement" in result
+    assert result["bootstrap_method"] == "moving_block"
+    assert result["research_positive"] is False or (
+        result["bootstrap_probability_improvement"] >= 0.90
+        and result["bootstrap_p05_improvement"] > 0.0
+    )
+
+
+def test_production_identity_alignment_is_fail_closed():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    result = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+        production_identity={
+            "selected_model": "not_the_final_model",
+            "classifier_training_window_sessions": 504,
+            "return_estimator": "not_the_final_estimator",
+            "rank_probability_weight": 0.99,
+            "rank_uncertainty_penalty": 0.99,
+        },
+        prediction_generation_training_window_sessions=None,
+    )
+
+    alignment = result["production_identity_alignment"]
+    assert alignment["provided"] is True
+    assert alignment["aligned"] is False
+    assert alignment["checks"]["training_window_selection_is_prequential"] is True
+    assert alignment["checks"]["classifier_training_window_matches_final_prequential_window"] is False
+
+
+
+def test_nested_ranking_reports_aligned_model_window_identity_when_production_matches():
+    predictions, returns, model_rows, window_predictions = _fixture()
+    probe = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+    )
+    final_params = probe["final_prequential_ranking_parameters"]
+    aligned = nested_prequential_ranking_oos(
+        predictions,
+        returns,
+        model_rows,
+        window_predictions_by_fold=window_predictions,
+        min_history_folds=2,
+        production_identity={
+            "selected_model": final_params["model"],
+            "classifier_training_window_sessions": final_params[
+                "training_window_sessions"
+            ],
+            "return_estimator": final_params["return_estimator"],
+            "rank_probability_weight": final_params["probability_weight"],
+            "rank_uncertainty_penalty": final_params["uncertainty_penalty"],
+        },
+        prediction_generation_training_window_sessions=None,
+    )
+    assert aligned["production_identity_alignment"]["aligned"] is True
+
+
+def test_nested_window_candidates_are_declared_before_bank_use_and_reuse_is_explicit():
+    text = RUNNER.read_text(encoding="utf-8")
+    declaration = text.index("window_candidates = (252, 504, 756, 0)")
+    first_window_loop = text.index("for lookback in window_candidates:")
+    nested_bank = text.index("nested_ranking_window_predictions_by_fold: dict[")
+    reuse_site = text.index("nested_reuse = (")
+    assert declaration < first_window_loop
+    assert nested_bank < reuse_site
+    assert "nested_ranking_window_predictions_by_fold" in text
+    assert ".get(global_selected)" in text
+    assert '"prediction_window_reuse"' in text
+    assert "nested_ranking_window_predictions_by_fold" in text
+    assert "global window scoring" in text
+
+
+def test_nested_window_selector_rejects_sparse_noncontiguous_history():
+    history = {
+        ("model_a", 252): [
+            {"fold": 0, "logloss": 0.01},
+            {"fold": 2, "logloss": 0.01},
+        ],
+        ("model_b", 0): [
+            {"fold": 1, "logloss": 0.10},
+            {"fold": 2, "logloss": 0.10},
+        ],
+    }
+    selected = _select_prior_model_window(
+        history,
+        current_fold=3,
+        min_history_folds=2,
+        half_life_folds=4.0,
+        stability_penalty=0.0,
+    )
+    assert selected == ("model_b", 0)

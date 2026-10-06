@@ -1,0 +1,177 @@
+name: U.S. close prediction
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: us-close-prediction
+  cancel-in-progress: false
+
+jobs:
+  restore-universe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Restore bounded recent official universe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"
+        run: python scripts/restore_latest_universe_state.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: morning-universe-restored-${{ github.run_id }}
+          path: data/universe/latest.json
+          retention-days: 3
+
+  price-shards:
+    needs: restore-universe
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - uses: actions/download-artifact@v7
+        with:
+          name: morning-universe-restored-${{ github.run_id }}
+          path: data/universe
+      - name: Restore previous price state
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python scripts/restore_latest_price_state.py
+      - name: Update assigned price shard
+        env:
+          PRICE_SHARD_INDEX: ${{ matrix.shard }}
+          PRICE_SHARD_COUNT: 4
+          PRICE_MAX_WORKERS: 2
+          PRICE_ASSET_CLASSES: us_stock,us_etf
+        run: python scripts/update_prices.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: morning-price-state-shard-${{ matrix.shard }}
+          path: data/prices/
+          retention-days: 3
+
+  predict:
+    needs: price-shards
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - uses: actions/download-artifact@v7
+        with:
+          name: morning-universe-restored-${{ github.run_id }}
+          path: data/universe
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: morning-price-state-shard-*
+          path: data/prices
+          merge-multiple: true
+      - name: Restore last approved research state
+        id: research_state
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set +e
+          log="$(mktemp)"
+          python scripts/restore_latest_research_state.py 2>&1 | tee "$log"
+          rc=${PIPESTATUS[0]}
+          set -e
+          if [ "$rc" -eq 0 ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          elif grep -q "DEFERRED:" "$log"; then
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "approved research state unavailable; production prediction will be DEFERRED"
+          else
+            echo "::error title=Research-state restore failed::unexpected restore failure"
+            exit "$rc"
+          fi
+      - name: Restore exact approved production runtime
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/install_production_runtime.py
+      - name: PayPay master catalog integrity
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/catalog_integrity.py
+      - name: Canonicalize restored price store
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/normalize_price_store.py
+      - name: Update free market context
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/update_market_context.py
+      - name: Price data quality gate
+        if: steps.research_state.outputs.available == 'true'
+        env:
+          QUALITY_ASSET_CLASSES: us_stock,us_etf
+        run: python scripts/data_quality_gate.py
+      - name: Production invariants
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/production_invariants.py
+      - name: Approved research state compatibility
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/production_state_compatibility.py
+      - name: Restore latest live monitoring state
+        if: steps.research_state.outputs.available == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: python scripts/restore_latest_monitor_state.py
+      - name: Live performance gate
+        id: live_gate
+        if: steps.research_state.outputs.available == 'true'
+        run: python scripts/live_performance_gate.py
+      - name: Validate immutable production model artifact
+        if: steps.research_state.outputs.available == 'true'
+        run: |
+          python - <<'PY'
+          from src.prediction.production_artifact import load_production_artifact
+          load_production_artifact()
+          print("production-model-artifact: PASS")
+          PY
+      - name: Production prediction
+        if: steps.research_state.outputs.available == 'true' && steps.live_gate.outputs.allowed == 'true'
+        env:
+          PREDICT_ASSET_CLASSES: us_stock,us_etf
+        run: python scripts/run_daily_prediction.py
+      - name: Validate production prediction output
+        if: steps.research_state.outputs.available == 'true' && steps.live_gate.outputs.allowed == 'true'
+        run: python scripts/validate_prediction_output.py
+      - name: Record deferred U.S. prediction
+        if: steps.research_state.outputs.available != 'true' || steps.live_gate.outputs.allowed != 'true'
+        run: |
+          mkdir -p data/research
+          printf '%s\n' '{"status":"DEFERRED","reason":"no_approved_production_research_state","production_action":"DEFERRED"}' > data/research/us_prediction_deferred.json
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: morning-prediction-${{ github.run_id }}
+          path: |
+            data/predictions/
+            data/research/us_prediction_deferred.json
+          retention-days: 7
