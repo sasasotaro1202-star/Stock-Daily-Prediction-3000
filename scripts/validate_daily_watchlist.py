@@ -40,20 +40,24 @@ def main() -> None:
     if pd.isna(cutoff):
         raise SystemExit("FAIL: invalid watchlist cutoff")
 
+    usable_statuses = {"READY", "READY_NEAR_PRODUCTION"}
     ready = 0
+    production_ready = 0
     for row in rows:
         status = str(row.get("prediction_status", ""))
-        if status == "READY":
+        if status in usable_statuses:
             ready += 1
+            if status == "READY":
+                production_ready += 1
             p = pd.to_numeric(row.get("p_up_1d"), errors="coerce")
             if pd.isna(p) or not 0.0 <= float(p) <= 1.0:
                 raise SystemExit(
-                    f"FAIL: invalid p_up_1d for READY row {row.get('display_name')}"
+                    f"FAIL: invalid p_up_1d for usable row {row.get('display_name')}"
                 )
 
             if row.get("direction") not in {"UP", "DOWN"}:
                 raise SystemExit(
-                    f"FAIL: invalid direction for READY row {row.get('display_name')}"
+                    f"FAIL: invalid direction for usable row {row.get('display_name')}"
                 )
 
             prediction_time = pd.to_datetime(
@@ -63,17 +67,17 @@ def main() -> None:
             )
             if pd.isna(prediction_time):
                 raise SystemExit(
-                    f"FAIL: invalid prediction_time for {row.get('display_name')}"
+                    f"FAIL: invalid prediction_time for usable row {row.get('display_name')}"
                 )
             if prediction_time > cutoff:
                 raise SystemExit(
-                    f"FAIL: future prediction_time for {row.get('display_name')}"
+                    f"FAIL: future prediction_time for usable row {row.get('display_name')}"
                 )
 
             target_date = str(row.get("target_date", "")).strip()
             if not target_date:
                 raise SystemExit(
-                    f"FAIL: missing target_date for {row.get('display_name')}"
+                    f"FAIL: missing target_date for usable row {row.get('display_name')}"
                 )
 
     coverage = payload.get("coverage") or {}
@@ -83,6 +87,8 @@ def main() -> None:
         raise SystemExit("FAIL: coverage.ready mismatch")
     if int(coverage.get("deferred", -1)) != expected - ready:
         raise SystemExit("FAIL: coverage.deferred mismatch")
+    if int(coverage.get("production_ready", -1)) != production_ready:
+        raise SystemExit("FAIL: coverage.production_ready mismatch")
 
     print(
         f"daily-watchlist-integrity: PASS total={expected} "
