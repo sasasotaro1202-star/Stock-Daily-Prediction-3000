@@ -124,6 +124,7 @@ CANONICAL_SECTION_HEADINGS = (
     "FINAL OPERATING LOOP",
     "ULTIMATE PRINCIPLE",
     "PREDICTIVE STATE / SCENARIO ARCHITECTURE",
+    "MANDATORY DAILY PRIORITY WATCHLIST",
 )
 
 def validate_source_text(text: str) -> list[str]:
@@ -137,7 +138,7 @@ def validate_source_text(text: str) -> list[str]:
     sections = [(int(match.group(1)), match.group(2).strip()) for match in re.finditer(r"(?m)^(\d+)\.\s+([A-Z][A-Z0-9 /&._-]*)$", text)]
     section_numbers = [number for number, _ in sections]
     section_headings = [heading for _, heading in sections]
-    expected_numbers = list(range(1, 100))
+    expected_numbers = list(range(1, 101))
     if section_numbers != expected_numbers:
         errors.append("section_sequence_invalid:" + ",".join(map(str, section_numbers[:110])))
     if tuple(section_headings) != CANONICAL_SECTION_HEADINGS:
