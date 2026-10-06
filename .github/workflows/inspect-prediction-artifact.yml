@@ -87,7 +87,7 @@ jobs:
               "market_situation","prediction_status","prediction_mode"
           ] if c in out.columns]
           print(out[preview_cols].head(30).to_string(index=False))
-                    PY
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: prediction-inspection-${{ github.run_id }}
