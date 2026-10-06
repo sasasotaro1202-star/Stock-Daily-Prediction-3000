@@ -235,8 +235,8 @@ def _predict_near_production(
     cols = [
         "symbol", "asset_class", "session_date", "close",
         "prediction_time", "prediction_date", "model_version",
-        "p_up_1d", "expected_return_1d", "expected_close_1d",
-        "range_low_1d", "range_high_1d", "model_id",
+        "p_up_1d", "expected_return_1d", "return_q10_1d", "return_q90_1d",
+        "expected_close_1d", "range_low_1d", "range_high_1d", "model_id",
         "training_scope", "return_training_scope", "route_reason",
         "regime", "market_situation", "model_disagreement", "prediction_status",
         "prediction_mode",
