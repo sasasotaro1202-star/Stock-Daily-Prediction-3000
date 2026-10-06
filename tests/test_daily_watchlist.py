@@ -255,6 +255,14 @@ def test_watchlist_validator_rejects_non_monotone_quantiles(tmp_path, monkeypatc
         validator.main()
 
 
+def test_near_production_prediction_writes_timestamped_snapshot_and_quantiles():
+    source = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
+    assert 'f"prediction_{stamp}.parquet"' in source
+    assert 'out["q10_1d"] = out["range_low_1d"]' in source
+    assert 'out["q50_1d"] = out["expected_close_1d"]' in source
+    assert 'out["q90_1d"] = out["range_high_1d"]' in source
+
+
 def test_near_production_output_contract_preserves_pit_timestamp():
     source = Path("scripts/run_now_prediction.py").read_text(encoding="utf-8")
     assert '"available_at"' in source
