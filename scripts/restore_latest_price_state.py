@@ -93,32 +93,49 @@ def main():
     destination.mkdir(parents=True, exist_ok=True)
     restored_shards = []
     restored_files = 0
+    errors = []
 
     for artifact in selected:
-        with tempfile.TemporaryDirectory() as tmp:
-            extract = Path(tmp) / "artifact"
-            download_workflow_artifact(repo, token, artifact, extract)
-            validate_extracted_tree(extract)
-            matches = [p for p in extract.rglob("*.parquet") if p.is_file()]
-            if not matches:
-                raise SystemExit(
-                    f"DEFERRED: price-state artifact {artifact['id']} contains no parquet files"
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                extract = Path(tmp) / "artifact"
+                download_workflow_artifact(repo, token, artifact, extract)
+                validate_extracted_tree(extract)
+                matches = [p for p in extract.rglob("*.parquet") if p.is_file()]
+                if not matches:
+                    raise RuntimeError(
+                        f"price-state artifact {artifact['id']} contains no parquet files"
+                    )
+                for source in matches:
+                    shutil.copy2(source, destination / source.name)
+                restored_files += len(matches)
+                restored_shards.append(
+                    str(artifact.get("name") or artifact.get("id"))
                 )
-            for source in matches:
-                shutil.copy2(source, destination / source.name)
-            restored_files += len(matches)
-            restored_shards.append(
-                str(artifact.get("name") or artifact.get("id"))
+        except Exception as exc:
+            errors.append({
+                "artifact_id": artifact.get("id"),
+                "artifact_name": artifact.get("name"),
+                "error": repr(exc),
+            })
+            print(
+                "::warning title=Price state shard restore deferred::"
+                f"artifact_id={artifact.get('id')} error={type(exc).__name__}"
             )
 
-    status = "PASS" if len(selected) == len(shard_indices) else "DEFERRED"
+    status = (
+        "PASS"
+        if len(restored_shards) == len(shard_indices) and not errors
+        else "DEFERRED"
+    )
     summary = {
         "schema_version": 1,
         "status": status,
         "expected_shards": len(shard_indices),
-        "restored_shards": len(selected),
+        "restored_shards": len(restored_shards),
         "restored_files": restored_files,
         "artifact_names": restored_shards,
+        "errors": errors[:20],
     }
     (destination / "price_state_restore.json").write_text(
         json.dumps(summary, indent=2),
