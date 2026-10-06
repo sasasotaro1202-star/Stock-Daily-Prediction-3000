@@ -233,9 +233,17 @@ def build_equity_rows(
                 "expected_close_1d": safe_num(row.get("expected_close_1d")),
                 "range_low_1d": safe_num(row.get("range_low_1d")),
                 "range_high_1d": safe_num(row.get("range_high_1d")),
-                "q10_1d": safe_num(row.get("range_low_1d")),
-                "q50_1d": safe_num(row.get("expected_close_1d")),
-                "q90_1d": safe_num(row.get("range_high_1d")),
+                # Prefer explicit price-domain quantiles from the prediction
+                # artifact; retain legacy range aliases as a compatibility fallback.
+                "q10_1d": safe_num(
+                    row.get("q10_1d", row.get("range_low_1d"))
+                ),
+                "q50_1d": safe_num(
+                    row.get("q50_1d", row.get("expected_close_1d"))
+                ),
+                "q90_1d": safe_num(
+                    row.get("q90_1d", row.get("range_high_1d"))
+                ),
                 "rank": safe_num(row.get("rank")),
                 "model_id": str(row.get("model_id", "")),
                 "uncertainty": safe_num(row.get("model_disagreement")),
