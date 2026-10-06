@@ -1,0 +1,85 @@
+name: Inspect prediction artifact
+
+on:
+  push:
+    paths:
+      - "ops/prediction_artifact_inspect.trigger"
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: "Existing workflow artifact ID containing latest.parquet"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e .
+      - name: Download prediction artifact
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_ID: ${{ inputs.artifact_id || '11396119933' }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/prediction_artifact
+          gh api -H "Accept: application/vnd.github+json" \
+            "/repos/${GITHUB_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}/zip" \
+            > /tmp/prediction_artifact/artifact.zip
+          unzip -o /tmp/prediction_artifact/artifact.zip -d /tmp/prediction_artifact/out >/dev/null
+      - name: Convert prediction parquet to inspectable JSON and CSV
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import pandas as pd
+          root = Path("/tmp/prediction_artifact/out")
+          matches = list(root.rglob("latest.parquet"))
+          if len(matches) != 1:
+              raise SystemExit(f"expected exactly one latest.parquet, found {len(matches)}")
+          df = pd.read_parquet(matches[0])
+          cols = [
+              "symbol","asset_class","session_date","close","prediction_time",
+              "prediction_date","model_version","p_up_1d","expected_return_1d",
+              "return_q10_1d","return_q90_1d","expected_close_1d",
+              "range_low_1d","range_high_1d","model_id","training_scope",
+              "return_training_scope","route_reason","regime","market_situation",
+              "ranking_uncertainty","rank","prediction_status","prediction_mode",
+          ]
+          cols = [c for c in cols if c in df.columns]
+          out = df[cols].copy()
+          out = out.sort_values(["rank","p_up_1d"], ascending=[True,False], na_position="last")
+          Path("data/predictions").mkdir(parents=True, exist_ok=True)
+          out.to_csv("data/predictions/latest.csv", index=False)
+          Path("data/predictions/latest.json").write_text(
+              json.dumps(out.to_dict(orient="records"), ensure_ascii=False, default=str),
+              encoding="utf-8",
+          )
+          summary = {
+              "rows": int(len(out)),
+              "ready": int(out["prediction_status"].isin(["READY","READY_NEAR_PRODUCTION"]).sum()),
+              "prediction_mode": sorted(out["prediction_mode"].dropna().astype(str).unique().tolist()),
+              "model_id": sorted(out["model_id"].dropna().astype(str).unique().tolist()),
+              "asset_classes": sorted(out["asset_class"].dropna().astype(str).unique().tolist()),
+          }
+          Path("data/predictions/inspection_summary.json").write_text(
+              json.dumps(summary, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print(json.dumps(summary, ensure_ascii=False, indent=2))
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: prediction-inspection-${{ github.run_id }}
+          path: data/predictions/
+          retention-days: 3
