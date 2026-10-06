@@ -76,6 +76,26 @@ def _validate_artifact_structure(
 
     if "global" not in quantile or "assets" not in quantile:
         raise RuntimeError("production quantile artifact is incomplete")
+    required_quantiles = {"q10", "q50", "q90"}
+    global_quantiles = quantile["global"]
+    if (
+        not isinstance(global_quantiles, dict)
+        or not required_quantiles.issubset(global_quantiles)
+    ):
+        raise RuntimeError(
+            "production global quantile artifact must include q10/q50/q90"
+        )
+    asset_quantiles = quantile["assets"]
+    if not isinstance(asset_quantiles, dict):
+        raise RuntimeError("production asset quantile artifact is invalid")
+    for asset, qmodels in asset_quantiles.items():
+        if (
+            not isinstance(qmodels, dict)
+            or not required_quantiles.issubset(qmodels)
+        ):
+            raise RuntimeError(
+                f"production asset quantile artifact must include q10/q50/q90: {asset}"
+            )
     if return_section.get("selected") not in {
         "mean",
         "q50",
