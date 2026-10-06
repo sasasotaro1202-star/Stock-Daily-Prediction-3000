@@ -193,6 +193,7 @@ def _predict_near_production(
     out["expected_return_1d"] = mid
     out["return_q10_1d"] = np.clip(lo, -0.99, None)
     out["return_q90_1d"] = hi
+    q50_return = np.clip(q50_return, -0.99, None)
     out["expected_close_1d"] = out["close"] * (1 + out["expected_return_1d"])
     out["range_low_1d"] = out["close"] * (1 + out["return_q10_1d"])
     out["range_high_1d"] = out["close"] * (1 + out["return_q90_1d"])
