@@ -94,9 +94,9 @@ def main() -> int:
         "project_source_contract_locks_exact_headings",
     )
     source_section_count = len(re.findall(r"(?m)^(\d+)\.\s+[A-Z][A-Z0-9 /&._-]*$", project_source))
-    if source_section_count != 99:
+    if source_section_count != 100:
         raise SystemExit(
-            f"FAIL: canonical Project Source section count expected 99, got {source_section_count}"
+            f"FAIL: canonical Project Source section count expected 100, got {source_section_count}"
         )
 
     # The predictive-state architecture is research-only and remains outside production paths.
