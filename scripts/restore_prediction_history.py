@@ -35,7 +35,7 @@ def main():
         a for a in artifacts
         if not a.get("expired")
         and str(a.get("name","")).startswith(
-            ("morning-prediction-","research-cycle-")
+            ("morning-prediction-","research-cycle-","daily-watchlist-")
         )
     ]
     target=Path("data/predictions")
