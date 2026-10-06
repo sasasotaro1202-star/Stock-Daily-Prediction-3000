@@ -169,6 +169,7 @@ def test_equity_target_date_is_derived_from_session_date():
             "symbol": ["AAPL"],
             "p_up_1d": [0.60],
             "prediction_time": ["2026-10-05T07:17:00Z"],
+            "available_at": ["2026-10-05T07:16:00Z"],
             "prediction_status": ["READY"],
             "session_date": ["2026-10-02"],
         }
@@ -188,6 +189,33 @@ def test_equity_target_date_is_derived_from_session_date():
         assert filename == temp.name
     finally:
         temp.unlink(missing_ok=True)
+
+
+def test_equity_prediction_rejects_unavailable_before_cutoff(tmp_path):
+    import scripts.generate_daily_watchlist as module
+
+    path = tmp_path / "prediction_pit_invalid.parquet"
+    frame = pd.DataFrame(
+        {
+            "asset_class": ["jp_stock"],
+            "symbol": ["7203"],
+            "p_up_1d": [0.80],
+            "prediction_time": ["2026-10-05T07:17:00Z"],
+            "available_at": ["2026-10-05T07:18:00Z"],
+            "prediction_status": ["READY"],
+            "session_date": ["2026-10-03"],
+        }
+    )
+    frame.to_parquet(path, index=False)
+
+    row, filename = module.latest_equity_prediction(
+        [path],
+        "jp_stock",
+        "7203",
+        cutoff=pd.Timestamp("2026-10-05T08:00:00Z"),
+    )
+    assert row is None
+    assert filename is None
 
 
 def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatch):
