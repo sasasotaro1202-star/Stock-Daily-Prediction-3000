@@ -124,6 +124,7 @@ jobs:
             local workflow_name="$2"
             local self_heal_queued="${3:-false}"
             local self_heal_failed="${4:-false}"
+            local recover_superseded_failure="${5:-false}"
             local runs
             if ! runs="$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow_file}/runs?per_page=20" 2>/dev/null)"; then
               echo "::error title=${workflow_name} Actions API unavailable::unable to inspect recent workflow runs"
@@ -135,6 +136,7 @@ jobs:
             current_run_found=false
             stale_queued_found=false
             stale_queue_recovery_failed=false
+            superseded_recent_failure_found=false
           run_entries="$(printf '%s' "$runs" | jq -r '.workflow_runs[] | @base64')"
           while IFS= read -r encoded; do
             [ -n "$encoded" ] || continue
@@ -176,7 +178,16 @@ jobs:
               fi
             fi
             if [ "$workflow_name" != "Bounded production recovery" ] && [ "$head_sha" != "$current_sha" ]; then
-              echo "${workflow_name}: ignoring run ${run_id} on superseded SHA ${head_sha}; current=${current_sha}"
+              if [ "$recover_superseded_failure" = "true" ] \
+                && [ "$status" = "completed" ] \
+                && { [ "$conclusion" = "failure" ] || [ "$conclusion" = "timed_out" ] || [ "$conclusion" = "startup_failure" ]; } \
+                && [ "$attempt" -lt 2 ] \
+                && [ "$created_epoch" -ge "$(( $(date -u +%s) - 6 * 60 * 60 ))" ]; then
+                superseded_recent_failure_found=true
+                echo "${workflow_name}: recent failure on superseded SHA ${head_sha}; eligible for current-main recovery"
+              else
+                echo "${workflow_name}: ignoring run ${run_id} on superseded SHA ${head_sha}; current=${current_sha}"
+              fi
               continue
             fi
 
@@ -232,6 +243,17 @@ jobs:
             return 0
           fi
 
+          if [ "$current_run_found" = false ] && [ "$superseded_recent_failure_found" = true ]; then
+            echo "::warning title=${workflow_name} superseded-failure recovery::recent failed run exists on superseded SHA; dispatching one bounded current-main recovery"
+            if gh workflow run "$workflow_file" --repo "$GITHUB_REPOSITORY" --ref main; then
+              echo "$workflow_name: superseded-failure recovery dispatched on current main"
+              current_run_found=true
+            else
+              echo "::error title=${workflow_name} superseded-failure recovery dispatch failed::unable to dispatch current-main recovery"
+              failures=$((failures + 1))
+            fi
+          fi
+
           if [ "$current_run_found" = false ]; then
             echo "${workflow_name}: no applicable run found in watchdog window"
           fi
@@ -254,7 +276,7 @@ jobs:
           # Short research collectors are safe for bounded first-failure retry and
           # stale-run recovery. Long OOS collectors remain failure-memory only
           # to avoid cancelling legitimate multi-hour research.
-          inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true
+          inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true
           inspect_workflow "research-validation-status.yml" "Research validation status" true true
           inspect_workflow "free-data-source-discovery.yml" "Free Data Source Discovery" true true
           inspect_workflow "boj-frontier-research.yml" "BOJ Frontier Research" true true
