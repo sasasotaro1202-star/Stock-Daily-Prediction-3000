@@ -20,7 +20,7 @@ concurrency:
 jobs:
   generate:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -43,7 +43,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
+          PRICE_SHARD_COUNT: "4"
         run: python scripts/restore_latest_price_state.py
+      - name: Rebuild missing price shards when restore is incomplete
+        shell: bash
+        run: |
+          set -euo pipefail
+          restore_status="$(jq -r '.status // "DEFERRED"' data/prices/price_state_restore.json 2>/dev/null || echo DEFERRED)"
+          if [ "$restore_status" = "PASS" ]; then
+            echo "price-state restore: all expected shards present"
+          else
+            echo "::warning title=Price state incomplete::restored price state is incomplete; running bounded full-universe free refresh"
+            PRICE_SHARD_INDEX=0 PRICE_SHARD_COUNT=1 PRICE_MAX_WORKERS=2 python scripts/update_prices.py
+          fi
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Restore latest approved production state when available
