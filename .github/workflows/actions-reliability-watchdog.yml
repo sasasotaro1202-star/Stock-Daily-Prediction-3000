@@ -318,7 +318,7 @@ jobs:
             )"
 
             if [ "${scheduled_window_runs}" -eq 0 ]; then
-              echo "::warning title=${workflow_name} schedule miss::no Daily Priority Watchlist run was created in today's 18:40-19:35 JST schedule window; dispatching one current-main recovery"
+              echo "::warning title=${workflow_name} schedule miss::no Daily Priority Watchlist run was created in today's 18:40 JST onward schedule/recovery window; dispatching one current-main recovery"
               if gh workflow run "${workflow_file}" --repo "${GITHUB_REPOSITORY}" --ref main; then
                 echo "${workflow_name}: missed-schedule recovery dispatched on current main"
                 {

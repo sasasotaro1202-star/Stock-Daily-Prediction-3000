@@ -742,7 +742,7 @@ def main() -> int:
     )
     _assert_once(
         watchdog,
-        "no Daily Priority Watchlist run was created in today's 18:40-19:35 JST schedule window",
+        "no Daily Priority Watchlist run was created in today's 18:40 JST onward schedule/recovery window",
         "watchdog_daily_watchlist_schedule_miss_message",
     )
     _assert_once(

@@ -103,6 +103,7 @@ def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
     assert 'weekday="$(TZ=Asia/Tokyo date +%u)"' in text
     assert "19:35:00" in text
     assert "18:40:00" in text
+    assert '--argjson now "${now_epoch}"' in text
     assert "missed-schedule recovery dispatched on current main" in text
     assert "no Daily Priority Watchlist run was created" in text
 
