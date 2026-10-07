@@ -4,7 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github/workflows/long-research-recovery.yml"
-WATCHDOG = ROOT / ".github/workflows/actions-reliability-watchdog.yml"
+WATCHDOG = ROOT / "scripts/actions_reliability_watchdog.sh"
 FAILURE_LEARNING = ROOT / ".github/workflows/automation-failure-learning.yml"
 RECONCILE = ROOT / "scripts/reconcile_automation_failures.py"
 
