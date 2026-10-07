@@ -39,6 +39,10 @@ GitHub ActionsでUniverse更新、4分割の差分価格取得、品質チェッ
 Research system only; not investment advice or a profit guarantee.
 
 
+
+### 最新予測の自動公開
+日次Watchlistが検証を通過すると、最新の `daily_watchlist.json` / `daily_watchlist.md` を専用 `prediction-status` ブランチへ自動保存します。日次の研究・予測は `market-cycle` を正規経路とし、GitHub Actions Watchdogがスケジュール欠落・stale run・失敗を監視して限定的に復旧します。
+
 ## PayPay product master catalog
 
 PayPay証券の日本株・米国株に加え、投資信託、日本株CFD、10倍CFD、iDeCoをMaster Catalogで別商品系統として管理します。商品ごとの価格・NAV・デリバティブ時系列を混在させず、同じrelease/監査思想で別モデルへ拡張できます。
