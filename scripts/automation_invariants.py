@@ -196,6 +196,11 @@ def main() -> int:
         '    - cron: "*/20 * * * 1-5"',
         "current_day_prediction_watchdog_schedule",
     )
+    _assert_contains(
+        current_day_watchdog,
+        "actions/checkout@v7",
+        "current_day_prediction_watchdog_checks_out_script",
+    )
     _assert_once(
         current_day_watchdog,
         "cancel-in-progress: true",
