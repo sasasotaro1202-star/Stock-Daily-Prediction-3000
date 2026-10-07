@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-WATCHDOG = ROOT / ".github/workflows/actions-reliability-watchdog.yml"
+WATCHDOG = ROOT / "scripts/actions_reliability_watchdog.sh"
 
 
 def test_controller_heartbeat_recovery_is_bounded_and_active_safe() -> None:
