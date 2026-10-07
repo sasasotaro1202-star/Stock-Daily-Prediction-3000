@@ -5,7 +5,7 @@ from scripts.record_automation_failure import build_record, classify_workflow
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "automation-failure-learning.yml"
-WATCHDOG = ROOT / ".github" / "workflows" / "actions-reliability-watchdog.yml"
+WATCHDOG = ROOT / "scripts" / "actions_reliability_watchdog.sh"
 
 
 def test_classify_workflow_categories_are_deterministic() -> None:
