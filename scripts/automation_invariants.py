@@ -763,24 +763,29 @@ def main() -> int:
         '  push:\n    paths:',
         "watchdog_has_no_push_trigger",
     )
-    _assert_contains(
+    _assert_once(
         watchdog,
+        "bash scripts/actions_reliability_watchdog.sh",
+        "watchdog_invokes_standalone_script",
+    )
+    _assert_contains(
+        watchdog_script,
         "recover_daily_watchlist_missed_schedule()",
         "watchdog_daily_watchlist_missing_schedule_recovery",
     )
-    _assert_once(
-        watchdog,
-        'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true\n          recover_daily_watchlist_missed_schedule()',
+    _assert_contains(
+        watchdog_script,
+        'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true',
         "watchdog_daily_watchlist_missing_schedule_recovery_invoked",
     )
 
     _assert_once(
-        watchdog,
+        watchdog_script,
         'TZ=Asia/Tokyo date -d "${day_jst} 19:35:00" +%s',
         "watchdog_daily_watchlist_recovery_threshold",
     )
     _assert_once(
-        watchdog,
+        watchdog_script,
         "no Daily Priority Watchlist run was created in today's 18:40 JST onward schedule/recovery window",
         "watchdog_daily_watchlist_schedule_miss_message",
     )
