@@ -6,8 +6,12 @@ WORKFLOW = Path(".github/workflows/actions-reliability-watchdog.yml")
 WATCHDOG_SCRIPT = Path("scripts/actions_reliability_watchdog.sh")
 
 
+def _watchdog_text() -> str:
+    return WORKFLOW.read_text(encoding="utf-8") + "\n" + WATCHDOG_SCRIPT.read_text(encoding="utf-8")
+
+
 def test_active_research_preserves_control_plane_only_changes() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     start = text.index(
         '            if [ -n "$active_run_id" ]; then',
         text.index("inspect_research_validation"),
@@ -21,7 +25,7 @@ def test_active_research_preserves_control_plane_only_changes() -> None:
 
 
 def test_watchdog_mirrors_evidence_fingerprint_scope_for_active_run_invalidation() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     assert "evidence_diff_state()" in text
     assert 'pyproject.toml)' in text
     assert "config/*|src/*|scripts/*" in text
@@ -31,20 +35,20 @@ def test_watchdog_mirrors_evidence_fingerprint_scope_for_active_run_invalidation
 
 
 def test_watchdog_still_cancels_only_hard_age_expired_active_research() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     assert "has exceeded 350 minutes of active age" in text
     assert "stale active run $active_run_id cancelled by hard-age guard" in text
 
 
 def test_stale_heartbeat_has_bounded_self_recovery() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     assert "dispatch_heartbeat_recovery()" in text
     assert "for attempt in 1 2 3" in text
     assert "gh workflow run heartbeat.yml --repo" in text
     assert "bounded heartbeat dispatch retries exhausted" in text
 
 def test_watchdog_recovers_research_without_workflow_run_self_trigger():
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     assert 'workflows: ["Research validation"]' not in text
     assert "schedule:" in text
     assert "    - cron: \"*/5 * * * *\"" in text
@@ -53,7 +57,7 @@ def test_watchdog_recovers_research_without_workflow_run_self_trigger():
 
 
 def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_age_guard() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     assert "research_inactive_epoch" in text
     assert "120-minute no-update window" in text
     assert "has had no Actions update for over 120 minutes" in text
@@ -63,7 +67,7 @@ def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_a
 
 
 def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = _watchdog_text()
     research_start = text.index("inspect_research_validation")
     start = text.index(
         '            if [ -n "$active_run_id" ]; then',
@@ -98,7 +102,8 @@ def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
 
 
 def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
-    text = WATCHDOG_SCRIPT.read_text(encoding="utf-8")
+    recovery_script = Path("scripts/recover_daily_watchlist_schedule.sh").read_text(encoding="utf-8")
+    text = WATCHDOG_SCRIPT.read_text(encoding="utf-8") + "\n" + recovery_script
     assert "recover_daily_watchlist_missed_schedule()" in text
     assert 'workflow_file="daily-watchlist.yml"' in text
     assert 'weekday="$(TZ=Asia/Tokyo date +%u)"' in text
