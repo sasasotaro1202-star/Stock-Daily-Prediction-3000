@@ -7,6 +7,10 @@ on:
         description: "Comma-separated production asset classes"
         required: false
         default: "jp_stock,jp_etf,jp_reit,us_stock,us_etf"
+  # Scheduled JP post-close / US pre-open production prediction.
+  schedule:
+    - cron: "17 9 * * 1-5"
+      timezone: "Asia/Tokyo"
   # Reusable current-day trigger. Updating the trigger file starts a fresh
   # prediction run without requiring a manual workflow-dispatch action.
   push:
@@ -71,7 +75,7 @@ jobs:
           PRICE_SHARD_INDEX: ${{ matrix.shard }}
           PRICE_SHARD_COUNT: 4
           PRICE_MAX_WORKERS: 2
-          PRICE_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit' }}
+          PRICE_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
         run: python scripts/update_prices.py
       - uses: actions/upload-artifact@v7
         with:
