@@ -5,6 +5,8 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+from exchange_calendars import get_calendar
+
 import numpy as np
 import pandas as pd
 
@@ -240,6 +242,23 @@ def _predict_near_production(
     out["prediction_mode"] = "NEAR_PRODUCTION"
     out["prediction_time"] = pd.Timestamp(datetime.now(timezone.utc))
     out["prediction_date"] = out["prediction_time"].dt.tz_convert("Asia/Tokyo").dt.date
+
+    # Explicitly materialize the next exchange session for each prediction row.
+    # JP and US calendars are separated so the same runtime can be executed
+    # after the JP close while predicting the still-future US session.
+    def _target_date(row: pd.Series) -> str:
+        asset_class = str(row.get("asset_class", ""))
+        calendar_code = "XTKS" if asset_class in {"jp_stock", "jp_etf", "jp_reit"} else "XNYS"
+        session = pd.Timestamp(row["session_date"]).normalize()
+        calendar = get_calendar(calendar_code)
+        sessions = calendar.sessions_in_range(session, session + pd.Timedelta(days=14))
+        for candidate in sessions:
+            candidate = pd.Timestamp(candidate)
+            if candidate.date() > session.date():
+                return str(candidate.date())
+        raise ValueError(f"next exchange session unavailable: {calendar_code} {session.date()}")
+
+    out["target_date"] = out.apply(_target_date, axis=1)
     out["model_version"] = "near-production-runtime"
 
     cols = [
