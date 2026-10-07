@@ -778,6 +778,11 @@ def main() -> int:
         'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true',
         "watchdog_daily_watchlist_missing_schedule_recovery_invoked",
     )
+    _assert_contains(
+        watchdog_script,
+        "recover_daily_watchlist_missed_schedule\ninspect_workflow \\\"research-validation-status.yml\\\"",
+        "watchdog_daily_watchlist_missing_schedule_recovery_called",
+    )
 
     _assert_once(
         watchdog_script,
