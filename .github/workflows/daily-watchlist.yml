@@ -11,7 +11,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
 
 concurrency:
   group: daily-priority-watchlist
@@ -95,3 +95,45 @@ jobs:
             data/predictions/prediction_*.parquet
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish latest prediction status
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f data/predictions/daily_watchlist.json
+          test -f data/predictions/daily_watchlist.md
+          worktree_dir="$(mktemp -d)"
+          cleanup() {
+            git worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main
+
+          if git ls-remote --exit-code --heads origin prediction-status >/dev/null 2>&1; then
+            git worktree add --detach "$worktree_dir" origin/main
+            git -C "$worktree_dir" checkout -B prediction-status origin/prediction-status
+          else
+            git worktree add --detach "$worktree_dir" origin/main
+            git -C "$worktree_dir" checkout --orphan prediction-status
+            git -C "$worktree_dir" rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          mkdir -p "$worktree_dir/predictions"
+          cp data/predictions/daily_watchlist.json "$worktree_dir/predictions/latest.json"
+          cp data/predictions/daily_watchlist.md "$worktree_dir/predictions/latest.md"
+          printf '%s
+' "$GITHUB_SHA" > "$worktree_dir/predictions/source_commit.txt"
+          printf '%s
+' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$worktree_dir/predictions/published_at_utc.txt"
+
+          git -C "$worktree_dir" add predictions/latest.json predictions/latest.md predictions/source_commit.txt predictions/published_at_utc.txt
+          if git -C "$worktree_dir" diff --cached --quiet; then
+            echo "prediction-status: no change"
+            exit 0
+          fi
+          git -C "$worktree_dir" commit -m "chore: publish latest daily prediction status"
+          git -C "$worktree_dir" push origin HEAD:prediction-status
