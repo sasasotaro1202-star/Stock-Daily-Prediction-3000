@@ -9,7 +9,7 @@ on:
         default: "jp_stock,jp_etf,jp_reit,us_stock,us_etf"
   # Scheduled JP post-close / US pre-open production prediction.
   schedule:
-    - cron: "17 9 * * 1-5"
+    - cron: "17 18 * * 1-5"
       timezone: "Asia/Tokyo"
   # Reusable current-day trigger. Updating the trigger file starts a fresh
   # prediction run without requiring a manual workflow-dispatch action.
