@@ -730,7 +730,7 @@ def test_oos_model_candidates_follow_pipeline_config():
 def test_actions_watchdog_is_frequent_and_fail_visible():
     from pathlib import Path
 
-    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+    source = Path("scripts/actions_reliability_watchdog.sh").read_text(
         encoding="utf-8"
     )
     assert 'cron: "*/5 * * * *"' in source
@@ -752,7 +752,7 @@ def test_production_invariants_include_actions_watchdog():
 def test_actions_watchdog_detects_stale_and_recovery_failures():
     from pathlib import Path
 
-    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+    source = Path("scripts/actions_reliability_watchdog.sh").read_text(
         encoding="utf-8"
     )
     assert "120 minutes ago" in source
@@ -949,14 +949,14 @@ def test_bounded_recovery_targets_current_main_for_obsolete_runs():
 def test_watchdog_uses_jst_midnight_for_scheduled_run_presence():
     from pathlib import Path
 
-    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(encoding="utf-8")
+    source = Path("scripts/actions_reliability_watchdog.sh").read_text(encoding="utf-8")
     assert 'TZ=Asia/Tokyo date -d "$current_date 00:00:00" +%s' in source
     assert 'TZ=Asia/Tokyo date -u -d "$current_date 00:00:00"' not in source
 
 def test_watchdog_recovers_stale_active_scheduled_runs():
     from pathlib import Path
 
-    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+    source = Path("scripts/actions_reliability_watchdog.sh").read_text(
         encoding="utf-8"
     )
     assert "active_blocking=false" in source
@@ -968,7 +968,7 @@ def test_watchdog_recovers_stale_active_scheduled_runs():
 def test_watchdog_cleans_stale_bounded_recovery_without_recovery_loop():
     from pathlib import Path
 
-    source = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
+    source = Path("scripts/actions_reliability_watchdog.sh").read_text(
         encoding="utf-8"
     )
     assert "stale queued recovery run" in source
