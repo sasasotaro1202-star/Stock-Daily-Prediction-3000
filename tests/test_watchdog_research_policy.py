@@ -115,6 +115,7 @@ def test_daily_watchlist_missing_schedule_recovery_is_invoked() -> None:
     anchor = 'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true'
     assert anchor in script
     assert "recover_daily_watchlist_missed_schedule()" in script
+    assert "recover_daily_watchlist_missed_schedule\ninspect_workflow \"research-validation-status.yml\"" in script
     assert "bash scripts/recover_daily_watchlist_schedule.sh" in script
     assert "scripts/actions_reliability_watchdog.sh" in workflow
 
