@@ -5,6 +5,9 @@ name: Current-day prediction watchdog
 # This watchdog only recovers a missed/failed daytime on-demand run.
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "ops/current_day_prediction_watchdog.trigger"
   schedule:
     - cron: "*/20 * * * 1-5"
       timezone: "Asia/Tokyo"
