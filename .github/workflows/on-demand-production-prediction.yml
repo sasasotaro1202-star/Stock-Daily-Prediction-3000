@@ -139,8 +139,13 @@ jobs:
         run: python scripts/run_now_prediction.py
       - name: Validate production prediction output
         run: python scripts/validate_prediction_output.py
+      - name: Generate current-day priority watchlist
+        run: python scripts/generate_daily_watchlist.py
+      - name: Validate current-day priority watchlist
+        run: python scripts/validate_daily_watchlist.py
       - uses: actions/upload-artifact@v7
         with:
           name: ondemand-production-prediction-${{ github.run_id }}
-          path: data/predictions/
+          path: |
+            data/predictions/
           retention-days: 7
