@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 import re
+import subprocess
+import tempfile
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +33,55 @@ def _assert_absent(source: str, needle: str, label: str) -> None:
 def _assert_contains(source: str, needle: str, label: str) -> None:
     if needle not in source:
         raise SystemExit(f"FAIL: automation invariant {label}: required text missing")
+
+
+
+def _assert_watchdog_bash_syntax(watchdog: str) -> None:
+    """Fail early when the critical watchdog shell step is syntactically invalid."""
+    try:
+        import yaml
+
+        workflow = yaml.safe_load(watchdog)
+        steps = workflow["jobs"]["watch"]["steps"]
+        run_step = next(
+            step["run"]
+            for step in steps
+            if step.get("name") == "Inspect recent critical workflow runs"
+        )
+    except Exception as exc:
+        raise SystemExit(f"FAIL: unable to extract watchdog shell step: {exc}") from exc
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        script_path = Path(tmpdir) / "watchdog.sh"
+        script_path.write_text(run_step, encoding="utf-8")
+        result = subprocess.run(
+            ["bash", "-n", str(script_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            raise SystemExit(
+                "FAIL: watchdog Bash syntax validation failed:\\n"
+                + (result.stderr or result.stdout or "unknown bash -n error")
+            )
+
+    recovery_script = ROOT / "scripts" / "recover_daily_watchlist_schedule.sh"
+    recovery_result = subprocess.run(
+        ["bash", "-n", str(recovery_script)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if recovery_result.returncode != 0:
+        raise SystemExit(
+            "FAIL: daily watchlist recovery Bash syntax validation failed:\\n"
+            + (
+                recovery_result.stderr
+                or recovery_result.stdout
+                or "unknown bash -n error"
+            )
+        )
 
 
 def _assert_feature_pit_guard() -> None:
@@ -63,6 +114,7 @@ def main() -> int:
     market = _read("market-cycle.yml")
     monitoring = _read("prediction-monitoring.yml")
     watchdog = _read("actions-reliability-watchdog.yml")
+    _assert_watchdog_bash_syntax(watchdog)
     heartbeat = _read("heartbeat.yml")
     recovery = _read("bounded-production-recovery.yml")
     price_restore = str((WORKFLOWS.parent.parent / "scripts" / "restore_latest_price_state.py").read_text(encoding="utf-8"))
