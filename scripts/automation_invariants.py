@@ -162,6 +162,23 @@ def main() -> int:
         '    - cron: "37 18 * * 1-5"',
         "market_cycle_canonical_schedule",
     )
+
+    on_demand = _read("on-demand-production-prediction.yml")
+    _assert_absent(
+        on_demand,
+        '    - cron: "17 18 * * 1-5"',
+        "on_demand_prediction_no_duplicate_daily_schedule",
+    )
+    _assert_contains(
+        on_demand,
+        "PRICE_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}",
+        "on_demand_prediction_all_asset_classes",
+    )
+    _assert_contains(
+        on_demand,
+        'ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"',
+        "on_demand_prediction_official_universe_fallback",
+    )
     _assert_absent(
         market,
         '    - cron: "17 18 * * 1-5"',
