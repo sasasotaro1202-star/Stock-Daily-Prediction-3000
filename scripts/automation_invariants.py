@@ -36,24 +36,11 @@ def _assert_contains(source: str, needle: str, label: str) -> None:
 
 
 
-def _assert_watchdog_bash_syntax(watchdog: str) -> None:
-    """Fail early when the critical watchdog shell step is syntactically invalid."""
-    try:
-        import yaml
-
-        workflow = yaml.safe_load(watchdog)
-        steps = workflow["jobs"]["watch"]["steps"]
-        run_step = next(
-            step["run"]
-            for step in steps
-            if step.get("name") == "Inspect recent critical workflow runs"
-        )
-    except Exception as exc:
-        raise SystemExit(f"FAIL: unable to extract watchdog shell step: {exc}") from exc
-
+def _assert_watchdog_bash_syntax(watchdog_script: str) -> None:
+    """Fail early when the standalone watchdog shell script is syntactically invalid."""
     with tempfile.TemporaryDirectory() as tmpdir:
         script_path = Path(tmpdir) / "watchdog.sh"
-        script_path.write_text(run_step, encoding="utf-8")
+        script_path.write_text(watchdog_script, encoding="utf-8")
         result = subprocess.run(
             ["bash", "-n", str(script_path)],
             capture_output=True,
@@ -82,7 +69,6 @@ def _assert_watchdog_bash_syntax(watchdog: str) -> None:
                 or "unknown bash -n error"
             )
         )
-
 
 def _assert_feature_pit_guard() -> None:
     from src.research.learned_case_risk_oos import _pit_ready
@@ -114,7 +100,8 @@ def main() -> int:
     market = _read("market-cycle.yml")
     monitoring = _read("prediction-monitoring.yml")
     watchdog = _read("actions-reliability-watchdog.yml")
-    _assert_watchdog_bash_syntax(watchdog)
+    watchdog_script = (ROOT / "scripts" / "actions_reliability_watchdog.sh").read_text(encoding="utf-8")
+    _assert_watchdog_bash_syntax(watchdog_script)
     heartbeat = _read("heartbeat.yml")
     recovery = _read("bounded-production-recovery.yml")
     price_restore = str((WORKFLOWS.parent.parent / "scripts" / "restore_latest_price_state.py").read_text(encoding="utf-8"))
