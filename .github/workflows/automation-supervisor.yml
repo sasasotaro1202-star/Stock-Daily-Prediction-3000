@@ -118,6 +118,7 @@ jobs:
           # Independent control-plane chain:
           # supervisor -> watchdog -> controller loops.
           recover_controller "actions-reliability-watchdog.yml" "Actions reliability watchdog" 5 20
+          recover_controller "current-day-prediction-watchdog.yml" "Current-day prediction watchdog" 20 60
           recover_controller "research-autopilot.yml" "Research autopilot" 30 120
           recover_controller "long-research-recovery.yml" "Long research recovery" 10 45
           recover_controller "automation-failure-learning.yml" "Automation failure learning" 15 75
