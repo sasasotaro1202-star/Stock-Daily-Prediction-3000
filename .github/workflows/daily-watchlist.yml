@@ -114,6 +114,7 @@ jobs:
           git fetch --no-tags origin main
 
           if git ls-remote --exit-code --heads origin prediction-status >/dev/null 2>&1; then
+            git fetch --no-tags origin prediction-status
             git worktree add --detach "$worktree_dir" origin/main
             git -C "$worktree_dir" checkout -B prediction-status origin/prediction-status
           else
