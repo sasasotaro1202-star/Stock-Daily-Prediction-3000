@@ -259,21 +259,7 @@ jobs:
           fi
           }
 
-          # Verification and autopilot are control-plane prerequisites for expensive Research.
-          # Recover stale queued entries on the current main SHA instead of leaving the
-          # whole Research lane blocked indefinitely by runner/queue incidents.
-          inspect_workflow "repository-verification.yml" "Repository verification" true true
-          inspect_workflow "research-autopilot.yml" "Research autopilot" true true
-          inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true
-
-          inspect_workflow "market-cycle.yml" "Market cycle" true
-          inspect_workflow "us-close-prediction.yml" "U.S. close prediction" false
-          inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false
-          inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
-          inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true
-          inspect_workflow "experience-review.yml" "Experience review" true true
-          inspect_workflow "long-research-recovery.yml" "Long research recovery" true true
-          # GitHub may occasionally miss a scheduled workflow dispatch entirely.
+# GitHub may occasionally miss a scheduled workflow dispatch entirely.
           # Failure recovery above only sees an existing run, so Daily Priority Watchlist
           # gets a bounded schedule-miss detector after a 45-minute grace period.
           recover_daily_watchlist_missed_schedule() {
@@ -339,7 +325,22 @@ jobs:
             fi
           }
 
-          # Short research collectors are safe for bounded first-failure retry and
+
+          # Verification and autopilot are control-plane prerequisites for expensive Research.
+          # Recover stale queued entries on the current main SHA instead of leaving the
+          # whole Research lane blocked indefinitely by runner/queue incidents.
+          inspect_workflow "repository-verification.yml" "Repository verification" true true
+          inspect_workflow "research-autopilot.yml" "Research autopilot" true true
+          inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true
+
+          inspect_workflow "market-cycle.yml" "Market cycle" true
+          inspect_workflow "us-close-prediction.yml" "U.S. close prediction" false
+          inspect_workflow "prediction-monitoring.yml" "Prediction monitoring" false
+          inspect_workflow "bounded-production-recovery.yml" "Bounded production recovery" false
+          inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true
+          inspect_workflow "experience-review.yml" "Experience review" true true
+          inspect_workflow "long-research-recovery.yml" "Long research recovery" true true
+                    # Short research collectors are safe for bounded first-failure retry and
           # stale-run recovery. Long OOS collectors remain failure-memory only
           # to avoid cancelling legitimate multi-hour research.
           inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true
