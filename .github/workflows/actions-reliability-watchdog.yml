@@ -259,7 +259,7 @@ jobs:
           fi
           }
 
-# GitHub may occasionally miss a scheduled workflow dispatch entirely.
+          # GitHub may occasionally miss a scheduled workflow dispatch entirely.
           # Failure recovery above only sees an existing run, so Daily Priority Watchlist
           # gets a bounded schedule-miss detector after a 45-minute grace period.
           recover_daily_watchlist_missed_schedule() {
