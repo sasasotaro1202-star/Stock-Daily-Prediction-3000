@@ -7,10 +7,11 @@ on:
         description: "Comma-separated production asset classes"
         required: false
         default: "jp_stock,jp_etf,jp_reit,us_stock,us_etf"
-  # One-shot current-day trigger for the 2026-10-06 request.
+  # Reusable current-day trigger. Updating the trigger file starts a fresh
+  # prediction run without requiring a manual workflow-dispatch action.
   push:
     paths:
-      - "ops/today_prediction_20261006.trigger"
+      - "ops/today_prediction.trigger"
 
 permissions:
   actions: read
@@ -123,13 +124,13 @@ jobs:
         run: python scripts/normalize_price_store.py
       - name: Scoped price data quality
         env:
-          QUALITY_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit' }}
+          QUALITY_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
         run: python scripts/data_quality_gate.py
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Production-or-near-production prediction
         env:
-          PREDICT_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit' }}
+          PREDICT_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
         run: python scripts/run_now_prediction.py
       - name: Validate production prediction output
         run: python scripts/validate_prediction_output.py
