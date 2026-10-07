@@ -1,0 +1,29 @@
+name: Current-day prediction watchdog
+
+# Independent daytime safety net for the current-day prediction path.
+# The canonical evening market-cycle remains the primary daily lane.
+# This watchdog only recovers a missed/failed daytime on-demand run.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/20 * * * 1-5"
+      timezone: "Asia/Tokyo"
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: current-day-prediction-watchdog
+  cancel-in-progress: true
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Recover current-day prediction when required
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: bash scripts/recover_current_day_prediction.sh
