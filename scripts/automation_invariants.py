@@ -101,6 +101,10 @@ def main() -> int:
     monitoring = _read("prediction-monitoring.yml")
     watchdog = _read("actions-reliability-watchdog.yml")
     watchdog_script = (ROOT / "scripts" / "actions_reliability_watchdog.sh").read_text(encoding="utf-8")
+    # Behavioral invariants are split between the lightweight workflow wrapper and
+    # the standalone watchdog implementation. Validate the union so refactors do not
+    # invalidate policy tests merely by moving shell logic out of YAML.
+    watchdog_contract = watchdog + "\n" + watchdog_script
     _assert_watchdog_bash_syntax(watchdog_script)
     heartbeat = _read("heartbeat.yml")
     recovery = _read("bounded-production-recovery.yml")
@@ -191,12 +195,12 @@ def main() -> int:
     )
 
     _assert_once(
-        watchdog,
+        watchdog_contract,
         '    - cron: "*/5 * * * *"',
         "watchdog_5m_schedule",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "cancel-in-progress: true",
         "watchdog_latest_run_wins",
     )
@@ -303,7 +307,7 @@ def main() -> int:
 
 
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "heartbeat_cutoff=\"$(date -u -d '13 hours ago' +%s)\"",
         "heartbeat_stale_threshold_matches_6h_cadence",
     )
@@ -638,22 +642,22 @@ def main() -> int:
         "freeze_requires_positive_bootstrap_ranking_evidence",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "repository-verification.yml" "Repository verification" true true',
         "watchdog_recovers_stale_verification_queue",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "rerunning the same current-main execution once",
         "watchdog_bounded_control_plane_failure_retry",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "research-autopilot.yml" "Research autopilot" true',
         "watchdog_recovers_stale_autopilot_queue",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true',
         "watchdog_recovers_stale_marathon_queue",
     )
@@ -665,17 +669,17 @@ def main() -> int:
 
 
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_research_validation()',
         "watchdog_monitors_research_validation",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "automation-failure-learning.yml" "Automation failure learning" true true',
         "watchdog_recovers_stale_failure_learning",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "experience-review.yml" "Experience review" true true',
         "watchdog_recovers_stale_experience_review",
     )
@@ -759,12 +763,12 @@ def main() -> int:
     )
 
     _assert_absent(
-        watchdog,
+        watchdog_contract,
         '  push:\n    paths:',
         "watchdog_has_no_push_trigger",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "bash scripts/actions_reliability_watchdog.sh",
         "watchdog_invokes_standalone_script",
     )
@@ -795,77 +799,77 @@ def main() -> int:
         "watchdog_daily_watchlist_schedule_miss_message",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         '    - cron: "*/5 * * * *"',
         "watchdog_canonical_schedule",
     )
     _assert_absent(
-        watchdog,
+        watchdog_contract,
         'workflows: ["Research validation"]',
         "watchdog_not_triggered_by_research_workflow_run",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "current_sha_queued=true",
         "watchdog_suppresses_duplicate_research_dispatch",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq \'.object.sha\')"' ,
         "watchdog_resolves_live_main_head",
     )
     _assert_absent(
-        watchdog,
+        watchdog_contract,
         'current_sha="$GITHUB_SHA"',
         "watchdog_does_not_use_stale_workflow_sha_as_current_main",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "current-SHA queued run already exists after stale queue cleanup; suppressing duplicate dispatch",
         "watchdog_reports_duplicate_dispatch_suppression",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'research_stale_epoch="$((now_epoch - 350 * 60))"',
         "watchdog_research_stale_timeout",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'active_run_started_epoch="$(date -d "$run_started" +%s 2>/dev/null || echo 0)"',
         "watchdog_research_hard_age_source",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "Only the newest watchdog should execute",
         "watchdog_latest_run_wins_comment",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'active_run_started_epoch" -gt 0',
         "watchdog_research_hard_age_guard",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'if [[ "$head_sha" != "$current_sha" ]]; then',
         "watchdog_research_queue_compares_current_sha",
     )
     _assert_absent(
-        watchdog,
+        watchdog_contract,
         'active_head_sha" != "$current_sha"',
         "watchdog_research_does_not_cancel_only_for_superseded_sha",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "Preserve an active chronological OOS across control-plane-only main changes.",
         "watchdog_research_preserves_active_oos",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "Evidence-affecting changes invalidate the run and must release the concurrency",
         "watchdog_research_invalidates_evidence_changes",
     )
     _assert_absent(
-        watchdog,
+        watchdog_contract,
         'WATCHDOG_RESEARCH workflow=${workflow_name} active_run=$active_run_id head_sha=$active_head_sha current_sha=$current_sha"\n                return 0\n              fi\n            fi\n\n            local recovered_queue=false',
         "watchdog_research_no_duplicate_active_tail",
     )
@@ -1110,7 +1114,7 @@ def main() -> int:
         "long_research_recovery_current_main_dispatch",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'inspect_workflow "long-research-recovery.yml" "Long research recovery" true true',
         "watchdog_recovers_long_research_recovery",
     )
@@ -1124,42 +1128,42 @@ def main() -> int:
         ("automation-failure-learning.yml", "Automation failure learning", 15, 75),
     ):
         _assert_once(
-            watchdog,
+            watchdog_contract,
             f'recover_missing_periodic_controller "{workflow_file}" "{workflow_name}" {cadence} {max_age}',
             f"watchdog_controller_heartbeat_{workflow_file.removesuffix('.yml').replace('-', '_')}",
         )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         "recover_missing_periodic_controller() {",
         "watchdog_controller_heartbeat_function",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'active run exists; controller heartbeat recovery suppressed',
         "watchdog_controller_heartbeat_preserves_active_runs",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'no current-main run within cadence window; dispatching bounded recovery',
         "watchdog_controller_heartbeat_dispatch_policy",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         '[ "$latest_terminal_conclusion" = "cancelled" ]',
         "watchdog_tracks_research_cancelled_terminal",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'echo "${workflow_name}: bounded cancellation recovery dispatched on current main"',
         "watchdog_recovers_cancelled_research_on_current_main",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'latest_terminal_attempt" -eq 1',
         "watchdog_cancelled_recovery_is_single_attempt_bounded",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         'latest_terminal_created_epoch" -le "$((now_epoch - 60 * 60))"',
         "watchdog_cancelled_recovery_60m_cooldown",
     )
@@ -1180,7 +1184,7 @@ def main() -> int:
             f"research_fingerprint_control_plane_script_{script_path.split("/")[-1].removesuffix(".py")}",
         )
         _assert_contains(
-            watchdog,
+            watchdog_contract,
             script_path,
             f"watchdog_control_plane_script_allowlist_{script_path.split("/")[-1].removesuffix(".py")}",
         )
@@ -1204,7 +1208,7 @@ def main() -> int:
             f"evidence_fingerprint_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
         )
         _assert_contains(
-            watchdog,
+            watchdog_contract,
             workflow_path,
             f"watchdog_control_plane_allowlist_{workflow_path.split('/')[-1].removesuffix('.yml')}",
         )
@@ -1237,7 +1241,7 @@ def main() -> int:
         "heartbeat_recovers_watchdog",
     )
     _assert_once(
-        watchdog,
+        watchdog_contract,
         '&& [ "$conclusion" = "success" ]',
         "watchdog_controller_health_requires_success",
     )
@@ -1268,7 +1272,7 @@ def main() -> int:
     )
     for workflow_file, workflow_name in watchdog_recovery_workflows:
         _assert_once(
-            watchdog,
+            watchdog_contract,
             f'inspect_workflow "{workflow_file}" "{workflow_name}" true true',
             f"watchdog_recovers_{workflow_file.removesuffix('.yml').replace('-', '_')}",
         )
