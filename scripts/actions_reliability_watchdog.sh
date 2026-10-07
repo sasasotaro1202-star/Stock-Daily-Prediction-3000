@@ -234,6 +234,7 @@ inspect_workflow "long-research-recovery.yml" "Long research recovery" true true
 # stale-run recovery. Long OOS collectors remain failure-memory only
 # to avoid cancelling legitimate multi-hour research.
 inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true
+inspect_workflow "on-demand-production-prediction.yml" "On-demand production prediction" true true true
 recover_daily_watchlist_missed_schedule
 inspect_workflow "research-validation-status.yml" "Research validation status" true true
 inspect_workflow "free-data-source-discovery.yml" "Free Data Source Discovery" true true
