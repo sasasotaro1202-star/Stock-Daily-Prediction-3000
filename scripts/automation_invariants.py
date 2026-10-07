@@ -179,6 +179,16 @@ def main() -> int:
         'ALLOW_FRESH_OFFICIAL_UNIVERSE_FALLBACK: "true"',
         "on_demand_prediction_official_universe_fallback",
     )
+    _assert_contains(
+        on_demand,
+        "Require latest main HEAD",
+        "on_demand_prediction_current_main_guard",
+    )
+    _assert_contains(
+        on_demand,
+        "run_required=${{ steps.guard.outputs.run_required }}",
+        "on_demand_prediction_guard_output",
+    )
     _assert_absent(
         market,
         '    - cron: "17 18 * * 1-5"',
@@ -662,6 +672,11 @@ def main() -> int:
         watchdog_contract,
         'inspect_workflow "repository-verification.yml" "Repository verification" true true',
         "watchdog_recovers_stale_verification_queue",
+    )
+    _assert_once(
+        watchdog_contract,
+        'inspect_workflow "on-demand-production-prediction.yml" "On-demand production prediction" true true true',
+        "watchdog_recovers_on_demand_prediction",
     )
     _assert_once(
         watchdog_contract,
