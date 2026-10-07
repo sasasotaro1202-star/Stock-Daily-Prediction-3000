@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 WORKFLOW = Path(".github/workflows/actions-reliability-watchdog.yml")
+WATCHDOG_SCRIPT = Path("scripts/actions_reliability_watchdog.sh")
 
 
 def test_active_research_preserves_control_plane_only_changes() -> None:
@@ -88,7 +89,7 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
 
 
 def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = WATCHDOG_SCRIPT.read_text(encoding="utf-8")
     assert 'local recover_superseded_failure="${5:-false}"' in text
     assert "superseded_recent_failure_found=false" in text
     assert "recent failure on superseded SHA" in text
@@ -97,7 +98,7 @@ def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
 
 
 def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = WATCHDOG_SCRIPT.read_text(encoding="utf-8")
     assert "recover_daily_watchlist_missed_schedule()" in text
     assert 'workflow_file="daily-watchlist.yml"' in text
     assert 'weekday="$(TZ=Asia/Tokyo date +%u)"' in text
@@ -109,14 +110,17 @@ def test_daily_watchlist_missing_schedule_has_bounded_recovery() -> None:
 
 
 def test_daily_watchlist_missing_schedule_recovery_is_invoked() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    workflow = WORKFLOW.read_text(encoding="utf-8")
+    script = WATCHDOG_SCRIPT.read_text(encoding="utf-8")
     anchor = 'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true true'
-    assert anchor in text
-    assert text.index("recover_daily_watchlist_missed_schedule()", text.index(anchor)) > text.index(anchor)
+    assert anchor in script
+    assert "recover_daily_watchlist_missed_schedule()" in script
+    assert "bash scripts/recover_daily_watchlist_schedule.sh" in script
+    assert "scripts/actions_reliability_watchdog.sh" in workflow
 
 
 def test_watchdog_covers_short_research_collectors_and_watchlist() -> None:
-    text = WORKFLOW.read_text(encoding="utf-8")
+    text = WATCHDOG_SCRIPT.read_text(encoding="utf-8")
     expected = (
         'inspect_workflow "daily-watchlist.yml" "Daily priority watchlist" true true',
         'inspect_workflow "free-data-source-discovery.yml" "Free Data Source Discovery" true true',
