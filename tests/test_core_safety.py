@@ -730,11 +730,14 @@ def test_oos_model_candidates_follow_pipeline_config():
 def test_actions_watchdog_is_frequent_and_fail_visible():
     from pathlib import Path
 
-    source = Path("scripts/actions_reliability_watchdog.sh").read_text(
+    workflow = Path(".github/workflows/actions-reliability-watchdog.yml").read_text(
         encoding="utf-8"
     )
-    assert 'cron: "*/5 * * * *"' in source
-    assert "actions: write" in source
+    source = workflow + "\n" + Path("scripts/actions_reliability_watchdog.sh").read_text(
+        encoding="utf-8"
+    )
+    assert 'cron: "*/5 * * * *"' in workflow
+    assert "actions: write" in workflow
     assert "96 hours ago" in source
     assert "bounded recovery" in source
     assert "Actions reliability watchdog: PASS" in source

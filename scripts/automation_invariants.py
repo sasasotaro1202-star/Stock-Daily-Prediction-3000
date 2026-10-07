@@ -784,7 +784,7 @@ def main() -> int:
     )
     _assert_contains(
         watchdog_script,
-        "recover_daily_watchlist_missed_schedule\ninspect_workflow \\\"research-validation-status.yml\\\"",
+        "recover_daily_watchlist_missed_schedule\ninspect_workflow \"research-validation-status.yml\"",
         "watchdog_daily_watchlist_missing_schedule_recovery_called",
     )
 

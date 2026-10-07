@@ -13,7 +13,7 @@ def _watchdog_text() -> str:
 def test_active_research_preserves_control_plane_only_changes() -> None:
     text = _watchdog_text()
     start = text.index(
-        '            if [ -n "$active_run_id" ]; then',
+        'if [ -n "$active_run_id" ]; then',
         text.index("inspect_research_validation"),
     )
     end = text.index("            local current_sha_queued=false", start)
@@ -70,7 +70,7 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     text = _watchdog_text()
     research_start = text.index("inspect_research_validation")
     start = text.index(
-        '            if [ -n "$active_run_id" ]; then',
+        'if [ -n "$active_run_id" ]; then',
         research_start,
     )
     queue_start = text.index("            local current_sha_queued=false", start)
