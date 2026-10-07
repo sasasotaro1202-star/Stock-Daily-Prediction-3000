@@ -22,7 +22,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run_required: ${{ steps.guard.outputs.run_required }}
+    steps:
+      - name: Require latest main HEAD
+        id: guard
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_sha="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$current_sha" != "$GITHUB_SHA" ]; then
+            echo "run_required=false" >> "$GITHUB_OUTPUT"
+            echo "guard_reason=superseded_workflow_sha" >> "$GITHUB_OUTPUT"
+            echo "on-demand prediction deferred: workflow SHA=$GITHUB_SHA current main=$current_sha"
+            exit 0
+          fi
+          echo "run_required=true" >> "$GITHUB_OUTPUT"
+          echo "guard_reason=current_main" >> "$GITHUB_OUTPUT"
+
   restore-universe:
+    if: needs.prepare.outputs.run_required == 'true'
+    needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -44,7 +70,8 @@ jobs:
           retention-days: 3
 
   price-shards:
-    needs: restore-universe
+    if: needs.prepare.outputs.run_required == 'true'
+    needs: [prepare, restore-universe]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
@@ -81,7 +108,8 @@ jobs:
           retention-days: 3
 
   predict:
-    needs: price-shards
+    if: needs.prepare.outputs.run_required == 'true'
+    needs: [prepare, price-shards]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
