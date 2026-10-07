@@ -189,6 +189,28 @@ def main() -> int:
         "run_required=${{ steps.guard.outputs.run_required }}",
         "on_demand_prediction_guard_output",
     )
+    current_day_watchdog = _read("current-day-prediction-watchdog.yml")
+    current_day_script = (ROOT / "scripts" / "recover_current_day_prediction.sh").read_text(encoding="utf-8")
+    _assert_contains(
+        current_day_watchdog,
+        '    - cron: "*/20 * * * 1-5"',
+        "current_day_prediction_watchdog_schedule",
+    )
+    _assert_once(
+        current_day_watchdog,
+        "cancel-in-progress: true",
+        "current_day_prediction_watchdog_latest_run_wins",
+    )
+    _assert_contains(
+        current_day_script,
+        "08:20 JST recovery threshold",
+        "current_day_prediction_recovery_threshold",
+    )
+    _assert_contains(
+        current_day_script,
+        "gh workflow run "${workflow_file}" --repo "$repo" --ref main",
+        "current_day_prediction_dispatches_current_main",
+    )
     _assert_absent(
         market,
         '    - cron: "17 18 * * 1-5"',
@@ -680,6 +702,11 @@ def main() -> int:
     )
     _assert_once(
         watchdog_contract,
+        'inspect_workflow "current-day-prediction-watchdog.yml" "Current-day prediction watchdog" true true',
+        "watchdog_monitors_current_day_prediction_watchdog",
+    )
+    _assert_once(
+        watchdog_contract,
         "rerunning the same current-main execution once",
         "watchdog_bounded_control_plane_failure_retry",
     )
@@ -692,6 +719,11 @@ def main() -> int:
         watchdog_contract,
         'inspect_workflow "24h-research-marathon.yml" "24H Research Marathon" true',
         "watchdog_recovers_stale_marathon_queue",
+    )
+    _assert_once(
+        str((ROOT / ".github" / "workflows" / "automation-supervisor.yml").read_text(encoding="utf-8")),
+        'recover_controller "current-day-prediction-watchdog.yml" "Current-day prediction watchdog" 20 60',
+        "supervisor_recovers_current_day_prediction_watchdog",
     )
     _assert_once(
         str((WORKFLOWS / "24h-research-marathon-watchdog.yml").read_text(encoding="utf-8")),
