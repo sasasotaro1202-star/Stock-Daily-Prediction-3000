@@ -81,6 +81,11 @@ jobs:
       - name: Build verified external Stock research queue
         run: |
           python scripts/build_external_stock_research_queue.py --snapshot artifacts/external_oss_top1000_snapshot.json --mechanism-config config/external_stock_mechanism_research.json --output artifacts/external_stock_research_queue.json
+      - name: Static-inspect top verified Stock research candidates
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/inspect_external_stock_research_queue.py --queue artifacts/external_stock_research_queue.json --output artifacts/external_stock_source_inspection.json --max-candidates 25
       - name: Enforce research-only and no-fabrication contract
         shell: bash
         run: |
