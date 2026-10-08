@@ -7,6 +7,8 @@ on:
     - cron: "17 5 * * 0"
       timezone: "Asia/Tokyo"
   push:
+    branches:
+      - main
     paths:
       - "config/external_research_candidates.json"
       - "config/external_prediction_system_oss_top1000_registry.json"
@@ -24,7 +26,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: external-oss-research
+  group: external-oss-research-${{ github.repository }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -114,7 +116,7 @@ jobs:
           )
           PY
       - name: Publish immutable research snapshot to external-oss-status
-        if: success()
+        if: github.ref == 'refs/heads/main' && success()
         shell: bash
         run: |
           set -euo pipefail
