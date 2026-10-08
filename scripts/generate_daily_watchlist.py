@@ -458,6 +458,10 @@ def market_baseline(
         "target_date": target_date,
         "expected_target_date": expected_target_date,
         "cutoff": str(cutoff),
+        # Watchlist generation time is the prediction timestamp for this
+        # research-only market baseline. Context was prefiltered to
+        # available_at <= cutoff, so the PIT ordering is explicit.
+        "prediction_time": str(cutoff),
         "available_at": str(latest["available_at"]),
         "provider_symbol": str(latest.get("provider_symbol", instrument["provider_symbol"])),
     }
