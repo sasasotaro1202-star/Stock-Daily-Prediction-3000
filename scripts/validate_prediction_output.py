@@ -40,6 +40,7 @@ def main() -> None:
         "model_disagreement",
         "prediction_status",
         "prediction_mode",
+        "rank",
     }
     missing = sorted(required - set(df.columns))
     if missing:
@@ -93,7 +94,10 @@ def main() -> None:
 
     close_low = pd.to_numeric(df.loc[ready, "range_low_1d"], errors="coerce")
     close_mid = pd.to_numeric(df.loc[ready, "expected_close_1d"], errors="coerce")
+    close_q50 = pd.to_numeric(df.loc[ready, "q50_1d"], errors="coerce")
     close_high = pd.to_numeric(df.loc[ready, "range_high_1d"], errors="coerce")
+    if ((close_low > close_q50) | (close_q50 > close_high)).any():
+        raise SystemExit("FAIL: q10/q50/q90 price quantile ordering is invalid")
     if ((close_low > close_mid) | (close_mid > close_high)).any():
         raise SystemExit("FAIL: price interval ordering is invalid")
 
