@@ -16,9 +16,9 @@ def test_active_research_preserves_control_plane_only_changes() -> None:
         'if [ -n "$active_run_id" ]; then',
         text.index("inspect_research_validation"),
     )
-    end = text.index("            local current_sha_queued=false", start)
+    end = text.index("  local current_sha_queued=false", start)
     block = text[start:end]
-    assert "control-plane-only main changes" in block
+    assert "Preserve an active chronological OOS across control-plane-only main changes" in block
     assert "evidence-affecting changes invalidate the run" in block.lower()
     assert 'gh run cancel "$active_run_id"' in block
     assert "350 minutes" in block
@@ -73,23 +73,14 @@ def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
         'if [ -n "$active_run_id" ]; then',
         research_start,
     )
-    queue_start = text.index("            local current_sha_queued=false", start)
+    queue_start = text.index("  local current_sha_queued=false", start)
     active_block = text[start:queue_start]
     queue_block = text[queue_start:]
     assert "superseded queued" not in active_block
-    preserve = active_block[
-        active_block.index(
-            "              else\n                # Keep the active chronological OOS run"
-        ):active_block.index(
-            "              fi",
-            active_block.index(
-                "              else\n                # Keep the active chronological OOS run"
-            ),
-        )
-    ]
-    assert "continue into queue" in preserve
-    assert "return 0" not in preserve
+    assert "Keep the active chronological OOS run, but continue into queue" in active_block
+    assert "continue into queue" in active_block
     assert 'if gh run cancel "$run_id" --repo "$GITHUB_REPOSITORY"; then' in queue_block
+    assert 'if [ "$should_cancel" = true ]; then' in queue_block
 
 
 def test_daily_watchlist_can_recover_recent_superseded_failure() -> None:
