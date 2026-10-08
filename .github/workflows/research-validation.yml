@@ -173,6 +173,12 @@ jobs:
             else
               echo "external-oss-status has no metadata snapshot; queue will be explicitly deferred"
             fi
+            if git cat-file -e "origin/external-oss-status:data/research/external_stock_source_inspection.json" 2>/dev/null; then
+              git show "origin/external-oss-status:data/research/external_stock_source_inspection.json" > data/research/external_stock_source_inspection.json
+              echo "restored external Stock source inspection"
+            else
+              echo "external-oss-status has no source inspection snapshot"
+            fi
           else
             echo "external-oss-status branch unavailable; queue will be explicitly deferred"
           fi
@@ -205,6 +211,17 @@ jobs:
                     "blocked=", d.get("blocked_source_count"))
           else:
               print("external_stock_research_queue=DEFERRED_NO_LIVE_SNAPSHOT")
+          inspection = Path("data/research/external_stock_source_inspection.json")
+          if inspection.exists():
+              i = json.loads(inspection.read_text(encoding="utf-8"))
+              assert i.get("static_only") is True
+              assert i.get("external_code_executed") is False
+              assert i.get("external_code_installed") is False
+              assert i.get("predictive_performance_evidence") == "NONE"
+              assert i.get("promotion_allowed") is False
+              print("external_stock_source_inspection=SAFE")
+          else:
+              print("external_stock_source_inspection=ABSENT_OR_NOT_YET_PUBLISHED")
           PY
       - name: Generate experience-driven research candidate plan
         run: python scripts/generate_experience_candidates.py
@@ -676,6 +693,7 @@ jobs:
             data/research/experience_candidates.json
             data/research/experience_candidate_evaluation.json
             data/research/external_stock_research_queue.json
+            data/research/external_stock_source_inspection.json
             data/research/case_risk_oos.json
             data/research/learned_case_risk_oos.json
             data/research/ultimate_v13/**
