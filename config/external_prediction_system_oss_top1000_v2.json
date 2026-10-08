@@ -1,0 +1,351 @@
+{
+  "schema_version": 2,
+  "catalog_id": "external-prediction-system-oss-top1000-v2",
+  "source_title": "予測システム関連 GitHub 人気TOP1000",
+  "source_basis": "user_supplied_2026-10-08",
+  "source_scope": {
+    "count_claimed": 1000,
+    "ranking_basis": "GitHub Stars as primary popularity axis; not annual growth rate",
+    "intended_domains": [
+      "data acquisition",
+      "feature engineering",
+      "machine learning",
+      "time-series forecasting",
+      "anomaly/drift detection",
+      "probabilistic modeling",
+      "simulation",
+      "reinforcement learning",
+      "financial/quant research",
+      "Agent/research automation",
+      "MLOps",
+      "evaluation",
+      "monitoring/observability",
+      "visualization",
+      "data/storage/inference/serving"
+    ]
+  },
+  "integrity_policy": {
+    "preserve_source_rank": true,
+    "preserve_duplicates": true,
+    "preserve_non_repository_entries": true,
+    "normalize_separately": true,
+    "external_star_ranking_not_performance_evidence": true,
+    "momentum_not_inferred_without_history": true,
+    "source_metadata_verification_required": true
+  },
+  "taxonomy": {
+    "DIRECT_PREDICTIVE": [
+      "time-series forecasting",
+      "tabular ML",
+      "probabilistic forecasting",
+      "financial/quant research",
+      "volatility/risk",
+      "ranking/factor research"
+    ],
+    "DATA_PIT": [
+      "market data",
+      "web retrieval",
+      "document extraction",
+      "data quality",
+      "dataset/version lineage",
+      "feature stores"
+    ],
+    "UNCERTAINTY_FAILURE": [
+      "probabilistic programming",
+      "conformal/interval methods",
+      "anomaly detection",
+      "drift detection",
+      "change-point detection",
+      "calibration/evaluation"
+    ],
+    "RESEARCH_AUTOMATION": [
+      "Agent",
+      "automated research",
+      "hyperparameter search",
+      "experiment tracking",
+      "workflow orchestration"
+    ],
+    "PRODUCTION_MLOPS": [
+      "model registry",
+      "model serving",
+      "CI/CD",
+      "distributed compute",
+      "scheduling",
+      "monitoring",
+      "observability",
+      "recovery"
+    ],
+    "ANALYTICS_UI": [
+      "dashboard",
+      "visualization",
+      "analytics application"
+    ],
+    "INFRASTRUCTURE": [
+      "database",
+      "streaming",
+      "vector search",
+      "runtime",
+      "container/orchestration",
+      "inference optimization"
+    ]
+  },
+  "prioritization_principle": {
+    "primary": "Future Generalization and case-level predictive value",
+    "secondary": "PIT/calibration/robustness/uncertainty contribution",
+    "tertiary": "operational reliability and research velocity",
+    "penalty": "complexity, security, cost, unverifiable availability",
+    "rule": "Stars prioritize discovery; OOS evidence decides adoption."
+  },
+  "deep_research_seed": [
+    {
+      "repo": "microsoft/qlib",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "quant research/factor workflow"
+    },
+    {
+      "repo": "google-research/timesfm",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "time-series foundation forecasting"
+    },
+    {
+      "repo": "shiyu-coder/Kronos",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "financial time-series foundation model"
+    },
+    {
+      "repo": "unit8co/darts",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "forecasting model ecology"
+    },
+    {
+      "repo": "Nixtla/statsforecast",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "fast statistical forecasting"
+    },
+    {
+      "repo": "Nixtla/neuralforecast",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "neural forecasting"
+    },
+    {
+      "repo": "sktime/sktime",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "time-series ML"
+    },
+    {
+      "repo": "statsmodels/statsmodels",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "statistical baselines"
+    },
+    {
+      "repo": "microsoft/LightGBM",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "tabular gradient boosting"
+    },
+    {
+      "repo": "dmlc/xgboost",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "tabular gradient boosting"
+    },
+    {
+      "repo": "CatBoost/catboost",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "categorical/tabular boosting"
+    },
+    {
+      "repo": "pyod-ecust/pyod",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "outlier/anomaly detection"
+    },
+    {
+      "repo": "merlion-ml/merlion",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "forecasting and anomaly detection"
+    },
+    {
+      "repo": "deepcharles/ruptures",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "change-point detection"
+    },
+    {
+      "repo": "pymc-devs/pymc",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "Bayesian uncertainty"
+    },
+    {
+      "repo": "pyro-ppl/pyro",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "probabilistic programming"
+    },
+    {
+      "repo": "ArviZ-devs/arviz",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "Bayesian diagnostics"
+    },
+    {
+      "repo": "optuna/optuna",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "prequential hyperparameter research"
+    },
+    {
+      "repo": "mlflow/mlflow",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "experiment/model lifecycle"
+    },
+    {
+      "repo": "feast-dev/feast",
+      "lane": "DATA_PIT",
+      "reason": "feature lineage/store"
+    },
+    {
+      "repo": "iterative/dvc",
+      "lane": "DATA_PIT",
+      "reason": "data/model versioning"
+    },
+    {
+      "repo": "evidentlyai/evidently",
+      "lane": "UNCERTAINTY_FAILURE",
+      "reason": "drift/monitoring"
+    },
+    {
+      "repo": "great-expectations/great_expectations",
+      "lane": "DATA_PIT",
+      "reason": "data quality contracts"
+    },
+    {
+      "repo": "apache/airflow",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "workflow scheduling"
+    },
+    {
+      "repo": "dagster-io/dagster",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "data/ML orchestration"
+    },
+    {
+      "repo": "prefecthq/prefect",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "workflow orchestration"
+    },
+    {
+      "repo": "ray-project/ray",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "distributed experiments"
+    },
+    {
+      "repo": "duckdb/duckdb",
+      "lane": "INFRASTRUCTURE",
+      "reason": "local analytical data layer"
+    },
+    {
+      "repo": "polars/polars",
+      "lane": "INFRASTRUCTURE",
+      "reason": "fast dataframe layer"
+    },
+    {
+      "repo": "abides-sim/abides",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "market simulation"
+    },
+    {
+      "repo": "AI4Finance-Foundation/FinRL",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "financial RL research"
+    },
+    {
+      "repo": "freqtrade/freqtrade",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "financial backtesting/research"
+    },
+    {
+      "repo": "vnpy/vnpy",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "quant market infrastructure"
+    },
+    {
+      "repo": "vectorbt/vectorbt",
+      "lane": "DIRECT_PREDICTIVE",
+      "reason": "vectorized quant research"
+    },
+    {
+      "repo": "karpathy/autoresearch",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "automated experiment loop"
+    },
+    {
+      "repo": "openclaw/openclaw",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "long-running autonomous agent"
+    },
+    {
+      "repo": "obra/superpowers",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "structured agent development workflow"
+    },
+    {
+      "repo": "NousResearch/hermes-agent",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "autonomous agent"
+    },
+    {
+      "repo": "Panniantong/Agent-Reach",
+      "lane": "DATA_PIT",
+      "reason": "web information acquisition"
+    },
+    {
+      "repo": "firecrawl/firecrawl",
+      "lane": "DATA_PIT",
+      "reason": "web extraction"
+    },
+    {
+      "repo": "D4Vinci/Scrapling",
+      "lane": "DATA_PIT",
+      "reason": "web scraping"
+    },
+    {
+      "repo": "unclecode/crawl4ai",
+      "lane": "DATA_PIT",
+      "reason": "AI-oriented crawling"
+    },
+    {
+      "repo": "microsoft/playwright",
+      "lane": "DATA_PIT",
+      "reason": "browser automation"
+    },
+    {
+      "repo": "microsoft/graphrag",
+      "lane": "DATA_PIT",
+      "reason": "graph-based retrieval/provenance"
+    },
+    {
+      "repo": "theDotmack/claude-mem",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "persistent research memory"
+    },
+    {
+      "repo": "vectorize-io/hindsight",
+      "lane": "RESEARCH_AUTOMATION",
+      "reason": "memory/experience patterns"
+    },
+    {
+      "repo": "prometheus/prometheus",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "metrics monitoring"
+    },
+    {
+      "repo": "grafana/grafana",
+      "lane": "ANALYTICS_UI",
+      "reason": "operational visualization"
+    },
+    {
+      "repo": "getsentry/sentry",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "failure/error monitoring"
+    },
+    {
+      "repo": "open-telemetry/opentelemetry-collector",
+      "lane": "PRODUCTION_MLOPS",
+      "reason": "observability"
+    }
+  ]
+}
