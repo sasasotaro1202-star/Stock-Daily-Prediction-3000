@@ -100,12 +100,16 @@ def main() -> int:
         codes = [str(x) for x in group.get("codes") or [] if str(x).strip()]
         if not db or not codes:
             continue
+        request_codes = [
+            code.split("'", 1)[1] if "'" in code else code
+            for code in codes
+        ]
         url = base_url + "?" + urlencode(
             {
                 "format": "json",
                 "lang": language,
                 "db": db,
-                "code": ",".join(codes),
+                "code": ",".join(request_codes),
                 "startDate": str(start_dates.get(db) or "200001"),
             }
         )
