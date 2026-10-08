@@ -1,6 +1,7 @@
 name: Actions reliability watchdog
 
 # Recovery trigger: rerun watchdog on latest HEAD after research timeout-policy alignment.
+# Bounded recovery: this workflow only performs bounded, fail-closed control-plane recovery.
 # Bootstrap trigger: also run after Repository verification completes so scheduler gaps cannot strand Research recovery.
 #
 # Research validation intentionally does not trigger this workflow via workflow_run.
