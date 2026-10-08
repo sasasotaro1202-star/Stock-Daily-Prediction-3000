@@ -219,8 +219,8 @@ def _predict_near_production(
     )
     probs = np.full(len(out), np.nan, dtype=float)
     disagreements = np.full(len(out), np.nan, dtype=float)
-    selected_model_ids: list[str] = []
-    route_reasons: list[str] = []
+    selected_model_ids: list[str] = [""] * len(out)
+    route_reasons: list[str] = ["deferred:incomplete_features"] * len(out)
     if ready.any():
         for idx, row in out.loc[ready].iterrows():
             one = pd.DataFrame([row])
@@ -278,15 +278,10 @@ def _predict_near_production(
 
             probs[idx] = blend_probabilities(component_probs, component_weights)
             disagreements[idx] = float(np.std(component_probs))
-            selected_model_ids.append(
-                "+".join(component_names)
-            )
-            route_reasons.append(
-                "near_production:hierarchical_global_asset_symbol"
-            )
+            selected_model_ids[idx] = "+".join(component_names)
+            route_reasons[idx] = "near_production:hierarchical_global_asset_symbol"
     else:
-        selected_model_ids = [""] * len(out)
-        route_reasons = ["deferred:incomplete_features"] * len(out)
+        pass
 
     out["p_up_1d"] = probs
 
