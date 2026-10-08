@@ -110,9 +110,12 @@ adaptive_data:
   min_oos_folds: 5
   min_history_sessions: 360
   max_acquisition_iterations: 3
+  # Skip redundant official-universe network refreshes while the restored
+  # PIT-checked snapshot is fresh; stale/standalone runs retain bounded retry.
+  universe_refresh_max_age_seconds: 21600
   price_shards: 4
   price_max_workers: 1
-  discovery_policy: "refresh_official_universe_every_iteration"
+  discovery_policy: "refresh_official_universe_if_stale_every_iteration"
   selection_policy: "rank_missing_and_shallow_history_then_requery"
   research_only: true
   production_changed: false
