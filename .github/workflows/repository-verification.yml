@@ -32,6 +32,28 @@ jobs:
       - run: python -m compileall -q src scripts
       - name: Validate canonical Project Source contract
         run: python scripts/project_source_contract.py
+      - name: Validate complete prediction-system OSS TOP1000 source
+        run: |
+          python scripts/build_external_prediction_system_oss_top1000_registry.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("config/external_prediction_system_oss_top1000_registry.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          integrity = d["source_rank_integrity"]
+          assert integrity["complete"] is True
+          assert integrity["actual_count"] == 1000
+          assert integrity["unique_rank_count"] == 1000
+          assert integrity["min_rank"] == 1
+          assert integrity["max_rank"] == 1000
+          safety = d["safety_contract"]
+          assert safety["research_only"] is True
+          assert safety["production_changed"] is False
+          assert safety["promotion_allowed"] is False
+          assert safety["frozen_holdout_used"] is False
+          assert len(d["rows"]) == 1000
+          print("external_oss_top1000_registry=PASS", d["entry_summary"])
+          PY
       - uses: actions/upload-artifact@v7
         with:
           name: project-source-contract-${{ github.run_id }}
