@@ -13,10 +13,26 @@ OWNER_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 def main() -> int:
     rows = []
     seen = {}
-    for raw in SOURCE.read_text(encoding="utf-8").splitlines():
-        if not raw or raw.startswith("#") or raw.startswith("RANK"):
+    saw_header = False
+    for line_no, raw in enumerate(SOURCE.read_text(encoding="utf-8").splitlines(), start=1):
+        if not raw or raw.startswith("#"):
             continue
+        if raw == "RANK\tENTRY":
+            saw_header = True
+            continue
+        if not saw_header:
+            # Preserve the user-supplied source verbatim while allowing its
+            # documented preamble metadata lines before the TSV header.
+            continue
+        if "\t" not in raw:
+            raise SystemExit(
+                f"FAIL: malformed TOP1000 data row at line {line_no}: expected tab-separated rank and entry"
+            )
         rank_s, entry = raw.split("\t", 1)
+        if not rank_s.isdigit():
+            raise SystemExit(
+                f"FAIL: malformed TOP1000 rank at line {line_no}: {rank_s!r}"
+            )
         rank = int(rank_s)
         entry = entry.strip()
         if OWNER_REPO.fullmatch(entry):
@@ -45,6 +61,9 @@ def main() -> int:
                 "frozen_holdout_used": False,
             }
         )
+
+    if not saw_header:
+        raise SystemExit("FAIL: missing exact TOP1000 TSV header: RANK\\tENTRY")
 
     ranks = [r["source_rank"] for r in rows]
     if len(rows) != 1000:
