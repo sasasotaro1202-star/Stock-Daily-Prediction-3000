@@ -47,6 +47,9 @@ def cross_sectional_rank(
             weight * out["rank_probability"]
             + (1.0 - weight) * out["rank_expected_return"]
         )
+    out["rank"] = out.groupby(group_cols)["rank_score"].rank(
+        method="average", ascending=False
+    )
     return out.sort_values(
         group_cols + ["rank_score"],
         ascending=[True] * len(group_cols) + [False],

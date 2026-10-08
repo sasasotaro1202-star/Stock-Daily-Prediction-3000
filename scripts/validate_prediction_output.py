@@ -27,7 +27,9 @@ def main() -> None:
         "expected_return_1d",
         "expected_close_1d",
         "return_q10_1d",
+        "q50_1d",
         "return_q90_1d",
+        "rank",
         "range_low_1d",
         "range_high_1d",
         "model_id",
@@ -70,7 +72,7 @@ def main() -> None:
     if not df["prediction_date"].astype(str).eq(expected_prediction_date).all():
         raise SystemExit("FAIL: prediction_date does not match prediction_time in JST")
 
-    for col in ("p_up_1d", "expected_return_1d", "expected_close_1d", "range_low_1d", "range_high_1d"):
+    for col in ("p_up_1d", "expected_return_1d", "expected_close_1d", "return_q10_1d", "q50_1d", "return_q90_1d", "range_low_1d", "range_high_1d", "rank"):
         values = pd.to_numeric(df.loc[ready, col], errors="coerce").to_numpy(dtype=float)
         if values.size and not np.isfinite(values).all():
             raise SystemExit(f"FAIL: READY rows contain non-finite numeric values in {col}")
@@ -78,6 +80,10 @@ def main() -> None:
     p = pd.to_numeric(df.loc[ready, "p_up_1d"], errors="coerce")
     if not p.between(0.0, 1.0).all():
         raise SystemExit("FAIL: p_up_1d outside [0,1]")
+
+    rank_values = pd.to_numeric(df.loc[ready, "rank"], errors="coerce")
+    if rank_values.isna().any() or (rank_values <= 0).any():
+        raise SystemExit("FAIL: READY rows contain invalid rank values")
 
     return_low = pd.to_numeric(df.loc[ready, "return_q10_1d"], errors="coerce")
     return_mid = pd.to_numeric(df.loc[ready, "expected_return_1d"], errors="coerce")
