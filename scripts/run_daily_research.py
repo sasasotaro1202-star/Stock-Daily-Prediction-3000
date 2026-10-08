@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import date
+from datetime import date, datetime, timezone
 import os
 import subprocess
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -522,8 +522,22 @@ def _refresh_universe_with_bounded_retry() -> dict:
                 records = snapshot.get("records")
                 if not isinstance(records, list) or len(records) < 100:
                     raise ValueError("retained universe snapshot is too small")
-                if not snapshot.get("retrieved_at"):
+                retrieved_at = snapshot.get("retrieved_at")
+                if not retrieved_at:
                     raise ValueError("retained universe snapshot lacks retrieved_at")
+                retrieved = datetime.fromisoformat(
+                    str(retrieved_at).replace("Z", "+00:00")
+                )
+                if retrieved.tzinfo is None:
+                    raise ValueError("retained universe retrieved_at is not timezone-aware")
+                age_seconds = (
+                    datetime.now(timezone.utc)
+                    - retrieved.astimezone(timezone.utc)
+                ).total_seconds()
+                if age_seconds < -300 or age_seconds > 7 * 24 * 60 * 60:
+                    raise ValueError(
+                        "retained universe retrieved_at is outside bounded 7-day window"
+                    )
                 if not snapshot.get("source_hashes"):
                     raise ValueError("retained universe snapshot lacks source_hashes")
 
@@ -576,11 +590,12 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
     universe_refresh = _refresh_universe_with_bounded_retry()
     # The refresh status is evidence about data freshness/recovery, not a
     # performance signal and not permission to alter production state.
-    subprocess.run(
-        ["python", "scripts/universe_quality_gate.py"],
-        check=True,
-        timeout=120,
-    )
+    if universe_refresh["status"] == "REFRESHED":
+        subprocess.run(
+            ["python", "scripts/universe_quality_gate.py"],
+            check=True,
+            timeout=120,
+        )
 
     env_base = os.environ.copy()
     env_base["PRICE_SHARD_COUNT"] = str(cfg["price_shards"])
