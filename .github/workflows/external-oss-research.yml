@@ -148,6 +148,8 @@ jobs:
               raise SystemExit("FAIL: external source inspection executed or installed untrusted code")
           if inspection.get("predictive_performance_evidence") != "NONE":
               raise SystemExit("FAIL: source inspection overclaims predictive evidence")
+          if any(row.get("evidence_level") != "E2_EXTERNAL_SOURCE_INSPECTION" for row in inspection.get("candidates", [])):
+              raise SystemExit("FAIL: source inspection evidence level is not E2")
           if inspection.get("production_changed") is not False or inspection.get("promotion_allowed") is not False:
               raise SystemExit("FAIL: source inspection is not research-only")
           for row in inspection.get("candidates", []):
