@@ -59,6 +59,48 @@ def test_adaptive_universe_refresh_skips_recent_verified_snapshot(
     assert calls == [["python", "scripts/universe_quality_gate.py"]]
 
 
+
+
+def test_adaptive_universe_refresh_does_not_reuse_snapshot_without_provenance_hashes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    universe_dir = tmp_path / "data" / "universe"
+    universe_dir.mkdir(parents=True)
+    (universe_dir / "latest.json").write_text(
+        json.dumps(
+            {
+                "retrieved_at": datetime.now(timezone.utc).isoformat(),
+                "record_count": 100,
+                "records": [
+                    {
+                        "asset_class": "us_stock",
+                        "symbol": f"T{i}",
+                        "name": f"Test {i}",
+                        "tradeable": True,
+                        "source_url": "https://www.paypay-sec.co.jp/test",
+                    }
+                    for i in range(100)
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    calls: list[tuple[list[str], int]] = []
+
+    def fake_run(args, check=True, timeout=None, **kwargs):
+        calls.append((list(args), int(timeout)))
+        raise subprocess.TimeoutExpired(args, timeout)
+
+    monkeypatch.setattr("scripts.run_daily_research.subprocess.run", fake_run)
+
+    with pytest.raises(ValueError, match="lacks source_hashes"):
+        _refresh_universe_with_bounded_retry(max_age_seconds=6 * 60 * 60)
+
+    assert [timeout for _, timeout in calls[:2]] == [120, 240]
+
+
 def test_adaptive_universe_refresh_retains_verified_snapshot_after_timeout(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
