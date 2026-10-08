@@ -3,19 +3,22 @@ name: External OSS research candidates
 on:
   workflow_dispatch:
   schedule:
-    # Weekly source/status refresh. This is discovery evidence only and never
-    # changes the production bundle, registry, model, or holdout.
+    # Weekly source/status refresh. Discovery and metadata evidence only.
     - cron: "17 5 * * 0"
       timezone: "Asia/Tokyo"
   push:
     paths:
       - "config/external_research_candidates.json"
+      - "config/external_prediction_system_oss_top1000_registry.json"
+      - "research_sources/external_prediction_system_oss_top1000_source.tsv"
       - "scripts/update_external_research_candidates.py"
+      - "scripts/audit_external_oss_top1000_metadata.py"
       - "tests/test_external_research_candidates.py"
+      - "tests/test_external_oss_top1000_metadata.py"
       - ".github/workflows/external-oss-research.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: external-oss-research
@@ -24,7 +27,7 @@ concurrency:
 jobs:
   audit:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -32,15 +35,40 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -e ".[dev]"
-      - name: Validate candidate registry contract
-        run: pytest -q tests/test_external_research_candidates.py
-      - name: Collect current public GitHub metadata
+      - name: Validate candidate registry contracts
+        run: |
+          pytest -q tests/test_external_research_candidates.py
+          pytest -q tests/test_external_oss_top1000_metadata.py
+          pytest -q tests/test_external_prediction_system_oss_top1000_registry.py
+      - name: Restore prior OSS metadata snapshot
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p data/research
+          if git ls-remote --exit-code --heads origin external-oss-status >/dev/null 2>&1; then
+            git fetch --no-tags origin external-oss-status
+            if git cat-file -e "origin/external-oss-status:data/research/external_oss_top1000_snapshot.json" 2>/dev/null; then
+              git show "origin/external-oss-status:data/research/external_oss_top1000_snapshot.json" > data/research/previous_external_oss_top1000_snapshot.json
+              echo "restored prior external OSS snapshot"
+            else
+              echo "external-oss-status exists without a prior snapshot; using baseline mode"
+            fi
+          else
+            echo "external-oss-status branch unavailable; using baseline mode"
+          fi
+      - name: Collect current public GitHub metadata for all explicit TOP1000 repositories
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python scripts/update_external_research_candidates.py \
-            --output artifacts/external_candidate_registry.json
-      - name: Enforce research-only output
+          python scripts/audit_external_oss_top1000_metadata.py             --previous data/research/previous_external_oss_top1000_snapshot.json             --output artifacts/external_oss_top1000_snapshot.json
+      - name: Collect legacy deep-candidate metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/update_external_research_candidates.py             --output artifacts/external_candidate_registry.json
+      - name: Enforce research-only and no-fabrication contract
         shell: bash
         run: |
           set -euo pipefail
@@ -48,34 +76,82 @@ jobs:
           import json
           from pathlib import Path
 
-          path = Path("artifacts/external_candidate_registry.json")
-          data = json.loads(path.read_text(encoding="utf-8"))
-          if data.get("promotion_allowed") is not False:
-              raise SystemExit("FAIL: external OSS research unexpectedly allows promotion")
-          contract = data.get("evidence_contract") or {}
-          if contract.get("research_only") is not True:
-              raise SystemExit("FAIL: external OSS research lost research_only contract")
-          if contract.get("production_changed") is not False:
-              raise SystemExit("FAIL: external OSS research claims production mutation")
-          for row in data.get("results", []):
+          top = json.loads(Path("artifacts/external_oss_top1000_snapshot.json").read_text(encoding="utf-8"))
+          if top.get("source_claimed_count") != 1000:
+              raise SystemExit("FAIL: TOP1000 source claim changed")
+          if top.get("explicit_repo_count", 0) < 500:
+              raise SystemExit("FAIL: unexpectedly low explicit repository count")
+          if top.get("results_count") != top.get("explicit_repo_count"):
+              raise SystemExit("FAIL: not every explicit repo received a result")
+          if top.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: TOP1000 metadata audit may not promote")
+          if top.get("research_only") is not True or top.get("production_changed") is not False:
+              raise SystemExit("FAIL: TOP1000 research-only contract broken")
+          for row in top.get("results", []):
               if row.get("promotion_allowed") is not False:
                   raise SystemExit("FAIL: candidate promotion flag is not false")
               if row.get("evidence_level") != "E1_EXTERNAL_CLAIM":
-                  raise SystemExit("FAIL: candidate evidence level is not E1")
-              if row.get("local_reproduction_required") is not True:
-                  raise SystemExit("FAIL: local reproduction requirement missing")
-              if row.get("momentum_status") != "UNKNOWN_REQUIRES_PRIOR_SNAPSHOT":
-                  raise SystemExit("FAIL: momentum was inferred without snapshot history")
+                  raise SystemExit("FAIL: invalid evidence level")
+              if row.get("cost_status") not in (None, "UNKNOWN_NOT_INFERRED"):
+                  raise SystemExit("FAIL: cost was inferred without evidence")
+              if row.get("security_status") not in (None, "UNVERIFIED_RESEARCH_ONLY"):
+                  raise SystemExit("FAIL: security status was overclaimed")
+              if row.get("momentum_status") not in {"MEASURED", "BASELINE_ONLY", "UNKNOWN"}:
+                  raise SystemExit("FAIL: invalid momentum status")
+          legacy = json.loads(Path("artifacts/external_candidate_registry.json").read_text(encoding="utf-8"))
+          if legacy.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: legacy candidate research unexpectedly allows promotion")
           print(
-              "external_oss_research_safety=PASS",
-              "candidates=", len(data.get("results", [])),
-              "verified=", data.get("verified_source_count"),
-              "not_found=", data.get("source_not_found_count"),
+              "external_oss_top1000_metadata=PASS",
+              "verified=", top.get("verified_source_count"),
+              "not_found=", top.get("not_found_count"),
+              "momentum_measured=", top.get("momentum_measured_count"),
+              "baseline_only=", top.get("baseline_only_count"),
           )
           PY
+      - name: Publish immutable research snapshot to external-oss-status
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          worktree_dir="$(mktemp -d)"
+          cleanup() {
+            git worktree remove --force "$worktree_dir" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main
+
+          if git ls-remote --exit-code --heads origin external-oss-status >/dev/null 2>&1; then
+            git fetch --no-tags origin external-oss-status
+            git worktree add --detach "$worktree_dir" origin/main
+            git -C "$worktree_dir" checkout -B external-oss-status origin/external-oss-status
+          else
+            git worktree add --detach "$worktree_dir" origin/main
+            git -C "$worktree_dir" checkout --orphan external-oss-status
+            git -C "$worktree_dir" rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          mkdir -p "$worktree_dir/data/research"
+          cp artifacts/external_oss_top1000_snapshot.json "$worktree_dir/data/research/external_oss_top1000_snapshot.json"
+          cp artifacts/external_candidate_registry.json "$worktree_dir/data/research/external_candidate_registry.json"
+          printf '%s\n' "$GITHUB_SHA" > "$worktree_dir/data/research/external_oss_source_commit.txt"
+          printf '%s\n' "${{ github.run_id }}" > "$worktree_dir/data/research/external_oss_workflow_run_id.txt"
+
+          git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
+          if git -C "$worktree_dir" diff --cached --quiet; then
+            echo "external-oss-status: no change"
+            exit 0
+          fi
+          git -C "$worktree_dir" commit -m "research: publish external OSS metadata snapshot"
+          git -C "$worktree_dir" push origin HEAD:external-oss-status
       - uses: actions/upload-artifact@v7
         with:
           name: external-oss-research-${{ github.run_id }}
-          path: artifacts/external_candidate_registry.json
+          path: |
+            artifacts/external_candidate_registry.json
+            artifacts/external_oss_top1000_snapshot.json
           if-no-files-found: error
           retention-days: 30
