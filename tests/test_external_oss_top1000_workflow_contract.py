@@ -41,3 +41,15 @@ def test_snapshot_publication_is_main_only():
 def test_oss_audit_concurrency_isolated_by_ref():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "external-oss-research-${{ github.repository }}-${{ github.ref }}" in text
+
+
+def test_verified_stock_queue_is_generated_and_published():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    for needle in [
+        "scripts/build_external_stock_research_queue.py",
+        "artifacts/external_stock_research_queue.json",
+        "data/research/external_stock_research_queue.json",
+        "NONE_EXTERNAL_METADATA",
+        "priority_is_not_predictive_evidence",
+    ]:
+        assert needle in text, needle
