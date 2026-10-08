@@ -1,0 +1,24 @@
+name: Stale research validation reaper
+
+# Control-plane workflow. The workflow-level concurrency group intentionally
+# matches the research-validation group so a queued push can cancel an
+# obsolete in-progress validation run.
+on:
+  push:
+    paths:
+      - "ops/reap_stale_research.trigger"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+concurrency:
+  group: research-validation-v4
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "stale research validation lane released"
