@@ -11,6 +11,8 @@ from urllib.request import Request, urlopen
 
 import yaml
 
+from src.data.http_encoding import decode_http_body
+
 CONFIG = Path("config/research_data_sources.yml")
 UNIVERSE = Path("data/universe/latest.json")
 TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -43,10 +45,13 @@ def _get_bytes(url: str) -> tuple[bytes, dict[str, str]]:
         try:
             with urlopen(request, timeout=45) as response:
                 raw = response.read()
+                content_encoding = str(response.headers.get("Content-Encoding") or "")
+                raw = decode_http_body(raw, content_encoding)
                 headers = {
                     "etag": str(response.headers.get("ETag") or ""),
                     "last_modified": str(response.headers.get("Last-Modified") or ""),
                     "content_type": str(response.headers.get("Content-Type") or ""),
+                    "content_encoding": content_encoding,
                 }
             if not raw:
                 raise ValueError("SEC response body is empty")
