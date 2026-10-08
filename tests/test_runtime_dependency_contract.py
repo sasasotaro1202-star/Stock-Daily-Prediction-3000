@@ -22,3 +22,11 @@ def test_prediction_runtime_dependencies_are_core_dependencies():
         encoding="utf-8"
     )
     assert "from exchange_calendars import get_calendar" in source
+
+
+def test_prediction_runtime_keeps_q50_output():
+    source = (ROOT / "scripts" / "run_now_prediction.py").read_text(encoding="utf-8")
+    assert '"return_q10_1d", "q50_1d", "return_q90_1d"' in source, (
+        "q50_1d is a required production prediction output and must survive "
+        "the final output-column selection"
+    )
