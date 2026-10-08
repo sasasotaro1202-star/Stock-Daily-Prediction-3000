@@ -2363,3 +2363,43 @@ Daily execution contract:
 * The daily surface preserves target date, prediction time and source/PIT lineage.
 
 The priority automation is an execution/coverage guarantee, not a performance guarantee. Performance still requires chronological OOS/WFO, calibration, robustness and frozen-holdout evidence.
+
+⸻
+
+EXTERNAL STOCK RESEARCH QUEUE CONTRACT
+
+TOP1000 external OSS metadata is a discovery/research input, not predictive evidence.
+
+The live metadata pipeline:
+user-supplied TOP1000 source
+→ explicit repository normalization
+→ live metadata verification
+→ canonical repository deduplication
+→ Stock mechanism lane classification
+→ research-priority ordering
+→ source-code inspection
+→ local reproduction
+→ chronological OOS/WFO
+→ ablation
+→ robustness
+→ frozen holdout
+→ adoption gate
+
+is mandatory for external mechanism candidates.
+
+The queue must:
+* use only VERIFIED_SOURCE_METADATA rows as research candidates;
+* preserve all source ranks when canonical repositories are duplicated;
+* record blocked/unverifiable sources separately;
+* keep discovery priority separate from predictive performance;
+* never use stars, forks, popularity rank, freshness, or source metadata as evidence of predictive superiority;
+* mark external metadata predictive evidence as NONE_EXTERNAL_METADATA;
+* keep research_only=true, production_changed=false, promotion_allowed=false, frozen_holdout_used=false;
+* require SOURCE_VERIFY, PIT_CHECK, COST_CHECK, SECURITY_CHECK, LOCAL_IMPLEMENTATION, LOCAL_REPRODUCTION, CHRONOLOGICAL_OOS, ABLATION, ROBUSTNESS, and FROZEN_HOLDOUT before production consideration.
+
+External source-code inspection is static and read-only by default. Untrusted external repository code must not be executed merely to inspect or classify a candidate. Downloaded source is evidence material only until a repository-local reproduction is independently implemented.
+
+Missing live external metadata must produce an explicit BLOCKED_NO_LIVE_SNAPSHOT or other UNVERIFIABLE state. It must never silently fall back to an unverified candidate set.
+
+No external candidate may bypass the canonical baseline, PIT contract, chronological OOS/WFO, robustness, or frozen-holdout release gate.
+\n
