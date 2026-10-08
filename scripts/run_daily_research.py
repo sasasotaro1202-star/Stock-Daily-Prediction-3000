@@ -496,7 +496,12 @@ def _refresh_universe_with_bounded_retry(
             snapshot = json.loads(latest.read_text(encoding="utf-8"))
             retrieved_at = snapshot.get("retrieved_at")
             records = snapshot.get("records")
-            if retrieved_at and isinstance(records, list) and len(records) >= 100:
+            if (
+                retrieved_at
+                and isinstance(records, list)
+                and len(records) >= 100
+                and snapshot.get("source_hashes")
+            ):
                 retrieved = datetime.fromisoformat(
                     str(retrieved_at).replace("Z", "+00:00")
                 )
