@@ -60,11 +60,13 @@ def request_json(url: str, token: str | None, retries: int = 2) -> tuple[int, di
 def resolve(row: dict[str, Any], token: str | None) -> dict[str, Any]:
     original = str(row["canonical_ref"])
     owner, name = original.split("/", 1)
-    q = urllib.parse.quote(f"{name} user:{owner}", safe="")
-    status, payload = request_json(f"{API_ROOT}/search/repositories?q={q}&per_page=10", token)
-    candidates: list[dict[str, Any]] = []
-
-    if status == 200 and isinstance(payload, dict):
+    candidates_by_name: dict[str, dict[str, Any]] = {}
+    queries = [f"{name} user:{owner}", f"{name} org:{owner}"]
+    for query in queries:
+        q = urllib.parse.quote(query, safe="")
+        status, payload = request_json(f"{API_ROOT}/search/repositories?q={q}&per_page=10", token)
+        if status != 200 or not isinstance(payload, dict):
+            continue
         for item in payload.get("items", [])[:10]:
             if not isinstance(item, dict):
                 continue
@@ -75,21 +77,20 @@ def resolve(row: dict[str, Any], token: str | None) -> dict[str, Any]:
             owner_exact = str(full_name).split("/", 1)[0].casefold() == owner.casefold()
             name_exact = str(full_name).split("/", 1)[-1].casefold() == name.casefold()
             score = (100 if exact else 0) + (25 if owner_exact else 0) + (50 if name_exact else 0)
-            candidates.append(
-                {
-                    "full_name": full_name,
-                    "html_url": item.get("html_url"),
-                    "default_branch": item.get("default_branch"),
-                    "archived": bool(item.get("archived", False)),
-                    "fork": bool(item.get("fork", False)),
-                    "stars": int(item.get("stargazers_count", 0) or 0),
-                    "exact_match": exact,
-                    "owner_exact": owner_exact,
-                    "name_exact": name_exact,
-                    "match_score": score,
-                }
-            )
+            candidates_by_name[str(full_name).casefold()] = {
+                "full_name": full_name,
+                "html_url": item.get("html_url"),
+                "default_branch": item.get("default_branch"),
+                "archived": bool(item.get("archived", False)),
+                "fork": bool(item.get("fork", False)),
+                "stars": int(item.get("stargazers_count", 0) or 0),
+                "exact_match": exact,
+                "owner_exact": owner_exact,
+                "name_exact": name_exact,
+                "match_score": score,
+            }
 
+    candidates: list[dict[str, Any]] = list(candidates_by_name.values())
     candidates.sort(key=lambda x: (-int(x["match_score"]), str(x["full_name"])))
     exact = [x for x in candidates if x["exact_match"]]
     owner_name = [x for x in candidates if x["owner_exact"] and x["name_exact"]]
