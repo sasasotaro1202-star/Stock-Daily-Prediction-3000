@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import gzip
 import hashlib
 import json
 import os
@@ -11,7 +10,7 @@ from urllib.request import Request, urlopen
 
 import yaml
 
-from src.data.sec_http import decode_http_body
+from src.data.http_encoding import decode_http_body
 
 
 CONFIG = Path("config/research_data_sources.yml")
