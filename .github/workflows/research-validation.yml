@@ -160,6 +160,52 @@ jobs:
         run: python scripts/run_v13_adversarial_robustness.py
 
 
+      - name: Restore latest external OSS research snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f data/research/external_oss_top1000_snapshot.json
+          if git ls-remote --exit-code --heads origin external-oss-status >/dev/null 2>&1; then
+            git fetch --no-tags origin external-oss-status
+            if git cat-file -e "origin/external-oss-status:data/research/external_oss_top1000_snapshot.json" 2>/dev/null; then
+              git show "origin/external-oss-status:data/research/external_oss_top1000_snapshot.json" > data/research/external_oss_top1000_snapshot.json
+              echo "restored external OSS research snapshot"
+            else
+              echo "external-oss-status has no metadata snapshot; queue will be explicitly deferred"
+            fi
+          else
+            echo "external-oss-status branch unavailable; queue will be explicitly deferred"
+          fi
+      - name: Build external Stock research queue
+        run: |
+          python scripts/build_external_stock_research_queue.py --snapshot data/research/external_oss_top1000_snapshot.json --mechanism-config config/external_stock_mechanism_research.json --output data/research/external_stock_research_queue.json
+      - name: Validate external Stock research queue safety
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/external_stock_research_queue.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d.get("status") in {"EXECUTED_RESEARCH_QUEUE", "BLOCKED_NO_LIVE_SNAPSHOT"}
+          assert d.get("research_only") is True
+          assert d.get("production_changed") is False
+          assert d.get("promotion_allowed") is False
+          assert d.get("frozen_holdout_used") is False
+          assert d.get("predictive_performance_evidence") == "NONE_EXTERNAL_METADATA"
+          if d.get("status") == "EXECUTED_RESEARCH_QUEUE":
+              assert d.get("source_claimed_count") == 1000
+              assert d.get("explicit_repo_count") == d.get("verified_source_count") + d.get("blocked_source_count")
+              for row in d.get("candidates", []):
+                  assert row.get("status") == "READY_FOR_SOURCE_INSPECTION"
+                  assert row.get("promotion_allowed") is False
+                  assert row.get("production_changed") is False
+                  assert row.get("priority_is_not_predictive_evidence") is True
+              print("external_stock_research_queue=PASS",
+                    "unique_verified=", d.get("unique_verified_repository_count"),
+                    "blocked=", d.get("blocked_source_count"))
+          else:
+              print("external_stock_research_queue=DEFERRED_NO_LIVE_SNAPSHOT")
+          PY
       - name: Generate experience-driven research candidate plan
         run: python scripts/generate_experience_candidates.py
       - name: Generate external stock mechanism research plan
@@ -629,6 +675,7 @@ jobs:
             data/research/universe_quality.json
             data/research/experience_candidates.json
             data/research/experience_candidate_evaluation.json
+            data/research/external_stock_research_queue.json
             data/research/case_risk_oos.json
             data/research/learned_case_risk_oos.json
             data/research/ultimate_v13/**
