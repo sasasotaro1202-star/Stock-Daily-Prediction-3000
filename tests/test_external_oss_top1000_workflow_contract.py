@@ -65,3 +65,22 @@ def test_static_source_inspection_is_integrated_safely():
         "E2_EXTERNAL_SOURCE_INSPECTION",
     ]:
         assert needle in text, needle
+
+
+def test_identity_resolution_is_integrated_without_mutation():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    for needle in [
+        "scripts/resolve_external_oss_top1000_not_found.py",
+        "external_oss_top1000_identity_resolution.json",
+        "EXECUTED_IDENTITY_RESOLUTION",
+        "auto_rewrite_allowed",
+    ]:
+        assert needle in text, needle
+
+
+def test_ultimate_master_source_is_preserved_and_non_evidence_mutating():
+    source = Path("PROJECT_SOURCE_ULTIMATE_MASTER_20261008.md")
+    project_source = Path("PROJECT_SOURCE.md")
+    assert source.exists()
+    assert "ULTIMATE MASTER PROJECT SOURCE" in source.read_text(encoding="utf-8")
+    assert "PROJECT_SOURCE_ULTIMATE_MASTER_20261008.md" in project_source.read_text(encoding="utf-8")
