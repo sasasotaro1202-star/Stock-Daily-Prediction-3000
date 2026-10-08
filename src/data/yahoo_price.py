@@ -4,6 +4,7 @@ import os
 import time
 from datetime import datetime, time
 from pathlib import Path
+from threading import Lock
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -12,6 +13,12 @@ import yfinance as yf
 YF_TIMEOUT_SECONDS = 60
 YF_SINGLE_RETRY_ATTEMPTS = max(1, int(os.getenv("YF_SINGLE_RETRY_ATTEMPTS", "3")))
 YF_RETRY_BACKOFF_SECONDS = max(1, int(os.getenv("YF_RETRY_BACKOFF_SECONDS", "2")))
+
+# yfinance may use a shared on-disk cookie/tz cache. Parallel calls from the
+# same runner can contend on its SQLite cache ("database is locked"). Keep
+# network/cache access single-writer within a process while preserving the
+# repository's multi-shard parallelism across jobs.
+_YF_ACCESS_LOCK = Lock()
 
 
 def yahoo_symbol(symbol: str, asset_class: str) -> str:
@@ -55,16 +62,17 @@ def download_batch(
         for r in records
     }
 
-    raw = yf.download(
-        symbols,
-        period=period,
-        auto_adjust=False,
-        progress=False,
-        group_by="ticker",
-        threads=False,
-        actions=True,
-        timeout=YF_TIMEOUT_SECONDS,
-    )
+    with _YF_ACCESS_LOCK:
+        raw = yf.download(
+            symbols,
+            period=period,
+            auto_adjust=False,
+            progress=False,
+            group_by="ticker",
+            threads=False,
+            actions=True,
+            timeout=YF_TIMEOUT_SECONDS,
+        )
     retrieved_at = pd.Timestamp.now(tz="UTC")
     retrieval_run_id = os.getenv("GITHUB_RUN_ID")
     frames = []
@@ -167,12 +175,13 @@ def download_batch(
         recovered = False
         for attempt in range(YF_SINGLE_RETRY_ATTEMPTS):
             try:
-                single = yf.Ticker(provider_symbol).history(
-                    period=period,
-                    auto_adjust=False,
-                    actions=True,
-                    timeout=YF_TIMEOUT_SECONDS,
-                )
+                with _YF_ACCESS_LOCK:
+                    single = yf.Ticker(provider_symbol).history(
+                        period=period,
+                        auto_adjust=False,
+                        actions=True,
+                        timeout=YF_TIMEOUT_SECONDS,
+                    )
             except Exception as exc:
                 print(
                     f"price-single-retry provider_symbol={provider_symbol} "
