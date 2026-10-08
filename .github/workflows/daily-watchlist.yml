@@ -126,10 +126,8 @@ jobs:
           mkdir -p "$worktree_dir/predictions"
           cp data/predictions/daily_watchlist.json "$worktree_dir/predictions/latest.json"
           cp data/predictions/daily_watchlist.md "$worktree_dir/predictions/latest.md"
-          printf '%s
-' "$GITHUB_SHA" > "$worktree_dir/predictions/source_commit.txt"
-          printf '%s
-' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$worktree_dir/predictions/published_at_utc.txt"
+          printf '%s\\n' "$GITHUB_SHA" > "$worktree_dir/predictions/source_commit.txt"
+          printf '%s\\n' "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" > "$worktree_dir/predictions/published_at_utc.txt"
 
           git -C "$worktree_dir" add predictions/latest.json predictions/latest.md predictions/source_commit.txt predictions/published_at_utc.txt
           if git -C "$worktree_dir" diff --cached --quiet; then
