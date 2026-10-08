@@ -1,0 +1,825 @@
+{
+  "schema_version": 1,
+  "registry_id": "external-oss-research-candidates-v1",
+  "generated_at": "2026-10-08",
+  "source_note": "Initial scores are the user-supplied research prioritization, not GitHub-official scores and not local performance evidence.",
+  "evidence_contract": {
+    "evidence_level": "E1",
+    "status": "DISCOVERED",
+    "research_only": true,
+    "production_changed": false,
+    "promotion_allowed": false,
+    "local_evidence_required": true,
+    "frozen_holdout_used": false,
+    "momentum_requires_snapshot_history": true
+  },
+  "decision_contract": [
+    "External metadata is discovery evidence only.",
+    "Do not translate stars/activity into predictive performance.",
+    "Do not auto-install external code into production.",
+    "Do not auto-promote an external mechanism.",
+    "Unknown PIT/license/cost/security remains UNKNOWN or UNVERIFIABLE."
+  ],
+  "candidates": [
+    {
+      "rank": 1,
+      "repo": "mattpocock/skills",
+      "initial_score": 99,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 2,
+      "repo": "obra/superpowers",
+      "initial_score": 99,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 3,
+      "repo": "openclaw/openclaw",
+      "initial_score": 98,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 4,
+      "repo": "deepseek-ai/deepseek-harness",
+      "initial_score": 98,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 5,
+      "repo": "NousResearch/hermes-agent",
+      "initial_score": 98,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 6,
+      "repo": "affaan-m/ECC",
+      "initial_score": 97,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 7,
+      "repo": "Panniantong/Agent-Reach",
+      "initial_score": 97,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 8,
+      "repo": "firecrawl/firecrawl",
+      "initial_score": 97,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 9,
+      "repo": "Graphify-Labs/graphify",
+      "initial_score": 97,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 10,
+      "repo": "theDotmack/claude-mem",
+      "initial_score": 96,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 11,
+      "repo": "karpathy/autoresearch",
+      "initial_score": 96,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 12,
+      "repo": "paperclipai/paperclip",
+      "initial_score": 96,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 13,
+      "repo": "garrytan/gstack",
+      "initial_score": 96,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 14,
+      "repo": "Fission-AI/OpenSpec",
+      "initial_score": 95,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 15,
+      "repo": "browser-use/browser-use",
+      "initial_score": 95,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 16,
+      "repo": "anomalyco/opencode",
+      "initial_score": 95,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 17,
+      "repo": "openai/codex",
+      "initial_score": 95,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 18,
+      "repo": "google-gemini/gemini-cli",
+      "initial_score": 95,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 19,
+      "repo": "anthropics/claude-code",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 20,
+      "repo": "msitarzewski/agency-agents",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "A_DEEP_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 21,
+      "repo": "mvanhorn/last30days-skill",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 22,
+      "repo": "vectorize-io/hindsight",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 23,
+      "repo": "mem0ai/mem0",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 24,
+      "repo": "microsoft/qlib",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 25,
+      "repo": "openbq-org/OpenBB",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 26,
+      "repo": "TauricResearch/TradingAgents",
+      "initial_score": 94,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 27,
+      "repo": "666ghj/MiroFish",
+      "initial_score": 93,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 28,
+      "repo": "ZhuLinsen/daily_stock_analysis",
+      "initial_score": 93,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 29,
+      "repo": "google-research/timesfm",
+      "initial_score": 93,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 30,
+      "repo": "shiyu-coder/Kronos",
+      "initial_score": 93,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 31,
+      "repo": "freqtrade/freqtrade",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 32,
+      "repo": "vnpy/vnpy",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 33,
+      "repo": "scikit-learn/scikit-learn",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 34,
+      "repo": "pytorch/pytorch",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 35,
+      "repo": "ray-project/ray",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 36,
+      "repo": "vllm-project/vllm",
+      "initial_score": 92,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 37,
+      "repo": "unslothai/unsloth",
+      "initial_score": 91,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 38,
+      "repo": "HuggingFace/transformers",
+      "initial_score": 91,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 39,
+      "repo": "microsoft/graphrag",
+      "initial_score": 91,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 40,
+      "repo": "infiniflow/ragflow",
+      "initial_score": 91,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 41,
+      "repo": "langchain-ai/langgraph",
+      "initial_score": 91,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 42,
+      "repo": "langchain-ai/langchain",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 43,
+      "repo": "modelcontextprotocol/servers",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 44,
+      "repo": "punkpeye/awesome-mcp-servers",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 45,
+      "repo": "upstash/context7",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 46,
+      "repo": "DeusData/codebase-memory-mcp",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 47,
+      "repo": "colbymchenry/codegraph",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 48,
+      "repo": "D4Vinci/Scrapling",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 49,
+      "repo": "unclecode/crawl4ai",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 50,
+      "repo": "lexmount/moli",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "B_TARGETED_REVIEW",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 51,
+      "repo": "vercel-labs/agent-browser",
+      "initial_score": 90,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 52,
+      "repo": "microsoft/playwright-mcp",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 53,
+      "repo": "tester-army/e2e",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 54,
+      "repo": "alibaba/open-code-review",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 55,
+      "repo": "usestrix/strix",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 56,
+      "repo": "cloudflare/security-audit-skill",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 57,
+      "repo": "KeygraphHQ/shannon",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 58,
+      "repo": "OpenHands/OpenHands",
+      "initial_score": 89,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 59,
+      "repo": "cline/cline",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 60,
+      "repo": "aaif-goose/goose",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 61,
+      "repo": "bytedance/deer-flow",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 62,
+      "repo": "HKUDS/nanobot",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 63,
+      "repo": "HKUDS/CLI-Anything",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 64,
+      "repo": "volcengine/OpenViking",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 65,
+      "repo": "mattpocock/skills",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 66,
+      "repo": "addyosmani/agent-skills",
+      "initial_score": 88,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 67,
+      "repo": "nextlevelbuilder/ui-ux-pro-max-skill",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 68,
+      "repo": "Leonxlnx/taste-skill",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 69,
+      "repo": "VoltAgent/awesome-agent-skills",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 70,
+      "repo": "anthropics/skills",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 71,
+      "repo": "K-Dense-AI/scientific-agent-skills",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 72,
+      "repo": "Imbad0202/academic-research-skills",
+      "initial_score": 87,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 73,
+      "repo": "rohitg00/ai-engineering-from-scratch",
+      "initial_score": 86,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 74,
+      "repo": "dair-ai/Prompt-Engineering-Guide",
+      "initial_score": 86,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 75,
+      "repo": "rasbt/LLMs-from-scratch",
+      "initial_score": 86,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 76,
+      "repo": "hiyouga/LlamaFactory",
+      "initial_score": 86,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 77,
+      "repo": "deepseek-ai/DeepSeek-R1",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 78,
+      "repo": "deepseek-ai/DeepSeek-V3",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 79,
+      "repo": "ollama/ollama",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 80,
+      "repo": "open-webui/open-webui",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 81,
+      "repo": "Mintplex-Labs/anything-llm",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 82,
+      "repo": "langgenius/dify",
+      "initial_score": 85,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 83,
+      "repo": "langflow-ai/langflow",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 84,
+      "repo": "FlowiseAI/Flowise",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 85,
+      "repo": "crewai/crewAI",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 86,
+      "repo": "microsoft/autogen",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 87,
+      "repo": "FoundationAgents/MetaGPT",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 88,
+      "repo": "ruvnet/ruflo",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 89,
+      "repo": "sickn33/agentic-awesome-skills",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 90,
+      "repo": "microsoft/spec-kit",
+      "initial_score": 84,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 91,
+      "repo": "headroomlabs-ai/headroom",
+      "initial_score": 83,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 92,
+      "repo": "rtk-ai/rtk",
+      "initial_score": 83,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 93,
+      "repo": "JuliusBrussee/caveman",
+      "initial_score": 83,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 94,
+      "repo": "farion1231/cc-switch",
+      "initial_score": 83,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 95,
+      "repo": "diegosouzapw/OmniRoute",
+      "initial_score": 83,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 96,
+      "repo": "paperless-ngx/paperless-ngx",
+      "initial_score": 82,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 97,
+      "repo": "streamlit/streamlit",
+      "initial_score": 82,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 98,
+      "repo": "grafana/grafana",
+      "initial_score": 82,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 99,
+      "repo": "prometheus/prometheus",
+      "initial_score": 82,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    },
+    {
+      "rank": 100,
+      "repo": "PostHog/posthog",
+      "initial_score": 82,
+      "initial_score_source": "user_submitted_ranking_2026-10-08",
+      "priority_tier": "C_WATCH",
+      "decision": "HOLD_RESEARCH_ONLY"
+    }
+  ]
+}
