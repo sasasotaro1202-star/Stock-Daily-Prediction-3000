@@ -19,7 +19,7 @@ permissions:
 
 concurrency:
   group: on-demand-production-prediction
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   prepare:
