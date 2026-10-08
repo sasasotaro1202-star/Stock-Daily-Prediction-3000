@@ -2,9 +2,6 @@ name: Research validation
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "ops/reap_stale_research.trigger"
   # Automatic dispatch is owned by .github/workflows/research-autopilot.yml.
   # That controller waits for current-main Repository verification to PASS.
 
@@ -16,12 +13,12 @@ concurrency:
   # Isolate the newest recovery lane from stale/orphaned executions, which
   # remained in progress without GitHub-side timestamp updates for hours.
   group: research-validation-v4
-  # Reaper pushes intentionally cancel obsolete old-SHA validation runs.
-  cancel-in-progress: true
+  # Preserve an active chronological OOS run. A newer push queues behind it
+  # instead of cancelling a long-running research execution mid-fold.
+  cancel-in-progress: false
 
 jobs:
   restore-universe:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
