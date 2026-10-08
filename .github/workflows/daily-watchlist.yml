@@ -56,6 +56,9 @@ jobs:
             echo "::warning title=Price state incomplete::restored price state is incomplete; running bounded full-universe free refresh"
             PRICE_SHARD_INDEX=0 PRICE_SHARD_COUNT=1 PRICE_MAX_WORKERS=2 python scripts/update_prices.py
           fi
+      - name: Canonicalize restored price store
+        run: python scripts/normalize_price_store.py
+
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Restore latest approved production state when available
