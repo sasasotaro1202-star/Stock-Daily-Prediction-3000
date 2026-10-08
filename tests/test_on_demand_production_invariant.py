@@ -18,3 +18,12 @@ def test_on_demand_workflow_uses_immutable_production_prediction_path():
     assert "run_daily_prediction.py" not in workflow
     assert "Production-or-near-production prediction" in workflow
     assert "Validate production prediction output" in workflow
+
+
+
+def test_on_demand_workflow_cancels_stale_runs():
+    workflow = Path(".github/workflows/on-demand-production-prediction.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "group: on-demand-production-prediction" in workflow
+    assert "cancel-in-progress: true" in workflow
