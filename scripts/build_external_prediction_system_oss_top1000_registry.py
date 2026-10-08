@@ -13,9 +13,15 @@ OWNER_REPO = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 def main() -> int:
     rows = []
     seen = {}
+    header_seen = False
     for raw in SOURCE.read_text(encoding="utf-8").splitlines():
-        if not raw or raw.startswith("#") or raw.startswith("RANK"):
+        if raw.startswith("RANK\t"):
+            header_seen = True
             continue
+        if not header_seen or not raw.strip() or raw.startswith("#"):
+            continue
+        if "\t" not in raw:
+            raise SystemExit(f"FAIL: ranked source row has no tab separator: {raw!r}")
         rank_s, entry = raw.split("\t", 1)
         rank = int(rank_s)
         entry = entry.strip()
