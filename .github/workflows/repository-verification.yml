@@ -32,6 +32,29 @@ jobs:
       - run: python -m compileall -q src scripts
       - name: Validate canonical Project Source contract
         run: python scripts/project_source_contract.py
+      - name: Validate preserved Ultimate Master Source snapshot
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+
+          p = Path("PROJECT_SOURCE_ULTIMATE_MASTER_20261008.md")
+          if not p.is_file():
+              raise SystemExit("FAIL: preserved ultimate master source snapshot is missing")
+          text = p.read_text(encoding="utf-8")
+          required = (
+              "FINAL LAWS",
+              "NO PIT PROOF, NO HISTORICAL TRUST.",
+              "NO SURVIVORSHIP INTEGRITY, NO HISTORICAL UNIVERSE TRUST.",
+              "NO EVIDENCE, NO CLAIM.",
+              "UNKNOWN MUST REMAIN UNKNOWN.",
+          )
+          missing = [term for term in required if term not in text]
+          if missing:
+              raise SystemExit("FAIL: ultimate master source is incomplete: " + ", ".join(missing))
+          digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+          print("ultimate_master_source=PASS", "sha256=", digest, "lines=", len(text.splitlines()))
+          PY
       - name: Validate complete prediction-system OSS TOP1000 source
         run: |
           python scripts/build_external_prediction_system_oss_top1000_registry.py
