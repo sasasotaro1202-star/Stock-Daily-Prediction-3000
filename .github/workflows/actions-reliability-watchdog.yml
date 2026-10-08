@@ -11,8 +11,11 @@ name: Actions reliability watchdog
 
 on:
   workflow_dispatch:
-  # Scheduled recovery is the canonical trigger. This deliberately avoids a
-  # push-triggered watchdog competing with Repository verification on every commit.
+  # Scheduled recovery is the canonical trigger. This is bounded recovery:
+  # it inspects only the configured windows, cancels only stale/superseded runs,
+  # and dispatches at most the recovery path defined by the watchdog.
+  # A push-triggered watchdog is deliberately avoided so it cannot compete with
+  # Repository verification on every commit.
   schedule:
     # Run every 5 minutes so stale queued/active research is recovered promptly.
     - cron: "*/5 * * * *"
