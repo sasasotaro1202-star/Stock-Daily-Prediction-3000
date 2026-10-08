@@ -573,7 +573,9 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
 
     # Re-discover the current official universe every iteration. This is
     # research-only state in the runner and is never promoted directly.
-    _refresh_universe_with_bounded_retry()
+    universe_refresh = _refresh_universe_with_bounded_retry()
+    # The refresh status is evidence about data freshness/recovery, not a
+    # performance signal and not permission to alter production state.
     subprocess.run(
         ["python", "scripts/universe_quality_gate.py"],
         check=True,
@@ -610,7 +612,9 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
         check=True,
         timeout=300,
     )
-    return discovery_summary
+    result = dict(discovery_summary)
+    result["universe_refresh"] = universe_refresh
+    return result
 
 
 def _ensure_adaptive_research_data() -> dict:
