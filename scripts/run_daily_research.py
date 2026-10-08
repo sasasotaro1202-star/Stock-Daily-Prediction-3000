@@ -480,8 +480,8 @@ def _adaptive_data_snapshot(
         snapshot["status"] = "READY"
     return snapshot
 
-def _refresh_universe_with_bounded_retry() -> None:
-    """Retry only transient universe-refresh timeouts within a hard bound."""
+def _refresh_universe_with_bounded_retry() -> dict:
+    """Refresh the official universe, or safely retain the upstream PIT-checked snapshot."""
     timeouts = (120, 240)
     for attempt, timeout in enumerate(timeouts, start=1):
         try:
@@ -490,16 +490,65 @@ def _refresh_universe_with_bounded_retry() -> None:
                 check=True,
                 timeout=timeout,
             )
-            return
-        except subprocess.TimeoutExpired:
-            if attempt == len(timeouts):
-                raise
             print(
-                "ADAPTIVE_DATA_REFRESH timeout; retrying once with extended timeout "
-                f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                "ADAPTIVE_DATA_REFRESH status=REFRESHED",
                 flush=True,
             )
+            return {
+                "status": "REFRESHED",
+                "refresh_available": True,
+                "fallback_used": False,
+            }
+        except subprocess.TimeoutExpired:
+            if attempt < len(timeouts):
+                print(
+                    "ADAPTIVE_DATA_REFRESH timeout; retrying once with extended timeout "
+                    f"attempt={attempt + 1}/{len(timeouts)} timeout={timeouts[attempt]}s",
+                    flush=True,
+                )
+                continue
 
+            # The enclosing Research workflow already restores and quality-checks
+            # a retained official universe before entering this adaptive loop.
+            # A second live refresh is opportunistic; its timeout must not destroy
+            # otherwise valid chronological OOS work. Retain only a structurally
+            # valid existing snapshot, and mark the live refresh as unavailable.
+            latest = Path("data/universe/latest.json")
+            if not latest.is_file():
+                raise
+
+            try:
+                snapshot = json.loads(latest.read_text(encoding="utf-8"))
+                records = snapshot.get("records")
+                if not isinstance(records, list) or len(records) < 100:
+                    raise ValueError("retained universe snapshot is too small")
+                if not snapshot.get("retrieved_at"):
+                    raise ValueError("retained universe snapshot lacks retrieved_at")
+                if not snapshot.get("source_hashes"):
+                    raise ValueError("retained universe snapshot lacks source_hashes")
+
+                subprocess.run(
+                    ["python", "scripts/universe_quality_gate.py"],
+                    check=True,
+                    timeout=120,
+                )
+            except Exception:
+                # Fail closed when the retained snapshot itself cannot be verified.
+                raise
+
+            print(
+                "ADAPTIVE_DATA_REFRESH status=DEFERRED_RETAINED_EXISTING "
+                "reason=live_refresh_timeout existing_universe_quality=PASS",
+                flush=True,
+            )
+            return {
+                "status": "DEFERRED_RETAINED_EXISTING",
+                "refresh_available": False,
+                "fallback_used": True,
+                "reason": "live_refresh_timeout",
+                "record_count": len(records),
+                "retrieved_at": snapshot.get("retrieved_at"),
+            }
 
 def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
     print(
