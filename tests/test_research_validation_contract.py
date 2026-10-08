@@ -95,3 +95,24 @@ def test_nested_ranking_uses_full_history_window_semantics_for_prediction_bank()
     assert "window_predictions_by_fold=nested_ranking_window_predictions_by_fold" in call
     assert "prediction_generation_training_window_sessions=None" in call
     assert "joint_model_and_training_window_selection_from_prior_oos" in helper
+
+
+def test_initial_universe_refresh_is_bounded_and_fail_closed():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "refresh_universe_with_bounded_fallback.py" in text
+    assert "Refresh official universe with bounded fallback" in text
+    assert "      - name: Refresh official universe with current parser" not in text
+    assert "run: python scripts/refresh_universe.py" not in text
+
+
+def test_initial_universe_refresh_recovery_script_contract():
+    source = (ROOT / "scripts/refresh_universe_with_bounded_fallback.py").read_text(
+        encoding="utf-8"
+    )
+    assert "REFRESH_TIMEOUT_SECONDS = 240" in source
+    assert "MAX_AGE_SECONDS = 7 * 24 * 60 * 60" in source
+    assert "subprocess.TimeoutExpired" in source
+    assert "DEFERRED_RETAINED_EXISTING" in source
+    assert "source_hashes" in source
+    assert "universe_quality_gate.py" in source
+    assert "fail-closed" not in source.lower() or "FAIL:" in source
