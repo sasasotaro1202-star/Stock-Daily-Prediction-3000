@@ -1,0 +1,81 @@
+name: External OSS research candidates
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Weekly source/status refresh. This is discovery evidence only and never
+    # changes the production bundle, registry, model, or holdout.
+    - cron: "17 5 * * 0"
+      timezone: "Asia/Tokyo"
+  push:
+    paths:
+      - "config/external_research_candidates.json"
+      - "scripts/update_external_research_candidates.py"
+      - "tests/test_external_research_candidates.py"
+      - ".github/workflows/external-oss-research.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: external-oss-research
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: Validate candidate registry contract
+        run: pytest -q tests/test_external_research_candidates.py
+      - name: Collect current public GitHub metadata
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/update_external_research_candidates.py \
+            --output artifacts/external_candidate_registry.json
+      - name: Enforce research-only output
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("artifacts/external_candidate_registry.json")
+          data = json.loads(path.read_text(encoding="utf-8"))
+          if data.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: external OSS research unexpectedly allows promotion")
+          contract = data.get("evidence_contract") or {}
+          if contract.get("research_only") is not True:
+              raise SystemExit("FAIL: external OSS research lost research_only contract")
+          if contract.get("production_changed") is not False:
+              raise SystemExit("FAIL: external OSS research claims production mutation")
+          for row in data.get("results", []):
+              if row.get("promotion_allowed") is not False:
+                  raise SystemExit("FAIL: candidate promotion flag is not false")
+              if row.get("evidence_level") != "E1_EXTERNAL_CLAIM":
+                  raise SystemExit("FAIL: candidate evidence level is not E1")
+              if row.get("local_reproduction_required") is not True:
+                  raise SystemExit("FAIL: local reproduction requirement missing")
+              if row.get("momentum_status") != "UNKNOWN_REQUIRES_PRIOR_SNAPSHOT":
+                  raise SystemExit("FAIL: momentum was inferred without snapshot history")
+          print(
+              "external_oss_research_safety=PASS",
+              "candidates=", len(data.get("results", [])),
+              "verified=", data.get("verified_source_count"),
+              "not_found=", data.get("source_not_found_count"),
+          )
+          PY
+      - uses: actions/upload-artifact@v7
+        with:
+          name: external-oss-research-${{ github.run_id }}
+          path: artifacts/external_candidate_registry.json
+          if-no-files-found: error
+          retention-days: 30
