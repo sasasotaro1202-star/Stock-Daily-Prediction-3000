@@ -200,11 +200,11 @@ def _predict_near_production(
             continue
         symbol_model = make_symbol_logistic_model()
         symbol_model.fit(
-            symbol_core[SYMBOL_FALLBACK_FEATURES],
+            symbol_core[list(SYMBOL_FALLBACK_FEATURES)],
             symbol_core["target_up_1d"].astype(int),
         )
         symbol_raw_cal = symbol_model.predict_proba(
-            symbol_cal[SYMBOL_FALLBACK_FEATURES]
+            symbol_cal[list(SYMBOL_FALLBACK_FEATURES)]
         )[:, 1]
         symbol_calibrator = make_calibrator("platt").fit(
             symbol_raw_cal,
@@ -265,7 +265,7 @@ def _predict_near_production(
                         np.clip(
                             symbol_calibrator.predict(
                                 symbol_model.predict_proba(
-                                    one[SYMBOL_FALLBACK_FEATURES]
+                                    one[list(SYMBOL_FALLBACK_FEATURES)]
                                 )[:, 1]
                             )[0],
                             1e-5,
