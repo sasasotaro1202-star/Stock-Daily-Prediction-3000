@@ -16,11 +16,13 @@ on:
       - "scripts/update_external_research_candidates.py"
       - "scripts/audit_external_oss_top1000_metadata.py"
       - "scripts/build_external_prediction_system_oss_top1000_registry.py"
+      - "scripts/resolve_external_oss_top1000_not_found.py"
       - "scripts/build_external_stock_research_queue.py"
       - "scripts/inspect_external_stock_research_queue.py"
       - "tests/test_external_research_candidates.py"
       - "tests/test_external_oss_top1000_metadata.py"
       - "tests/test_external_prediction_system_oss_top1000_registry.py"
+      - "tests/test_external_oss_top1000_identity_resolution.py"
       - "tests/test_external_oss_top1000_workflow_contract.py"
       - ".github/workflows/external-oss-research.yml"
 
@@ -47,6 +49,7 @@ jobs:
           pytest -q tests/test_external_research_candidates.py
           pytest -q tests/test_external_oss_top1000_metadata.py
           pytest -q tests/test_external_prediction_system_oss_top1000_registry.py
+          pytest -q tests/test_external_oss_top1000_identity_resolution.py
           pytest -q tests/test_external_stock_research_queue.py
           pytest -q tests/test_external_stock_source_inspection.py
           pytest -q tests/test_external_oss_top1000_workflow_contract.py
@@ -73,6 +76,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python scripts/audit_external_oss_top1000_metadata.py --previous data/research/previous_external_oss_top1000_snapshot.json --output artifacts/external_oss_top1000_snapshot.json
+      - name: Resolve TOP1000 source-not-found identities without rewriting canonical refs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/resolve_external_oss_top1000_not_found.py --input artifacts/external_oss_top1000_snapshot.json --output artifacts/external_oss_top1000_identity_resolution.json
       - name: Collect legacy deep-candidate metadata
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -116,6 +124,16 @@ jobs:
                   raise SystemExit("FAIL: security status was overclaimed")
               if row.get("momentum_status") not in {"MEASURED", "BASELINE_ONLY", "UNKNOWN"}:
                   raise SystemExit("FAIL: invalid momentum status")
+          identity = json.loads(Path("artifacts/external_oss_top1000_identity_resolution.json").read_text(encoding="utf-8"))
+          if identity.get("status") != "EXECUTED_IDENTITY_RESOLUTION":
+              raise SystemExit("FAIL: TOP1000 identity resolution did not execute")
+          if identity.get("input_not_found_count") != top.get("not_found_count"):
+              raise SystemExit("FAIL: TOP1000 identity resolution input count mismatch")
+          if identity.get("promotion_allowed") is not False or identity.get("auto_rewrite_allowed") is not False:
+              raise SystemExit("FAIL: TOP1000 identity resolution may mutate or promote")
+          for row in identity.get("results", []):
+              if row.get("auto_rewrite_allowed") is not False or row.get("promotion_allowed") is not False:
+                  raise SystemExit("FAIL: identity resolution row may mutate or promote")
           queue = json.loads(Path("artifacts/external_stock_research_queue.json").read_text(encoding="utf-8"))
           if queue.get("status") != "EXECUTED_RESEARCH_QUEUE":
               raise SystemExit("FAIL: verified external Stock research queue did not execute")
@@ -202,12 +220,13 @@ jobs:
           mkdir -p "$worktree_dir/data/research"
           cp artifacts/external_oss_top1000_snapshot.json "$worktree_dir/data/research/external_oss_top1000_snapshot.json"
           cp artifacts/external_candidate_registry.json "$worktree_dir/data/research/external_candidate_registry.json"
+          cp artifacts/external_oss_top1000_identity_resolution.json "$worktree_dir/data/research/external_oss_top1000_identity_resolution.json"
           cp artifacts/external_stock_research_queue.json "$worktree_dir/data/research/external_stock_research_queue.json"
           cp artifacts/external_stock_source_inspection.json "$worktree_dir/data/research/external_stock_source_inspection.json"
           echo "$GITHUB_SHA" > "$worktree_dir/data/research/external_oss_source_commit.txt"
           echo "${{ github.run_id }}" > "$worktree_dir/data/research/external_oss_workflow_run_id.txt"
 
-          git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_stock_research_queue.json data/research/external_stock_source_inspection.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
+          git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_oss_top1000_identity_resolution.json data/research/external_stock_research_queue.json data/research/external_stock_source_inspection.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
           if git -C "$worktree_dir" diff --cached --quiet; then
             echo "external-oss-status: no change"
             exit 0
@@ -220,6 +239,7 @@ jobs:
           path: |
             artifacts/external_candidate_registry.json
             artifacts/external_oss_top1000_snapshot.json
+            artifacts/external_oss_top1000_identity_resolution.json
             artifacts/external_stock_research_queue.json
             artifacts/external_stock_source_inspection.json
           if-no-files-found: error
