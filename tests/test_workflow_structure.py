@@ -35,3 +35,13 @@ def test_project_instructions_preserve_adoption_experience_and_transfer_gates() 
     assert "canonical instrument-date-cutoff granularity" in instructions
     assert "DISCOVER -> ABSTRACT_MECHANISM -> COMPATIBILITY -> ADAPT -> LOCAL_PIT -> LOCAL_OOS -> LOCAL_HOLDOUT -> SHADOW -> PROMOTE" in instructions
 
+
+
+def test_daily_watchlist_canonicalizes_restored_prices_before_prediction() -> None:
+    workflow = (WORKFLOW_DIR / "daily-watchlist.yml").read_text(encoding="utf-8")
+    canonical_step = workflow.index("name: Canonicalize restored price store")
+    prediction_step = workflow.index(
+        "name: Generate latest priority equity predictions"
+    )
+    assert canonical_step < prediction_step
+    assert "run: python scripts/normalize_price_store.py" in workflow
