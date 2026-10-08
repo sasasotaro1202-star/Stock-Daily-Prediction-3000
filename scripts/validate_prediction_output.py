@@ -40,7 +40,6 @@ def main() -> None:
         "model_disagreement",
         "prediction_status",
         "prediction_mode",
-        "rank",
     }
     missing = sorted(required - set(df.columns))
     if missing:
