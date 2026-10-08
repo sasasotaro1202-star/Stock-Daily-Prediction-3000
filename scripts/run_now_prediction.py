@@ -14,6 +14,11 @@ from src.features.context import add_cross_sectional_context, add_market_context
 from src.features.technical import FEATURE_COLUMNS, add_technical_features
 from src.prediction.fit import fit_classifier
 from src.prediction.model_factories import models
+from src.prediction.hierarchical_fallback import (
+    SYMBOL_FALLBACK_FEATURES,
+    blend_probabilities,
+    make_symbol_logistic_model,
+)
 from src.prediction.production_artifact import ARTIFACT_PATH, load_production_artifact
 from src.prediction.regression import make_quantile_models, make_return_model
 from src.prediction.targets import add_targets
@@ -152,18 +157,137 @@ def _predict_near_production(
         cal["target_up_1d"].astype(int),
     )
 
+    # Hierarchical near-production fallback:
+    #   global model -> asset-class model -> symbol-specific regularized logistic.
+    # All component fits use only pre-test data. This path is intentionally
+    # research/monitoring only; it does not bypass the frozen production gate.
+    asset_experts: dict[str, tuple[object, object]] = {}
+    for asset_class, asset_core in core.groupby("asset_class", sort=False):
+        asset_name = str(asset_class)
+        if len(asset_core) < 800 or asset_core["target_up_1d"].nunique() < 2:
+            continue
+        asset_cal = cal[cal["asset_class"].astype(str).eq(asset_name)]
+        if len(asset_cal) < 40 or asset_cal["target_up_1d"].nunique() < 2:
+            continue
+        asset_model = factory_map[model_name]()
+        fit_classifier(
+            asset_model,
+            model_name,
+            asset_core[FEATURE_COLUMNS],
+            asset_core["target_up_1d"].astype(int),
+            asset_core["session_date"],
+            half_life_sessions=half_life,
+        )
+        asset_raw_cal = asset_model.predict_proba(asset_cal[FEATURE_COLUMNS])[:, 1]
+        asset_calibrator = make_calibrator(_calibration_method()).fit(
+            asset_raw_cal,
+            asset_cal["target_up_1d"].astype(int),
+        )
+        asset_experts[asset_name] = (asset_model, asset_calibrator)
+
+    symbol_experts: dict[tuple[str, str], tuple[object, object]] = {}
+    for (asset_class, symbol), symbol_core in core.groupby(
+        ["asset_class", "symbol"], sort=False
+    ):
+        key = (str(asset_class), str(symbol))
+        if len(symbol_core) < 160 or symbol_core["target_up_1d"].nunique() < 2:
+            continue
+        symbol_cal = cal[
+            cal["asset_class"].astype(str).eq(key[0])
+            & cal["symbol"].astype(str).eq(key[1])
+        ]
+        if len(symbol_cal) < 30 or symbol_cal["target_up_1d"].nunique() < 2:
+            continue
+        symbol_model = make_symbol_logistic_model()
+        symbol_model.fit(
+            symbol_core[SYMBOL_FALLBACK_FEATURES],
+            symbol_core["target_up_1d"].astype(int),
+        )
+        symbol_raw_cal = symbol_model.predict_proba(
+            symbol_cal[SYMBOL_FALLBACK_FEATURES]
+        )[:, 1]
+        symbol_calibrator = make_calibrator("platt").fit(
+            symbol_raw_cal,
+            symbol_cal["target_up_1d"].astype(int),
+        )
+        symbol_experts[key] = (symbol_model, symbol_calibrator)
+
     ready = latest[FEATURE_COLUMNS].notna().all(axis=1)
     out = latest.copy()
     out["prediction_status"] = np.where(
         ready, "READY_NEAR_PRODUCTION", "DEFERRED_INCOMPLETE_FEATURES"
     )
     probs = np.full(len(out), np.nan, dtype=float)
+    disagreements = np.full(len(out), np.nan, dtype=float)
+    selected_model_ids: list[str] = []
+    route_reasons: list[str] = []
     if ready.any():
-        probs[ready.to_numpy()] = np.clip(
-            calibrator.predict(model.predict_proba(out.loc[ready, FEATURE_COLUMNS])[:, 1]),
-            1e-5,
-            1 - 1e-5,
-        )
+        for idx, row in out.loc[ready].iterrows():
+            one = pd.DataFrame([row])
+            component_probs = [
+                float(
+                    np.clip(
+                        calibrator.predict(
+                            model.predict_proba(one[FEATURE_COLUMNS])[:, 1]
+                        )[0],
+                        1e-5,
+                        1 - 1e-5,
+                    )
+                )
+            ]
+            component_weights = [0.55]
+            component_names = [model_name]
+
+            asset_key = str(row["asset_class"])
+            asset_entry = asset_experts.get(asset_key)
+            if asset_entry is not None:
+                asset_model, asset_calibrator = asset_entry
+                component_probs.append(
+                    float(
+                        np.clip(
+                            asset_calibrator.predict(
+                                asset_model.predict_proba(one[FEATURE_COLUMNS])[:, 1]
+                            )[0],
+                            1e-5,
+                            1 - 1e-5,
+                        )
+                    )
+                )
+                component_weights.append(0.25)
+                component_names.append(f"{model_name}:asset")
+
+            symbol_key = (asset_key, str(row["symbol"]))
+            symbol_entry = symbol_experts.get(symbol_key)
+            if symbol_entry is not None:
+                symbol_model, symbol_calibrator = symbol_entry
+                component_probs.append(
+                    float(
+                        np.clip(
+                            symbol_calibrator.predict(
+                                symbol_model.predict_proba(
+                                    one[SYMBOL_FALLBACK_FEATURES]
+                                )[:, 1]
+                            )[0],
+                            1e-5,
+                            1 - 1e-5,
+                        )
+                    )
+                )
+                component_weights.append(0.20)
+                component_names.append("symbol:logistic")
+
+            probs[idx] = blend_probabilities(component_probs, component_weights)
+            disagreements[idx] = float(np.std(component_probs))
+            selected_model_ids.append(
+                "+".join(component_names)
+            )
+            route_reasons.append(
+                "near_production:hierarchical_global_asset_symbol"
+            )
+    else:
+        selected_model_ids = [""] * len(out)
+        route_reasons = ["deferred:incomplete_features"] * len(out)
+
     out["p_up_1d"] = probs
 
     ret = make_return_model()
@@ -173,16 +297,47 @@ def _predict_near_production(
     for q in qmodels.values():
         q.fit(qfit[FEATURE_COLUMNS], qfit["target_ret_1d"])
 
+    # Match the classifier hierarchy on the return side where there is enough
+    # asset-class history. The global model remains a stabilizing reference.
+    asset_return_experts: dict[str, tuple[object, dict[str, object]]] = {}
+    for asset_class, asset_qfit in qfit.groupby("asset_class", sort=False):
+        if len(asset_qfit) < 1200:
+            continue
+        asset_name = str(asset_class)
+        asset_ret = make_return_model()
+        asset_qs = make_quantile_models()
+        asset_ret.fit(asset_qfit[FEATURE_COLUMNS], asset_qfit["target_ret_1d"])
+        for q in asset_qs.values():
+            q.fit(asset_qfit[FEATURE_COLUMNS], asset_qfit["target_ret_1d"])
+        asset_return_experts[asset_name] = (asset_ret, asset_qs)
+
     mid = np.full(len(out), np.nan, dtype=float)
     lo = np.full(len(out), np.nan, dtype=float)
     hi = np.full(len(out), np.nan, dtype=float)
     q50_return = np.full(len(out), np.nan, dtype=float)
     if ready.any():
         frame = out.loc[ready, FEATURE_COLUMNS]
-        mid_v = ret.predict(frame)
-        lo_v = qmodels["q10"].predict(frame)
-        q50_v = qmodels["q50"].predict(frame)
-        hi_v = qmodels["q90"].predict(frame)
+        global_mid_v = ret.predict(frame)
+        global_lo_v = qmodels["q10"].predict(frame)
+        global_q50_v = qmodels["q50"].predict(frame)
+        global_hi_v = qmodels["q90"].predict(frame)
+
+        asset_expert = asset_return_experts.get(str(asset))
+        if asset_expert is not None:
+            asset_ret, asset_qs = asset_expert
+            asset_mid_v = asset_ret.predict(frame)
+            asset_lo_v = asset_qs["q10"].predict(frame)
+            asset_q50_v = asset_qs["q50"].predict(frame)
+            asset_hi_v = asset_qs["q90"].predict(frame)
+            mid_v = 0.30 * global_mid_v + 0.70 * asset_mid_v
+            lo_v = 0.30 * global_lo_v + 0.70 * asset_lo_v
+            q50_v = 0.30 * global_q50_v + 0.70 * asset_q50_v
+            hi_v = 0.30 * global_hi_v + 0.70 * asset_hi_v
+        else:
+            mid_v = global_mid_v
+            lo_v = global_lo_v
+            q50_v = global_q50_v
+            hi_v = global_hi_v
         # Keep the expected-return point estimate distinct from the
         # model-derived median quantile while enforcing monotone quantiles.
         lo_v = np.minimum(np.minimum(lo_v, mid_v), q50_v)
@@ -202,10 +357,14 @@ def _predict_near_production(
     out["q10_1d"] = out["range_low_1d"]
     out["q50_1d"] = out["close"] * (1 + q50_return)
     out["q90_1d"] = out["range_high_1d"]
-    out["model_id"] = model_name
-    out["training_scope"] = "near_production_global"
-    out["return_training_scope"] = "near_production_global"
-    out["route_reason"] = f"near_production:{selection_source}"
+    out["model_id"] = selected_model_ids
+    out["training_scope"] = "near_production_hierarchical"
+    out["return_training_scope"] = np.where(
+        out["asset_class"].astype(str).isin(set(asset_return_experts)),
+        "near_production_asset_blend",
+        "near_production_global",
+    )
+    out["route_reason"] = route_reasons
     frozen_payload = json.loads(FROZEN.read_text(encoding="utf-8")) if FROZEN.exists() else {}
     threshold = frozen_payload.get("regime_vol_threshold")
     if not isinstance(threshold, (int, float)) or not np.isfinite(float(threshold)):
@@ -238,8 +397,8 @@ def _predict_near_production(
         situations.append(situation)
     out["regime"] = regimes
     out["market_situation"] = situations
-    out["model_disagreement"] = np.nan
-    out["prediction_mode"] = "NEAR_PRODUCTION"
+    out["model_disagreement"] = disagreements
+    out["prediction_mode"] = "NEAR_PRODUCTION_HIERARCHICAL"
     out["prediction_time"] = pd.Timestamp(datetime.now(timezone.utc))
     out["prediction_date"] = out["prediction_time"].dt.tz_convert("Asia/Tokyo").dt.date
 
@@ -259,7 +418,7 @@ def _predict_near_production(
         raise ValueError(f"next exchange session unavailable: {calendar_code} {session.date()}")
 
     out["target_date"] = out.apply(_target_date, axis=1)
-    out["model_version"] = "near-production-runtime"
+    out["model_version"] = "near-production-hierarchical-v1"
 
     cols = [
         "symbol", "asset_class", "session_date", "close", "available_at",
