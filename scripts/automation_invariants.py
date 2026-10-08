@@ -171,8 +171,13 @@ def main() -> int:
     )
     _assert_contains(
         on_demand,
-        "PRICE_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}",
-        "on_demand_prediction_all_asset_classes",
+        "PRICE_ASSET_CLASSES: ${{ needs.prepare.outputs.asset_classes }}",
+        "on_demand_prediction_asset_scope_output",
+    )
+    _assert_contains(
+        on_demand,
+        'default: "jp_stock,jp_etf,jp_reit,us_stock,us_etf"',
+        "on_demand_prediction_all_asset_classes_default",
     )
     _assert_contains(
         on_demand,

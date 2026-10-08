@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 
-from scripts.generate_daily_watchlist import latest_equity_prediction
+from scripts.generate_daily_watchlist import build_market_rows, latest_equity_prediction
 
 
 def test_latest_equity_prediction_persists_derived_target_date(tmp_path):

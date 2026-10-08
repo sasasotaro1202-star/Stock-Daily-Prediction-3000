@@ -56,16 +56,16 @@ def test_watchdog_recovers_research_without_workflow_run_self_trigger():
     assert "inspect_research_validation()" in text
 
 
-def test_research_watchdog_has_bounded_inactivity_guard_without_replacing_hard_age_guard() -> None:
+def test_research_watchdog_uses_only_bounded_hard_age_guard() -> None:
     text = _watchdog_text()
-    assert "research_inactive_epoch" in text
-    assert "120-minute no-update window" in text
-    assert "has had no Actions update for over 120 minutes" in text
-    assert "stalled active run $active_run_id cancelled by inactivity guard" in text
+    # Run-level Actions updated_at is not a reliable progress signal for a
+    # long-running OOS step. Keep the explicit hard-age safety boundary instead.
+    assert "research_inactive_epoch" not in text
+    assert "120-minute no-update window" not in text
+    assert "has had no Actions update for over 120 minutes" not in text
+    assert "stalled active run $active_run_id cancelled by inactivity guard" not in text
     assert "has exceeded 350 minutes of active age" in text
     assert "stale active run $active_run_id cancelled by hard-age guard" in text
-
-
 def test_superseded_queued_research_can_be_cleaned_behind_active_oos() -> None:
     text = _watchdog_text()
     research_start = text.index("inspect_research_validation")
