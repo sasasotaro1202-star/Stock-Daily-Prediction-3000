@@ -1,9 +1,8 @@
-name: Stale research run reaper
+name: Stale research marathon reaper
 
-# Emergency control-plane lane. It deliberately shares the exact concurrency
-# groups used by stale long-running research workflows so a queued job with
-# cancel-in-progress=true can terminate obsolete runs without touching
-# production prediction workflows.
+# Control-plane workflow. The workflow-level concurrency group intentionally
+# matches the obsolete marathon group so a queued push can cancel the stale
+# in-progress marathon before any runner allocation is needed.
 on:
   push:
     paths:
@@ -14,21 +13,12 @@ permissions:
   actions: write
   contents: read
 
-jobs:
-  marathon:
-    runs-on: ubuntu-latest
-    concurrency:
-      group: research-marathon-v1
-      cancel-in-progress: true
-    steps:
-      - name: Release obsolete research marathon lane
-        run: echo "stale research marathon concurrency lane released"
+concurrency:
+  group: research-marathon-v1
+  cancel-in-progress: true
 
-  validation:
+jobs:
+  release:
     runs-on: ubuntu-latest
-    concurrency:
-      group: research-validation-v4
-      cancel-in-progress: true
     steps:
-      - name: Release obsolete research validation lane
-        run: echo "stale research validation concurrency lane released"
+      - run: echo "stale research marathon lane released"
