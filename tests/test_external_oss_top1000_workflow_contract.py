@@ -53,3 +53,15 @@ def test_verified_stock_queue_is_generated_and_published():
         "priority_is_not_predictive_evidence",
     ]:
         assert needle in text, needle
+
+
+def test_static_source_inspection_is_integrated_safely():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    for needle in [
+        "scripts/inspect_external_stock_research_queue.py",
+        "external_stock_source_inspection.json",
+        "external_code_executed",
+        "external_code_installed",
+        "E2_EXTERNAL_SOURCE_INSPECTION",
+    ]:
+        assert needle in text, needle
