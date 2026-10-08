@@ -97,7 +97,7 @@ def test_watchlist_workflow_contract():
     assert "restore_latest_universe_state.py" in workflow
     assert "update_market_context.py" in workflow
     assert "generate_daily_watchlist.py" in workflow
-    assert "contents: read" in workflow
+    assert "contents: write" in workflow
 
 
 def test_fx_24_5_next_session_skips_weekend():
