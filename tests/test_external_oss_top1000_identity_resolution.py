@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 SCRIPT = Path("scripts/resolve_external_oss_top1000_not_found.py")
