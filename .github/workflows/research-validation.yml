@@ -164,6 +164,33 @@ jobs:
         run: python scripts/generate_experience_candidates.py
       - name: Generate external stock mechanism research plan
         run: python scripts/generate_external_stock_mechanism_plan.py
+      - name: Generate prediction-system OSS top1000 research plan
+        run: python scripts/generate_external_prediction_system_oss_plan.py
+      - name: Validate prediction-system OSS top1000 research plan
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/external_prediction_system_oss_research_plan.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d.get("schema_version") == 1
+          assert d.get("status") == "EXECUTED_RESEARCH_PLAN"
+          assert d.get("source_scope", {}).get("count_claimed") == 1000
+          assert d.get("research_only") is True
+          assert d.get("production_changed") is False
+          assert d.get("promotion_allowed") is False
+          assert d.get("frozen_holdout_used") is False
+          assert d.get("top1000_source_is_not_performance_evidence") is True
+          assert d.get("deep_seed_count", 0) >= 40
+          for row in d.get("candidates", []):
+              assert row.get("evidence_level") == "E1_EXTERNAL_CLAIM"
+              assert row.get("status") == "HOLD_RESEARCH_ONLY"
+              assert row.get("research_only") is True
+              assert row.get("production_changed") is False
+              assert row.get("promotion_allowed") is False
+              assert row.get("frozen_holdout_used") is False
+          print("prediction_system_oss_top1000_plan=PASS seeds=", d.get("deep_seed_count"))
+          PY
       - name: Validate external stock mechanism research plan
         run: |
           python - <<'PY'
