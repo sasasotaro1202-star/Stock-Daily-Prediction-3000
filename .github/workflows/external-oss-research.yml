@@ -13,8 +13,11 @@ on:
       - "research_sources/external_prediction_system_oss_top1000_source.tsv"
       - "scripts/update_external_research_candidates.py"
       - "scripts/audit_external_oss_top1000_metadata.py"
+      - "scripts/build_external_prediction_system_oss_top1000_registry.py"
       - "tests/test_external_research_candidates.py"
       - "tests/test_external_oss_top1000_metadata.py"
+      - "tests/test_external_prediction_system_oss_top1000_registry.py"
+      - "tests/test_external_oss_top1000_workflow_contract.py"
       - ".github/workflows/external-oss-research.yml"
 
 permissions:
@@ -40,6 +43,7 @@ jobs:
           pytest -q tests/test_external_research_candidates.py
           pytest -q tests/test_external_oss_top1000_metadata.py
           pytest -q tests/test_external_prediction_system_oss_top1000_registry.py
+          pytest -q tests/test_external_oss_top1000_workflow_contract.py
       - name: Restore prior OSS metadata snapshot
         shell: bash
         env:
