@@ -62,12 +62,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python scripts/audit_external_oss_top1000_metadata.py             --previous data/research/previous_external_oss_top1000_snapshot.json             --output artifacts/external_oss_top1000_snapshot.json
+          python scripts/audit_external_oss_top1000_metadata.py --previous data/research/previous_external_oss_top1000_snapshot.json --output artifacts/external_oss_top1000_snapshot.json
       - name: Collect legacy deep-candidate metadata
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          python scripts/update_external_research_candidates.py             --output artifacts/external_candidate_registry.json
+          python scripts/update_external_research_candidates.py --output artifacts/external_candidate_registry.json
       - name: Enforce research-only and no-fabrication contract
         shell: bash
         run: |
