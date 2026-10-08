@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
@@ -9,6 +10,8 @@ from pathlib import Path
 from urllib.request import Request, urlopen
 
 import yaml
+
+from src.data.sec_http import decode_http_body
 
 
 CONFIG = Path("config/research_data_sources.yml")
@@ -42,12 +45,15 @@ def _get_json(url: str) -> tuple[dict, dict[str, str], bytes]:
         try:
             with urlopen(request, timeout=45) as response:
                 raw = response.read()
+                content_encoding = str(response.headers.get("Content-Encoding") or "")
+                raw = decode_http_body(raw, content_encoding)
                 headers = {
                     "etag": str(response.headers.get("ETag") or ""),
                     "last_modified": str(response.headers.get("Last-Modified") or ""),
                     "content_type": str(response.headers.get("Content-Type") or ""),
+                    "content_encoding": content_encoding,
                 }
-            payload = json.loads(raw.decode("utf-8"))
+            payload = json.loads(raw.decode("utf-8-sig"))
             if not isinstance(payload, dict):
                 raise ValueError("SEC JSON root is not an object")
             return payload, headers, raw
