@@ -43,14 +43,22 @@ boj_frontier_research:
             }
         ]
     }
-    monkeypatch.setattr(
-        collector,
-        "_fetch",
-        lambda url: (payload, json.dumps(payload).encode("utf-8")),
-    )
+    captured = {}
+
+    def fake_fetch(url):
+        captured["url"] = url
+        return payload, json.dumps(payload).encode("utf-8")
+
+    monkeypatch.setattr(collector, "_fetch", fake_fetch)
     assert collector.main() == 0
     report = json.loads(collector.OUT.read_text(encoding="utf-8"))
     assert report["pit_status"] == "UNVERIFIED"
     assert report["production_changed"] is False
     assert report["summary"]["series_count"] == 1
     assert report["batches"][0]["rows"][0]["value"] == "12345.0"
+
+    from urllib.parse import parse_qs, urlparse
+
+    query = parse_qs(urlparse(captured["url"]).query)
+    assert query["db"] == ["MD01"]
+    assert query["code"] == ["MABS1AN11"]
