@@ -27,6 +27,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       run_required: ${{ steps.guard.outputs.run_required }}
+      asset_classes: ${{ steps.guard.outputs.asset_classes }}
     steps:
       - name: Require latest main HEAD
         id: guard
@@ -44,6 +45,16 @@ jobs:
             exit 0
           fi
           echo "run_required=true" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            asset_classes="$(gh api "repos/$GITHUB_REPOSITORY/contents/ops/today_prediction.trigger" --jq '.content' | tr -d '\n' | base64 --decode | sed -n 's/^asset_classes=//p' | head -n1)"
+            if [ -z "$asset_classes" ]; then
+              echo "::error title=Trigger asset classes missing::ops/today_prediction.trigger has no usable asset_classes"
+              exit 1
+            fi
+          else
+            asset_classes="${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}"
+          fi
+          echo "asset_classes=$asset_classes" >> "$GITHUB_OUTPUT"
           echo "guard_reason=current_main" >> "$GITHUB_OUTPUT"
 
   restore-universe:
@@ -99,7 +110,7 @@ jobs:
           PRICE_SHARD_INDEX: ${{ matrix.shard }}
           PRICE_SHARD_COUNT: 4
           PRICE_MAX_WORKERS: 2
-          PRICE_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
+          PRICE_ASSET_CLASSES: ${{ needs.prepare.outputs.asset_classes }}
         run: python scripts/update_prices.py
       - uses: actions/upload-artifact@v7
         with:
@@ -153,13 +164,13 @@ jobs:
         run: python scripts/normalize_price_store.py
       - name: Scoped price data quality
         env:
-          QUALITY_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
+          QUALITY_ASSET_CLASSES: ${{ needs.prepare.outputs.asset_classes }}
         run: python scripts/data_quality_gate.py
       - name: Update free market context
         run: python scripts/update_market_context.py
       - name: Production-or-near-production prediction
         env:
-          PREDICT_ASSET_CLASSES: ${{ inputs.asset_classes || 'jp_stock,jp_etf,jp_reit,us_stock,us_etf' }}
+          PREDICT_ASSET_CLASSES: ${{ needs.prepare.outputs.asset_classes }}
         run: python scripts/run_now_prediction.py
       - name: Validate production prediction output
         run: python scripts/validate_prediction_output.py
