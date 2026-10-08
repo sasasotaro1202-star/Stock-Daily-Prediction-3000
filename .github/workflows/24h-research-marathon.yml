@@ -3,9 +3,6 @@ name: 24H Research Marathon
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "ops/reap_stale_research.trigger"
   schedule:
     - cron: "5 0 * * *"
       timezone: "Asia/Tokyo"
@@ -16,12 +13,10 @@ permissions:
 
 concurrency:
   group: research-marathon-v1
-  # Reaper pushes intentionally cancel obsolete runs using this exact group.
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   core_oos:
-    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
