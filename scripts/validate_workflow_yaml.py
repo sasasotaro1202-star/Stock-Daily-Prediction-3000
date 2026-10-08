@@ -6,6 +6,26 @@ import yaml
 WORKFLOW_DIR = Path('.github/workflows')
 
 
+class UniqueKeyLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(loader: UniqueKeyLoader, node, deep: bool = False):
+    mapping = {}
+    for key_node, value_node in node.value:
+        key = loader.construct_object(key_node, deep=deep)
+        if key in mapping:
+            raise ValueError(f'duplicate YAML key: {key!r}')
+        mapping[key] = loader.construct_object(value_node, deep=deep)
+    return mapping
+
+
+UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
+
+
 def main() -> int:
     files = sorted(WORKFLOW_DIR.glob('*.yml'))
     if not files:
@@ -13,7 +33,7 @@ def main() -> int:
     failures = []
     for path in files:
         try:
-            data = yaml.safe_load(path.read_text(encoding='utf-8'))
+            data = yaml.load(path.read_text(encoding='utf-8'), Loader=UniqueKeyLoader)
             if not isinstance(data, dict) or 'jobs' not in data:
                 failures.append(f'{path}: missing top-level jobs mapping')
         except Exception as exc:
