@@ -69,3 +69,39 @@ def test_adaptive_universe_refresh_still_fails_closed_without_snapshot(
 
     with pytest.raises(subprocess.TimeoutExpired):
         _refresh_universe_with_bounded_retry()
+
+
+def test_adaptive_universe_refresh_rejects_stale_retained_snapshot(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    universe_dir = tmp_path / "data" / "universe"
+    universe_dir.mkdir(parents=True)
+    (universe_dir / "latest.json").write_text(
+        json.dumps(
+            {
+                "retrieved_at": "2020-01-01T00:00:00+00:00",
+                "source_hashes": {"jp": "hash-jp", "us": "hash-us"},
+                "record_count": 100,
+                "records": [
+                    {
+                        "asset_class": "us_stock",
+                        "symbol": f"T{i}",
+                        "name": f"Test {i}",
+                        "tradeable": True,
+                        "source_url": "https://www.paypay-sec.co.jp/test",
+                    }
+                    for i in range(100)
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    def fake_run(args, check=True, timeout=None, **kwargs):
+        raise subprocess.TimeoutExpired(args, timeout)
+
+    monkeypatch.setattr("scripts.run_daily_research.subprocess.run", fake_run)
+
+    with pytest.raises(ValueError, match="outside bounded 7-day window"):
+        _refresh_universe_with_bounded_retry()
