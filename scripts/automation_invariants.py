@@ -213,7 +213,7 @@ def main() -> int:
     )
     _assert_contains(
         current_day_script,
-        'gh workflow run "${workflow_file}" --repo "$repo" --ref main',
+        'gh workflow run "$workflow_file" --repo "$repo" --ref main',
         "current_day_prediction_dispatches_current_main",
     )
     _assert_absent(
