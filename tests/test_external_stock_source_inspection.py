@@ -40,11 +40,14 @@ def test_static_inspection_never_executes_external_code():
         return None, "http_404"
 
     original = module._fetch_text
+    original_latest = module._latest_commit
     module._fetch_text = fake_fetch
+    module._latest_commit = lambda repo, branch, token: ("abc123", "ok")
     try:
         result = module.inspect(queue, 1, None)
     finally:
         module._fetch_text = original
+        module._latest_commit = original_latest
 
     assert result["status"] == "EXECUTED_STATIC_SOURCE_INSPECTION"
     assert result["selected_candidate_count"] == 1
@@ -55,6 +58,8 @@ def test_static_inspection_never_executes_external_code():
     assert row["external_code_installed"] is False
     assert "forecast" in row["mechanism_terms_found"]
     assert row["predictive_performance_evidence"] == "NONE"
+    assert row["repository_commit_sha"] == "abc123"
+    assert row["content_ref"] == "abc123"
     assert row["promotion_allowed"] is False
     assert len(calls) == len(module.PATHS)
 
