@@ -74,6 +74,9 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           python scripts/update_external_research_candidates.py --output artifacts/external_candidate_registry.json
+      - name: Build verified external Stock research queue
+        run: |
+          python scripts/build_external_stock_research_queue.py --snapshot artifacts/external_oss_top1000_snapshot.json --mechanism-config config/external_stock_mechanism_research.json --output artifacts/external_stock_research_queue.json
       - name: Enforce research-only and no-fabrication contract
         shell: bash
         run: |
@@ -104,6 +107,31 @@ jobs:
                   raise SystemExit("FAIL: security status was overclaimed")
               if row.get("momentum_status") not in {"MEASURED", "BASELINE_ONLY", "UNKNOWN"}:
                   raise SystemExit("FAIL: invalid momentum status")
+          queue = json.loads(Path("artifacts/external_stock_research_queue.json").read_text(encoding="utf-8"))
+          if queue.get("status") != "EXECUTED_RESEARCH_QUEUE":
+              raise SystemExit("FAIL: verified external Stock research queue did not execute")
+          if queue.get("source_claimed_count") != 1000:
+              raise SystemExit("FAIL: external Stock queue source claim changed")
+          if queue.get("explicit_repo_count") != queue.get("verified_source_count") + queue.get("blocked_source_count"):
+              raise SystemExit("FAIL: external Stock queue source accounting mismatch")
+          if queue.get("predictive_performance_evidence") != "NONE_EXTERNAL_METADATA":
+              raise SystemExit("FAIL: external Stock queue overclaims predictive evidence")
+          if queue.get("research_only") is not True or queue.get("production_changed") is not False or queue.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: external Stock queue is not research-only")
+          for row in queue.get("candidates", []):
+              if row.get("status") != "READY_FOR_SOURCE_INSPECTION":
+                  raise SystemExit("FAIL: queue candidate not ready for source inspection")
+              if row.get("promotion_allowed") is not False or row.get("production_changed") is not False:
+                  raise SystemExit("FAIL: queue candidate is not isolated")
+              if row.get("priority_is_not_predictive_evidence") is not True:
+                  raise SystemExit("FAIL: discovery priority was treated as predictive evidence")
+          print(
+              "external_stock_research_queue=PASS",
+              "verified_unique=", queue.get("unique_verified_repository_count"),
+              "blocked=", queue.get("blocked_source_count"),
+              "deep=", (queue.get("tier_counts") or {}).get("DEEP_LOCAL_REPRODUCTION", 0),
+              "targeted=", (queue.get("tier_counts") or {}).get("TARGETED_LOCAL_REPRODUCTION", 0),
+          )
           legacy = json.loads(Path("artifacts/external_candidate_registry.json").read_text(encoding="utf-8"))
           if legacy.get("promotion_allowed") is not False:
               raise SystemExit("FAIL: legacy candidate research unexpectedly allows promotion")
@@ -143,10 +171,11 @@ jobs:
           mkdir -p "$worktree_dir/data/research"
           cp artifacts/external_oss_top1000_snapshot.json "$worktree_dir/data/research/external_oss_top1000_snapshot.json"
           cp artifacts/external_candidate_registry.json "$worktree_dir/data/research/external_candidate_registry.json"
+          cp artifacts/external_stock_research_queue.json "$worktree_dir/data/research/external_stock_research_queue.json"
           printf '%s\n' "$GITHUB_SHA" > "$worktree_dir/data/research/external_oss_source_commit.txt"
           printf '%s\n' "${{ github.run_id }}" > "$worktree_dir/data/research/external_oss_workflow_run_id.txt"
 
-          git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
+          git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_stock_research_queue.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
           if git -C "$worktree_dir" diff --cached --quiet; then
             echo "external-oss-status: no change"
             exit 0
