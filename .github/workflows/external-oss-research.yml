@@ -16,6 +16,8 @@ on:
       - "scripts/update_external_research_candidates.py"
       - "scripts/audit_external_oss_top1000_metadata.py"
       - "scripts/build_external_prediction_system_oss_top1000_registry.py"
+      - "scripts/build_external_stock_research_queue.py"
+      - "scripts/inspect_external_stock_research_queue.py"
       - "tests/test_external_research_candidates.py"
       - "tests/test_external_oss_top1000_metadata.py"
       - "tests/test_external_prediction_system_oss_top1000_registry.py"
@@ -45,6 +47,8 @@ jobs:
           pytest -q tests/test_external_research_candidates.py
           pytest -q tests/test_external_oss_top1000_metadata.py
           pytest -q tests/test_external_prediction_system_oss_top1000_registry.py
+          pytest -q tests/test_external_stock_research_queue.py
+          pytest -q tests/test_external_stock_source_inspection.py
           pytest -q tests/test_external_oss_top1000_workflow_contract.py
       - name: Restore prior OSS metadata snapshot
         shell: bash
