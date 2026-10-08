@@ -141,6 +141,26 @@ jobs:
               "deep=", (queue.get("tier_counts") or {}).get("DEEP_LOCAL_REPRODUCTION", 0),
               "targeted=", (queue.get("tier_counts") or {}).get("TARGETED_LOCAL_REPRODUCTION", 0),
           )
+          inspection = json.loads(Path("artifacts/external_stock_source_inspection.json").read_text(encoding="utf-8"))
+          if inspection.get("status") != "EXECUTED_STATIC_SOURCE_INSPECTION":
+              raise SystemExit("FAIL: static Stock source inspection did not execute")
+          if inspection.get("static_only") is not True or inspection.get("external_code_executed") is not False or inspection.get("external_code_installed") is not False:
+              raise SystemExit("FAIL: external source inspection executed or installed untrusted code")
+          if inspection.get("predictive_performance_evidence") != "NONE":
+              raise SystemExit("FAIL: source inspection overclaims predictive evidence")
+          if inspection.get("production_changed") is not False or inspection.get("promotion_allowed") is not False:
+              raise SystemExit("FAIL: source inspection is not research-only")
+          for row in inspection.get("candidates", []):
+              if row.get("external_code_executed") is not False or row.get("external_code_installed") is not False:
+                  raise SystemExit("FAIL: candidate source inspection executed external code")
+              if row.get("predictive_performance_evidence") != "NONE":
+                  raise SystemExit("FAIL: candidate source inspection overclaims evidence")
+          print(
+              "external_stock_source_inspection=PASS",
+              "selected=", inspection.get("selected_candidate_count"),
+              "inspected=", inspection.get("source_inspected_count"),
+              "unverifiable=", inspection.get("unverifiable_source_count"),
+          )
           legacy = json.loads(Path("artifacts/external_candidate_registry.json").read_text(encoding="utf-8"))
           if legacy.get("promotion_allowed") is not False:
               raise SystemExit("FAIL: legacy candidate research unexpectedly allows promotion")
