@@ -182,7 +182,6 @@ fred_cross_asset:
     - DTWEXBGS
     - NFCI
     - STLFSI4
-    - GSCPI
     - TREAST
   output: "data/research/fred_cross_asset.csv"
   pit_policy:
@@ -190,6 +189,23 @@ fred_cross_asset:
     vintage_timestamp_available: false
     source_available_at_inferred: false
     revision_policy_requires_local_snapshot: true
+    research_use_only_until_pit_validation: true
+
+gscpi_newyorkfed:
+  enabled: true
+  source_url: "https://www.newyorkfed.org/medialibrary/media/research/interactives/gscpi/downloads/gscpi_data.xls"
+  output: "data/research/gscpi_newyorkfed/gscpi_data.csv"
+  sheet_name: "GSCPI Monthly Data"
+  release_schedule:
+    frequency: monthly
+    time_local: "10:00 America/New_York"
+    rule: "fourth business day"
+  pit_policy:
+    observation_date_preserved: true
+    published_schedule_recorded: true
+    row_level_available_at_verified: false
+    source_available_at_inferred: false
+    revision_policy_verified: false
     research_use_only_until_pit_validation: true
 
 sec_insider_ownership:

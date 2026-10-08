@@ -9,6 +9,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
+from src.data.http_encoding import decode_http_body
+
 
 UNIVERSE = Path("data/universe/latest.json")
 CONFIG = Path("config/research_data_sources.yml")
@@ -31,17 +33,21 @@ def _get_json(url: str) -> tuple[dict, dict[str, str]]:
             headers={
                 "User-Agent": USER_AGENT,
                 "Accept": "application/json",
+                "Accept-Encoding": "gzip, deflate",
             },
         )
         try:
             with urlopen(req, timeout=TIMEOUT) as response:
                 body = response.read()
+                content_encoding = str(response.headers.get("Content-Encoding") or "")
+                body = decode_http_body(body, content_encoding)
                 return (
                     json.loads(body.decode("utf-8-sig")),
                     {
                         "content_type": str(response.headers.get("Content-Type") or ""),
                         "last_modified": str(response.headers.get("Last-Modified") or ""),
                         "etag": str(response.headers.get("ETag") or ""),
+                        "content_encoding": content_encoding,
                     },
                 )
         except (HTTPError, URLError, TimeoutError, OSError) as exc:

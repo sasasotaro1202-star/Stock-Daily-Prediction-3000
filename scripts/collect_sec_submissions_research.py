@@ -10,6 +10,8 @@ from urllib.request import Request, urlopen
 
 import yaml
 
+from src.data.http_encoding import decode_http_body
+
 
 CONFIG = Path("config/research_data_sources.yml")
 UNIVERSE = Path("data/universe/latest.json")
@@ -39,11 +41,15 @@ def _get_json(url: str) -> tuple[dict, dict[str, str]]:
         request = Request(url, headers=headers)
         try:
             with urlopen(request, timeout=45) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                body = response.read()
+                content_encoding = str(response.headers.get("Content-Encoding") or "")
+                body = decode_http_body(body, content_encoding)
+                payload = json.loads(body.decode("utf-8-sig"))
                 response_headers = {
                     "etag": str(response.headers.get("ETag") or ""),
                     "last_modified": str(response.headers.get("Last-Modified") or ""),
                     "content_type": str(response.headers.get("Content-Type") or ""),
+                    "content_encoding": content_encoding,
                 }
             if not isinstance(payload, dict):
                 raise ValueError("SEC JSON root is not an object")
