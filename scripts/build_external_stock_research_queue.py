@@ -247,6 +247,7 @@ def build_queue(snapshot: dict, mechanism_config: dict) -> dict:
                 "freshness_score": freshness,
                 "discovery_priority_score": discovery_priority,
                 "priority_is_not_predictive_evidence": True,
+                "predictive_performance_evidence": "NONE_EXTERNAL_METADATA",
                 "metadata": {
                     "stars": primary.get("stars"),
                     "forks": primary.get("forks"),
