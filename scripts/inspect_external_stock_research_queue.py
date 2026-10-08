@@ -62,8 +62,24 @@ def _get_json(url: str, token: str | None) -> dict:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _fetch_text(repo: str, branch: str, path: str, token: str | None) -> tuple[str | None, str]:
-    api = f"https://api.github.com/repos/{repo}/contents/{path}?ref={branch}"
+def _latest_commit(repo: str, branch: str, token: str | None) -> tuple[str | None, str]:
+    api = f"https://api.github.com/repos/{repo}/commits/{branch}"
+    try:
+        payload = _get_json(api, token)
+    except HTTPError as exc:
+        return None, f"http_{exc.code}"
+    except URLError:
+        return None, "network_error"
+    except TimeoutError:
+        return None, "timeout"
+    except Exception as exc:
+        return None, f"error_{type(exc).__name__}"
+    sha = payload.get("sha") if isinstance(payload, dict) else None
+    return (str(sha), "ok") if sha else (None, "missing_sha")
+
+
+def _fetch_text(repo: str, ref: str, path: str, token: str | None) -> tuple[str | None, str]:
+    api = f"https://api.github.com/repos/{repo}/contents/{path}?ref={ref}"
     try:
         payload = _get_json(api, token)
     except HTTPError as exc:
@@ -119,11 +135,13 @@ def inspect(queue: dict, max_candidates: int, token: str | None) -> dict:
         repo = str(candidate.get("canonical_ref") or "").strip()
         metadata = candidate.get("metadata") or {}
         branch = str(metadata.get("default_branch") or "main")
+        commit_sha, commit_status = _latest_commit(repo, branch, token)
         files = []
         matched_terms: list[str] = []
         snippets: list[str] = []
+        content_ref = commit_sha or branch
         for path in PATHS:
-            text, status = _fetch_text(repo, branch, path, token)
+            text, status = _fetch_text(repo, content_ref, path, token)
             files.append({"path": path, "status": status, "bytes": len(text.encode("utf-8")) if text else 0})
             if text:
                 terms, local_snippets = _signals(text)
@@ -146,6 +164,9 @@ def inspect(queue: dict, max_candidates: int, token: str | None) -> dict:
                 "discovery_priority_score": candidate.get("discovery_priority_score"),
                 "selection_basis": "queue_discovery_priority_only",
                 "source_inspection_status": status,
+                "repository_commit_sha": commit_sha,
+                "repository_commit_status": commit_status,
+                "content_ref": content_ref,
                 "static_only": True,
                 "external_code_executed": False,
                 "external_code_installed": False,
