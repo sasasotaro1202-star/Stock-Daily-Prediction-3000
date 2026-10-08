@@ -3,6 +3,9 @@ name: 24H Research Marathon
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "ops/reap_stale_research.trigger"
   schedule:
     - cron: "5 0 * * *"
       timezone: "Asia/Tokyo"
@@ -13,10 +16,12 @@ permissions:
 
 concurrency:
   group: research-marathon-v1
-  cancel-in-progress: false
+  # Reaper pushes intentionally cancel obsolete runs using this exact group.
+  cancel-in-progress: true
 
 jobs:
   core_oos:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -157,6 +162,7 @@ jobs:
             marathon-checkpoints/core_oos.json
 
   finra:
+    if: github.event_name != 'push'
     needs: core_oos
     if: always()
     runs-on: ubuntu-latest
@@ -283,6 +289,7 @@ jobs:
             marathon-checkpoints/finra.json
 
   treasury:
+    if: github.event_name != 'push'
     needs: finra
     if: always()
     runs-on: ubuntu-latest
@@ -409,6 +416,7 @@ jobs:
             marathon-checkpoints/treasury.json
 
   audits:
+    if: github.event_name != 'push'
     needs: treasury
     if: always()
     runs-on: ubuntu-latest
@@ -509,6 +517,7 @@ jobs:
             marathon-checkpoints/audits.json
 
   finalize:
+    if: github.event_name != 'push'
     needs: [core_oos, finra, treasury, audits]
     if: always()
     runs-on: ubuntu-latest
