@@ -17,6 +17,7 @@ concurrency:
 
 jobs:
   core_oos:
+    if: ${{ github.event_name != 'push' }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -157,9 +158,8 @@ jobs:
             marathon-checkpoints/core_oos.json
 
   finra:
-    if: github.event_name != 'push'
+    if: ${{ always() && github.event_name != 'push' }}
     needs: core_oos
-    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
@@ -284,9 +284,8 @@ jobs:
             marathon-checkpoints/finra.json
 
   treasury:
-    if: github.event_name != 'push'
+    if: ${{ always() && github.event_name != 'push' }}
     needs: finra
-    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
@@ -411,9 +410,8 @@ jobs:
             marathon-checkpoints/treasury.json
 
   audits:
-    if: github.event_name != 'push'
+    if: ${{ always() && github.event_name != 'push' }}
     needs: treasury
-    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 340
     steps:
@@ -512,9 +510,8 @@ jobs:
             marathon-checkpoints/audits.json
 
   finalize:
-    if: github.event_name != 'push'
+    if: ${{ always() && github.event_name != 'push' }}
     needs: [core_oos, finra, treasury, audits]
-    if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
