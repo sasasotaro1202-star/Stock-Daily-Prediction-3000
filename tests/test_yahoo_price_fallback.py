@@ -50,3 +50,41 @@ def test_download_batch_recovers_ticker_omitted_by_multiticker_download(monkeypa
         ("jp_stock", "2222"),
     }
     assert (out["symbol"] == "2222").sum() == 4
+
+
+def test_yfinance_access_is_serialized_within_runner(monkeypatch):
+    import threading
+    import time as time_module
+    from concurrent.futures import ThreadPoolExecutor
+
+    active = 0
+    peak = 0
+    guard = threading.Lock()
+    bars = _bars("2026-01-01")
+
+    def fake_download(symbols, **_kwargs):
+        nonlocal active, peak
+        with guard:
+            active += 1
+            peak = max(peak, active)
+        time_module.sleep(0.05)
+        with guard:
+            active -= 1
+        return bars
+
+    monkeypatch.setattr(yahoo_price.yf, "download", fake_download)
+
+    records = [
+        {"symbol": "1111", "asset_class": "jp_stock"},
+        {"symbol": "2222", "asset_class": "jp_stock"},
+    ]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(yahoo_price.download_batch, [record], "5y")
+            for record in records
+        ]
+        outputs = [future.result() for future in futures]
+
+    assert peak == 1
+    assert all(not frame.empty for frame in outputs)
