@@ -1,0 +1,1939 @@
+{
+  "schema_version": 1,
+  "inspection_id": "external-stock-source-inspection-v1",
+  "status": "EXECUTED_STATIC_SOURCE_INSPECTION",
+  "static_only": true,
+  "external_code_executed": false,
+  "external_code_installed": false,
+  "selected_candidate_count": 25,
+  "source_inspected_count": 25,
+  "unverifiable_source_count": 0,
+  "predictive_performance_evidence": "NONE",
+  "research_only": true,
+  "production_changed": false,
+  "promotion_allowed": false,
+  "frozen_holdout_used": false,
+  "candidates": [
+    {
+      "inspection_rank": 1,
+      "canonical_ref": "google-research/timesfm",
+      "source_ranks": [
+        112,
+        510
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 96.325,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 11586
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 1136
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 1015
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "quantile",
+        "research"
+      ],
+      "evidence_snippets": [
+        "on Model) is a pretrained time-series foundation model developed by Google Research for time-series forecasting. * Paper: [A decoder-only foundation model for time-series forecasting](https://arxiv.org/abs/2310.10688), ICML 2024. * 🆕 TimesFM 3.0 Checkpoint: [`google/timesfm-3.0-pytorch`](https://huggin",
+        "# TimesFM TimesFM (Time Series Foundation Model) is a pretrained time-series foundation model developed by Google Research for time-series forecasting. * Paper: [A decoder-only foundation model for time-series forecasting](https://a",
+        "eters, down from 500M. - supports up to 16k context length, up from 2048. - supports continuous quantile forecast up to 1k horizon via an optional 30M quantile head. - gets rid of the `frequency` indicator. - has a couple of new forecasting flags. Since the Sept. 2025 launch, the following improvements hav",
+        "sFM (Time Series Foundation Model) is a pretrained time-series foundation model developed by Google Research for time-series forecasting. * Paper: [A decoder-only foundation model for time-series forecasting](https://arxiv.org/abs/2310.10688), ICML 2024. * 🆕 TimesFM 3.0 Checkpoint: [`google/timesfm-3.0",
+        "[project] name = \"timesfm\" version = \"3.0.2\" description = \"A time series foundation model.\" authors = [ {name = \"Rajat Sen\", email = \"senrajat@google.com\"}, {name = \"Yichen Zhou\", email = \"yichenzhou@google.com\"}, {name = \"Abhimanyu Das\", email = \"abhidas@google.com\"},"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 2,
+      "canonical_ref": "unit8co/darts",
+      "source_ranks": [
+        102,
+        117,
+        424
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 94.191,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 66541
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 6667
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "quantile",
+        "conformal",
+        "anomaly",
+        "backtest",
+        "drift",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "ium=badge&utm_campaign=pr-badge&utm_content=badge) **Darts** is a Python library for user-friendly forecasting and anomaly detection on time series. It contains a variety of models, from classics such as ARIMA to deep neural networks. The forecasting models can all be used in the same way, using `fit()` and `predict()",
+        "# Time Series Made Easy in Python ![darts](https://github.com/unit8co/darts/raw/master/static/images/darts-logo-trim.png \"darts\") --- [![PyPI version](https://badge.fury.io/py/darts.svg)](https://badge.fury.io/py/darts)",
+        "lly large datasets containing multiple time series, and some of the models offer a rich support for probabilistic forecasting. Darts also offers extensive anomaly detection capabilities. For instance, it is trivial to apply PyOD models on time series to obtain anomaly scores, or to wrap any of Darts forecasting or fil",
+        "es: ```python import matplotlib.pyplot as plt series.plot() prediction.plot(label=\"forecast\", low_quantile=0.05, high_quantile=0.95) plt.legend() ``` <div style=\"text-align:center;\"> <img src=\"https://github.com/unit8co/darts/raw/master/static/images/example.png\" alt=\"darts forecast example\" /> </div> ### Anomaly D",
+        "es). Some anomaly detection scorers are also able to exploit these predictive distributions. * **Conformal Prediction Support:** Our conformal prediction models allow to generate probabilistic forecasts with calibrated quantile intervals for any pre-trained global forecasting model. * **Past and Future Covariates",
+        "mpaign=pr-badge&utm_content=badge) **Darts** is a Python library for user-friendly forecasting and anomaly detection on time series. It contains a variety of models, from classics such as ARIMA to deep neural networks. The forecasting models can all be used in the same way, using `fit()` and `predict()` functions, sim",
+        "using `fit()` and `predict()` functions, similar to scikit-learn. The library also makes it easy to backtest models, combine the predictions of several models, and take external data into account. Darts supports both univariate and multivariate time series and models. The ML-based models can be trained on potentially l",
+        "roject] name = \"darts\" version = \"0.47.0\" description = \"A python library for easy manipulation and forecasting of time series.\" readme = \"README.md\" requires-python = \">=3.11\" license = \"Apache-2.0\" keywords = [\"time series\", \"forecasting\"] maintainers = [ {name = \"Unit8 SA\", email = \"darts@unit8.co\"} ] classifier"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 3,
+      "canonical_ref": "firecrawl/firecrawl",
+      "source_ranks": [
+        30
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "INFORMATION_RETRIEVAL",
+      "discovery_priority_score": 88.128,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 24755
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "research"
+      ],
+      "evidence_snippets": [
+        "`low` | Simple lookups on one site | | `medium` | Multi-step tasks on a few pages | | `high` | Deep research, complex navigation, critical data | ```python result = app.agent( prompt=\"Compare enterprise features across Firecrawl, Apify, and ScrapingBee\", effort=\"high\" ) ``` Every effort level runs the `spark-"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 4,
+      "canonical_ref": "TauricResearch/TradingAgents",
+      "source_ranks": [
+        61,
+        505,
+        545
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 87.021,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 25932
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 2428
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 147
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "backtest",
+        "market data",
+        "research"
+      ],
+      "evidence_snippets": [
+        "Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements. The selected analysts work at the same time, each on its own tools, and the research debate starts once all of their reports are in. <p align=\"center\"> <img src=\"assets/analyst.png\" width=\"1",
+        "rompts from flags such as `--ticker` and `--date`, the run's settings recorded in every report, and backtests that see only data published by each analysis date. - [2026-09] **TradingAgents v0.5.1** released with a package layout organised by what each module holds (import paths moved), optional Jev screening of social",
+        "r registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate. - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support",
+        "<p align=\"center\"> <img src=\"tradingagents/assets/tauric-logo.svg\" width=\"60%\" alt=\"Tauric Research\"> </p> <div align=\"center\" style=\"line-height: 1;\"> <a href=\"https://arxiv.org/abs/2412.20138\" target=\"_blank\"><img alt=\"arXiv\" src=\"https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv\"/></a> <a"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 5,
+      "canonical_ref": "Panniantong/Agent-Reach",
+      "source_ranks": [
+        79
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "INFORMATION_RETRIEVAL",
+      "discovery_priority_score": 86.637,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 22830
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 2160
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 6,
+      "canonical_ref": "Nixtla/statsforecast",
+      "source_ranks": [
+        104,
+        422
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 85.894,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 25264
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 3582
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "anomaly",
+        "drift",
+        "experiment"
+      ],
+      "evidence_snippets": [
+        "/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Statistical%20Forecasting%20Algorithms%20by%20Nixtla%20&url=https://github.com/Nixtla/statsforecast&via=nixtlainc&hashtags=StatisticalModels,TimeSeries,Forecasting) [![Slack](https://img.shields.io/badge/Slack-4A154B?&logo=slack&logoC",
+        "//pepy.tech/project/statsforecast) **StatsForecast** offers a collection of widely used univariate time series forecasting models, including automatic `ARIMA`, `ETS`, `CES`, and `Theta` modeling optimized for high performance. It also includes a large battery of benchmarking models. </div> ## Installation You can in",
+        "AutoCES`, `MSTL` and `Theta` in Python. * Out-of-the-box compatibility with Spark, Dask, and Ray. * Probabilistic Forecasting and Confidence Intervals. * Support for exogenous Variables and static covariates. * Anomaly Detection. * Familiar sklearn syntax: `.fit` and `.predict`. ## Highlights * Inclusion of `exogenou",
+        "ic Forecasting and Confidence Intervals. * Support for exogenous Variables and static covariates. * Anomaly Detection. * Familiar sklearn syntax: `.fit` and `.predict`. ## Highlights * Inclusion of `exogenous variables` and `prediction intervals` for ARIMA. * 20x [faster](https://github.com/Nixtla/statsforecast/tree/",
+        "](https://nixtlaverse.nixtla.io/statsforecast/src/core/models.html#naive)|✅|✅|✅|✅|| |[RandomWalkWithDrift](https://nixtlaverse.nixtla.io/statsforecast/src/core/models.html#randomwalkwithdrift)|✅|✅|✅|✅|| |[SeasonalNaive](https://nixtlaverse.nixtla.io/statsforecast/src/core/models.html#seasonalnaive)|✅|✅|✅|✅|| |[WindowAv",
+        "`prediction intervals` for ARIMA. * 20x [faster](https://github.com/Nixtla/statsforecast/tree/main/experiments/arima) than `pmdarima`. * 1.5x faster than `R`. * 500x faster than `Prophet`. * 4x [faster](https://github.com/Nixtla/statsforecast/tree/main/experiments/ets) than `statsmodels`. * 1,000,000 series in [30 min",
+        "true wheel.exclude = [\"Release\"] wheel.expand-macos-universal-tags = true wheel.install-dir = \"statsforecast\" wheel.packages = [\"python/statsforecast\"] [project] name = \"statsforecast\" version = \"2.1.1\" description = \"Time series forecasting suite using statistical models\" readme = \"README.md\" license = { text = \"Apac",
+        "thon/statsforecast\"] [project] name = \"statsforecast\" version = \"2.1.1\" description = \"Time series forecasting suite using statistical models\" readme = \"README.md\" license = { text = \"Apache Software License 2.0\" } authors = [{ name = \"Nixtla\", email = \"business@nixtla.io\" }] keywords = [\"time-series\", \"forecasting\","
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 7,
+      "canonical_ref": "Nixtla/neuralforecast",
+      "source_ranks": [
+        105,
+        421
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 85.852,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 14539
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 2390
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "probabilistic",
+        "quantile",
+        "pit",
+        "experiment",
+        "research",
+        "time series"
+      ],
+      "evidence_snippets": [
+        "/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Statistical%20Forecasting%20Algorithms%20by%20Nixtla%20&url=https://github.com/Nixtla/neuralforecast&via=nixtlainc&hashtags=StatisticalModels,TimeSeries,Forecasting) [![Slack](https://img.shields.io/badge/Slack-4A154B?&logo=slack&logo",
+        "nd static covariates. * Interpretability methods for trend, seasonality and exogenous components. * Probabilistic Forecasting with adapters for quantile losses and parametric distributions. * Train and Evaluation Losses with scale-dependent, percentage and scale independent errors, and parametric likelihoods. * Automat",
+        "hods for trend, seasonality and exogenous components. * Probabilistic Forecasting with adapters for quantile losses and parametric distributions. * Train and Evaluation Losses with scale-dependent, percentage and scale independent errors, and parametric likelihoods. * Automatic Model Selection with distributed automati",
+        "eports\">🐛</a></td> <td align=\"center\" valign=\"top\" width=\"14.28%\"><a href=\"https://github.com/pitmonticone\"><img src=\"https://avatars.githubusercontent.com/u/38562595?v=4?s=100\" width=\"100px;\" alt=\"Pietro Monticone\"/><br /><sub><b>Pietro Monticone</b></sub></a><br /><a href=\"https://github.com/Nixtla/neuralforeca",
+        "n, published at AAAI 2023. See [paper](https://ojs.aaai.org/index.php/AAAI/article/view/25854) and [experiments](https://github.com/Nixtla/neuralforecast/tree/main/experiments). * Official `NBEATSx` implementation, published at the International Journal of Forecasting. See [paper](https://www.sciencedirect.com/science/",
+        "casting pipeline's accuracy and efficiency. Unfortunately, available implementations and published research are yet to realize neural networks' potential. They are hard to use and continuously fail to improve over statistical methods while being computationally prohibitive. For this reason, we created `NeuralForecast`",
+        "= [\"setuptools>=83.0.0\", \"wheel\"] build-backend = \"setuptools.build_meta\" [project] name = \"neuralforecast\" version = \"3.3.0\" description = \"Time series forecasting suite using deep learning models\" authors = [ {name = \"Nixtla\", email = \"business@nixtla.io\"} ] license = {text = \"Apache-2.0\"} readme = \"README.md\"",
+        "uptools.build_meta\" [project] name = \"neuralforecast\" version = \"3.3.0\" description = \"Time series forecasting suite using deep learning models\" authors = [ {name = \"Nixtla\", email = \"business@nixtla.io\"} ] license = {text = \"Apache-2.0\"} readme = \"README.md\" requires-python = \">=3.10\" keywords = [\"time-series\", \""
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 8,
+      "canonical_ref": "facebook/prophet",
+      "source_ranks": [
+        103
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 85.84,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 13399
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "uncertainty",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "# Prophet: Automatic Forecasting Procedure ![Build](https://github.com/facebook/prophet/workflows/Build/badge.svg) [![PyPI Version](https://img.shields.io/pypi/v/prophet.svg)](https://pypi.python.org/pypi/prophet) [![PyPI Downloads Monthly",
+        "62/facebook-prophet-in-2023-and-beyond-c5086151c138) ----- Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several s",
+        "ed on holidays version 0.18. ### Version 1.1.1 (2022.09.08) - (Python) Improved runtime (3-7x) of uncertainty predictions via vectorization. - Bugfixes relating to Python package versions and R holiday objects. ### Version 1.1 (2022.06.25) - Replaced `pystan2` dependency with `cmdstan` + `cmdstanpy`. - Pre-packaged",
+        "ll.packages('remotes') remotes::install_github('facebook/prophet@*release', subdir = 'R') ``` #### Experimental backend - cmdstanr You can also choose an experimental alternative stan backend called `cmdstanr`. Once you've installed `prophet`, follow these instructions to use `cmdstanr` instead of `rstan` as the back",
+        "tware](https://code.facebook.com/projects/) released by Facebook's [Core Data Science team](https://research.fb.com/category/data-science/). It is available for download on [CRAN](https://cran.r-project.org/package=prophet) and [PyPI](https://pypi.python.org/pypi/prophet/). ## Important links - Homepage: https://face"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 9,
+      "canonical_ref": "microsoft/qlib",
+      "source_ranks": [
+        503,
+        538
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 84.821,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 43014
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 3861
+        },
+        {
+          "path": "setup.py",
+          "status": "ok",
+          "bytes": 509
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 267
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "backtest",
+        "financial data",
+        "drift",
+        "experiment",
+        "research",
+        "pit"
+      ],
+      "evidence_snippets": [
+        "lenges &amp; Solutions in Quant Research</a> <ul> <li type=\"circle\"><a href=\"#forecasting-finding-valuable-signalspatterns\">Forecasting: Finding Valuable Signals/Patterns</a> <ul> <li type=\"disc\"><a href=\"#quant-model-paper-zoo\"><strong>Quant Model (Paper) Zoo</strong",
+        "named `qrun` to run the whole workflow automatically (including building dataset, training models, backtest and evaluation). You can start an auto quant research workflow and have a graphical reports analysis according to the following steps: 1. Quant Research Workflow: Run `qrun` with lightgbm workflow config ([wo",
+        "ng supervised learning to mine the market's complex non-linear patterns from rich and heterogeneous financial data, 2) modeling the dynamic nature of the financial market using adaptive concept drift technology, and 3) using reinforcement learning to model continuous investment decisions and assist investors in optimiz",
+        "neous financial data, 2) modeling the dynamic nature of the financial market using adaptive concept drift technology, and 3) using reinforcement learning to model continuous investment decisions and assist investors in optimizing their trading strategies. It contains the full ML pipeline of data processing, model trai",
+        "a unique virtual environment for each model, and delete the environments after training. Thus, only experiment results such as `IC` and `backtest` results will be generated and stored. Here is an example of running all the models for 10 iterations: ```python python run_all_model.py run 10 ``` It also provides the API",
+        "en-source, AI-oriented quantitative investment platform that aims to realize the potential, empower research, and create value using AI technologies in quantitative investment, from exploring ideas to implementing productions. Qlib supports diverse machine learning modeling paradigms, including supervised learning, mar",
+        ", \"readthedocs_sphinx_ext\", \"snowballstemmer<3.0\", ] package = [ \"twine\", \"build\", ] # test_pit dependency packages test = [ \"yahooquery\", \"baostock\", # Avoid source builds requiring external libxml2 headers on Windows. \"lxml<6.1.3\", ] analysis = [ # Qlib still imports figure_factory.create_distplot,",
+        "Language :: Python :: 3.12\", ] name = \"pyqlib\" dynamic = [\"version\"] description = \"A Quantitative-research Platform\" requires-python = \">=3.8.0\" readme = {file = \"README.md\", content-type = \"text/markdown\"} license = { text = \"MIT\" } dependencies = [ \"pyyaml\", \"numpy\", # Since version 1.1.0, pandas supports th"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 10,
+      "canonical_ref": "Nixtla/mlforecast",
+      "source_ranks": [
+        423
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 84.57,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 9233
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 3068
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "conformal",
+        "research"
+      ],
+      "evidence_snippets": [
+        "# mlforecast [![Tweet](https://img.shields.io/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Statistical%20Forecasting%20Algorithms%20by%20Nixtla%20&url=https://github.com/Nixtla/statsf",
+        "/twitter/url/http/shields.io.svg?style=social)](https://twitter.com/intent/tweet?text=Statistical%20Forecasting%20Algorithms%20by%20Nixtla%20&url=https://github.com/Nixtla/statsforecast&via=nixtlainc&hashtags=StatisticalModels,TimeSeries,Forecasting) [![Slack](https://img.shields.io/badge/Slack-4A154B?&logo=slack&logoC",
+        "h1 align=\"center\">Machine Learning 🤖 Forecast</h1> <h3 align=\"center\">Scalable machine learning for time series forecasting</h3> [![CI](https://github.com/Nixtla/mlforecast/actions/workflows/ci.yaml/badge.svg)](https://github.com/Nixtla/mlforecast/actions/workflows/ci.yaml) [![Python](https://img.shields.io/pypi/pyver",
+        "orecasting in Python. - Out-of-the-box compatibility with pandas, polars, spark, dask, and ray. - Probabilistic Forecasting with Conformal Prediction. - Support for exogenous variables and static covariates. - Familiar `sklearn` syntax: `.fit` and `.predict`. Missing something? Please open an issue or write us in [!",
+        "the-box compatibility with pandas, polars, spark, dask, and ray. - Probabilistic Forecasting with Conformal Prediction. - Support for exogenous variables and static covariates. - Familiar `sklearn` syntax: `.fit` and `.predict`. Missing something? Please open an issue or write us in [![Slack](https://img.shields.io/",
+        "ion-cv) - [favorita](https://www.kaggle.com/code/lemuz90/mlforecast-favorita) - [VN1](https://colab.research.google.com/drive/1UdhCAk49k6HgMezG-U_1ETnAB5pYvZk9) ## Why? Current Python alternatives for machine learning models are slow, inaccurate and don’t scale well. So we created a library that can be used to foreca",
+        "quires = [\"setuptools>=61.0\", \"wheel\"] build-backend = \"setuptools.build_meta\" [project] name = \"mlforecast\" version = \"1.1.0\" description = \"Scalable machine learning based time series forecasting\" authors = [{name = \"José Morales\", email = \"jmoralz92@gmail.com\"}] license = {text = \"Apache Software License 2.0\"} read",
+        "t] name = \"mlforecast\" version = \"1.1.0\" description = \"Scalable machine learning based time series forecasting\" authors = [{name = \"José Morales\", email = \"jmoralz92@gmail.com\"}] license = {text = \"Apache Software License 2.0\"} readme = \"README.md\" requires-python = \">=3.10\" keywords = [\"python\", \"forecast\", \"forecast"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 11,
+      "canonical_ref": "karpathy/autoresearch",
+      "source_ranks": [
+        68,
+        512
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 80.75,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 8039
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 543
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "-@karpathy, March 2026*. The idea: give an AI agent a small but real LLM training setup and let it experiment autonomously overnight. It modifies the code, trains for 5 minutes, checks if the result improved, keeps or discards, and repeats. You wake up in the morning to a log of experiments and (hopefully) a better mo",
+        "# autoresearch ![teaser](progress.png) *One day, frontier AI research used to be done by meat computers in between eating, sleeping, having other fun, and synchronizing once in a while using sound wave interconnect in the ri",
+        "[project] name = \"autoresearch\" version = \"0.1.0\" description = \"Autonomous pretraining research swarm\" readme = \"README.md\" requires-python = \">=3.10\" dependencies = [ \"kernels>=0.11.7\", \"matplotlib>=3.10.8\", \"numpy>=2.2.6\","
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 12,
+      "canonical_ref": "shiyu-coder/Kronos",
+      "source_ranks": [
+        509
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 78.963,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 16657
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 129
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "backtest",
+        "market data",
+        "financial data",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "center\" width=\"700px\" /> </p> ## ✨ Live Demo We have set up a live demo to visualize Kronos's forecasting results. The webpage showcases a forecast for the **BTC/USDT** trading pair over the next 24 hours. **👉 [Access the Live Demo Here](https://shiyu-coder.github.io/Kronos-demo/)** ## 📦 Model Zoo We re",
+        "`, and `amount`, indexed by the `y_timestamp` you provided. For efficient processing of multiple time series, Kronos provides a `predict_batch` method that enables parallel prediction on multiple datasets simultaneously. This is particularly useful when you need to forecast multiple assets or time periods at once.",
+        "sts. You can control the sampling process with parameters like `T`, `top_p`, and `sample_count` for probabilistic forecasting. ```python # Generate predictions pred_df = predictor.predict( df=x_df, x_timestamp=x_timestamp, y_timestamp=y_timestamp, pred_len=pred_len, T=1.0, # Tempe",
+        "s://github.com/microsoft/qlib) to prepare data from the Chinese A-share market and conduct a simple backtest. > **Disclaimer:** This pipeline is intended as a demonstration to illustrate the finetuning process. It is a simplified example and not a production-ready quantitative trading system. A robust quantitative s",
+        "### Step 2: Prepare the Dataset Run the data preprocessing script. This script will load raw market data from your Qlib directory, process it, split it into training, validation, and test sets, and save them as pickle files. ```shell python finetune/qlib_data_preprocess.py ``` After running, you will fin",
+        "nlike general-purpose TSFMs, Kronos is designed to handle the unique, high-noise characteristics of financial data. It leverages a novel two-stage framework: 1. A specialized tokenizer first quantizes continuous, multi-dimensional K-line data (OHLCV) into **hierarchical discrete tokens**. 2. A large, autoregressive",
+        "cally. The example scripts assume you are using daily frequency data. ### Step 1: Configure Your Experiment All settings for data, training, and model paths are centralized in `finetune/config.py`. Before running any scripts, please **modify the following paths** according to your environment: * `qlib_data_p"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 13,
+      "canonical_ref": "browser-use/browser-use",
+      "source_ranks": [
+        56
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 77.65,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 16597
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 7655
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "research",
+        "monitoring"
+      ],
+      "evidence_snippets": [
+        "browser tasks and compare agent performance. | <br/> ## Citation If you use Browser Use in your research or project, please cite: ```bibtex @software{browser_use2024, author = {Müller, Magnus and Žunič, Gregor}, title = {Browser Use: Enable AI to control your browser}, year = {2024}, publisher = {GitHub},",
+        "\"https://github.com/browser-use/browser-use\" Telemetry = \"https://docs.browser-use.com/development/monitoring/telemetry\" \"Terms of Service\" = \"https://browser-use.com/legal/terms-of-service\" \"Privacy Policy\" = \"https://browser-use.com/privacy/\" [project.scripts] browser-use = \"browser_use.cli:main\" # Browser Use CLI"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 14,
+      "canonical_ref": "sktime/sktime",
+      "source_ranks": [
+        101,
+        212
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 77.606,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 16486
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 13047
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "ok",
+          "bytes": 758
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "anomaly",
+        "pit",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        ". It provides a unified interface for multiple time series learning tasks. Currently, this includes forecasting, time series classification, clustering, anomaly/changepoint detection, and other tasks. It comes with [time series algorithms](https://www.sktime.net/en/stable/estimator_overview.html) and [scikit-learn] com",
+        "/sktime-logo.svg\" width=\"175\" align=\"right\" /></a> > A unified interface for machine learning with time series :rocket: **Version 1.2.0 out now!** [Check out the release notes here](https://www.sktime.net/en/latest/changelog.html). sktime is a library for time series analysis in Python. It provides a unified interfa",
+        "eries learning tasks. Currently, this includes forecasting, time series classification, clustering, anomaly/changepoint detection, and other tasks. It comes with [time series algorithms](https://www.sktime.net/en/stable/estimator_overview.html) and [scikit-learn] compatible tools to build, tune, and validate time serie",
+        "sessment and benchmarking** -- build your models, inspect your models, check your models, and avoid pitfalls. * **Easily extensible** -- easy extension templates to add your own algorithms compatible with sktime's API.",
+        "m/sktime/sktime/blob/main/extension_templates/dist_kern_panel.py) | | **[Time Series Alignment]** | experimental | [API Reference](https://www.sktime.net/en/latest/api_reference/alignment.html) · [Extension Template](https://github.com/sktime/sktime/blob/main/extension_templates/alignment.py) | | **[Time Series Splitte",
+        "eadme = \"README.md\" keywords = [ \"artificial-intelligence\", \"data-mining\", \"data-science\", \"forecasting\", \"machine-learning\", \"scikit-learn\", \"time-series\", \"time-series-analysis\", \"time-series-classification\", \"time-series-regression\", ] license = { file = \"LICENSE\" } # sktime is governed by the Co",
+        "ect] name = \"sktime\" version = \"1.2.0\" description = \"A unified framework for machine learning with time series\" readme = \"README.md\" keywords = [ \"artificial-intelligence\", \"data-mining\", \"data-science\", \"forecasting\", \"machine-learning\", \"scikit-learn\", \"time-series\", \"time-series-analysis\", \"time-s",
+        "\">=3.10,<3.15\" classifiers = [ \"Intended Audience :: Developers\", \"Intended Audience :: Science/Research\", \"License :: OSI Approved :: BSD License\", \"Operating System :: MacOS\", \"Operating System :: Microsoft :: Windows\", \"Operating System :: POSIX\", \"Operating System :: Unix\", \"Programming Language ::"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 15,
+      "canonical_ref": "unclecode/crawl4ai",
+      "source_ranks": [
+        83
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 76.745,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 26913
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 2510
+        },
+        {
+          "path": "setup.py",
+          "status": "ok",
+          "bytes": 2158
+        },
+        {
+          "path": "setup.cfg",
+          "status": "ok",
+          "bytes": 37
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 687
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "monitoring",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "`/pdf`, `/execute_js`. - 🤖 **MCP**: connect Claude Code and other agents to your own server. - 📊 **Monitoring dashboard and playground**, a browser pool with pre-warmed pages. - 🏗️ **AMD64 and ARM64** images. ☁️ Rather not run a server? The cloud is the same idea, hosted. [Get a key →](https://crawl4ai.com/?ref=readm",
+        "4ai.com/docs?ref=readme#search) - 💬 **Answers**: `GET /answer` gives a direct answer to a question (experimental). [Docs →](https://crawl4ai.com/docs?ref=readme#answer) - 🧪 **Extraction without your own LLM key**: `POST /extract`. [Docs →](https://crawl4ai.com/docs?ref=readme#extract) - 🧗 **JS-heavy pages and bot walls",
+        "s to my dad, and never stopped building. In grad school I specialized in NLP and built crawlers for research. That’s where I learned how much extraction matters. In 2023, I needed web-to-Markdown. The “open source” option wanted an account, API token, and $16, and still under-delivered. I went turbo anger mode, built"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 16,
+      "canonical_ref": "Graphify-Labs/graphify",
+      "source_ranks": [
+        54
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "PROVENANCE_MEMORY",
+      "discovery_priority_score": 76.388,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 65527
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 8667
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "ranking",
+        "provenance"
+      ],
+      "evidence_snippets": [
+        "nities /graphify . --cluster-only --exclude-hubs 99 # suppress utility super-hubs from god-node rankings /graphify . --no-viz # skip the HTML, just the report + JSON /graphify . --wiki # build a markdown wiki from the graph graphify export callflow-html # Mermaid architecture/call",
+        "# the overlay tags nodes preferred/tentative/contested (recency-weighted, with provenance); # graphify explain / query then show a \"Lesson:\" hint, flagged \"code changed — re-verify\" when the source moved on graphify uninstall # remove from all pla"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 17,
+      "canonical_ref": "awslabs/gluonts",
+      "source_ranks": [
+        114,
+        425
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 74.782,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 5919
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 5961
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "research"
+      ],
+      "evidence_snippets": [
+        "*📢 BREAKING NEWS**: We released **Chronos**, a suite of pretrained models for zero-shot time series forecasting. Chronos can generate accurate probabilistic predictions for new time series not seen during training. Check it out [here](https://github.com/amazon-science/chronos-forecasting)! GluonTS is a Python package",
+        "bsite\" height=\"100px\" src=\"https://ts.gluon.ai/dev/_static/gluonts.svg\"> # GluonTS - Probabilistic Time Series Modeling in Python [![PyPI](https://img.shields.io/pypi/v/gluonts.svg?style=flat-square&color=b75347)](https://pypi.org/project/gluonts/) [![GitHub](https://img.shields.io/github/license/awslabs/gluonts.svg?",
+        "ss=\"hide-on-website\" height=\"100px\" src=\"https://ts.gluon.ai/dev/_static/gluonts.svg\"> # GluonTS - Probabilistic Time Series Modeling in Python [![PyPI](https://img.shields.io/pypi/v/gluonts.svg?style=flat-square&color=b75347)](https://pypi.org/project/gluonts/) [![GitHub](https://img.shields.io/github/license/awslab",
+        "Probabilistic and Neural Time Series Modeling in Python}}, journal = {Journal of Machine Learning Research}, year = {2020}, volume = {21}, number = {116}, pages = {1-6}, url = {http://jmlr.org/papers/v21/19-820.html} } ``` ```bibtex @article{gluonts_arxiv, author = {Alexandrov, A. and Benidis",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence\", ] keywords = [ \"time series\", \"forecasting\", \"machine learning\", \"deep learning\", \"probabilistic forecasting\", ] dependencies = [ \"numpy>=1.24,<3; python_version >= '3.12'\", \"numpy>=1.16,<3; python_version < '3.12'\", \"pandas>=",
+        "[project] name = \"gluonts\" version = \"0.18.0.dev0\" description = \"Probabilistic time series modeling in Python.\" readme = \"README.md\" license = { text = \"Apache-2.0\" } requires-python = \">=3.10,<3.15\" authors = [ { name = \"Amazon\", email = \"gluon-ts-dev@amazon.com\" } ] maintainers = [ { emai",
+        "[project] name = \"gluonts\" version = \"0.18.0.dev0\" description = \"Probabilistic time series modeling in Python.\" readme = \"README.md\" license = { text = \"Apache-2.0\" } requires-python = \">=3.10,<3.15\" authors = [ { name = \"Amazon\", email = \"gluon-ts-dev@amazon.com\" } ] maintainers",
+        ":: 5 - Production/Stable\", \"Intended Audience :: Developers\", \"Intended Audience :: Science/Research\", \"License :: OSI Approved :: Apache Software License\", \"Operating System :: OS Independent\", \"Programming Language :: Python :: 3\", \"Programming Language :: Python :: 3.10\", \"Programming Lan"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 18,
+      "canonical_ref": "666ghj/MiroFish",
+      "source_ranks": [
+        100
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 74.764,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 8958
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 702
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 19,
+      "canonical_ref": "freqtrade/freqtrade",
+      "source_ranks": [
+        501,
+        526,
+        557
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 73.984,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 12770
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 8493
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 1225
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "backtest",
+        "research"
+      ],
+      "evidence_snippets": [
+        "It is designed to support all major exchanges and be controlled via Telegram or webUI. It contains backtesting, plotting and money management tools as well as strategy optimization by machine learning. ![freqtrade](https://raw.githubusercontent.com/freqtrade/freqtrade/develop/docs/assets/freqtrade-screenshot.png) ##",
+        "= {text = \"GPLv3\"} classifiers = [ \"Environment :: Console\", \"Intended Audience :: Science/Research\", \"License :: OSI Approved :: GNU General Public License v3 (GPLv3)\", \"Programming Language :: Python :: 3.12\", \"Programming Language :: Python :: 3.13\", \"Programming Language :: Python :: 3.14\","
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 20,
+      "canonical_ref": "ZhuLinsen/daily_stock_analysis",
+      "source_ranks": [
+        508
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "INFORMATION_RETRIEVAL",
+      "discovery_priority_score": 73.656,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 15488
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 482
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "ok",
+          "bytes": 1176
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 4372
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 21,
+      "canonical_ref": "mattpocock/skills",
+      "source_ranks": [
+        14
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "ENGINEERING_VERIFICATION",
+      "discovery_priority_score": 72.477,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 16912
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 597
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "pit",
+        "research"
+      ],
+      "evidence_snippets": [
+        "kills/productivity/wait-what/SKILL.md)**: Fire this the moment a message doesn't land. The agent re-pitches it with the context you're missing, in plain English, using your `GLOSSARY.md` vocabulary. **Model-invoked** - **[grilling](./skills/productivity/grilling/SKILL.md)**: Interview the user relentlessly about a pl",
+        "loop that goes red on this bug → minimise → hypothesise → instrument → fix → regression-test. - **[research](./skills/engineering/research/SKILL.md)**: Investigate a question against high-trust primary sources and capture the findings as a cited Markdown file in the repo, run as a background agent. - **[tdd](./skills/"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 22,
+      "canonical_ref": "uber/orbit",
+      "source_ranks": [
+        413
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 71.897,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 7853
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 1477
+        },
+        {
+          "path": "setup.py",
+          "status": "ok",
+          "bytes": 3946
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 198
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "probabilistic",
+        "backtest",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "py/) as one of the core dependencies for Bayesian sampling. # Orbit: A Python Package for Bayesian Forecasting Orbit is a Python package for Bayesian time series forecasting and inference. It provides a familiar and intuitive initialize-fit-predict interface for time series tasks, while utilizing probabilistic progra",
+        "mpling. # Orbit: A Python Package for Bayesian Forecasting Orbit is a Python package for Bayesian time series forecasting and inference. It provides a familiar and intuitive initialize-fit-predict interface for time series tasks, while utilizing probabilistic programming languages under the hood. For details, check",
+        "es a familiar and intuitive initialize-fit-predict interface for time series tasks, while utilizing probabilistic programming languages under the hood. For details, check out our documentation and tutorials: - HTML (stable): https://orbit-ml.readthedocs.io/en/stable/ - HTML (latest): https://orbit-ml.readthedocs.io/en",
+        "tps://colab.research.google.com/github/edwinnglabs/ts-playground/blob/master/Orbit_Tutorial.ipynb) Backtest on M3 Data: [![Open All Collab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/edwinnglabs/ts-playground/blob/master/orbit_m3_backtest.ipynb) More examples",
+        "Disclaimer This project - is stable and being incubated for long-term support. It may contain new experimental code, for which APIs are subject to change. - requires [cmdstanpy](https://mc-stan.org/cmdstanpy/) as one of the core dependencies for Bayesian sampling. # Orbit: A Python Package for Bayesian Forecasting",
+        "/dlt-mcmc-pred.png) ## Demo Nowcasting with Regression in DLT: [![Open All Collab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/edwinnglabs/ts-playground/blob/master/Orbit_Tutorial.ipynb) Backtest on M3 Data: [![Open All Collab](https://colab.research.google.c",
+        "il = \"edwinnglabs@gmail.com\"}, ] version = \"1.1.5.1\" description = \"Orbit is a package for Bayesian time series modeling and inference.\" readme = \"README.md\" requires-python = \">=3.12\" dependencies = [ \"arviz\", \"cmdstanpy>=1.2.1\", \"importlib_resources\", \"matplotlib>=3.9.2\", \"numpy>=2.1.0\", \"pandas>=2.2.3\",",
+        "bit/stan\" MODELS = [\"dlt\", \"ets\", \"lgt\", \"ktrlite\"] DESCRIPTION = \"Orbit is a package for Bayesian time series modeling and inference.\" BINARIES = [\"diagnose\", \"print\", \"stanc\", \"stansummary\"] with open(\"orbit/config.json\") as f: config = json.load(f) CMDSTAN_VERSION = config[\"CMDSTAN_VERSION\"] IS_WINDOWS = platf"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 23,
+      "canonical_ref": "msitarzewski/agency-agents",
+      "source_ranks": [
+        39
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.722,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 86245
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "anomaly",
+        "ranking",
+        "pit",
+        "provenance",
+        "drift",
+        "monitoring",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "roposals that persuade, not just comply | | 📊 [Pipeline Analyst](sales/sales-pipeline-analyst.md) | Forecasting, pipeline health, deal velocity, RevOps | Pipeline reviews, forecast accuracy, revenue operations | | 🗺️ [Account Strategist](sales/sales-account-strategist.md) | Land-and-expand, QBRs, stakeholder mapping |",
+        "currently registers only ~119 agents and silently drops the rest ([upstream bug](https://github.com/anomalyco/opencode/issues/27988)). Installing a subset with `--division` keeps you under that limit. The installer warns you when a selection would exceed it. See the [Multi-Tool Integrations](#-multi-tool-integrations)",
+        "ns | | 🔎 [Search Relevance Engineer](engineering/engineering-search-relevance-engineer.md) | Search ranking & relevance | Query understanding, embeddings, ranking/eval, relevance tuning | | 🔐 [Identity & Access Engineer](engineering/engineering-identity-access-engineer.md) | AuthN/AuthZ & IAM | OAuth/OIDC/SAML, SSO, RB",
+        "tabase-reliability-engineer.md) | Database reliability (DBRE) | HA/replication, automated failover, PITR backups, zero-downtime ops | | 🛠️ [Developer Tooling Engineer](engineering/engineering-developer-tooling-engineer.md) | CLI & developer tooling | Command-line tools, internal DX, build/dev workflows | | 📡 [IoT Fleet",
+        "extraction, graph-enhanced RAG | Structuring documents into queryable Neo4j graphs with LangGraph; provenance, contradiction tracking, subgraph retrieval | | 🌏 [China Network Engineer](engineering/engineering-china-network-engineer.md) | Huawei VRP, H3C Comware, Ruijie RGOS, Hillstone StoneOS | Routing/switching/firew",
+        "🏺 [Codebase Archaeologist](specialized/specialized-codebase-archaeologist.md) | Multi-tool codebase drift audits | Detecting silent drift across Claude/Cursor/Copilot/Windsurf edits | | 🧾 [Resume Tailor](specialized/resume-tailor.md) | Candidate-side resume optimization | JD mapping, ATS keyword alignment, experience-t",
+        "or.md) | CI/CD, infrastructure automation, cloud ops | Pipeline development, deployment automation, monitoring | | 🌐 [Network Engineer](engineering/engineering-network-engineer.md) | Cisco IOS/IOS-XE, Juniper Junos, Palo Alto PAN-OS | Router/switch/firewall configuration, BGP/OSPF, ACLs, show-output troubleshooting | |"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 24,
+      "canonical_ref": "langflow-ai/langflow",
+      "source_ranks": [
+        40
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.711,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 4729
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 22624
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 60
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 25,
+      "canonical_ref": "Shubhamsaboo/awesome-llm-apps",
+      "source_ranks": [
+        46
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.234,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 26096
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "research"
+      ],
+      "evidence_snippets": [
+        "ent](starter_ai_agents/xai_finance_agent/) - Real-time stock analysis powered by Grok * [🔍 OpenAI Research Agent](starter_ai_agents/openai_research_agent/) - Multi-agent topic research with the OpenAI Agents SDK * [🕸️ Web Scraping AI Agent](starter_ai_agents/web_scraping_ai_agent/) - Describe what to extract and th"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    }
+  ]
+}
