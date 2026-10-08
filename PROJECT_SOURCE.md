@@ -2406,7 +2406,7 @@ No external candidate may bypass the canonical baseline, PIT contract, chronolog
 
 ## 99. ULTIMATE MASTER SOURCE SNAPSHOT (USER-PROVIDED)
 
-The user-provided detailed master specification dated 2026-10-08 is preserved verbatim at:
+The user-provided detailed master specification dated 2026-10-08 is preserved as an ingested project snapshot at:
 
 `PROJECT_SOURCE_ULTIMATE_MASTER_20261008.md`
 
