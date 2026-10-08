@@ -162,6 +162,32 @@ jobs:
 
       - name: Generate experience-driven research candidate plan
         run: python scripts/generate_experience_candidates.py
+      - name: Generate external stock mechanism research plan
+        run: python scripts/generate_external_stock_mechanism_plan.py
+      - name: Validate external stock mechanism research plan
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("data/research/external_stock_mechanism_plan.json")
+          d = json.loads(p.read_text(encoding="utf-8"))
+          assert d.get("schema_version") == 1
+          assert d.get("status") == "EXECUTED_RESEARCH_PLAN"
+          assert d.get("research_only") is True
+          assert d.get("production_changed") is False
+          assert d.get("promotion_allowed") is False
+          assert d.get("frozen_holdout_used") is False
+          assert d.get("candidate_count", 0) >= 15
+          for row in d.get("candidates", []):
+              assert row.get("evidence_level") == "E1_EXTERNAL_CLAIM"
+              assert row.get("research_only") is True
+              assert row.get("production_changed") is False
+              assert row.get("promotion_allowed") is False
+              assert row.get("frozen_holdout_used") is False
+              required = {"SOURCE_VERIFY","PIT_CHECK","COST_CHECK","SECURITY_CHECK","LOCAL_IMPLEMENTATION","LOCAL_REPRODUCTION","CHRONOLOGICAL_OOS","ABLATION","ROBUSTNESS","FROZEN_HOLDOUT"}
+              assert required.issubset(set(row.get("required_protocol") or []))
+          print("external_stock_mechanism_plan=PASS candidates=", len(d.get("candidates", [])))
+          PY
       - name: Validate experience-driven research candidate plan
         run: |
           python - <<'PY'
