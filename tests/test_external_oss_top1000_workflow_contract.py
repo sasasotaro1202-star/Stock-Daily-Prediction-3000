@@ -26,3 +26,18 @@ def test_workflow_does_not_push_main_for_snapshot_state():
     text = WORKFLOW.read_text(encoding="utf-8")
     assert "HEAD:main" not in text
     assert "HEAD:external-oss-status" in text
+
+
+def test_oss_audit_push_trigger_is_main_only():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "push:\n    branches:\n      - main" in text
+
+
+def test_snapshot_publication_is_main_only():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "if: github.ref == 'refs/heads/main' && success()" in text
+
+
+def test_oss_audit_concurrency_isolated_by_ref():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "external-oss-research-${{ github.repository }}-${{ github.ref }}" in text
