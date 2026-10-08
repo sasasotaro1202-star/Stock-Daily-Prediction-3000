@@ -108,7 +108,7 @@ def test_research_has_bounded_adaptive_data_acquisition_loop():
     assert "_run_acquisition_once(cfg, iteration)" in text
     assert "max_acquisition_iterations: 3" in pipeline
     assert '"selected_at_each_iteration": True' in text
-    assert '"refresh_official_universe_every_iteration"' in text
+    assert '"refresh_official_universe_if_stale_every_iteration"' in text
     assert 'PRICE_MIN_HISTORY_SESSIONS' in prices
     assert 'select_history_warmup_targets' in prices
     assert 'history_below_oos_minimum_after_warmup' in prices
