@@ -186,7 +186,7 @@ def main() -> int:
     )
     _assert_contains(
         on_demand,
-        "run_required=${{ steps.guard.outputs.run_required }}",
+        "run_required: ${{ steps.guard.outputs.run_required }}",
         "on_demand_prediction_guard_output",
     )
     current_day_watchdog = _read("current-day-prediction-watchdog.yml")
