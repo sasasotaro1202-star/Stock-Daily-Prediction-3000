@@ -130,10 +130,11 @@ def latest_equity_prediction(
             or available_at > cutoff
         ):
             continue
-        target_date = str(match.iloc[0].get("target_date", "")).strip()
+        candidate = match.iloc[0].copy()
+        target_date = str(candidate.get("target_date", "")).strip()
         if not target_date and calendar_code:
             session_date = pd.to_datetime(
-                match.iloc[0].get("session_date"),
+                candidate.get("session_date"),
                 errors="coerce",
             )
             if not pd.isna(session_date):
@@ -141,9 +142,14 @@ def latest_equity_prediction(
                     target_date = next_session_date(session_date.date(), calendar_code)
                 except SystemExit:
                     target_date = ""
+        # Persist the PIT-safe derived target date into the returned row. Without
+        # this assignment the selector could match the correct prediction but the
+        # downstream watchlist validator would still see target_date as missing.
+        if target_date:
+            candidate["target_date"] = target_date
         if expected_target_date is not None and target_date != expected_target_date:
             continue
-        candidates.append((prediction_time, path, match.iloc[0]))
+        candidates.append((prediction_time, path, candidate))
     if not candidates:
         return None, None
     candidates.sort(key=lambda x: x[0])
