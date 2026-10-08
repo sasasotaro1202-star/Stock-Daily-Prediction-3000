@@ -444,3 +444,9 @@ def test_daily_watchlist_validator_accepts_schema_timestamp(tmp_path, monkeypatc
     monkeypatch.setattr(validator, "CONFIG", cfg_path)
     monkeypatch.setattr(validator, "OUTPUT", out_path)
     validator.main()
+
+def test_prediction_output_validator_requires_q50_and_rank() -> None:
+    source = Path("scripts/validate_prediction_output.py").read_text(encoding="utf-8")
+    assert '"q50_1d"' in source
+    assert '"rank"' in source
+    assert "q10/q50/q90 price quantile ordering is invalid" in source
