@@ -327,6 +327,11 @@ ADAPTIVE_DATA_DEFAULTS = {
     "min_oos_folds": 5,
     "min_history_sessions": 360,
     "max_acquisition_iterations": 3,
+    # The outer research workflow already restores and refreshes the official
+    # PIT-checked universe. Avoid repeating the same network fetch during an
+    # adaptive iteration while retaining a bounded refresh path for standalone
+    # or long-lived executions.
+    "universe_refresh_max_age_seconds": 6 * 60 * 60,
     "price_shards": 4,
     "price_max_workers": 1,
 }
@@ -480,8 +485,55 @@ def _adaptive_data_snapshot(
         snapshot["status"] = "READY"
     return snapshot
 
-def _refresh_universe_with_bounded_retry() -> dict:
-    """Refresh the official universe, or safely retain the upstream PIT-checked snapshot."""
+def _refresh_universe_with_bounded_retry(
+    *,
+    max_age_seconds: int | None = None,
+) -> dict:
+    """Refresh the official universe, or safely retain a bounded-fresh snapshot."""
+    latest = Path("data/universe/latest.json")
+    if max_age_seconds is not None and max_age_seconds > 0 and latest.is_file():
+        try:
+            snapshot = json.loads(latest.read_text(encoding="utf-8"))
+            retrieved_at = snapshot.get("retrieved_at")
+            records = snapshot.get("records")
+            if retrieved_at and isinstance(records, list) and len(records) >= 100:
+                retrieved = datetime.fromisoformat(
+                    str(retrieved_at).replace("Z", "+00:00")
+                )
+                if retrieved.tzinfo is not None:
+                    age_seconds = (
+                        datetime.now(timezone.utc)
+                        - retrieved.astimezone(timezone.utc)
+                    ).total_seconds()
+                    if 0 <= age_seconds <= max_age_seconds:
+                        subprocess.run(
+                            ["python", "scripts/universe_quality_gate.py"],
+                            check=True,
+                            timeout=120,
+                        )
+                        print(
+                            "ADAPTIVE_DATA_REFRESH status=SKIPPED_RECENT_EXISTING "
+                            f"age_seconds={age_seconds:.0f} max_age_seconds={max_age_seconds}",
+                            flush=True,
+                        )
+                        return {
+                            "status": "SKIPPED_RECENT_EXISTING",
+                            "refresh_available": True,
+                            "fallback_used": False,
+                            "reason": "existing_universe_within_bounded_refresh_window",
+                            "record_count": len(records),
+                            "retrieved_at": snapshot.get("retrieved_at"),
+                            "age_seconds": age_seconds,
+                        }
+        except Exception as exc:
+            # A malformed/unverifiable snapshot must not be silently accepted.
+            # Fall through to the bounded live refresh / fail-closed path.
+            print(
+                "ADAPTIVE_DATA_REFRESH recent_snapshot_check_failed="
+                f"{type(exc).__name__}",
+                flush=True,
+            )
+
     timeouts = (120, 240)
     for attempt, timeout in enumerate(timeouts, start=1):
         try:
@@ -587,7 +639,12 @@ def _run_acquisition_once(cfg: dict, iteration: int) -> dict:
 
     # Re-discover the current official universe every iteration. This is
     # research-only state in the runner and is never promoted directly.
-    universe_refresh = _refresh_universe_with_bounded_retry()
+    universe_refresh = _refresh_universe_with_bounded_retry(
+        max_age_seconds=max(
+            0,
+            int(cfg.get("universe_refresh_max_age_seconds", 0)),
+        ),
+    )
     # The refresh status is evidence about data freshness/recovery, not a
     # performance signal and not permission to alter production state.
     if universe_refresh["status"] == "REFRESHED":
