@@ -2403,3 +2403,13 @@ Missing live external metadata must produce an explicit BLOCKED_NO_LIVE_SNAPSHOT
 
 No external candidate may bypass the canonical baseline, PIT contract, chronological OOS/WFO, robustness, or frozen-holdout release gate.
 \n
+
+## 99. ULTIMATE MASTER SOURCE SNAPSHOT (USER-PROVIDED)
+
+The user-provided detailed master specification dated 2026-10-08 is preserved verbatim at:
+
+`PROJECT_SOURCE_ULTIMATE_MASTER_20261008.md`
+
+This snapshot is specification evidence, not implementation evidence. Current GitHub HEAD, code, tests, workflows, Actions, artifacts, registries, and measured Evidence remain authoritative for actual implementation/status. Historical experiment/OOS/holdout/failure/production evidence must never be rewritten to conform to this specification.
+
+The master-source lifecycle and laws are to be treated as the governing design target for future repository changes, subject to local PIT/OOS/robustness/holdout verification before adoption.
