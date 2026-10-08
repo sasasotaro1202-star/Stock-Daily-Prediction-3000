@@ -204,8 +204,8 @@ jobs:
           cp artifacts/external_candidate_registry.json "$worktree_dir/data/research/external_candidate_registry.json"
           cp artifacts/external_stock_research_queue.json "$worktree_dir/data/research/external_stock_research_queue.json"
           cp artifacts/external_stock_source_inspection.json "$worktree_dir/data/research/external_stock_source_inspection.json"
-          printf '%s\n' "$GITHUB_SHA" > "$worktree_dir/data/research/external_oss_source_commit.txt"
-          printf '%s\n' "${{ github.run_id }}" > "$worktree_dir/data/research/external_oss_workflow_run_id.txt"
+          echo "$GITHUB_SHA" > "$worktree_dir/data/research/external_oss_source_commit.txt"
+          echo "${{ github.run_id }}" > "$worktree_dir/data/research/external_oss_workflow_run_id.txt"
 
           git -C "$worktree_dir" add data/research/external_oss_top1000_snapshot.json data/research/external_candidate_registry.json data/research/external_stock_research_queue.json data/research/external_stock_source_inspection.json data/research/external_oss_source_commit.txt data/research/external_oss_workflow_run_id.txt
           if git -C "$worktree_dir" diff --cached --quiet; then
