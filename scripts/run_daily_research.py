@@ -767,7 +767,7 @@ def _ensure_adaptive_research_data() -> dict:
             "model_candidates_reselected_after_data_loop": True,
         },
         "discovery": {
-            "policy": "refresh_official_universe_every_iteration",
+            "policy": "refresh_official_universe_if_stale_every_iteration",
             "unresolved_revisited_next_iteration": True,
             "linkage": {
                 "runs_in_adaptive_loop": True,
