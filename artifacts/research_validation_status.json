@@ -6,21 +6,21 @@
   "evidence_freshness": "FRESH",
   "evidence_freshness_basis": "execution_sha",
   "evidence_state": "MISSING",
-  "generated_at_utc": "2026-10-09T14:40:03.106879+00:00",
+  "generated_at_utc": "2026-10-09T19:46:29.955069+00:00",
   "job_status": "in_progress",
   "research_evidence_fingerprint_sha256": null,
   "research_step": "in_progress",
   "research_workflow_sha": "00221def5af0e3bb2c4b2b41a229e30d448c060c",
   "runtime_health": {
     "active_step": "Chronological OOS research",
-    "active_step_elapsed_minutes": 84.58511563333333,
-    "active_step_started_at_utc": "2026-10-09T13:15:28Z",
-    "job_elapsed_minutes": 86.56844896666667,
-    "job_started_at_utc": "2026-10-09T13:13:29Z",
+    "active_step_elapsed_minutes": 24.065918616666668,
+    "active_step_started_at_utc": "2026-10-09T19:22:26Z",
+    "job_elapsed_minutes": 26.715918616666666,
+    "job_started_at_utc": "2026-10-09T19:19:47Z",
     "job_status": "in_progress",
     "long_running_threshold_minutes": 60,
     "stale_risk_threshold_minutes": 240,
-    "state": "LONG_RUNNING"
+    "state": "RUNNING"
   },
   "sec_ablation_step": "pending",
   "sec_research_step": "pending",
@@ -29,7 +29,7 @@
   "status_lookup_error": null,
   "status_lookup_ok": true,
   "workflow_conclusion": null,
-  "workflow_run_id": "37934569148",
+  "workflow_run_id": "37978318463",
   "workflow_sha": "00221def5af0e3bb2c4b2b41a229e30d448c060c",
   "workflow_status": "in_progress"
 }
