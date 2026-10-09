@@ -1,6 +1,6 @@
 {
   "candidates": [],
-  "memory_updated_at": "2026-10-09T03:16:43.891101+00:00",
+  "memory_updated_at": "2026-10-09T06:31:42.671807+00:00",
   "safety_contract": {
     "frozen_holdout_allowed": false,
     "outcome_data_must_be_matured_before_reuse": true,
