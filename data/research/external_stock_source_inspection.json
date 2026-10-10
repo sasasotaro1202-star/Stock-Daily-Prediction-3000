@@ -23,7 +23,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 96.325,
+      "discovery_priority_score": 96.215,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "e51928e27119cb17bebc005be2696b75e0a9e688",
@@ -106,12 +106,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 94.191,
+      "discovery_priority_score": 94.196,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "62c9f4cbfc262d3e0cca411d3027838a95ead20b",
+      "repository_commit_sha": "886b0a27889e4e594fd495fa38c37faa3e0f28b4",
       "repository_commit_status": "ok",
-      "content_ref": "62c9f4cbfc262d3e0cca411d3027838a95ead20b",
+      "content_ref": "886b0a27889e4e594fd495fa38c37faa3e0f28b4",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -129,7 +129,7 @@
         {
           "path": "pyproject.toml",
           "status": "ok",
-          "bytes": 6667
+          "bytes": 6537
         },
         {
           "path": "setup.py",
@@ -196,12 +196,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 88.127,
+      "discovery_priority_score": 88.128,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f9f2e3dd5406da68b8b92667772802a6cd7927d9",
+      "repository_commit_sha": "f84845c864b6e2af22791c18fcf89ac2a21f1434",
       "repository_commit_status": "ok",
-      "content_ref": "f9f2e3dd5406da68b8b92667772802a6cd7927d9",
+      "content_ref": "f84845c864b6e2af22791c18fcf89ac2a21f1434",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -271,7 +271,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 87.021,
+      "discovery_priority_score": 86.91,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "1394a3f72aa4393e1a98f51b382434c4b4c2d972",
@@ -350,7 +350,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 86.637,
+      "discovery_priority_score": 86.55,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "94f06c1969dfc1834001269d79d3ad0972d9dee6",
@@ -420,12 +420,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.894,
+      "discovery_priority_score": 85.87,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "3e6789a89f824d8a1ab0efde4f725318eb714e67",
+      "repository_commit_sha": "aab6789d67577ca6f2896ea1684b4dd09c3569df",
       "repository_commit_status": "ok",
-      "content_ref": "3e6789a89f824d8a1ab0efde4f725318eb714e67",
+      "content_ref": "aab6789d67577ca6f2896ea1684b4dd09c3569df",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -507,7 +507,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.852,
+      "discovery_priority_score": 85.739,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "f02df846092383aea082f3d79d79ea030206fa07",
@@ -594,7 +594,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.839,
+      "discovery_priority_score": 85.727,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "f931ceb204932e92371982eb3f1745ba3b6fe73a",
@@ -680,9 +680,9 @@
       "discovery_priority_score": 84.821,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "be725493eb1a6bbb42bf11b37aa7669f59610ff1",
+      "repository_commit_sha": "54355232463878d2eebb91fe0ee5fa7fa1f5976c",
       "repository_commit_status": "ok",
-      "content_ref": "be725493eb1a6bbb42bf11b37aa7669f59610ff1",
+      "content_ref": "54355232463878d2eebb91fe0ee5fa7fa1f5976c",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -690,7 +690,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 43014
+          "bytes": 44277
         },
         {
           "path": "README.rst",
@@ -764,12 +764,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 84.569,
+      "discovery_priority_score": 84.534,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "12ecd5f8f19b0ac1dfd5342362db10a07ee7f09b",
+      "repository_commit_sha": "25991d6977f52ff72d1a6273d9f15ca47623b236",
       "repository_commit_status": "ok",
-      "content_ref": "12ecd5f8f19b0ac1dfd5342362db10a07ee7f09b",
+      "content_ref": "25991d6977f52ff72d1a6273d9f15ca47623b236",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -850,7 +850,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 80.75,
+      "discovery_priority_score": 80.684,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "228791fb499afffb54b46200aca536f79142f117",
@@ -926,7 +926,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 78.963,
+      "discovery_priority_score": 78.894,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "67b630e67f6a18c9e9be918d9b4337c960db1e9a",
@@ -1007,81 +1007,6 @@
     },
     {
       "inspection_rank": 13,
-      "canonical_ref": "browser-use/browser-use",
-      "source_ranks": [
-        56
-      ],
-      "tier": "TARGETED_LOCAL_REPRODUCTION",
-      "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 77.65,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "c75e8476e26d18b7617643bc2ae082fae8eae431",
-      "repository_commit_status": "ok",
-      "content_ref": "c75e8476e26d18b7617643bc2ae082fae8eae431",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 16597
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "ok",
-          "bytes": 7655
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [
-        "research",
-        "monitoring"
-      ],
-      "evidence_snippets": [
-        "browser tasks and compare agent performance. | <br/> ## Citation If you use Browser Use in your research or project, please cite: ```bibtex @software{browser_use2024, author = {Müller, Magnus and Žunič, Gregor}, title = {Browser Use: Enable AI to control your browser}, year = {2024}, publisher = {GitHub},",
-        "\"https://github.com/browser-use/browser-use\" Telemetry = \"https://docs.browser-use.com/development/monitoring/telemetry\" \"Terms of Service\" = \"https://browser-use.com/legal/terms-of-service\" \"Privacy Policy\" = \"https://browser-use.com/privacy/\" [project.scripts] browser-use = \"browser_use.cli:main\" # Browser Use CLI"
-      ],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
-      "inspection_rank": 14,
       "canonical_ref": "sktime/sktime",
       "source_ranks": [
         101,
@@ -1089,12 +1014,12 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 77.605,
+      "discovery_priority_score": 77.747,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "5ba6fba23e4929395aa0fab1061967d85eb86c86",
+      "repository_commit_sha": "5eb96d07467045a33165203fb413b70d1356cd91",
       "repository_commit_status": "ok",
-      "content_ref": "5ba6fba23e4929395aa0fab1061967d85eb86c86",
+      "content_ref": "5eb96d07467045a33165203fb413b70d1356cd91",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1168,6 +1093,81 @@
       "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
     },
     {
+      "inspection_rank": 14,
+      "canonical_ref": "browser-use/browser-use",
+      "source_ranks": [
+        56
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 77.617,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "c75e8476e26d18b7617643bc2ae082fae8eae431",
+      "repository_commit_status": "ok",
+      "content_ref": "c75e8476e26d18b7617643bc2ae082fae8eae431",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 16597
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 7655
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "research",
+        "monitoring"
+      ],
+      "evidence_snippets": [
+        "browser tasks and compare agent performance. | <br/> ## Citation If you use Browser Use in your research or project, please cite: ```bibtex @software{browser_use2024, author = {Müller, Magnus and Žunič, Gregor}, title = {Browser Use: Enable AI to control your browser}, year = {2024}, publisher = {GitHub},",
+        "\"https://github.com/browser-use/browser-use\" Telemetry = \"https://docs.browser-use.com/development/monitoring/telemetry\" \"Terms of Service\" = \"https://browser-use.com/legal/terms-of-service\" \"Privacy Policy\" = \"https://browser-use.com/privacy/\" [project.scripts] browser-use = \"browser_use.cli:main\" # Browser Use CLI"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
       "inspection_rank": 15,
       "canonical_ref": "unclecode/crawl4ai",
       "source_ranks": [
@@ -1175,7 +1175,7 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 76.745,
+      "discovery_priority_score": 76.633,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "8afd0a68064ff7049303c9f9d037ab6228aac43c",
@@ -1252,12 +1252,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "PROVENANCE_MEMORY",
-      "discovery_priority_score": 76.387,
+      "discovery_priority_score": 76.405,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "6478eb71237c86ee5fb6a35c702835e987ca445d",
+      "repository_commit_sha": "b4e6307bf170f27e0cb888c03f4af9308d531a42",
       "repository_commit_status": "ok",
-      "content_ref": "6478eb71237c86ee5fb6a35c702835e987ca445d",
+      "content_ref": "b4e6307bf170f27e0cb888c03f4af9308d531a42",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1265,7 +1265,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 65527
+          "bytes": 31056
         },
         {
           "path": "README.rst",
@@ -1304,12 +1304,10 @@
         }
       ],
       "mechanism_terms_found": [
-        "ranking",
-        "provenance"
+        "ranking"
       ],
       "evidence_snippets": [
-        "nities /graphify . --cluster-only --exclude-hubs 99 # suppress utility super-hubs from god-node rankings /graphify . --no-viz # skip the HTML, just the report + JSON /graphify . --wiki # build a markdown wiki from the graph graphify export callflow-html # Mermaid architecture/call",
-        "# the overlay tags nodes preferred/tentative/contested (recency-weighted, with provenance); # graphify explain / query then show a \"Lesson:\" hint, flagged \"code changed — re-verify\" when the source moved on graphify uninstall # remove from all pla"
+        "nities /graphify . --cluster-only --exclude-hubs 99 # suppress utility super-hubs from god-node rankings /graphify . --no-viz # skip the HTML, just the report + JSON /graphify . --wiki # build a markdown wiki from the graph graphify export callflow-html # Mermaid architecture/call"
       ],
       "predictive_performance_evidence": "NONE",
       "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
@@ -1328,7 +1326,7 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 74.781,
+      "discovery_priority_score": 74.688,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "889a3df86a89a365880b4bc1488bcf4c039f265e",
@@ -1412,7 +1410,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 74.764,
+      "discovery_priority_score": 74.653,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "7657031ac01184afe2cb220f5ee3545573b5e843",
@@ -1483,12 +1481,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 73.983,
+      "discovery_priority_score": 73.969,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "91061b937de176bf36380bfcfb217110e724c403",
+      "repository_commit_sha": "9a2f03a6bf8408f155591304c78aab20ca5c44cc",
       "repository_commit_status": "ok",
-      "content_ref": "91061b937de176bf36380bfcfb217110e724c403",
+      "content_ref": "9a2f03a6bf8408f155591304c78aab20ca5c44cc",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1521,7 +1519,7 @@
         {
           "path": "requirements.txt",
           "status": "ok",
-          "bytes": 1225
+          "bytes": 1151
         },
         {
           "path": "package.json",
@@ -1558,7 +1556,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 73.656,
+      "discovery_priority_score": 73.544,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "ce364e457aab288863a5707e7b3df79786ad07f2",
@@ -1627,12 +1625,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "ENGINEERING_VERIFICATION",
-      "discovery_priority_score": 72.476,
+      "discovery_priority_score": 72.432,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f3fc5632f401156837ee3872f14fe33ccf1024ea",
+      "repository_commit_sha": "49dd158d1076134a641b33efb035946536778336",
       "repository_commit_status": "ok",
-      "content_ref": "f3fc5632f401156837ee3872f14fe33ccf1024ea",
+      "content_ref": "49dd158d1076134a641b33efb035946536778336",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1640,7 +1638,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 16912
+          "bytes": 16461
         },
         {
           "path": "README.rst",
@@ -1702,7 +1700,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 71.897,
+      "discovery_priority_score": 71.82,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "d1f58a6a9e20764b25ee28773df5355512213dfa",
@@ -1782,13 +1780,82 @@
     },
     {
       "inspection_rank": 23,
+      "canonical_ref": "langflow-ai/langflow",
+      "source_ranks": [
+        40
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.713,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
+      "repository_commit_status": "ok",
+      "content_ref": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 4729
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 22624
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 60
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 24,
       "canonical_ref": "msitarzewski/agency-agents",
       "source_ranks": [
         39
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.722,
+      "discovery_priority_score": 71.609,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "f99f6aa910a442b0197b768ce0ea7751e35e2060",
@@ -1869,75 +1936,6 @@
       "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
     },
     {
-      "inspection_rank": 24,
-      "canonical_ref": "langflow-ai/langflow",
-      "source_ranks": [
-        40
-      ],
-      "tier": "TARGETED_LOCAL_REPRODUCTION",
-      "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.71,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
-      "repository_commit_status": "ok",
-      "content_ref": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 4729
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "ok",
-          "bytes": 22624
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "ok",
-          "bytes": 60
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [],
-      "evidence_snippets": [],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
       "inspection_rank": 25,
       "canonical_ref": "Shubhamsaboo/awesome-llm-apps",
       "source_ranks": [
@@ -1945,7 +1943,7 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.234,
+      "discovery_priority_score": 71.123,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "4bf51ab704fb2c5b3803cd5191b30d7dcdb51dc2",
