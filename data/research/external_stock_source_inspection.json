@@ -23,7 +23,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 96.215,
+      "discovery_priority_score": 95.94,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "e51928e27119cb17bebc005be2696b75e0a9e688",
@@ -106,12 +106,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 94.196,
+      "discovery_priority_score": 94.194,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "886b0a27889e4e594fd495fa38c37faa3e0f28b4",
+      "repository_commit_sha": "dcdde2414f07f13b3bbb095428d9c6cc41492588",
       "repository_commit_status": "ok",
-      "content_ref": "886b0a27889e4e594fd495fa38c37faa3e0f28b4",
+      "content_ref": "dcdde2414f07f13b3bbb095428d9c6cc41492588",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -119,7 +119,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 66541
+          "bytes": 67296
         },
         {
           "path": "README.rst",
@@ -129,7 +129,7 @@
         {
           "path": "pyproject.toml",
           "status": "ok",
-          "bytes": 6537
+          "bytes": 6584
         },
         {
           "path": "setup.py",
@@ -178,7 +178,7 @@
         "es). Some anomaly detection scorers are also able to exploit these predictive distributions. * **Conformal Prediction Support:** Our conformal prediction models allow to generate probabilistic forecasts with calibrated quantile intervals for any pre-trained global forecasting model. * **Past and Future Covariates",
         "mpaign=pr-badge&utm_content=badge) **Darts** is a Python library for user-friendly forecasting and anomaly detection on time series. It contains a variety of models, from classics such as ARIMA to deep neural networks. The forecasting models can all be used in the same way, using `fit()` and `predict()` functions, sim",
         "using `fit()` and `predict()` functions, similar to scikit-learn. The library also makes it easy to backtest models, combine the predictions of several models, and take external data into account. Darts supports both univariate and multivariate time series and models. The ML-based models can be trained on potentially l",
-        "roject] name = \"darts\" version = \"0.47.0\" description = \"A python library for easy manipulation and forecasting of time series.\" readme = \"README.md\" requires-python = \">=3.11\" license = \"Apache-2.0\" keywords = [\"time series\", \"forecasting\"] maintainers = [ {name = \"Unit8 SA\", email = \"darts@unit8.co\"} ] classifier"
+        "roject] name = \"darts\" version = \"0.48.1\" description = \"A python library for easy manipulation and forecasting of time series.\" readme = \"README.md\" requires-python = \">=3.11\" license = \"Apache-2.0\" keywords = [\"time series\", \"forecasting\"] maintainers = [ {name = \"Unit8 SA\", email = \"darts@unit8.co\"} ] classifier"
       ],
       "predictive_performance_evidence": "NONE",
       "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
@@ -196,12 +196,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 88.128,
+      "discovery_priority_score": 88.129,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f84845c864b6e2af22791c18fcf89ac2a21f1434",
+      "repository_commit_sha": "97df02b1f0b9751f66f8278db9f3a0bcfe2a3bd2",
       "repository_commit_status": "ok",
-      "content_ref": "f84845c864b6e2af22791c18fcf89ac2a21f1434",
+      "content_ref": "97df02b1f0b9751f66f8278db9f3a0bcfe2a3bd2",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -271,12 +271,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 86.91,
+      "discovery_priority_score": 87.156,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "1394a3f72aa4393e1a98f51b382434c4b4c2d972",
+      "repository_commit_sha": "e8f5503e9b86d5c2710b0c76b1f686703968c9df",
       "repository_commit_status": "ok",
-      "content_ref": "1394a3f72aa4393e1a98f51b382434c4b4c2d972",
+      "content_ref": "e8f5503e9b86d5c2710b0c76b1f686703968c9df",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -284,7 +284,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 25932
+          "bytes": 27258
         },
         {
           "path": "README.rst",
@@ -294,7 +294,7 @@
         {
           "path": "pyproject.toml",
           "status": "ok",
-          "bytes": 2428
+          "bytes": 2477
         },
         {
           "path": "setup.py",
@@ -330,7 +330,7 @@
       ],
       "evidence_snippets": [
         "Technical Analyst: Utilizes technical indicators (like MACD and RSI) to detect trading patterns and forecast price movements. The selected analysts work at the same time, each on its own tools, and the research debate starts once all of their reports are in. <p align=\"center\"> <img src=\"assets/analyst.png\" width=\"1",
-        "rompts from flags such as `--ticker` and `--date`, the run's settings recorded in every report, and backtests that see only data published by each analysis date. - [2026-09] **TradingAgents v0.5.1** released with a package layout organised by what each module holds (import paths moved), optional Jev screening of social",
+        "t --> - [2026-10] **TradingAgents v0.7.0** released with runs on your own ChatGPT Plus or Pro plan, backtests scored from the first close after each decision, a note at start-up when a newer release is out, and a wheel attached to each GitHub release. - [2026-10] **TradingAgents v0.6.0** released with reports saved as",
         "r registry (NVIDIA, Kimi, Groq, Mistral, Bedrock, and any OpenAI-compatible endpoint), FRED and Polymarket data vendors, a current-generation model catalog, and a CI gate. - [2026-05] **TradingAgents v0.2.5** released with the grounded Sentiment Analyst, GPT-5.5 etc. model coverage, Qwen/GLM/MiniMax dual-region support",
         "<p align=\"center\"> <img src=\"tradingagents/assets/tauric-logo.svg\" width=\"60%\" alt=\"Tauric Research\"> </p> <div align=\"center\" style=\"line-height: 1;\"> <a href=\"https://arxiv.org/abs/2412.20138\" target=\"_blank\"><img alt=\"arXiv\" src=\"https://img.shields.io/badge/arXiv-2412.20138-B31B1B?logo=arxiv\"/></a> <a"
       ],
@@ -350,7 +350,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 86.55,
+      "discovery_priority_score": 86.557,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "94f06c1969dfc1834001269d79d3ad0972d9dee6",
@@ -420,12 +420,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.87,
+      "discovery_priority_score": 85.83,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "aab6789d67577ca6f2896ea1684b4dd09c3569df",
+      "repository_commit_sha": "61bd26fa11c020ba0b31dcdfef77e99c9d52bb7d",
       "repository_commit_status": "ok",
-      "content_ref": "aab6789d67577ca6f2896ea1684b4dd09c3569df",
+      "content_ref": "61bd26fa11c020ba0b31dcdfef77e99c9d52bb7d",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -500,6 +500,88 @@
     },
     {
       "inspection_rank": 7,
+      "canonical_ref": "facebook/prophet",
+      "source_ranks": [
+        103
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "DIRECT_PREDICTIVE",
+      "discovery_priority_score": 85.757,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "0cf18fc38e002cbe7f2cf77a81120e6c26d5b73d",
+      "repository_commit_status": "ok",
+      "content_ref": "0cf18fc38e002cbe7f2cf77a81120e6c26d5b73d",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 13399
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "time series",
+        "uncertainty",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "# Prophet: Automatic Forecasting Procedure ![Build](https://github.com/facebook/prophet/workflows/Build/badge.svg) [![PyPI Version](https://img.shields.io/pypi/v/prophet.svg)](https://pypi.python.org/pypi/prophet) [![PyPI Downloads Monthly",
+        "62/facebook-prophet-in-2023-and-beyond-c5086151c138) ----- Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several s",
+        "ed on holidays version 0.18. ### Version 1.1.1 (2022.09.08) - (Python) Improved runtime (3-7x) of uncertainty predictions via vectorization. - Bugfixes relating to Python package versions and R holiday objects. ### Version 1.1 (2022.06.25) - Replaced `pystan2` dependency with `cmdstan` + `cmdstanpy`. - Pre-packaged",
+        "ll.packages('remotes') remotes::install_github('facebook/prophet@*release', subdir = 'R') ``` #### Experimental backend - cmdstanr You can also choose an experimental alternative stan backend called `cmdstanr`. Once you've installed `prophet`, follow these instructions to use `cmdstanr` instead of `rstan` as the back",
+        "tware](https://code.facebook.com/projects/) released by Facebook's [Core Data Science team](https://research.fb.com/category/data-science/). It is available for download on [CRAN](https://cran.r-project.org/package=prophet) and [PyPI](https://pypi.python.org/pypi/prophet/). ## Important links - Homepage: https://face"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 8,
       "canonical_ref": "Nixtla/neuralforecast",
       "source_ranks": [
         105,
@@ -507,12 +589,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.739,
+      "discovery_priority_score": 85.75,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f02df846092383aea082f3d79d79ea030206fa07",
+      "repository_commit_sha": "6c11accfbcfdd62a40ef69a7c81e3d9c7f272682",
       "repository_commit_status": "ok",
-      "content_ref": "f02df846092383aea082f3d79d79ea030206fa07",
+      "content_ref": "6c11accfbcfdd62a40ef69a7c81e3d9c7f272682",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -587,88 +669,6 @@
       "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
     },
     {
-      "inspection_rank": 8,
-      "canonical_ref": "facebook/prophet",
-      "source_ranks": [
-        103
-      ],
-      "tier": "DEEP_LOCAL_REPRODUCTION",
-      "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 85.727,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f931ceb204932e92371982eb3f1745ba3b6fe73a",
-      "repository_commit_status": "ok",
-      "content_ref": "f931ceb204932e92371982eb3f1745ba3b6fe73a",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 13399
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [
-        "forecast",
-        "forecasting",
-        "time series",
-        "uncertainty",
-        "experiment",
-        "research"
-      ],
-      "evidence_snippets": [
-        "# Prophet: Automatic Forecasting Procedure ![Build](https://github.com/facebook/prophet/workflows/Build/badge.svg) [![PyPI Version](https://img.shields.io/pypi/v/prophet.svg)](https://pypi.python.org/pypi/prophet) [![PyPI Downloads Monthly",
-        "62/facebook-prophet-in-2023-and-beyond-c5086151c138) ----- Prophet is a procedure for forecasting time series data based on an additive model where non-linear trends are fit with yearly, weekly, and daily seasonality, plus holiday effects. It works best with time series that have strong seasonal effects and several s",
-        "ed on holidays version 0.18. ### Version 1.1.1 (2022.09.08) - (Python) Improved runtime (3-7x) of uncertainty predictions via vectorization. - Bugfixes relating to Python package versions and R holiday objects. ### Version 1.1 (2022.06.25) - Replaced `pystan2` dependency with `cmdstan` + `cmdstanpy`. - Pre-packaged",
-        "ll.packages('remotes') remotes::install_github('facebook/prophet@*release', subdir = 'R') ``` #### Experimental backend - cmdstanr You can also choose an experimental alternative stan backend called `cmdstanr`. Once you've installed `prophet`, follow these instructions to use `cmdstanr` instead of `rstan` as the back",
-        "tware](https://code.facebook.com/projects/) released by Facebook's [Core Data Science team](https://research.fb.com/category/data-science/). It is available for download on [CRAN](https://cran.r-project.org/package=prophet) and [PyPI](https://pypi.python.org/pypi/prophet/). ## Important links - Homepage: https://face"
-      ],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
       "inspection_rank": 9,
       "canonical_ref": "microsoft/qlib",
       "source_ranks": [
@@ -677,7 +677,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 84.821,
+      "discovery_priority_score": 84.799,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "54355232463878d2eebb91fe0ee5fa7fa1f5976c",
@@ -764,12 +764,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 84.534,
+      "discovery_priority_score": 84.535,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "25991d6977f52ff72d1a6273d9f15ca47623b236",
+      "repository_commit_sha": "e3f057376ac3d9140069f44b3937107dc3cc4ff4",
       "repository_commit_status": "ok",
-      "content_ref": "25991d6977f52ff72d1a6273d9f15ca47623b236",
+      "content_ref": "e3f057376ac3d9140069f44b3937107dc3cc4ff4",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -850,7 +850,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 80.684,
+      "discovery_priority_score": 80.52,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "228791fb499afffb54b46200aca536f79142f117",
@@ -926,7 +926,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 78.894,
+      "discovery_priority_score": 78.721,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "67b630e67f6a18c9e9be918d9b4337c960db1e9a",
@@ -1014,12 +1014,12 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 77.747,
+      "discovery_priority_score": 77.744,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "5eb96d07467045a33165203fb413b70d1356cd91",
+      "repository_commit_sha": "15637f25390fcc516fe10c0309d88c0a9aa8d65b",
       "repository_commit_status": "ok",
-      "content_ref": "5eb96d07467045a33165203fb413b70d1356cd91",
+      "content_ref": "15637f25390fcc516fe10c0309d88c0a9aa8d65b",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1100,12 +1100,12 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 77.617,
+      "discovery_priority_score": 77.664,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "c75e8476e26d18b7617643bc2ae082fae8eae431",
+      "repository_commit_sha": "aa093a843da5edbf323c0b4145c9b6a0db3ecde8",
       "repository_commit_status": "ok",
-      "content_ref": "c75e8476e26d18b7617643bc2ae082fae8eae431",
+      "content_ref": "aa093a843da5edbf323c0b4145c9b6a0db3ecde8",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1113,7 +1113,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 16597
+          "bytes": 18154
         },
         {
           "path": "README.rst",
@@ -1123,7 +1123,7 @@
         {
           "path": "pyproject.toml",
           "status": "ok",
-          "bytes": 7655
+          "bytes": 7756
         },
         {
           "path": "setup.py",
@@ -1169,156 +1169,6 @@
     },
     {
       "inspection_rank": 15,
-      "canonical_ref": "unclecode/crawl4ai",
-      "source_ranks": [
-        83
-      ],
-      "tier": "TARGETED_LOCAL_REPRODUCTION",
-      "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 76.633,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "8afd0a68064ff7049303c9f9d037ab6228aac43c",
-      "repository_commit_status": "ok",
-      "content_ref": "8afd0a68064ff7049303c9f9d037ab6228aac43c",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 26913
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "ok",
-          "bytes": 2510
-        },
-        {
-          "path": "setup.py",
-          "status": "ok",
-          "bytes": 2158
-        },
-        {
-          "path": "setup.cfg",
-          "status": "ok",
-          "bytes": 37
-        },
-        {
-          "path": "requirements.txt",
-          "status": "ok",
-          "bytes": 687
-        },
-        {
-          "path": "package.json",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [
-        "monitoring",
-        "experiment",
-        "research"
-      ],
-      "evidence_snippets": [
-        "`/pdf`, `/execute_js`. - 🤖 **MCP**: connect Claude Code and other agents to your own server. - 📊 **Monitoring dashboard and playground**, a browser pool with pre-warmed pages. - 🏗️ **AMD64 and ARM64** images. ☁️ Rather not run a server? The cloud is the same idea, hosted. [Get a key →](https://crawl4ai.com/?ref=readm",
-        "4ai.com/docs?ref=readme#search) - 💬 **Answers**: `GET /answer` gives a direct answer to a question (experimental). [Docs →](https://crawl4ai.com/docs?ref=readme#answer) - 🧪 **Extraction without your own LLM key**: `POST /extract`. [Docs →](https://crawl4ai.com/docs?ref=readme#extract) - 🧗 **JS-heavy pages and bot walls",
-        "s to my dad, and never stopped building. In grad school I specialized in NLP and built crawlers for research. That’s where I learned how much extraction matters. In 2023, I needed web-to-Markdown. The “open source” option wanted an account, API token, and $16, and still under-delivered. I went turbo anger mode, built"
-      ],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
-      "inspection_rank": 16,
-      "canonical_ref": "Graphify-Labs/graphify",
-      "source_ranks": [
-        54
-      ],
-      "tier": "DEEP_LOCAL_REPRODUCTION",
-      "lane": "PROVENANCE_MEMORY",
-      "discovery_priority_score": 76.405,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "b4e6307bf170f27e0cb888c03f4af9308d531a42",
-      "repository_commit_status": "ok",
-      "content_ref": "b4e6307bf170f27e0cb888c03f4af9308d531a42",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 31056
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "ok",
-          "bytes": 8667
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [
-        "ranking"
-      ],
-      "evidence_snippets": [
-        "nities /graphify . --cluster-only --exclude-hubs 99 # suppress utility super-hubs from god-node rankings /graphify . --no-viz # skip the HTML, just the report + JSON /graphify . --wiki # build a markdown wiki from the graph graphify export callflow-html # Mermaid architecture/call"
-      ],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
-      "inspection_rank": 17,
       "canonical_ref": "awslabs/gluonts",
       "source_ranks": [
         114,
@@ -1326,12 +1176,12 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 74.688,
+      "discovery_priority_score": 77.177,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "889a3df86a89a365880b4bc1488bcf4c039f265e",
+      "repository_commit_sha": "d60556ca71167a3ec1ea807b491dd982d1de2112",
       "repository_commit_status": "ok",
-      "content_ref": "889a3df86a89a365880b4bc1488bcf4c039f265e",
+      "content_ref": "d60556ca71167a3ec1ea807b491dd982d1de2112",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1403,6 +1253,156 @@
       "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
     },
     {
+      "inspection_rank": 16,
+      "canonical_ref": "unclecode/crawl4ai",
+      "source_ranks": [
+        83
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 76.755,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "94b67888ca8b335ff2121423a50e06dd27661922",
+      "repository_commit_status": "ok",
+      "content_ref": "94b67888ca8b335ff2121423a50e06dd27661922",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 27356
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 2510
+        },
+        {
+          "path": "setup.py",
+          "status": "ok",
+          "bytes": 2158
+        },
+        {
+          "path": "setup.cfg",
+          "status": "ok",
+          "bytes": 37
+        },
+        {
+          "path": "requirements.txt",
+          "status": "ok",
+          "bytes": 687
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "monitoring",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "`/pdf`, `/execute_js`. - 🤖 **MCP**: connect Claude Code and other agents to your own server. - 📊 **Monitoring dashboard and playground**, a browser pool with pre-warmed pages. - 🏗️ **AMD64 and ARM64** images. ☁️ Rather not run a server? The cloud is the same idea, hosted. [Get a key →](https://crawl4ai.com/?ref=readm",
+        "wl4ai.com/docs?ref=readme#serp) - 💬 **Answers**: `GET /answer` gives a direct answer to a question (experimental). [Docs →](https://crawl4ai.com/docs?ref=readme#answer) - 🧪 **Extraction without your own LLM key**: `POST /extract`. [Docs →](https://crawl4ai.com/docs?ref=readme#extract) - 🧗 **JS-heavy pages and bot walls",
+        "s to my dad, and never stopped building. In grad school I specialized in NLP and built crawlers for research. That’s where I learned how much extraction matters. In 2023, I needed web-to-Markdown. The “open source” option wanted an account, API token, and $16, and still under-delivered. I went turbo anger mode, built"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 17,
+      "canonical_ref": "Graphify-Labs/graphify",
+      "source_ranks": [
+        54
+      ],
+      "tier": "DEEP_LOCAL_REPRODUCTION",
+      "lane": "PROVENANCE_MEMORY",
+      "discovery_priority_score": 76.36,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "86c57be8204673c2a1b9849a3292a7dd3ab373d8",
+      "repository_commit_status": "ok",
+      "content_ref": "86c57be8204673c2a1b9849a3292a7dd3ab373d8",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 34777
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 9056
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "ranking"
+      ],
+      "evidence_snippets": [
+        "nities /graphify . --cluster-only --exclude-hubs 99 # suppress utility super-hubs from god-node rankings /graphify . --no-viz # skip the HTML, just the report + JSON /graphify . --wiki # build a markdown wiki from the graph graphify export callflow-html # Mermaid architecture/call"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
       "inspection_rank": 18,
       "canonical_ref": "666ghj/MiroFish",
       "source_ranks": [
@@ -1410,7 +1410,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 74.653,
+      "discovery_priority_score": 74.954,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "7657031ac01184afe2cb220f5ee3545573b5e843",
@@ -1481,12 +1481,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 73.969,
+      "discovery_priority_score": 73.978,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "9a2f03a6bf8408f155591304c78aab20ca5c44cc",
+      "repository_commit_sha": "ef4af8775428209a682dbae665fbb7b65fa82459",
       "repository_commit_status": "ok",
-      "content_ref": "9a2f03a6bf8408f155591304c78aab20ca5c44cc",
+      "content_ref": "ef4af8775428209a682dbae665fbb7b65fa82459",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1519,7 +1519,7 @@
         {
           "path": "requirements.txt",
           "status": "ok",
-          "bytes": 1151
+          "bytes": 1078
         },
         {
           "path": "package.json",
@@ -1556,12 +1556,12 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "INFORMATION_RETRIEVAL",
-      "discovery_priority_score": 73.544,
+      "discovery_priority_score": 73.757,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "ce364e457aab288863a5707e7b3df79786ad07f2",
+      "repository_commit_sha": "7a21cd76952c7fe44a7fc5a6113a5b2b8a16bb32",
       "repository_commit_status": "ok",
-      "content_ref": "ce364e457aab288863a5707e7b3df79786ad07f2",
+      "content_ref": "7a21cd76952c7fe44a7fc5a6113a5b2b8a16bb32",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1569,7 +1569,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 15488
+          "bytes": 15872
         },
         {
           "path": "README.rst",
@@ -1625,7 +1625,7 @@
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "ENGINEERING_VERIFICATION",
-      "discovery_priority_score": 72.432,
+      "discovery_priority_score": 72.308,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "49dd158d1076134a641b33efb035946536778336",
@@ -1694,13 +1694,170 @@
     },
     {
       "inspection_rank": 22,
+      "canonical_ref": "langflow-ai/langflow",
+      "source_ranks": [
+        40
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.707,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "972d56c47d3830d17060ee85cfaad152df823041",
+      "repository_commit_status": "ok",
+      "content_ref": "972d56c47d3830d17060ee85cfaad152df823041",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 5629
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "ok",
+          "bytes": 23381
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "ok",
+          "bytes": 60
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [],
+      "evidence_snippets": [],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 23,
+      "canonical_ref": "msitarzewski/agency-agents",
+      "source_ranks": [
+        39
+      ],
+      "tier": "TARGETED_LOCAL_REPRODUCTION",
+      "lane": "RESEARCH_AUTOMATION",
+      "discovery_priority_score": 71.633,
+      "selection_basis": "queue_discovery_priority_only",
+      "source_inspection_status": "SOURCE_CODE_INSPECTED",
+      "repository_commit_sha": "652b2692f8d8ec2b1f1a38e559073e287dfdc469",
+      "repository_commit_status": "ok",
+      "content_ref": "652b2692f8d8ec2b1f1a38e559073e287dfdc469",
+      "static_only": true,
+      "external_code_executed": false,
+      "external_code_installed": false,
+      "files": [
+        {
+          "path": "README.md",
+          "status": "ok",
+          "bytes": 86441
+        },
+        {
+          "path": "README.rst",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "pyproject.toml",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.py",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "setup.cfg",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "requirements.txt",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "package.json",
+          "status": "http_404",
+          "bytes": 0
+        },
+        {
+          "path": "environment.yml",
+          "status": "http_404",
+          "bytes": 0
+        }
+      ],
+      "mechanism_terms_found": [
+        "forecast",
+        "forecasting",
+        "anomaly",
+        "ranking",
+        "pit",
+        "provenance",
+        "drift",
+        "monitoring",
+        "experiment",
+        "research"
+      ],
+      "evidence_snippets": [
+        "roposals that persuade, not just comply | | 📊 [Pipeline Analyst](sales/sales-pipeline-analyst.md) | Forecasting, pipeline health, deal velocity, RevOps | Pipeline reviews, forecast accuracy, revenue operations | | 🗺️ [Account Strategist](sales/sales-account-strategist.md) | Land-and-expand, QBRs, stakeholder mapping |",
+        "currently registers only ~119 agents and silently drops the rest ([upstream bug](https://github.com/anomalyco/opencode/issues/27988)). Installing a subset with `--division` keeps you under that limit. The installer warns you when a selection would exceed it. See the [Multi-Tool Integrations](#-multi-tool-integrations)",
+        "ns | | 🔎 [Search Relevance Engineer](engineering/engineering-search-relevance-engineer.md) | Search ranking & relevance | Query understanding, embeddings, ranking/eval, relevance tuning | | 🔐 [Identity & Access Engineer](engineering/engineering-identity-access-engineer.md) | AuthN/AuthZ & IAM | OAuth/OIDC/SAML, SSO, RB",
+        "tabase-reliability-engineer.md) | Database reliability (DBRE) | HA/replication, automated failover, PITR backups, zero-downtime ops | | 🛠️ [Developer Tooling Engineer](engineering/engineering-developer-tooling-engineer.md) | CLI & developer tooling | Command-line tools, internal DX, build/dev workflows | | 📡 [IoT Fleet",
+        "extraction, graph-enhanced RAG | Structuring documents into queryable Neo4j graphs with LangGraph; provenance, contradiction tracking, subgraph retrieval | | 🌏 [China Network Engineer](engineering/engineering-china-network-engineer.md) | Huawei VRP, H3C Comware, Ruijie RGOS, Hillstone StoneOS | Routing/switching/firew",
+        "🏺 [Codebase Archaeologist](specialized/specialized-codebase-archaeologist.md) | Multi-tool codebase drift audits | Detecting silent drift across Claude/Cursor/Copilot/Windsurf edits | | 🧾 [Resume Tailor](specialized/resume-tailor.md) | Candidate-side resume optimization | JD mapping, ATS keyword alignment, experience-t",
+        "or.md) | CI/CD, infrastructure automation, cloud ops | Pipeline development, deployment automation, monitoring | | 🌐 [Network Engineer](engineering/engineering-network-engineer.md) | Cisco IOS/IOS-XE, Juniper Junos, Palo Alto PAN-OS | Router/switch/firewall configuration, BGP/OSPF, ACLs, show-output troubleshooting | |"
+      ],
+      "predictive_performance_evidence": "NONE",
+      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
+      "research_only": true,
+      "production_changed": false,
+      "promotion_allowed": false,
+      "frozen_holdout_used": false,
+      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
+    },
+    {
+      "inspection_rank": 24,
       "canonical_ref": "uber/orbit",
       "source_ranks": [
         413
       ],
       "tier": "DEEP_LOCAL_REPRODUCTION",
       "lane": "DIRECT_PREDICTIVE",
-      "discovery_priority_score": 71.82,
+      "discovery_priority_score": 71.627,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
       "repository_commit_sha": "d1f58a6a9e20764b25ee28773df5355512213dfa",
@@ -1779,163 +1936,6 @@
       "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
     },
     {
-      "inspection_rank": 23,
-      "canonical_ref": "langflow-ai/langflow",
-      "source_ranks": [
-        40
-      ],
-      "tier": "TARGETED_LOCAL_REPRODUCTION",
-      "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.713,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
-      "repository_commit_status": "ok",
-      "content_ref": "504c02fc47e76087b82b0e7cbe4186e9cdd916d4",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 4729
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "ok",
-          "bytes": 22624
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "ok",
-          "bytes": 60
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [],
-      "evidence_snippets": [],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
-      "inspection_rank": 24,
-      "canonical_ref": "msitarzewski/agency-agents",
-      "source_ranks": [
-        39
-      ],
-      "tier": "TARGETED_LOCAL_REPRODUCTION",
-      "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.609,
-      "selection_basis": "queue_discovery_priority_only",
-      "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "f99f6aa910a442b0197b768ce0ea7751e35e2060",
-      "repository_commit_status": "ok",
-      "content_ref": "f99f6aa910a442b0197b768ce0ea7751e35e2060",
-      "static_only": true,
-      "external_code_executed": false,
-      "external_code_installed": false,
-      "files": [
-        {
-          "path": "README.md",
-          "status": "ok",
-          "bytes": 86245
-        },
-        {
-          "path": "README.rst",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "pyproject.toml",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.py",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "setup.cfg",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "requirements.txt",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "package.json",
-          "status": "http_404",
-          "bytes": 0
-        },
-        {
-          "path": "environment.yml",
-          "status": "http_404",
-          "bytes": 0
-        }
-      ],
-      "mechanism_terms_found": [
-        "forecast",
-        "forecasting",
-        "anomaly",
-        "ranking",
-        "pit",
-        "provenance",
-        "drift",
-        "monitoring",
-        "experiment",
-        "research"
-      ],
-      "evidence_snippets": [
-        "roposals that persuade, not just comply | | 📊 [Pipeline Analyst](sales/sales-pipeline-analyst.md) | Forecasting, pipeline health, deal velocity, RevOps | Pipeline reviews, forecast accuracy, revenue operations | | 🗺️ [Account Strategist](sales/sales-account-strategist.md) | Land-and-expand, QBRs, stakeholder mapping |",
-        "currently registers only ~119 agents and silently drops the rest ([upstream bug](https://github.com/anomalyco/opencode/issues/27988)). Installing a subset with `--division` keeps you under that limit. The installer warns you when a selection would exceed it. See the [Multi-Tool Integrations](#-multi-tool-integrations)",
-        "ns | | 🔎 [Search Relevance Engineer](engineering/engineering-search-relevance-engineer.md) | Search ranking & relevance | Query understanding, embeddings, ranking/eval, relevance tuning | | 🔐 [Identity & Access Engineer](engineering/engineering-identity-access-engineer.md) | AuthN/AuthZ & IAM | OAuth/OIDC/SAML, SSO, RB",
-        "tabase-reliability-engineer.md) | Database reliability (DBRE) | HA/replication, automated failover, PITR backups, zero-downtime ops | | 🛠️ [Developer Tooling Engineer](engineering/engineering-developer-tooling-engineer.md) | CLI & developer tooling | Command-line tools, internal DX, build/dev workflows | | 📡 [IoT Fleet",
-        "extraction, graph-enhanced RAG | Structuring documents into queryable Neo4j graphs with LangGraph; provenance, contradiction tracking, subgraph retrieval | | 🌏 [China Network Engineer](engineering/engineering-china-network-engineer.md) | Huawei VRP, H3C Comware, Ruijie RGOS, Hillstone StoneOS | Routing/switching/firew",
-        "🏺 [Codebase Archaeologist](specialized/specialized-codebase-archaeologist.md) | Multi-tool codebase drift audits | Detecting silent drift across Claude/Cursor/Copilot/Windsurf edits | | 🧾 [Resume Tailor](specialized/resume-tailor.md) | Candidate-side resume optimization | JD mapping, ATS keyword alignment, experience-t",
-        "or.md) | CI/CD, infrastructure automation, cloud ops | Pipeline development, deployment automation, monitoring | | 🌐 [Network Engineer](engineering/engineering-network-engineer.md) | Cisco IOS/IOS-XE, Juniper Junos, Palo Alto PAN-OS | Router/switch/firewall configuration, BGP/OSPF, ACLs, show-output troubleshooting | |"
-      ],
-      "predictive_performance_evidence": "NONE",
-      "required_next_stage": "LOCAL_IMPLEMENTATION_AND_REPRODUCTION",
-      "research_only": true,
-      "production_changed": false,
-      "promotion_allowed": false,
-      "frozen_holdout_used": false,
-      "evidence_level": "E2_EXTERNAL_SOURCE_INSPECTION"
-    },
-    {
       "inspection_rank": 25,
       "canonical_ref": "Shubhamsaboo/awesome-llm-apps",
       "source_ranks": [
@@ -1943,12 +1943,12 @@
       ],
       "tier": "TARGETED_LOCAL_REPRODUCTION",
       "lane": "RESEARCH_AUTOMATION",
-      "discovery_priority_score": 71.123,
+      "discovery_priority_score": 71.524,
       "selection_basis": "queue_discovery_priority_only",
       "source_inspection_status": "SOURCE_CODE_INSPECTED",
-      "repository_commit_sha": "4bf51ab704fb2c5b3803cd5191b30d7dcdb51dc2",
+      "repository_commit_sha": "fba2c90c568b3a61d8080be5cee38ed6908d8779",
       "repository_commit_status": "ok",
-      "content_ref": "4bf51ab704fb2c5b3803cd5191b30d7dcdb51dc2",
+      "content_ref": "fba2c90c568b3a61d8080be5cee38ed6908d8779",
       "static_only": true,
       "external_code_executed": false,
       "external_code_installed": false,
@@ -1956,7 +1956,7 @@
         {
           "path": "README.md",
           "status": "ok",
-          "bytes": 26096
+          "bytes": 25146
         },
         {
           "path": "README.rst",
